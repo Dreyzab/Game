@@ -1,0 +1,8 @@
+/* Import Tailwind CSS v4 */
+@import "tailwindcss";
+
+/* Import design system modules */
+@import "./shared/ui/styles/variables.css";
+@import "./shared/ui/styles/base.css";
+@import "./shared/ui/styles/components.css";
+@import "./shared/ui/styles/utilities.css";
