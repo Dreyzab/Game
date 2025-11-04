@@ -86,15 +86,30 @@
   background: rgb(153, 27, 27); /* even darker red */
 }
 
+.btn--admin {
+  background: var(--color-surface-elevated);
+  border: 1px solid var(--color-border-strong);
+  color: var(--color-text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.btn--admin:hover {
+  border-color: var(--color-cyan);
+  color: var(--color-cyan);
+}
+
+.btn--admin:active {
+  background: var(--color-secondary);
+}
+
 .btn--sm {
   padding: var(--space-4) var(--space-12);
   font-size: var(--font-size-sm);
   border-radius: var(--radius-sm);
 }
 
-.btn--md {
-  /* default size, no additional classes needed */
-}
+
 
 .btn--lg {
   padding: var(--space-10) var(--space-20);

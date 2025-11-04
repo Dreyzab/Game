@@ -2,7 +2,7 @@ import React from 'react'
 import { cn } from '../../../lib/utils/cn'
 import { Loader2 } from 'lucide-react'
 
-type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger'
+type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'admin'
 type ButtonSize = 'sm' | 'md' | 'lg' | 'xl'
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -12,10 +12,12 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
   loading?: boolean
   leftIcon?: React.ReactNode
   rightIcon?: React.ReactNode
+  uppercase?: boolean
+  tracking?: string
 }
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = 'primary', size = 'md', fullWidth = false, loading, leftIcon, rightIcon, children, disabled, ...props }, ref) => {
+  ({ className, variant = 'primary', size = 'md', fullWidth = false, loading, leftIcon, rightIcon, uppercase, tracking, children, disabled, ...props }, ref) => {
     return (
       <button
         className={cn(
@@ -24,6 +26,8 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
           size && size !== 'md' && `btn--${size}`, // md is default, no class needed
           fullWidth && 'btn--full-width',
           loading && 'opacity-50',
+          uppercase && 'uppercase tracking-[0.32em]',
+          tracking && `tracking-[${tracking}]`,
           className
         )}
         ref={ref}

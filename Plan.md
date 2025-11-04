@@ -53,10 +53,15 @@ src/shared/ui/
 - **Адаптивность:** Mobile-first подход
 
 ##### **UI Компоненты (FSD подход)**
-- **Button**: React обертка над CSS классами `.btn*`, добавляет типизацию, состояния loading/disabled и поддержку иконок
+- **Button**: React обертка над CSS классами `.btn*`, поддержка uppercase/tracking props, варианты (primary, secondary, outline, ghost, danger, admin), состояния loading/disabled, иконки
 - **AnimatedCard**: React компонент с Framer Motion анимациями, использует CSS классы `.glass-panel`
-- **MotionContainer**: Контейнер для stagger анимаций с направлениями (up, down, left, right, fade)
+- **MotionContainer**: Контейнер для stagger анимаций с направлениями (up, down, left, right, fade), once=true по умолчанию
 - **Navbar**: Адаптивная навигационная панель с мобильным меню, поддержкой брендинга и кастомных элементов
+- **Badge**: Компонент для бейджей с вариантами (solid, outline, glow)
+- **LoadingSpinner**: Компонент загрузки с размерами (sm, md, lg) и текстом
+- **BackgroundEffects**: Компонент для фоновых градиентных эффектов
+- **Heading**: Типографический компонент для заголовков (h1-h6)
+- **Text**: Типографический компонент для текста с вариантами (body, muted, accent)
 
 ##### **Архитектурный принцип**
 ```
@@ -94,10 +99,15 @@ src/
 │   ├── map-point/         # Location entities
 │   ├── player/            # Player data
 │   └── quest/             # Quest system
-├── features/              # User features
+├── features/              # Business features
+│   ├── auth/              # Authentication feature (AuthActions)
 │   ├── map/               # Map interaction
 │   └── settings/          # User preferences
 ├── pages/                 # Page components
+│   └── HomePage/          # HomePage with FSD structure
+│       ├── model/         # Page business logic
+│       │   └── useHomePage.ts # Page initialization hook
+│       └── index.tsx      # Main page component
 ├── processes/             # Business processes
 ├── shared/                # Shared code
 │   ├── api/               # API clients
@@ -110,13 +120,20 @@ src/
 │   ├── types/             # TypeScript definitions
 │   └── ui/                # UI primitives & styles
 │       ├── components/    # React UI components
-│       │   ├── Button/    # Button component
+│       │   ├── Button/    # Enhanced Button with variants
+│       │   ├── Badge/     # Badge component
+│       │   ├── LoadingSpinner/ # Loading component
+│       │   ├── BackgroundEffects/ # Background effects
+│       │   ├── Heading/   # Typography component
+│       │   ├── Text/      # Text component
 │       │   ├── AnimatedCard/ # Animated card component
 │       │   ├── MotionContainer/ # Animation container
 │       │   ├── Navbar/    # Navigation component
 │       │   └── index.ts   # Component exports
 │       └── styles/        # Modular CSS architecture
 └── widgets/               # Composite UI components
+    ├── hero/              # Hero section widget
+    └── layout/            # Page layout widget
 ```
 
 ### **Performance Optimizations**
@@ -145,6 +162,9 @@ src/
 - **TypeScript strict mode** — zero runtime errors
 - **ESLint rules** — consistent code style
 - **Pre-commit hooks** — automated linting
+- **FSD Architecture** — feature-sliced design для масштабируемости
+- **Component Composition** — reusable UI components вместо inline стилей
+- **Path Mapping** — @ алиасы для чистых импортов
 
 #### Testing Strategy
 - **Unit tests** — Jest + React Testing Library
@@ -200,3 +220,24 @@ npm run preview      # Production preview
 - **Accessibility issues** — automated testing & user feedback
 - **Mobile usability** — device testing across platforms
 - **Loading performance** — Core Web Vitals monitoring
+
+### **Current Project Status**
+
+#### ✅ **Completed Refactoring (FSD Migration)**
+- **HomePage.tsx** рефакторинг завершен — разделен на FSD слои
+- **UI компоненты** созданы и типизированы (Badge, LoadingSpinner, BackgroundEffects, Heading, Text)
+- **Button компонент** расширен (uppercase, tracking, admin variant)
+- **MotionContainer** оптимизирован (once=true по умолчанию)
+- **Архитектура** соответствует FSD принципам
+
+#### 🎯 **Component Library Status**
+- **9 UI компонентов** — полностью функциональны и типизированы
+- **@ алиасы** — настроены для чистых импортов
+- **CSS архитектура** — модульная с дизайн-токенами
+- **TypeScript** — полная типизация без ошибок
+
+#### 🚀 **Ready for Development**
+- **Production build** — оптимизирован и готов к развертыванию
+- **Dev server** — hot reload для быстрой разработки
+- **Component composition** — готов к расширению страниц
+- **Scalable architecture** — легко добавлять новые features и widgets
