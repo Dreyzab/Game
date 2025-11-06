@@ -7,7 +7,7 @@ export interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-(--color-bg)] px-4 pb-16 pt-8">
+    <div className="relative min-h-screen overflow-hidden bg-[color:var(--color-background)] px-4 pb-16 pt-8">
       <BackgroundEffects />
       <div className="relative z-10 mx-auto max-w-6xl">
         {children}

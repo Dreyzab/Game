@@ -11,8 +11,8 @@ export interface TextProps extends React.HTMLAttributes<HTMLParagraphElement> {
 }
 
 const variantClasses = {
-  body: 'text-[color:var(--color-text-primary)]',
-  muted: 'text-[color:var(--color-text-muted)]',
+  body: 'text-[color:var(--color-text)]',
+  muted: 'text-[color:var(--color-text-secondary)]',
   accent: 'text-[color:var(--color-text-secondary)]'
 }
 

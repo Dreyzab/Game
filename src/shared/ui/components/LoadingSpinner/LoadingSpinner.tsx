@@ -20,13 +20,13 @@ export const LoadingSpinner = React.forwardRef<HTMLDivElement, LoadingSpinnerPro
     return (
       <div
         className={cn(
-          'flex items-center justify-center p-4 text-(--color-text-muted)',
+          'flex items-center justify-center p-4 text-[color:var(--color-text-secondary)]',
           className
         )}
         ref={ref}
         {...props}
       >
-        <Loader2 className={cn('mr-3 animate-spin text-(--color-cyan)', sizeClasses[size])} />
+        <Loader2 className={cn('mr-3 animate-spin text-[color:var(--color-cyan)]', sizeClasses[size])} />
         {text && (
           <span className="font-mono text-xs uppercase tracking-[0.32em]">
             {text}

@@ -1,2 +1,2 @@
-export { HeroSection } from '../hero/HeroSection'
-export type { HeroSectionProps } from '../hero/HeroSection'
+export { HeroSection } from './HeroSection'
+export type { HeroSectionProps } from './HeroSection'

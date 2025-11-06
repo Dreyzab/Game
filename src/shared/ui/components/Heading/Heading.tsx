@@ -9,12 +9,12 @@ export interface HeadingProps extends React.HTMLAttributes<HTMLHeadingElement> {
 }
 
 const levelClasses = {
-  1: 'text-5xl font-bold text-[color:var(--color-text-primary)]',
-  2: 'text-4xl font-bold text-[color:var(--color-text-primary)]',
-  3: 'text-3xl font-semibold text-[color:var(--color-text-primary)]',
-  4: 'text-2xl font-semibold text-[color:var(--color-text-primary)]',
-  5: 'text-xl font-medium text-[color:var(--color-text-primary)]',
-  6: 'text-lg font-medium text-[color:var(--color-text-primary)]'
+  1: 'text-5xl font-bold text-[color:var(--color-text)]',
+  2: 'text-4xl font-bold text-[color:var(--color-text)]',
+  3: 'text-3xl font-semibold text-[color:var(--color-text)]',
+  4: 'text-2xl font-semibold text-[color:var(--color-text)]',
+  5: 'text-xl font-medium text-[color:var(--color-text)]',
+  6: 'text-lg font-medium text-[color:var(--color-text)]'
 }
 
 export const Heading = React.forwardRef<HTMLHeadingElement, HeadingProps>(

@@ -61,16 +61,6 @@ EOF
 fi
 
 echo ""
-echo "🏗️  Building project for development..."
-
-# Build the project
-npm run build
-if [ $? -ne 0 ]; then
-    echo "❌ Build failed. Please check the errors above."
-    exit 1
-fi
-
-echo ""
 echo "🎯 Starting development server..."
 echo ""
 echo "🌐 Your app will be available at: http://localhost:5173"

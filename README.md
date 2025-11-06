@@ -41,7 +41,7 @@ npm run preview
 ## 🏗️ Architecture
 
 ### **FSD (Feature-Sliced Design)**
-```
+```text
 src/
 ├── app/                    # App-wide logic
 ├── entities/              # Business entities (player, quest, map-point)
@@ -129,4 +129,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Built with ❤️ using React, TypeScript & Vite**
+## Built with ❤️ using React, TypeScript & Vite

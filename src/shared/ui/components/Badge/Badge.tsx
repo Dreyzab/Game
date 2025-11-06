@@ -13,8 +13,9 @@ export const Badge = React.forwardRef<HTMLDivElement, BadgeProps>(
     return (
       <div
         className={cn(
-          'badge',
-          variant && `badge--${variant}`,
+          // Use utility class for glow variant to match design
+          variant === 'glow' ? 'badge-glow' : 'badge',
+          variant !== 'glow' && variant && `badge--${variant}`,
           className
         )}
         ref={ref}
