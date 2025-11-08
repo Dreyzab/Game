@@ -43,6 +43,23 @@ if (!convexUrl) {
  * For now, we'll define basic types compatible with Convex function references
  */
 export type ConvexApi = {
+  mapPoints: {
+    listVisible: FunctionReference<'query', 'public', { 
+      deviceId?: string
+      userId?: string
+      bbox?: { minLat: number; maxLat: number; minLng: number; maxLng: number }
+      phase?: number
+      limit?: number 
+    }, any>
+  }
+  zones: {
+    listActiveSafeZones: FunctionReference<'query', 'public', { 
+      bbox?: { minLat: number; maxLat: number; minLng: number; maxLng: number }
+    }, any>
+    listSafeZones: FunctionReference<'query', 'public', { 
+      bbox?: { minLat: number; maxLat: number; minLng: number; maxLng: number }
+    }, any>
+  }
   player: {
     ensureByDevice: FunctionReference<'mutation', 'public', { deviceId: string }, void>
     create: FunctionReference<'mutation', 'public', { deviceId: string }, string>
@@ -63,6 +80,44 @@ export type ConvexApi = {
  * These are typed as FunctionReference but implemented as placeholders
  */
 export const api = {
+  mapPoints: {
+    listVisible: {
+      _type: 'query' as const,
+      _visibility: 'public' as const,
+      _args: ({ 
+        deviceId: undefined, 
+        userId: undefined,
+        bbox: undefined, 
+        phase: undefined,
+        limit: undefined 
+      } as {
+        deviceId?: string
+        userId?: string
+        bbox?: { minLat: number; maxLat: number; minLng: number; maxLng: number }
+        phase?: number
+        limit?: number
+      }),
+      _returnType: {} as any
+    } as ConvexApi['mapPoints']['listVisible'],
+  },
+  zones: {
+    listActiveSafeZones: {
+      _type: 'query' as const,
+      _visibility: 'public' as const,
+      _args: ({ bbox: undefined } as { 
+        bbox?: { minLat: number; maxLat: number; minLng: number; maxLng: number }
+      }),
+      _returnType: [] as any[]
+    } as ConvexApi['zones']['listActiveSafeZones'],
+    listSafeZones: {
+      _type: 'query' as const,
+      _visibility: 'public' as const,
+      _args: ({ bbox: undefined } as { 
+        bbox?: { minLat: number; maxLat: number; minLng: number; maxLng: number }
+      }),
+      _returnType: [] as any[]
+    } as ConvexApi['zones']['listSafeZones']
+  },
   player: {
     ensureByDevice: {
       _type: 'mutation' as const,
@@ -132,6 +187,118 @@ export const convexMutations = {
 }
 
 export const convexQueries = {
+  mapPoints: {
+    listVisible: async (args: { 
+      deviceId?: string
+      userId?: string
+      bbox?: { minLat: number; maxLat: number; minLng: number; maxLng: number }
+      phase?: number
+      limit?: number 
+    }) => {
+      if (convexClient) {
+        try {
+          // @ts-expect-error Allow calling by string without codegen
+          return await convexClient.query('mapPoints:listVisible', args)
+        } catch (e) {
+          console.warn('Convex query mapPoints:listVisible failed; falling back to demo', e)
+        }
+      }
+      console.log('mapPoints.listVisible called with:', args)
+      // Demo data near Freiburg
+      return {
+        points: [
+          {
+            id: 'info_bureau',
+            title: 'Информационное бюро',
+            description: 'Стартовая цель после пролога. Здесь можно получить информацию о городе.',
+            coordinates: { lng: 7.852, lat: 48.0 },
+            type: 'poi',
+            isActive: true,
+            status: 'not_found',
+            metadata: {
+              faction: 'civilians',
+              danger_level: 'low',
+              category: 'information',
+              isActiveQuestTarget: true // Пример цели активного квеста с пульсацией
+            }
+          },
+          {
+            id: 'safe_hub',
+            title: 'Безопасная зона',
+            description: 'Центральная безопасная зона Альянса',
+            coordinates: { lng: 7.86, lat: 48.005 },
+            type: 'location',
+            isActive: true,
+            status: 'not_found',
+            metadata: {
+              faction: 'alliance',
+              danger_level: 'low'
+            }
+          },
+          {
+            id: 'market_square',
+            title: 'Рыночная площадь',
+            description: 'Торговая площадь с различными услугами',
+            coordinates: { lng: 7.845, lat: 47.998 },
+            type: 'settlement',
+            isActive: true,
+            status: 'not_found',
+            metadata: {
+              faction: 'civilians',
+              danger_level: 'low',
+              services: ['trade', 'repair']
+            }
+          },
+          {
+            id: 'anomaly_zone_1',
+            title: 'Аномальная зона',
+            description: 'Опасная аномальная зона. Требуется осторожность!',
+            coordinates: { lng: 7.855, lat: 48.01 },
+            type: 'anomaly',
+            isActive: true,
+            status: 'not_found',
+            metadata: {
+              danger_level: 'high'
+            }
+          }
+        ],
+        timestamp: Date.now(),
+        ttlMs: 5 * 60 * 1000
+      }
+    }
+  },
+  zones: {
+    listActiveSafeZones: async (args: { bbox?: { minLat: number; maxLat: number; minLng: number; maxLng: number } } = {}) => {
+      if (convexClient) {
+        try {
+          // @ts-expect-error Allow calling by string without codegen
+          return await convexClient.query('zones:listSafeZones', args)
+        } catch (e) {
+          console.warn('Convex query zones:listSafeZones failed; returning demo', e)
+        }
+      }
+      console.log('zones.listSafeZones called with:', args)
+      // Demo safe zones
+      return [
+        {
+          id: 'central_safe_zone',
+          name: 'Центральная безопасная зона',
+          faction: 'alliance',
+          isActive: true,
+          polygon: [
+            { lat: 47.995, lng: 7.845 },
+            { lat: 47.995, lng: 7.865 },
+            { lat: 48.005, lng: 7.865 },
+            { lat: 48.005, lng: 7.845 },
+            { lat: 47.995, lng: 7.845 }
+          ]
+        }
+      ]
+    },
+    listSafeZones: async (args: { bbox?: { minLat: number; maxLat: number; minLng: number; maxLng: number } } = {}) => {
+      return convexQueries.zones.listActiveSafeZones(args)
+    }
+  },
   player: {
     get: async (args: { deviceId: string }) => {
       console.log('get player called with:', args)

@@ -121,8 +121,8 @@ export function ActiveQuestsWidget() {
 export function SystemStatusWidget() {
   return (
     <div className="glass-panel p-4 rounded-xl">
-      <h3 className="text-sm uppercase tracking-[0.25em] text-[var(--color-text-muted)] mb-2">Система</h3>
-      <div className="text-[var(--color-text-secondary)]">Статусы, версии, сервисы...</div>
+      <h3 className="text-sm uppercase tracking-[0.25em] [color:var(--color-text-muted)] mb-2">Система</h3>
+      <div className="[color:var(--color-text-secondary)]">Статусы, версии, сервисы...</div>
     </div>
   );
 }

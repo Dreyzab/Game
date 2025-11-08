@@ -61,13 +61,34 @@ EOF
 fi
 
 echo ""
-echo "🎯 Starting development server..."
+echo "🎯 Starting development servers..."
 echo ""
 echo "🌐 Your app will be available at: http://localhost:5173"
 echo "📊 Build output: ./dist/"
+echo "🔗 Convex backend will be available for real-time features"
 echo ""
-echo "Press Ctrl+C to stop the server"
+echo "Press Ctrl+C to stop all servers"
 echo ""
 
-# Start the development server
+# Function to cleanup background processes on script exit
+cleanup() {
+    echo ""
+    echo "🛑 Stopping servers..."
+    kill $CONVEX_PID 2>/dev/null
+    exit
+}
+
+# Set trap to cleanup on script exit
+trap cleanup SIGINT SIGTERM
+
+# Start Convex development server in background
+echo "🚀 Starting Convex backend server..."
+npm run convex:dev &
+CONVEX_PID=$!
+
+# Wait a moment for Convex to initialize
+sleep 2
+
+# Start the main development server
+echo "🚀 Starting Vite development server..."
 npm run dev

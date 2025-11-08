@@ -1,6 +1,6 @@
 import React from 'react'
 import { NavLink } from 'react-router-dom'
-import { Home, Map, BookOpen, User, Package, Settings, Wrench, Sun, Moon, Play } from 'lucide-react'
+import { Home, Map, User, Package, Settings, Wrench, Sun, Moon, Play } from 'lucide-react'
 import { cn } from '@/shared/lib/utils/cn'
 import { Routes } from '@/shared/lib/utils/navigation'
 import { useTheme } from '@/shared/hooks/useTheme'

@@ -1,8 +1,45 @@
 /* Import Tailwind CSS v4 */
 @import "tailwindcss";
 
+/* Import Mapbox GL CSS */
+@import "mapbox-gl/dist/mapbox-gl.css";
+
 /* Import design system modules */
 @import "./shared/ui/styles/variables.css";
 @import "./shared/ui/styles/base.css";
 @import "./shared/ui/styles/components.css";
 @import "./shared/ui/styles/utilities.css";
+
+/* Mapbox custom styles */
+.mapboxgl-map {
+  width: 100%;
+  height: 100%;
+  font-family: inherit;
+}
+
+.mapboxgl-canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.mapboxgl-popup-content {
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.mapboxgl-popup-tip {
+  display: none;
+}
+
+.mapboxgl-ctrl-group button {
+  @apply bg-gray-800 text-white border-gray-700;
+}
+
+.mapboxgl-ctrl-group button:hover {
+  @apply bg-gray-700;
+}
+
+.mapboxgl-marker {
+  cursor: pointer;
+}

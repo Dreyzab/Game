@@ -105,6 +105,69 @@
 - Слои зон:
   - Создаются через `map.addSource`/`map.addLayer`; обновление `setData` без пересоздания карты.
 
+## Центровка на текущем местоположении
+- Хуки:
+  - `useGeolocation({ accuracy: 'high', watch: false })` — одноразовый запрос точного положения.
+  - `useCenterOnUser({ position, getCurrentPosition })` — обёртка, которая по клику запрашивает свежий фикс и, когда координаты обновятся, выставляет `center`.
+- Использование в `MapPage`:
+```tsx
+// client/src/pages/MapPage/MapPage.tsx (фрагмент)
+const { position, isLoading: isGeoLoading, getCurrentPosition } = useGeolocation({ accuracy: 'high', watch: false })
+const { center, setCenter, handleLocateUser } = useCenterOnUser({ position, getCurrentPosition })
+
+<MapView
+  center={center}
+  // ...
+/>
+
+// Кнопка в тулбаре карты
+<MapControls
+  onCenterOnUser={handleLocateUser}
+  isGeoLoading={isGeoLoading}
+  // ...
+/>
+```
+- Что происходит под капотом:
+  - `handleLocateUser()` инициирует `getCurrentPosition()` и запоминает координаты на момент клика.
+  - После получения нового `position` хук выставляет `center` в `[lng, lat]`.
+  - `MapboxMap` ловит изменение пропа `center` и делает `jumpTo({ center })`.
+- Встроенный контрол:
+  - Дополнительно `MapboxMap` добавляет `GeolocateControl` (иконка навигации в правом верхнем углу), но UX центрации управляется через кнопку `MapControls`.
+
+## Фильтры: тип, фракция, поиск, QR‑зоны
+- Состояние UI (zustand): `useMapState`
+  - `selectedCategory: 'all' | poi | quest | npc | location | board | settlement | anomaly | 'shop'`
+  - `selectedFaction: 'all' | FactionType`
+  - `showCompleted: boolean` — отображать ли исследованные
+  - `showQRZones: boolean` — показывать ли точки‑QR‑зоны
+  - `searchQuery: string`
+- Применение фильтров: `useFilteredMapPoints(points, filters)`
+  - Категория: прямое соответствие `p.type`, для `'shop'` — сервисы в `metadata.services` (`trade|repair|crafting|upgrade`).
+  - Фракция: `p.metadata?.faction === selectedFaction`.
+  - Выполненные: скрывает `status === 'researched'`, если `showCompleted === false`.
+  - QR‑зоны: скрывает `metadata.isQRZone`, если `showQRZones === false`.
+  - Поиск: по `title`/`description` (регистронезависимый).
+  - Если известна локация пользователя — добавляет `distance` (км, Haversine).
+- Связка с UI:
+```tsx
+// Mobile фильтры (фрагмент)
+<LocationFilters
+  selectedCategory={selectedCategory}
+  onChangeCategory={setSelectedCategory}
+  showCompleted={showCompleted}
+  onToggleCompleted={setShowCompleted}
+  searchQuery={searchQuery}
+  onSearch={setSearchQuery}
+  selectedFaction={selectedFaction}
+  onChangeFaction={setSelectedFaction}
+  showQRZones={showQRZones}
+  onToggleQRZones={setShowQRZones}
+  showSafeZones={showSafeZones}
+  onToggleSafeZones={setShowSafeZones}
+/>
+```
+- Боковая легенда (desktop): `MapLegendPanel` управляет `selectedCategory`, `selectedFaction`, `showQRZones`, `showSafeZones`.
+
 ## Расширение
 - Новый тип точки:
   - Добавить тип в `MapPointType` и отрисовку в `MapPointMarker` (иконка/цвет/темы).
@@ -137,4 +200,3 @@
 
 ---
 Нужны примеры кастомного слоя/кластеризации или шаблон для собственных иконок? Скажи — добавлю с кодом.
-
