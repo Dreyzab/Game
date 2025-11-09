@@ -5,7 +5,7 @@
  * Управляет GeoJSON sources и слоями для отображения безопасных зон
  */
 
-import mapboxgl from 'mapbox-gl'
+import type { GeoJSONSource, Map } from 'mapbox-gl'
 import type { SafeZone } from '@/shared/types/map'
 
 const SAFE_ZONES_SOURCE_ID = 'safe-zones-source'
@@ -17,13 +17,13 @@ const SAFE_ZONES_LABEL_LAYER_ID = 'safe-zones-label'
  * Контрол для управления безопасными зонами
  */
 export class SafeZonesControl {
-  private map: mapboxgl.Map
+  private map: Map
   private isVisible: boolean = true
   private zones: SafeZone[] = []
   private isInitialized: boolean = false
   private styleLoadHandler?: () => void
 
-  constructor(map: mapboxgl.Map) {
+  constructor(map: Map) {
     this.map = map
     this.initialize()
   }
@@ -132,7 +132,7 @@ export class SafeZonesControl {
     }
 
     try {
-      const source = this.map.getSource(SAFE_ZONES_SOURCE_ID) as mapboxgl.GeoJSONSource | undefined
+      const source = this.map.getSource(SAFE_ZONES_SOURCE_ID) as GeoJSONSource | undefined
       if (!source) {
         return
       }

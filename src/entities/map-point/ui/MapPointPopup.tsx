@@ -21,6 +21,9 @@ import {
   AlertTriangle
 } from 'lucide-react'
 import { Button } from '@/shared/ui/components/Button'
+import { useMapPointInteraction } from '@/features/interaction/model/useMapPointInteraction'
+import type { InteractionKey } from '@/features/interaction/model/useMapPointInteraction'
+import { InteractionMenu } from '@/features/interaction/ui/InteractionMenu'
 
 export interface MapPointPopupProps {
   point: MapPoint
@@ -28,6 +31,7 @@ export interface MapPointPopupProps {
   onNavigate?: () => void
   onInteract?: () => void
   onScanQR?: () => void
+  onActionSelect?: (action: InteractionKey) => void
 }
 
 /**
@@ -119,6 +123,7 @@ export const MapPointPopup: React.FC<MapPointPopupProps> = ({
   onNavigate,
   onInteract,
   onScanQR,
+  onActionSelect,
 }) => {
   const icon = getIconForType(point.type)
   const typeLabel = getTypeLabel(point.type)
@@ -126,11 +131,12 @@ export const MapPointPopup: React.FC<MapPointPopupProps> = ({
   const dangerLevel = point.metadata?.danger_level
   const dangerColor = getDangerColor(dangerLevel)
   const hasSceneBinding = Array.isArray(point.metadata?.sceneBindings) && point.metadata.sceneBindings.length > 0
+  const { actions } = useMapPointInteraction(point)
 
   return (
     <div className="bg-gray-900 text-white rounded-lg shadow-xl overflow-hidden max-w-sm">
       {/* Заголовок */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-4">
+      <div className="bg-linear-to-r from-blue-600 to-purple-600 p-4">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-2">
             <div className="text-white">
@@ -151,6 +157,19 @@ export const MapPointPopup: React.FC<MapPointPopupProps> = ({
             </button>
           )}
         </div>
+
+        {actions && actions.length > 0 && (
+          <InteractionMenu
+            actions={actions}
+            onSelect={(key) => {
+              if (onActionSelect) {
+                onActionSelect(key)
+              } else {
+                onInteract?.()
+              }
+            }}
+          />
+        )}
       </div>
 
       {/* Контент */}
@@ -246,7 +265,7 @@ export const MapPointPopup: React.FC<MapPointPopupProps> = ({
             </Button>
           )}
 
-          {onInteract && (
+          {onInteract && actions && actions.length === 0 && (
             <Button
               size="sm"
               onClick={onInteract}

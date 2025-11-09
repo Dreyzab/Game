@@ -21,6 +21,7 @@ import {
 } from '@/shared/hooks/useMapData'
 import { useDeviceId } from '@/shared/hooks/useDeviceId'
 import type { MapPoint, BBox } from '@/shared/types/map'
+import type { InteractionKey } from '@/features/interaction/model/useMapPointInteraction'
 import { cn } from '@/shared/lib/utils/cn'
 
 export interface MapViewProps {
@@ -40,6 +41,7 @@ export interface MapViewProps {
   onNavigatePoint?: (point: MapPoint) => void
   /** Колбэк при запуске QR */
   onScanQRPoint?: (point: MapPoint) => void
+  onActionSelect?: (point: MapPoint, action: InteractionKey) => void
 }
 
 /**
@@ -54,6 +56,7 @@ export const MapView: React.FC<MapViewProps> = ({
   onInteractPoint,
   onNavigatePoint,
   onScanQRPoint,
+  onActionSelect,
 }) => {
   const { deviceId } = useDeviceId()
   
@@ -351,6 +354,14 @@ export const MapView: React.FC<MapViewProps> = ({
               onScanQR={() => {
                 console.log('📷 [MapView] Сканирование QR для точки:', point.id)
                 onScanQRPoint?.(point)
+              }}
+              onActionSelect={(key) => {
+                try {
+                  console.log('MapView action select:', key, 'for point:', point.id)
+                  onActionSelect?.(point, key)
+                } catch (e) {
+                  console.error('MapView onActionSelect error:', e)
+                }
               }}
             />
           )

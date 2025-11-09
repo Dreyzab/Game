@@ -2,11 +2,11 @@ import { v } from 'convex/values'
 import { mutation, query } from './_generated/server'
 import type { Doc } from './_generated/dataModel'
 import type { UnlockRequirements } from '../src/shared/types/map'
+import type { PlayerFlags } from '../src/shared/types/player'
 import { STARTING_SKILLS, awardXPAndLevelUp } from './gameProgress'
 
 // Types
 type PointMetadata = { danger_level?: 'low' | 'medium' | 'high' | string }
-type PlayerFlags = Record<string, boolean | number | string | undefined>
 type GameProgressInsert = {
   deviceId?: string
   userId?: string
@@ -377,7 +377,13 @@ export const addTestQRCode = mutation({
     pointId: v.string(),
   },
   handler: async (ctx, args) => {
-    if (process.env.NODE_ENV === 'production') {
+    const nodeEnv =
+      typeof globalThis !== 'undefined'
+        ? ((globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env
+            ?.NODE_ENV ?? undefined)
+        : undefined
+
+    if (nodeEnv === 'production') {
       throw new Error('addTestQRCode is not available in production')
     }
     const { pointId } = args

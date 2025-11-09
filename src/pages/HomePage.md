@@ -97,32 +97,32 @@ src/widgets/index.ts (line 1):
 export function PlayerStatusWidget() {
   return (
     <div className="glass-panel p-4 rounded-xl">
-      <h3 className="text-sm uppercase tracking-[0.25em] text-[var(--color-text-muted)] mb-2">Статус игрока</h3>
-      <div className="text-[var(--color-text-secondary)]">Данные игрока...</div>
+      <h3 className="text-sm uppercase tracking-[0.25em] text-(--color-text-muted) mb-2">Статус игрока</h3>
+      <div className="text-(--color-text-secondary)">Данные игрока...</div>
     </div>
   );
 }
 export function QuickActionsWidget() {
   return (
     <div className="glass-panel p-4 rounded-xl">
-      <h3 className="text-sm uppercase tracking-[0.25em] text-[var(--color-text-muted)] mb-2">Быстрые действия</h3>
-      <div className="text-[var(--color-text-secondary)]">Кнопки действий...</div>
+      <h3 className="text-sm uppercase tracking-[0.25em] text-(--color-text-muted) mb-2">Быстрые действия</h3>
+      <div className="text-(--color-text-secondary)">Кнопки действий...</div>
     </div>
   );
 }
 export function ActiveQuestsWidget() {
   return (
     <div className="glass-panel p-4 rounded-xl">
-      <h3 className="text-sm uppercase tracking-[0.25em] text-[var(--color-text-muted)] mb-2">Активные задания</h3>
-      <div className="text-[var(--color-text-secondary)]">Список квестов...</div>
+      <h3 className="text-sm uppercase tracking-[0.25em] text-(--color-text-muted) mb-2">Активные задания</h3>
+      <div className="text-(--color-text-secondary)">Список квестов...</div>
     </div>
   );
 }
 export function SystemStatusWidget() {
   return (
     <div className="glass-panel p-4 rounded-xl">
-      <h3 className="text-sm uppercase tracking-[0.25em] [color:var(--color-text-muted)] mb-2">Система</h3>
-      <div className="[color:var(--color-text-secondary)]">Статусы, версии, сервисы...</div>
+      <h3 className="text-sm uppercase tracking-[0.25em] text-(--color-text-muted)] mb-2">Система</h3>
+      <div className="text-(--color-text-secondary)">Статусы, версии, сервисы...</div>
     </div>
   );
 }
@@ -138,8 +138,8 @@ import { PlayerStatusWidget, QuickActionsWidget, ActiveQuestsWidget, SystemStatu
 
 function LoadingSpinner() {
   return (
-    <div className="flex items-center justify-center p-10 text-[var(--color-text-muted)]">
-      <Loader2 className="mr-3 h-5 w-5 animate-spin text-[var(--color-cyan)]" />
+    <div className="flex items-center justify-center p-10 text-(--color-text-muted)">
+      <Loader2 className="mr-3 h-5 w-5 animate-spin text-(--color-cyan)" />
       <span className="font-mono text-xs uppercase tracking-[0.32em]">Загрузка…</span>
     </div>
   );
@@ -167,7 +167,7 @@ export function ModernHomePage() {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[var(--color-bg)] px-4 pb-16 pt-8">
+    <div className="relative min-h-screen overflow-hidden bg-(--color-bg) px-4 pb-16 pt-8">
       {/* Фоновые свечения */}
       <div className="pointer-events-none absolute inset-0 opacity-60">
         <div className="absolute -left-24 top-32 h-80 w-80 rounded-full bg-[radial-gradient(circle,rgba(79,70,229,0.28),transparent_60%)] blur-3xl" />
@@ -183,11 +183,11 @@ export function ModernHomePage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <div className="badge-glow mx-auto mb-3 text-[var(--color-bg)]">
+          <div className="badge-glow mx-auto mb-3 text-(--color-bg)">
             Система QR-Boost
           </div>
-          <h1 className="text-5xl font-bold text-[var(--color-text-primary)]">QR-Boost</h1>
-          <p className="mt-4 text-sm uppercase tracking-[0.35em] text-[var(--color-text-muted)]">
+          <h1 className="text-5xl font-bold text-(--color-text-primary)">QR-Boost</h1>
+          <p className="mt-4 text-sm uppercase tracking-[0.35em] text-(--color-text-muted)">
             {getGreeting()}, сталкер!
           </p>
         </motion.div>
@@ -224,10 +224,10 @@ export function ModernHomePage() {
             <button
               type="button"
               onClick={() => navigate("/prologue")}
-              className="inline-flex items-center gap-3 rounded-full border bg-[var(--color-surface-elevated)] px-6 py-3 text-xs uppercase tracking-[0.32em] text-[var(--color-text-primary)] transition hover:text-[var(--color-cyan)]"
+              className="inline-flex items-center gap-3 rounded-full border bg-(--color-surface-elevated) px-6 py-3 text-xs uppercase tracking-[0.32em] text-(--color-text-primary) transition hover:text-(--color-cyan)"
               style={{ borderColor: "var(--color-border-strong)" }}
             >
-              <span className="h-2 w-2 rounded-full bg-[var(--color-cyan)]" />
+              <span className="h-2 w-2 rounded-full bg-(--color-cyan)" />
               Начать игру
             </button>
 
@@ -248,24 +248,24 @@ export function ModernHomePage() {
                 }
               }}
               disabled={isCreating}
-              className={`inline-flex items-center gap-3 rounded-full border bg-[var(--color-surface-elevated)] px-6 py-3 text-xs uppercase tracking-[0.32em] text-[var(--color-text-primary)] transition mr-3 ${isCreating ? "opacity-60 cursor-not-allowed" : "hover:text-[var(--color-cyan)]"}`}
+              className={`inline-flex items-center gap-3 rounded-full border bg-(--color-surface-elevated) px-6 py-3 text-xs uppercase tracking-[0.32em] text-(--color-text-primary) transition mr-3 ${isCreating ? "opacity-60 cursor-not-allowed" : "hover:text-(--color-cyan)"}`}
               style={{ borderColor: "var(--color-border-strong)" }}
             >
-              <span className="h-2 w-2 rounded-full bg-[var(--color-cyan)]" />
+              <span className="h-2 w-2 rounded-full bg-(--color-cyan)" />
               {isCreating ? "Создаём…" : "Создать игрока"}
             </button>
 
             {createMsg && (
-              <div className="mt-2 text-xs text-[var(--color-text-secondary)]">{createMsg}</div>
+              <div className="mt-2 text-xs text-(--color-text-secondary)">{createMsg}</div>
             )}
 
             <button
               type="button"
               onClick={() => console.log("Register admin (dev)")}
-              className="inline-flex items-center gap-3 rounded-full border bg-[var(--color-surface-elevated)] px-6 py-3 text-xs uppercase tracking-[0.32em] text-[var(--color-text-primary)] transition hover:text-[var(--color-cyan)]"
+              className="inline-flex items-center gap-3 rounded-full border bg-(--color-surface-elevated) px-6 py-3 text-xs uppercase tracking-[0.32em] text-(--color-text-primary) transition hover:text-(--color-cyan)"
               style={{ borderColor: "var(--color-border-strong)" }}
             >
-              <span className="h-2 w-2 rounded-full bg-[var(--color-cyan)]" />
+              <span className="h-2 w-2 rounded-full bg-(--color-cyan)" />
               Войти как Admin (dev)
             </button>
           </motion.div>

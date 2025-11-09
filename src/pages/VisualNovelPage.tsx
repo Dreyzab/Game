@@ -100,7 +100,7 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
   }, [baseSceneId, jumpToScene, startSession])
 
   return (
-    <div className="relative min-h-[100svh] bg-black text-white">
+    <div className="relative min-h-svh bg-black text-white">
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center justify-between px-4 pt-4 md:px-10">
         <div className="pointer-events-auto flex items-center gap-3">
           <Button

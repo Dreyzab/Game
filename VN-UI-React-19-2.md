@@ -79,7 +79,7 @@ export function VNScreen({ choices, onChoose, currentDialogue }) {
   return (
     <motion.div
       key={currentDialogue.id}
-      className="relative w-full min-h-[100svh]"
+      className="relative w-full min-h-svh"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -97,7 +97,7 @@ export function VNScreen({ choices, onChoose, currentDialogue }) {
       {/* Градиентный оверлей */}
       <div className="
         absolute bottom-0 left-0 right-0 h-1/2
-        bg-gradient-to-t from-black/50 via-black/20 to-transparent
+        bg-linear-to-t from-black/50 via-black/20 to-transparent
         pointer-events-none z-20
       " />
 
@@ -267,7 +267,7 @@ export const VNScreen = React.memo(
       <AnimatePresence mode="wait">
         <motion.div
           key={sceneId}
-          className="relative w-full min-h-[100dvh] overflow-hidden bg-black"
+          className="relative w-full min-h-dvh overflow-hidden bg-black"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -290,7 +290,7 @@ export const VNScreen = React.memo(
             className="
               absolute bottom-0 left-0 right-0
               h-2/5 md:h-1/2
-              bg-gradient-to-t from-black/60 via-black/30 to-transparent
+              bg-linear-to-t from-black/60 via-black/30 to-transparent
               pointer-events-none z-10
             "
           />
@@ -436,7 +436,7 @@ export function VisualNovelPage() {
   const [choices, setChoices] = useState<Choice[] | null>(null);
 
   return (
-    <div className="relative w-screen h-[100dvh]">
+    <div className="relative w-screen h-dvh">
       {/* Основной игровой слой */}
       <Activity mode={!isMenuOpen && !isSaveMenuOpen ? "visible" : "hidden"}>
         <VNScreen

@@ -16,6 +16,7 @@ import type { MapPoint } from '@/shared/types/map'
 import { Routes } from '@/shared/lib/utils/navigation'
 import { resolveSceneFromPoint } from '@/features/map/lib/resolveSceneBinding'
 import { usePlayerProgress } from '@/shared/hooks/usePlayer'
+import type { InteractionKey } from '@/features/interaction/model/useMapPointInteraction'
 
 export const MapPage: React.FC = () => {
   const navigate = useNavigate()
@@ -48,6 +49,39 @@ export const MapPage: React.FC = () => {
     },
     [navigate, progress]
   )
+
+  const handleActionSelect = useCallback(
+    (point: MapPoint, action: InteractionKey) => {
+      switch (action) {
+        case 'dialog':
+        case 'quests': {
+          if (!progress) {
+            setInteractionNotice('Нужна авторизация для взаимодействия...')
+            setSelectedPoint(point)
+            return
+          }
+          const resolution = resolveSceneFromPoint(point, progress)
+          if (resolution.sceneId) {
+            navigate(`${Routes.VISUAL_NOVEL}/${resolution.sceneId}`)
+            return
+          }
+          setInteractionNotice(resolution.reason ?? 'Сцена недоступна по условиям')
+          setSelectedPoint(point)
+          return
+        }
+        default: {
+          setInteractionNotice('Скоро: интерфейс для действия — ' + action)
+          setSelectedPoint(point)
+        }
+      }
+    },
+    [navigate, progress]
+  )
+
+  const handleScanQRPoint = useCallback((point: MapPoint) => {
+    setInteractionNotice('Требуется сканирование QR для этой точки')
+    setSelectedPoint(point)
+  }, [])
 
   useEffect(() => {
     if (!interactionNotice) return
@@ -103,6 +137,8 @@ export const MapPage: React.FC = () => {
             showSafeZones={showSafeZones}
             onSelectPoint={handleSelectPoint}
             onInteractPoint={handlePointInteract}
+            onScanQRPoint={handleScanQRPoint}
+            onActionSelect={handleActionSelect}
             className="w-full h-full"
           />
         </ErrorBoundary>

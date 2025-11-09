@@ -85,13 +85,15 @@ export function usePlayerProgress() {
         // Use Convex query when available
         const progressData = await convexQueries.player.getProgress({ deviceId })
 
+        const reputationByFaction =
+          progressData?.reputationByFaction && typeof progressData.reputationByFaction === 'object'
+            ? progressData.reputationByFaction
+            : {}
+
         const normalized: PlayerProgress = {
           ...createDefaultProgress(),
           ...progressData,
-          reputationByFaction:
-            progressData?.reputationByFaction ??
-            (progressData as { reputation?: Record<string, number> })?.reputation ??
-            {},
+          reputationByFaction,
         }
 
         setProgress(normalized)

@@ -11,6 +11,7 @@ export type MapPointType =
   | 'board'
   | 'settlement'
   | 'anomaly'
+  | 'shop'
 
 export type MapPointStatus = 'not_found' | 'discovered' | 'researched'
 
