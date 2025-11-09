@@ -7,7 +7,7 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react'
-import mapboxgl from 'mapbox-gl'
+import mapboxgl, { type StyleSpecification } from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { cn } from '@/shared/lib/utils/cn'
 
@@ -15,7 +15,7 @@ import { cn } from '@/shared/lib/utils/cn'
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || ''
 
 // Fallback стиль (Carto Dark Matter) если токен не указан
-const FALLBACK_STYLE = {
+const FALLBACK_STYLE: StyleSpecification = {
   version: 8,
   sources: {
     'carto-dark': {
@@ -38,7 +38,7 @@ const FALLBACK_STYLE = {
       maxzoom: 22,
     },
   ],
-} as const
+}
 
 export interface MapboxMapProps {
   /** Начальный центр карты [lng, lat] */
@@ -46,7 +46,7 @@ export interface MapboxMapProps {
   /** Начальный зум */
   zoom?: number
   /** Стиль карты (Mapbox style URL или объект стиля) */
-  style?: string | object
+  style?: string | StyleSpecification
   /** Минимальный зум */
   minZoom?: number
   /** Максимальный зум */
@@ -97,13 +97,22 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
   const mapRef = useRef<mapboxgl.Map | null>(null)
   const [isLoaded, setIsLoaded] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const hasFallbackAttempted = useRef(false)
+  const boundsChangeRef = useRef<MapboxMapProps['onBoundsChange']>(onBoundsChange)
+  const zoomChangeRef = useRef<MapboxMapProps['onZoomChange']>(onZoomChange)
 
   useEffect(() => {
-    if (!mapContainerRef.current) return
+    boundsChangeRef.current = onBoundsChange
+  }, [onBoundsChange])
+
+  useEffect(() => {
+    zoomChangeRef.current = onZoomChange
+  }, [onZoomChange])
+
+  useEffect(() => {
+    if (!mapContainerRef.current || mapRef.current) return
 
     console.log('🗺️ [MapboxMap] Начало инициализации карты')
-    console.log('🔑 [MapboxMap] Токен Mapbox:', MAPBOX_TOKEN ? `${MAPBOX_TOKEN.substring(0, 15)}...` : 'НЕТ')
+    console.log('🔑 [MapboxMap] Mapbox token configured:', MAPBOX_TOKEN ? 'present' : 'missing')
 
     // Устанавливаем токен Mapbox
     if (MAPBOX_TOKEN) {
@@ -114,9 +123,12 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
     }
 
     // Определяем стиль для использования
-    const mapStyle = !MAPBOX_TOKEN || typeof style === 'object' 
-      ? (style || FALLBACK_STYLE) as mapboxgl.StyleSpecification
-      : style
+    const mapStyle: string | StyleSpecification =
+      typeof style === 'object'
+        ? style
+        : MAPBOX_TOKEN
+          ? style
+          : FALLBACK_STYLE
 
     console.log('🎨 [MapboxMap] Используемый стиль:', typeof mapStyle === 'string' ? mapStyle : 'Fallback Carto')
 
@@ -155,14 +167,12 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
         console.error('❌ [MapboxMap] Ошибка карты:', e)
         
         // Если ошибка связана со стилем и мы ещё не пробовали fallback
-        if (e.error?.message?.includes('style') && !hasFallbackAttempted.current) {
-          console.warn('⚠️ [MapboxMap] Ошибка загрузки стиля Mapbox. Переключаемся на fallback Carto.')
-          hasFallbackAttempted.current = true
-          map.setStyle(FALLBACK_STYLE as any)
-        } else {
-          console.error('❌ [MapboxMap] Критическая ошибка загрузки карты')
-          setError('Ошибка загрузки карты')
+        if (e.error?.message?.includes('style')) {
+          console.warn('⚠️ [MapboxMap] Ошибка загрузки стиля Mapbox. Оставляем текущий стиль, чтобы не дёргать источники повторно.')
         }
+
+        console.error('❌ [MapboxMap] Критическая ошибка загрузки карты')
+        setError('Ошибка загрузки карты')
       })
 
       // Добавляем контролы навигации
@@ -201,31 +211,37 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
       }
 
       // Слушатели событий
-      if (onBoundsChange) {
-        map.on('moveend', () => {
-          const bounds = map.getBounds()
-          if (bounds) {
-            console.log('🔄 [MapboxMap] Границы карты изменились:', {
-              north: bounds.getNorth().toFixed(4),
-              south: bounds.getSouth().toFixed(4),
-              east: bounds.getEast().toFixed(4),
-              west: bounds.getWest().toFixed(4)
-            })
-            onBoundsChange(bounds)
-          }
-        })
+      const handleMoveEnd = () => {
+        const callback = boundsChangeRef.current
+        if (!callback) return
+        const bounds = map.getBounds()
+        if (bounds) {
+          console.log('🔄 [MapboxMap] Границы карты изменились:', {
+            north: bounds.getNorth().toFixed(4),
+            south: bounds.getSouth().toFixed(4),
+            east: bounds.getEast().toFixed(4),
+            west: bounds.getWest().toFixed(4)
+          })
+          callback(bounds)
+        }
       }
 
-      if (onZoomChange) {
-        map.on('zoom', () => {
-          const zoom = map.getZoom()
-          console.log('🔍 [MapboxMap] Зум изменился:', zoom.toFixed(2))
-          onZoomChange(zoom)
-        })
+      const handleZoomChange = () => {
+        const callback = zoomChangeRef.current
+        if (!callback) return
+        const currentZoom = map.getZoom()
+        console.log('🔍 [MapboxMap] Зум изменился:', currentZoom.toFixed(2))
+        callback(currentZoom)
       }
+
+      map.on('moveend', handleMoveEnd)
+      map.on('zoom', handleZoomChange)
+
 
       // Cleanup
       return () => {
+        map.off('moveend', handleMoveEnd)
+        map.off('zoom', handleZoomChange)
         map.remove()
         mapRef.current = null
       }
@@ -233,7 +249,19 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
       console.error('Ошибка инициализации карты:', err)
       setError('Не удалось инициализировать карту')
     }
-  }, []) // Инициализируем только один раз
+  }, [
+    bearing,
+    center,
+    maxZoom,
+    minZoom,
+    onMapLoad,
+    pitch,
+    showGeolocate,
+    showNavigation,
+    showScale,
+    style,
+    zoom,
+  ])
 
   // Обновляем центр карты при изменении пропса
   useEffect(() => {
@@ -274,4 +302,3 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
 }
 
 export default MapboxMap
-

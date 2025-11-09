@@ -1,36 +1,28 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { convexQueries, convexMutations } from '../api/convex'
 import { getDeviceId } from '../lib/utils/deviceId'
+import type { Player, PlayerProgress } from '@/shared/types/player'
 
-/**
- * Player data types
- */
-export interface Player {
-  id: string
-  deviceId: string
-  createdAt: number
-  status?: string
-  reputation?: number
-  level?: number
-  xp?: number
-  completedQuests?: number
-  fame?: number
-  points?: number
-  daysInGame?: number
-  developmentPhase?: string
-}
+const createDefaultProgress = (): PlayerProgress => ({
+  level: 0,
+  xp: 0,
+  maxXp: 100,
+  skillPoints: 0,
+  reputation: 0,
+  completedQuests: 0,
+  fame: 0,
+  points: 0,
+  daysInGame: 1,
+  flags: {},
+  visitedScenes: [],
+  completedQuestIds: [],
+  currentScene: undefined,
+  phase: 1,
+  reputationByFaction: {},
+  lastUpdatedAt: Date.now(),
+})
 
-export interface PlayerProgress {
-  level: number
-  xp: number
-  maxXp: number
-  skillPoints: number
-  reputation: number
-  completedQuests: number
-  fame: number
-  points: number
-  daysInGame: number
-}
+export type { Player, PlayerProgress }
 
 /**
  * Hook to fetch player data
@@ -76,6 +68,11 @@ export function usePlayerProgress() {
   const [progress, setProgress] = useState<PlayerProgress | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
+  const [refreshToken, setRefreshToken] = useState(0)
+
+  const refresh = useCallback(() => {
+    setRefreshToken((token) => token + 1)
+  }, [])
 
   useEffect(() => {
     const deviceId = getDeviceId()
@@ -86,61 +83,37 @@ export function usePlayerProgress() {
         setError(null)
         
         // Use Convex query when available
-        const progressData = await convexQueries.player.getProgress({ deviceId }) as any
+        const progressData = await convexQueries.player.getProgress({ deviceId })
 
-        // Transform to PlayerProgress format with defaults
-        setProgress({
-          level: progressData?.level ?? 0,
-          xp: progressData?.xp ?? 0,
-          maxXp: progressData?.maxXp ?? 100,
-          skillPoints: progressData?.skillPoints ?? 0,
-          reputation: progressData?.reputation ?? 0,
-          completedQuests: progressData?.completedQuests ?? 0,
-          fame: progressData?.fame ?? 0,
-          points: progressData?.points ?? 0,
-          daysInGame: progressData?.daysInGame ?? 1
-        })
+        const normalized: PlayerProgress = {
+          ...createDefaultProgress(),
+          ...progressData,
+          reputationByFaction:
+            progressData?.reputationByFaction ??
+            (progressData as { reputation?: Record<string, number> })?.reputation ??
+            {},
+        }
+
+        setProgress(normalized)
       } catch (err) {
+        const fallbackProgress = createDefaultProgress()
         setError(err instanceof Error ? err : new Error('Failed to fetch progress'))
         console.error('Error fetching progress:', err)
-        
-        // Set default progress on error
-        setProgress({
-          level: 0,
-          xp: 0,
-          maxXp: 100,
-          skillPoints: 0,
-          reputation: 0,
-          completedQuests: 0,
-          fame: 0,
-          points: 0,
-          daysInGame: 1
-        })
+        setProgress(fallbackProgress)
       } finally {
         setIsLoading(false)
       }
     }
 
     if (deviceId) {
-      fetchProgress()
+      void fetchProgress()
     } else {
-      // Set default progress if no deviceId
-      setProgress({
-        level: 0,
-        xp: 0,
-        maxXp: 100,
-        skillPoints: 0,
-        reputation: 0,
-        completedQuests: 0,
-        fame: 0,
-        points: 0,
-        daysInGame: 1
-      })
+      setProgress(createDefaultProgress())
       setIsLoading(false)
     }
-  }, [])
+  }, [refreshToken])
 
-  return { progress, isLoading, error }
+  return { progress, isLoading, error, refresh }
 }
 
 /**

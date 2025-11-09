@@ -5,9 +5,10 @@
  * Хуки для загрузки точек карты и зон из Convex
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { convexQueries } from '@/shared/api/convex'
 import type { MapPoint, SafeZone, BBox } from '@/shared/types/map'
+import type { LngLatBounds } from 'mapbox-gl'
 
 /**
  * Хук для получения видимых точек карты
@@ -21,23 +22,27 @@ export function useVisibleMapPoints(params: {
 }) {
   const { bbox, phase, limit = 100, deviceId, userId } = params
 
-  // Формируем аргументы для запроса
-  const queryArgs = {
-    deviceId,
-    userId,
-    bbox,
-    phase,
-    limit,
-  }
+  const queryArgs = useMemo(
+    () => ({
+      deviceId,
+      userId,
+      bbox,
+      phase,
+      limit,
+    }),
+    [bbox, deviceId, limit, phase, userId]
+  )
 
   const [data, setData] = useState<{ points: MapPoint[]; timestamp: number; ttlMs: number } | undefined>(undefined)
   const [isLoading, setIsLoading] = useState(true)
 
   console.log('📊 [useMapData] Запрос точек карты:', {
-    bbox: bbox ? `${bbox.minLat.toFixed(3)},${bbox.minLng.toFixed(3)} - ${bbox.maxLat.toFixed(3)},${bbox.maxLng.toFixed(3)}` : 'весь мир',
-    phase: phase ?? 'все фазы',
-    limit,
-    deviceId: deviceId ? `${String(deviceId).substring(0, 8)}...` : 'нет'
+    bbox: queryArgs.bbox
+      ? `${queryArgs.bbox.minLat.toFixed(3)},${queryArgs.bbox.minLng.toFixed(3)} - ${queryArgs.bbox.maxLat.toFixed(3)},${queryArgs.bbox.maxLng.toFixed(3)}`
+      : 'весь мир',
+    phase: queryArgs.phase ?? 'все фазы',
+    limit: queryArgs.limit,
+    deviceId: queryArgs.deviceId ? `${String(queryArgs.deviceId).substring(0, 8)}...` : 'нет',
   })
 
   // Загружаем данные с Convex
@@ -82,7 +87,7 @@ export function useVisibleMapPoints(params: {
     return () => {
       cancelled = true
     }
-  }, [deviceId, userId, bbox, phase, limit])
+  }, [queryArgs])
 
   return {
     points: (data?.points || []) as MapPoint[],
@@ -103,12 +108,13 @@ export function useSafeZones(params: {
   const [data, setData] = useState<SafeZone[] | undefined>(undefined)
   const [isLoading, setIsLoading] = useState(true)
 
-  // Формируем аргументы для запроса
-  const queryArgs = bbox ? { bbox } : {}
+  const queryArgs = useMemo(() => (bbox ? { bbox } : undefined), [bbox])
 
   console.log('🟢 [useMapData] Запрос безопасных зон:', {
     enabled,
-    bbox: bbox ? `${bbox.minLat.toFixed(3)},${bbox.minLng.toFixed(3)} - ${bbox.maxLat.toFixed(3)},${bbox.maxLng.toFixed(3)}` : 'весь мир'
+    bbox: queryArgs?.bbox
+      ? `${queryArgs.bbox.minLat.toFixed(3)},${queryArgs.bbox.minLng.toFixed(3)} - ${queryArgs.bbox.maxLat.toFixed(3)},${queryArgs.bbox.maxLng.toFixed(3)}`
+      : 'весь мир'
   })
 
   // Загружаем данные с Convex только если enabled
@@ -124,7 +130,7 @@ export function useSafeZones(params: {
     async function fetchData() {
       try {
         setIsLoading(true)
-        const result = await convexQueries.zones.listSafeZones(queryArgs)
+        const result = await convexQueries.zones.listSafeZones(queryArgs ?? {})
         
         if (!cancelled) {
           setData(result)
@@ -158,7 +164,7 @@ export function useSafeZones(params: {
     return () => {
       cancelled = true
     }
-  }, [enabled, bbox])
+  }, [enabled, queryArgs])
 
   return {
     zones: (data || []) as SafeZone[],
@@ -180,7 +186,7 @@ export function useGeolocation(options: {
   const [error, setError] = useState<GeolocationPositionError | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
-  const getCurrentPosition = () => {
+  const getCurrentPosition = useCallback(() => {
     if (!enabled || !navigator.geolocation) {
       console.warn('⚠️ [useGeolocation] Геолокация недоступна')
       setError({
@@ -217,7 +223,7 @@ export function useGeolocation(options: {
       },
       options
     )
-  }
+  }, [accuracy, enabled])
 
   useEffect(() => {
     if (!enabled) return
@@ -247,7 +253,7 @@ export function useGeolocation(options: {
       // Одноразовый запрос
       getCurrentPosition()
     }
-  }, [enabled, watch, accuracy])
+  }, [enabled, watch, accuracy, getCurrentPosition])
 
   return {
     position,
@@ -315,7 +321,7 @@ export function calculateDistance(
 /**
  * Конвертирует BBox из Mapbox в формат для Convex
  */
-export function convertBBoxToConvex(bounds: mapboxgl.LngLatBounds): BBox {
+export function convertBBoxToConvex(bounds: LngLatBounds): BBox {
   return {
     minLat: bounds.getSouth(),
     maxLat: bounds.getNorth(),

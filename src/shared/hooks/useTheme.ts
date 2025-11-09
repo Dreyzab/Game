@@ -16,11 +16,12 @@ export function useTheme(initial?: Theme) {
     root.setAttribute('data-color-scheme', theme)
     try {
       localStorage.setItem(STORAGE_KEY, theme)
-    } catch {}
+    } catch (err) {
+      console.warn('[useTheme] Failed to persist theme', err)
+    }
   }, [theme])
 
   const toggle = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))
 
   return { theme, setTheme, toggle }
 }
-

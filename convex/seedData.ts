@@ -10,7 +10,7 @@ export type SeedMapPoint = {
   phase?: number
   isActive: boolean
   // Metadata can optionally include a QR code on seeds
-  metadata?: { qrCode?: string } & Record<string, any>
+  metadata?: { qrCode?: string } & Record<string, unknown>
   // Optional: when omitted we will set it at insertion time
   qrCode?: string
   createdAt?: number

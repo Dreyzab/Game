@@ -26,8 +26,9 @@ export const listSafeZones = query({
 export const listDangerZones = query({
   args: {},
   handler: async (ctx) => {
-    const zones = await ctx.db.query('danger_zones').collect()
-    return zones.filter((z) => z.isActive)
+    return ctx.db
+      .query('danger_zones')
+      .withIndex('by_active', (q) => q.eq('isActive', true))
+      .collect()
   },
 })
-

@@ -17,9 +17,14 @@ export type MapPointStatus = 'not_found' | 'discovered' | 'researched'
 export type DangerLevel = 'low' | 'medium' | 'high'
 
 export type FactionType = 
-  | 'civilians'
-  | 'alliance'
-  | 'syndicate'
+  | 'fjr'
+  | 'ordnung'
+  | 'artisans'
+  | 'synthesis'
+  | 'anarchists'
+  | 'merchants'
+  | 'old_believers'
+  | 'farmers'
   | 'neutral'
   | 'unknown'
 
@@ -35,14 +40,23 @@ export interface BBox {
   maxLng: number
 }
 
+export interface SceneBindingCondition {
+  flags?: string[]
+  notFlags?: string[]
+  phase?: number
+  questCompleted?: string[]
+  minLevel?: number
+  reputation?: Array<{
+    faction: string
+    min?: number
+    max?: number
+  }>
+}
+
 export interface SceneBinding {
   sceneId: string
   triggerType: 'click' | 'proximity' | 'qr'
-  conditions?: {
-    flags?: string[]
-    phase?: number
-    questCompleted?: string[]
-  }
+  conditions?: SceneBindingCondition
   priority?: number
 }
 
@@ -58,7 +72,6 @@ export interface MapPointMetadata {
   faction?: FactionType
   category?: string
   characterName?: string
-  qrCode?: string
   qrHint?: string
   qrRequired?: boolean
   isQRZone?: boolean
@@ -66,7 +79,7 @@ export interface MapPointMetadata {
   sceneBindings?: SceneBinding[]
   unlockRequirements?: UnlockRequirements
   services?: string[]
-  [key: string]: any
+  [key: string]: unknown
 }
 
 export interface MapPoint {
@@ -134,4 +147,3 @@ export interface MapState {
   showSafeZones: boolean
   showDangerZones: boolean
 }
-

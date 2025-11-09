@@ -6,7 +6,7 @@
  */
 
 import React, { useEffect, useRef } from 'react'
-import { createRoot } from 'react-dom/client'
+import { createRoot, type Root } from 'react-dom/client'
 import mapboxgl from 'mapbox-gl'
 import { MapPointPopup } from '@/entities/map-point/ui'
 import type { MapPoint } from '@/shared/types/map'
@@ -31,7 +31,7 @@ export const MapPointPopupLayer: React.FC<MapPointPopupLayerProps> = ({
   onNavigate,
   onScanQR,
 }) => {
-  const popupRef = useRef<{ popup: mapboxgl.Popup; root: any } | null>(null)
+  const popupRef = useRef<{ popup: mapboxgl.Popup; root: Root } | null>(null)
 
   useEffect(() => {
     if (!map || !point) {

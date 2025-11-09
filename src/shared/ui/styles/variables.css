@@ -209,6 +209,26 @@
     --color-focus-ring: rgba(var(--color-teal-500-rgb), 0.4);
     --color-select-caret: rgba(var(--color-slate-900-rgb), 0.8);
 
+    /* Faction palette (light) */
+    --faction-fjr-fill: #26407d;
+    --faction-fjr-line: #1f2937;
+    --faction-ordnung-fill: #3b82f6;
+    --faction-ordnung-line: #1e3a8a;
+    --faction-artisans-fill: #b7791f;
+    --faction-artisans-line: #7c4a12;
+    --faction-synthesis-fill: #e5eef8;
+    --faction-synthesis-line: #94a3b8;
+    --faction-anarchists-fill: #f87171;
+    --faction-anarchists-line: #7f1d1d;
+    --faction-merchants-fill: #facc15;
+    --faction-merchants-line: #166534;
+    --faction-old_believers-fill: #8b5cf6;
+    --faction-old_believers-line: #4c1d95;
+    --faction-farmers-fill: #a16207;
+    --faction-farmers-line: #4d2d17;
+    --faction-neutral-fill: #94a3b8;
+    --faction-neutral-line: #64748b;
+
     /* Common style patterns - updated for light mode */
     --focus-ring: 0 0 0 3px var(--color-focus-ring);
     --focus-outline: 2px solid var(--color-primary);
@@ -267,6 +287,26 @@
     inset 0 -1px 0 rgba(0, 0, 0, 0.15);
   --color-border-secondary: rgba(var(--color-gray-400-rgb), 0.2);
   --color-select-caret: rgba(var(--color-gray-200-rgb), 0.8);
+
+  /* Faction palette (dark) */
+  --faction-fjr-fill: #0a2a66;
+  --faction-fjr-line: #1f2937;
+  --faction-ordnung-fill: #3b82f6;
+  --faction-ordnung-line: #1e3a8a;
+  --faction-artisans-fill: #a16207;
+  --faction-artisans-line: #713f12;
+  --faction-synthesis-fill: #e2e8f0;
+  --faction-synthesis-line: #94a3b8;
+  --faction-anarchists-fill: #ef4444;
+  --faction-anarchists-line: #7f1d1d;
+  --faction-merchants-fill: #eab308;
+  --faction-merchants-line: #14532d;
+  --faction-old_believers-fill: #7c3aed;
+  --faction-old_believers-line: #4c1d95;
+  --faction-farmers-fill: #78350f;
+  --faction-farmers-line: #4d2d17;
+  --faction-neutral-fill: #64748b;
+  --faction-neutral-line: #475569;
 
   /* Common style patterns - updated for dark mode */
   --focus-ring: 0 0 0 3px var(--color-focus-ring);

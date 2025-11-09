@@ -1,14 +1,22 @@
 import { mutation } from './_generated/server'
+import type { MutationCtx } from './_generated/server'
 import { v } from 'convex/values'
 import { getSeedMapPoints, type SeedMapPoint } from './seedData'
 
-async function insertSeedPoints(ctx: any, points: SeedMapPoint[]): Promise<number> {
+async function insertSeedPoints(ctx: MutationCtx, points: SeedMapPoint[]): Promise<number> {
   let created = 0
   for (const p of points) {
     try {
       const qrTop = p.qrCode ?? p.metadata?.qrCode
       const now = Date.now()
-      await ctx.db.insert('map_points', qrTop ? { ...p, qrCode: qrTop, createdAt: now } : { ...p, createdAt: now })
+      const payload: SeedMapPoint & { createdAt: number } = {
+        ...p,
+        createdAt: p.createdAt ?? now,
+      }
+      if (qrTop) {
+        payload.qrCode = qrTop
+      }
+      await ctx.db.insert('map_points', payload)
       created++
       console.log('Created point: ', p.id)
     } catch (err) {
@@ -57,7 +65,8 @@ export const addQRToPoint = mutation({
       .first()
     if (!point) throw new Error(`Point ${pointId} not found`)
     await ctx.db.patch(point._id, {
-      metadata: { ...(point.metadata ?? {}), qrCode, qrHint, qrRequired },
+      qrCode,
+      metadata: { ...(point.metadata ?? {}), qrHint, qrRequired },
     })
     return { success: true, pointId, qrCode }
   }

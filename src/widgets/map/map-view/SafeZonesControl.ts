@@ -21,6 +21,7 @@ export class SafeZonesControl {
   private isVisible: boolean = true
   private zones: SafeZone[] = []
   private isInitialized: boolean = false
+  private styleLoadHandler?: () => void
 
   constructor(map: mapboxgl.Map) {
     this.map = map
@@ -31,28 +32,35 @@ export class SafeZonesControl {
    * Инициализация source и слоёв
    */
   private initialize() {
-    // Ждём загрузки стиля карты
-    if (!this.map.isStyleLoaded()) {
-      this.map.once('style.load', () => {
-        this.createLayers()
-      })
-    } else {
+    const hydrateLayers = () => {
       this.createLayers()
+      this.updateZones(this.zones)
+    }
+
+    // Ждём загрузки стиля карты
+    if (this.map.isStyleLoaded()) {
+      hydrateLayers()
+    } else {
+      this.map.once('style.load', hydrateLayers)
     }
 
     // Пересоздаём слои при смене стиля
-    this.map.on('style.load', () => {
-      if (this.isInitialized) {
-        this.createLayers()
-        this.updateZones(this.zones)
-      }
-    })
+    this.styleLoadHandler = () => {
+      this.isInitialized = false
+      hydrateLayers()
+    }
+    this.map.on('style.load', this.styleLoadHandler)
   }
 
   /**
    * Создание source и слоёв
    */
   private createLayers() {
+    if (!this.map.isStyleLoaded()) {
+      this.isInitialized = false
+      return
+    }
+
     // Проверяем, что source ещё не создан
     if (this.map.getSource(SAFE_ZONES_SOURCE_ID)) {
       return
@@ -118,36 +126,41 @@ export class SafeZonesControl {
   updateZones(zones: SafeZone[]) {
     this.zones = zones
 
-    if (!this.isInitialized) {
+    if (!this.isInitialized || !this.map.isStyleLoaded()) {
+      this.isInitialized = false
       return
     }
 
-    const source = this.map.getSource(SAFE_ZONES_SOURCE_ID) as mapboxgl.GeoJSONSource
-    if (!source) {
-      return
+    try {
+      const source = this.map.getSource(SAFE_ZONES_SOURCE_ID) as mapboxgl.GeoJSONSource | undefined
+      if (!source) {
+        return
+      }
+
+      // Конвертируем зоны в GeoJSON
+      const features = zones.map((zone) => ({
+        type: 'Feature' as const,
+        properties: {
+          id: zone.id,
+          name: zone.name,
+          faction: zone.faction || 'unknown',
+        },
+        geometry: {
+          type: 'Polygon' as const,
+          coordinates: [
+            zone.polygon.map((coord) => [coord.lng, coord.lat]),
+          ],
+        },
+      }))
+
+      // Обновляем данные
+      source.setData({
+        type: 'FeatureCollection',
+        features,
+      })
+    } catch (error) {
+      console.warn('⚠️ [SafeZonesControl] Ошибка при обновлении зон безопасности:', error)
     }
-
-    // Конвертируем зоны в GeoJSON
-    const features = zones.map((zone) => ({
-      type: 'Feature' as const,
-      properties: {
-        id: zone.id,
-        name: zone.name,
-        faction: zone.faction || 'unknown',
-      },
-      geometry: {
-        type: 'Polygon' as const,
-        coordinates: [
-          zone.polygon.map((coord) => [coord.lng, coord.lat]),
-        ],
-      },
-    }))
-
-    // Обновляем данные
-    source.setData({
-      type: 'FeatureCollection',
-      features,
-    })
   }
 
   /**
@@ -179,6 +192,10 @@ export class SafeZonesControl {
    * Удаление слоёв и source
    */
   destroy() {
+    if (this.styleLoadHandler) {
+      this.map.off('style.load', this.styleLoadHandler)
+      this.styleLoadHandler = undefined
+    }
     if (!this.isInitialized) {
       return
     }

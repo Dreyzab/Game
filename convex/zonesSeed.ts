@@ -206,7 +206,7 @@ export const seedSafeZones = mutation({
   handler: async (ctx) => {
     let created = 0
     let updated = 0
-    let skipped = 0
+    const skipped = 0
     const now = Date.now()
 
     for (const z of SAFE_ZONES) {

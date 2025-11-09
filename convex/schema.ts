@@ -3,17 +3,13 @@ import { v } from 'convex/values'
 
 export default defineSchema({
   // Таблица игроков с поддержкой deviceId
+  // Progression (phase/skills/xp) хранится в game_progress, здесь только идентификаторы и метаданные
   players: defineTable({
     userId: v.optional(v.string()), // Clerk user ID (может быть пустым для анонимных игроков)
     deviceId: v.string(), // Уникальный идентификатор устройства
     name: v.string(),
     fame: v.number(),
-    phase: v.number(),
     createdAt: v.number(),
-    skills: v.optional(v.any()),       // Record<string, number>
-    level: v.optional(v.number()),     // Player level (default 1)
-    xp: v.optional(v.number()),        // Experience towards next level
-    skillPoints: v.optional(v.number()), // Unspent skill points
     updatedAt: v.number()
   })
     .index('by_userId', ['userId'])
@@ -147,19 +143,42 @@ export default defineSchema({
     userId: v.optional(v.string()),   // Пользователь (если авторизован)
     currentScene: v.string(),          // Текущая сцена визуальной новеллы
     visitedScenes: v.array(v.string()), // Посещённые сцены
-    flags: v.any(),                    // Игровые флаги (Record<string, any>)
-    // Progression fields
+    flags: v.any(),                    // Игровые флаги (Record<string, unknown>)
+    // Progression fields (authoritative state shared with UI; players table should not duplicate these)
     phase: v.optional(v.number()),
     skills: v.optional(v.any()),       // Record<string, number>
     level: v.optional(v.number()),     // Player level
     xp: v.optional(v.number()),        // Experience towards next level
     skillPoints: v.optional(v.number()), // Unspent skill points
+    reputation: v.optional(v.any()),
     createdAt: v.number(),
     updatedAt: v.number()
   })
     .index('by_deviceId', ['deviceId'])
     .index('by_userId', ['userId'])
     .index('by_updatedAt', ['updatedAt']),
+
+  scene_logs: defineTable({
+    deviceId: v.optional(v.string()),
+    userId: v.optional(v.string()),
+    sceneId: v.string(),
+    choices: v.optional(
+      v.array(
+        v.object({
+          sceneId: v.string(),
+          lineId: v.string(),
+          choiceId: v.string(),
+          effects: v.optional(v.any()),
+        })
+      )
+    ),
+    startedAt: v.optional(v.number()),
+    finishedAt: v.optional(v.number()),
+    payload: v.optional(v.any()),
+    createdAt: v.number(),
+  })
+    .index('by_device', ['deviceId'])
+    .index('by_scene', ['sceneId']),
 
 
   // Зоны опасности (где спаунятся враги)

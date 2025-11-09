@@ -125,6 +125,7 @@ export const MapPointPopup: React.FC<MapPointPopupProps> = ({
   const statusLabel = getStatusLabel(point.status)
   const dangerLevel = point.metadata?.danger_level
   const dangerColor = getDangerColor(dangerLevel)
+  const hasSceneBinding = Array.isArray(point.metadata?.sceneBindings) && point.metadata.sceneBindings.length > 0
 
   return (
     <div className="bg-gray-900 text-white rounded-lg shadow-xl overflow-hidden max-w-sm">
@@ -245,11 +246,13 @@ export const MapPointPopup: React.FC<MapPointPopupProps> = ({
             </Button>
           )}
 
-          {onInteract && point.status !== 'researched' && (
+          {onInteract && (
             <Button
               size="sm"
               onClick={onInteract}
               className="flex-1"
+              disabled={!hasSceneBinding}
+              title={!hasSceneBinding ? 'Сцена пока недоступна' : undefined}
             >
               Взаимодействовать
             </Button>

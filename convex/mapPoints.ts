@@ -1,16 +1,18 @@
 import { v } from 'convex/values'
 import { mutation, query } from './_generated/server'
-import type { Doc, Id } from './_generated/dataModel'
-import { STARTING_SKILLS } from './gameProgress'
+import type { Doc } from './_generated/dataModel'
+import type { UnlockRequirements } from '../src/shared/types/map'
+import { STARTING_SKILLS, awardXPAndLevelUp } from './gameProgress'
 
 // Types
 type PointMetadata = { danger_level?: 'low' | 'medium' | 'high' | string }
+type PlayerFlags = Record<string, boolean | number | string | undefined>
 type GameProgressInsert = {
   deviceId?: string
   userId?: string
   currentScene: string
   visitedScenes: string[]
-  flags: Record<string, any>
+  flags: PlayerFlags
   skills: Record<string, number>
   level: number
   xp: number
@@ -19,6 +21,14 @@ type GameProgressInsert = {
   updatedAt: number
 }
 type GameProgressDoc = Doc<'game_progress'>
+type SceneBindingDoc = {
+  sceneId?: string
+}
+
+const isUnlockRequirements = (value: unknown): value is UnlockRequirements =>
+  typeof value === 'object' && value !== null
+
+const hasSceneBindings = (value: unknown): value is SceneBindingDoc[] => Array.isArray(value)
 
 // Helper function: Calculate distance between two coordinates (Haversine formula)
 function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -35,28 +45,7 @@ function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
   return R * c
 }
 
-// XP awarding and level-up logic shared by mutations
-const MAX_LEVEL = 100
-const reqFor = (lvl: number) => 50 * lvl + 50
-function awardXPAndLevelUp(currentLevel: number | undefined, currentXP: number | undefined, currentSkillPoints: number | undefined, xpGain: number) {
-  let level = currentLevel ?? 1
-  let xp = (currentXP ?? 0) + xpGain
-  let skillPoints = currentSkillPoints ?? 0
-  let iterations = 0
-  while (xp >= reqFor(level) && level < MAX_LEVEL && iterations < 100) {
-    xp -= reqFor(level)
-    level += 1
-    skillPoints += 1
-    iterations += 1
-  }
-  if (iterations >= 100 || level >= MAX_LEVEL) {
-    // eslint-disable-next-line no-console
-    console.warn('[mapPoints] Level-up loop capped', { level, xp, iterations })
-  }
-  return { level, xp, skillPoints }
-}
-
-// Get visible map points for current user
+ // Get visible map points for current user
 export const listVisible = query({
   args: {
     deviceId: v.optional(v.string()),
@@ -74,7 +63,7 @@ export const listVisible = query({
     const { deviceId, userId, bbox, phase, limit = 100 } = args
 
     // Get player flags for unlockRequirements checking
-    let playerFlags: Record<string, any> = {}
+    let playerFlags: PlayerFlags = {}
     let playerPhase: number | undefined = phase
     
     if (deviceId || userId) {
@@ -88,7 +77,7 @@ export const listVisible = query({
       if (progress) {
         playerFlags = progress.flags || {}
         // If phase is not provided in args, use player's phase
-        // ÃƒÆ’Ã‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÆ’Ã¢â‚¬ËœÃƒâ€šÃ‚ÂÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â»ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â¸ ÃƒÆ’Ã¢â‚¬ËœÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â°ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â·ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â° ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â½ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Âµ ÃƒÆ’Ã¢â‚¬ËœÃƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚ÂºÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â°ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â·ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â°ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â½ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â° ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â² ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬ËœÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â³ÃƒÆ’Ã¢â‚¬ËœÃƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â¼ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚ÂµÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â½ÃƒÆ’Ã¢â‚¬ËœÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬ËœÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦, ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬ËœÃƒâ€šÃ‚ÂÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â¿ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â¾ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â»ÃƒÆ’Ã¢â‚¬ËœÃƒâ€¦Ã¢â‚¬â„¢ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â·ÃƒÆ’Ã¢â‚¬ËœÃƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚ÂµÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â¼ ÃƒÆ’Ã¢â‚¬ËœÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â°ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â·ÃƒÆ’Ã¢â‚¬ËœÃƒâ€ Ã¢â‚¬â„¢ ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â¸ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â³ÃƒÆ’Ã¢â‚¬ËœÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â¾ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚ÂºÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â°
+        // Если прогресс найден, используем сохранённые флаги и фазу игрока для фильтрации точек
         if (phase === undefined && progress.phase !== undefined) {
           playerPhase = progress.phase
         }
@@ -125,18 +114,15 @@ export const listVisible = query({
 
     // Filter by unlockRequirements
     filteredPoints = filteredPoints.filter(point => {
-      const unlockReqs = point.metadata?.unlockRequirements as any
+      const unlockData = point.metadata?.unlockRequirements
+      const unlockReqs = isUnlockRequirements(unlockData) ? unlockData : undefined
       if (!unlockReqs) return true // No requirements - the point is accessible
       
-      // ÃƒÆ’Ã‚ÂÃƒâ€¦Ã‚Â¸ÃƒÆ’Ã¢â‚¬ËœÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â¾ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â²ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚ÂµÃƒÆ’Ã¢â‚¬ËœÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚ÂºÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â° ÃƒÆ’Ã¢â‚¬ËœÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â»ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â°ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â³ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â¾ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â²
-      // Check required flags
-      if (unlockReqs.flags && Array.isArray(unlockReqs.flags)) {
-        const hasAllFlags = unlockReqs.flags.every((flag: string) => playerFlags[flag] === true)
+      if (Array.isArray(unlockReqs.flags)) {
+        const hasAllFlags = unlockReqs.flags.every((flag) => playerFlags[flag] === true)
         if (!hasAllFlags) return false
       }
       
-      // ÃƒÆ’Ã‚ÂÃƒâ€¦Ã‚Â¸ÃƒÆ’Ã¢â‚¬ËœÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â¾ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â²ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚ÂµÃƒÆ’Ã¢â‚¬ËœÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚ÂºÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â° ÃƒÆ’Ã¢â‚¬ËœÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â°ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â·ÃƒÆ’Ã¢â‚¬ËœÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¹
-      // Check phase requirement
       if (unlockReqs.phase !== undefined && playerPhase !== undefined) {
         if (playerPhase < unlockReqs.phase) return false
       }
@@ -150,8 +136,9 @@ export const listVisible = query({
     const withEnrichedMetadata = filteredPoints.map((point) => {
       if (point.id === 'info_bureau') {
         const metadata = { ...(point.metadata ?? {}) }
-        const hasModernBinding = Array.isArray(metadata.sceneBindings) &&
-          metadata.sceneBindings.some((b: any) => b?.sceneId === 'info_bureau_meeting')
+        const hasModernBinding =
+          hasSceneBindings(metadata.sceneBindings) &&
+          metadata.sceneBindings.some((binding: SceneBindingDoc) => binding?.sceneId === 'info_bureau_meeting')
         if (!hasModernBinding) {
           metadata.sceneBindings = [
             {
@@ -166,7 +153,7 @@ export const listVisible = query({
           metadata.unlockRequirements = { flags: ['arrived_at_freiburg'] }
         }
         if (!metadata.category) metadata.category = 'information'
-        if (!metadata.characterName) metadata.characterName = 'ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬ËœÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬ËœÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã¢â‚¬ËœÃƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬ËœÃƒâ€¹Ã¢â‚¬Â ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚ÂºÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â°-ÃƒÆ’Ã¢â‚¬ËœÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚ÂµÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â³ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬ËœÃƒâ€šÃ‚ÂÃƒÆ’Ã¢â‚¬ËœÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬ËœÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬ËœÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â¾ÃƒÆ’Ã¢â‚¬ËœÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬'
+        if (!metadata.characterName) metadata.characterName = 'Старшая регистраторша'
         return { ...point, metadata }
       }
       return point
@@ -287,7 +274,6 @@ export const markResearched = mutation({
       progressQuery = progressQuery.filter((q) => q.eq(q.field('userId'), userId))
     }
     const progress = await progressQuery.first()
-    const reqFor = (lvl: number) => 50 * lvl + 50
 
     if (!progress) {
       const toInsert: GameProgressInsert = {
@@ -409,8 +395,7 @@ export const addTestQRCode = mutation({
       qrCode: `TEST_QR_${pointId.toUpperCase()}`,
       metadata: {
         ...(point.metadata ?? {}),
-        qrCode: `TEST_QR_${pointId.toUpperCase()}`,
-        qrHint: `ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚ÂÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â°ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â¹ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â´ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬ËœÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Âµ QR-ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚ÂºÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â¾ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â´ ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â´ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â»ÃƒÆ’Ã¢â‚¬ËœÃƒâ€šÃ‚Â ÃƒÆ’Ã¢â‚¬ËœÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â¾ÃƒÆ’Ã¢â‚¬ËœÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¡ÃƒÆ’Ã‚ÂÃƒâ€šÃ‚ÂºÃƒÆ’Ã‚ÂÃƒâ€šÃ‚Â¸ ${point.title}`,
+        qrHint: `Найдите QR-код рядом с ${point.title}`,
         qrRequired: true
       }
     })
@@ -442,7 +427,10 @@ export const activateByQR = mutation({
         .query('map_points')
         .filter((q) => q.eq(q.field('isActive'), true))
         .collect()
-      point = allActive.find((p) => (p.metadata as any)?.qrCode === qrCode) as any
+      const fallbackPoint = allActive.find((p) => p.qrCode === qrCode)
+      if (fallbackPoint) {
+        point = fallbackPoint
+      }
     }
     if (!point) {
       throw new Error('QR code not recognized')

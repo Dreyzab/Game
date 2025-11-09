@@ -2,28 +2,33 @@ import React, { useCallback, useState } from 'react'
 import { Layout } from '@/widgets/layout'
 import { Heading } from '@/shared/ui/components/Heading'
 import { Text } from '@/shared/ui/components/Text'
-import { useConvex } from 'convex/react'
+import { useMutation } from 'convex/react'
+import { api } from '../../convex/_generated/api.js'
 
 export const DevToolsPage: React.FC = () => {
-  const convex = useConvex()
   const [msg, setMsg] = useState<string>('')
 
-  const callMutation = useCallback((name: string, args: Record<string, any> = {}) =>
-    (convex as unknown as { mutation: (n: string, a: any) => Promise<any> }).mutation(name, args)
-  , [convex])
-  const seedPoints = useCallback(() => callMutation('mapPointsSeed:seedMapPoints', {}), [callMutation])
-  const clearPoints = useCallback(() => callMutation('mapPointsSeed:clearMapPoints', {}), [callMutation])
-  const reseedPoints = useCallback(() => callMutation('mapPointsSeed:reseedMapPoints', {}), [callMutation])
-  const seedZones = useCallback(() => callMutation('zonesSeed:seedSafeZones', {}), [callMutation])
-  const clearZones = useCallback(() => callMutation('zonesSeed:clearSafeZones', {}), [callMutation])
+  const seedMapPoints = useMutation(api.mapPointsSeed.seedMapPoints)
+  const clearMapPoints = useMutation(api.mapPointsSeed.clearMapPoints)
+  const reseedMapPoints = useMutation(api.mapPointsSeed.reseedMapPoints)
+  const seedSafeZones = useMutation(api.zonesSeed.seedSafeZones)
+  const clearSafeZones = useMutation(api.zonesSeed.clearSafeZones)
 
-  const run = async (fn: (() => Promise<any>) | undefined, label: string) => {
+  const seedPoints = useCallback(() => seedMapPoints({}), [seedMapPoints])
+  const clearPoints = useCallback(() => clearMapPoints({}), [clearMapPoints])
+  const reseedPoints = useCallback(() => reseedMapPoints({}), [reseedMapPoints])
+  const seedZones = useCallback(() => seedSafeZones({}), [seedSafeZones])
+  const clearZones = useCallback(() => clearSafeZones({}), [clearSafeZones])
+
+  const run = async (fn: (() => Promise<unknown>) | undefined, label: string) => {
     if (!fn) return setMsg(`${label}: function unavailable`)
     try {
       const res = await fn()
-      setMsg(`${label}: done ${typeof res === 'object' ? JSON.stringify(res) : ''}`)
-    } catch (e: any) {
-      setMsg(`${label}: error ${e?.message ?? e}`)
+      const serialized = typeof res === 'object' ? JSON.stringify(res) : ''
+      setMsg(`${label}: done ${serialized}`)
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e)
+      setMsg(`${label}: error ${message}`)
     }
   }
 

@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { createRoot } from 'react-dom/client'
+import { createRoot, type Root } from 'react-dom/client'
 import mapboxgl from 'mapbox-gl'
 import { MapboxMap } from '@/shared/ui/MapboxMap'
 import { MapPointMarker } from '@/entities/map-point/ui/MapPointMarker'
@@ -20,7 +20,7 @@ import {
   convertBBoxToConvex 
 } from '@/shared/hooks/useMapData'
 import { useDeviceId } from '@/shared/hooks/useDeviceId'
-import type { MapPoint, SafeZone, BBox } from '@/shared/types/map'
+import type { MapPoint, BBox } from '@/shared/types/map'
 import { cn } from '@/shared/lib/utils/cn'
 
 export interface MapViewProps {
@@ -34,6 +34,12 @@ export interface MapViewProps {
   showSafeZones?: boolean
   /** Колбэк при выборе точки */
   onSelectPoint?: (point: MapPoint | null) => void
+  /** Колбэк при взаимодействии */
+  onInteractPoint?: (point: MapPoint) => void
+  /** Колбэк при нажатии "Навигация" */
+  onNavigatePoint?: (point: MapPoint) => void
+  /** Колбэк при запуске QR */
+  onScanQRPoint?: (point: MapPoint) => void
 }
 
 /**
@@ -45,15 +51,20 @@ export const MapView: React.FC<MapViewProps> = ({
   className,
   showSafeZones = true,
   onSelectPoint,
+  onInteractPoint,
+  onNavigatePoint,
+  onScanQRPoint,
 }) => {
   const { deviceId } = useDeviceId()
   
   // Состояние карты
   const [map, setMap] = useState<mapboxgl.Map | null>(null)
   const [bbox, setBbox] = useState<BBox | undefined>(undefined)
-  const [zoom, setZoom] = useState(initialZoom)
   const [selectedPointId, setSelectedPointId] = useState<string | null>(null)
-  const [center, setCenter] = useState<[number, number]>(initialCenter)
+  const initialCenterRef = useRef<[number, number]>(initialCenter)
+  const initialZoomRef = useRef(initialZoom)
+  const centerRef = useRef<[number, number]>(initialCenterRef.current)
+  const zoomRef = useRef(initialZoomRef.current)
 
   // Геолокация
   const { position, isLoading: isGeoLoading, getCurrentPosition } = useGeolocation({
@@ -68,10 +79,16 @@ export const MapView: React.FC<MapViewProps> = ({
 
   // Обновляем центр при геолокации
   useEffect(() => {
-    if (userCenter) {
-      setCenter(userCenter)
+    if (!userCenter || !map) {
+      return
     }
-  }, [userCenter])
+
+    centerRef.current = userCenter
+    map.flyTo({
+      center: userCenter,
+      duration: 800,
+    })
+  }, [map, userCenter])
 
   // Данные карты
   const { points, isLoading: isPointsLoading } = useVisibleMapPoints({
@@ -86,8 +103,8 @@ export const MapView: React.FC<MapViewProps> = ({
   })
 
   // Refs для маркеров и попапов
-  const markersRef = useRef<Map<string, { marker: mapboxgl.Marker; root: any }>>(new Map())
-  const popupRef = useRef<{ popup: mapboxgl.Popup; root: any } | null>(null)
+  const markersRef = useRef<Map<string, { marker: mapboxgl.Marker; root: Root }>>(new Map())
+  const popupRef = useRef<{ popup: mapboxgl.Popup; root: Root } | null>(null)
   const safeZonesControlRef = useRef<SafeZonesControl | null>(null)
 
   /**
@@ -133,7 +150,7 @@ export const MapView: React.FC<MapViewProps> = ({
    * Обработчик изменения зума
    */
   const handleZoomChange = useCallback((newZoom: number) => {
-    setZoom(newZoom)
+    zoomRef.current = newZoom
   }, [])
 
   /**
@@ -152,15 +169,18 @@ export const MapView: React.FC<MapViewProps> = ({
 
     if (point && map) {
       // Летим к точке
-      const targetZoom = Math.max(zoom, 15)
+      const currentZoom = map.getZoom()
+      const safeZoom = Number.isFinite(currentZoom) ? currentZoom : zoomRef.current
+      const targetZoom = Math.max(safeZoom ?? 0, 15)
       console.log(`✈️ [MapView] Полёт к точке. Целевой зум: ${targetZoom}`)
+      centerRef.current = [point.coordinates.lng, point.coordinates.lat]
       map.flyTo({
         center: [point.coordinates.lng, point.coordinates.lat],
         zoom: targetZoom,
         duration: 1000,
       })
     }
-  }, [map, zoom, onSelectPoint])
+  }, [map, onSelectPoint])
 
   /**
    * Обновление маркеров
@@ -322,15 +342,15 @@ export const MapView: React.FC<MapViewProps> = ({
               onClose={() => handleSelectPoint(null)}
               onInteract={() => {
                 console.log('🔄 [MapView] Взаимодействие с точкой:', point.id)
-                // TODO: Implement interaction logic
+                onInteractPoint?.(point)
               }}
               onNavigate={() => {
                 console.log('🧭 [MapView] Навигация к точке:', point.id)
-                // TODO: Implement navigation logic
+                onNavigatePoint?.(point)
               }}
               onScanQR={() => {
                 console.log('📷 [MapView] Сканирование QR для точки:', point.id)
-                // TODO: Implement QR scanning logic
+                onScanQRPoint?.(point)
               }}
             />
           )
@@ -357,7 +377,7 @@ export const MapView: React.FC<MapViewProps> = ({
     } catch (error) {
       console.error('❌ [MapView] Критическая ошибка при обновлении попапа:', error)
     }
-  }, [map, selectedPointId, points, handleSelectPoint])
+  }, [map, selectedPointId, points, handleSelectPoint, onInteractPoint, onNavigatePoint, onScanQRPoint])
 
   /**
    * Обновление безопасных зон
@@ -374,24 +394,25 @@ export const MapView: React.FC<MapViewProps> = ({
    * Cleanup при размонтировании
    */
   useEffect(() => {
+    const markersStore = markersRef.current
+    const popupStore = popupRef.current
+    const safeZonesStore = safeZonesControlRef.current
+
     return () => {
-      // Удаляем все маркеры
-      for (const { marker, root } of markersRef.current.values()) {
+      for (const { marker, root } of markersStore.values()) {
         marker.remove()
         queueMicrotask(() => root.unmount())
       }
-      markersRef.current.clear()
+      markersStore.clear()
 
-      // Удаляем попап
-      if (popupRef.current) {
-        popupRef.current.popup.remove()
-        queueMicrotask(() => popupRef.current?.root.unmount())
+      if (popupStore) {
+        popupStore.popup.remove()
+        queueMicrotask(() => popupStore.root.unmount())
         popupRef.current = null
       }
 
-      // Удаляем контрол зон
-      if (safeZonesControlRef.current) {
-        safeZonesControlRef.current.destroy()
+      if (safeZonesStore) {
+        safeZonesStore.destroy()
         safeZonesControlRef.current = null
       }
     }
@@ -400,8 +421,8 @@ export const MapView: React.FC<MapViewProps> = ({
   return (
     <div className={cn('relative w-full h-full', className)}>
       <MapboxMap
-        center={center}
-        zoom={zoom}
+        center={initialCenterRef.current}
+        zoom={initialZoomRef.current}
         onMapLoad={handleMapLoad}
         onBoundsChange={handleBoundsChange}
         onZoomChange={handleZoomChange}
@@ -443,4 +464,3 @@ export const MapView: React.FC<MapViewProps> = ({
 }
 
 export default MapView
-

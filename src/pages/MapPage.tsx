@@ -6,21 +6,56 @@
  * Вся логика карты инкапсулирована в MapView
  */
 
-import React, { useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Heading } from '@/shared/ui/components/Heading'
 import { Text } from '@/shared/ui/components/Text'
 import { MapView } from '@/widgets/map/map-view'
 import { ErrorBoundary } from '@/shared/ui/ErrorBoundary'
 import type { MapPoint } from '@/shared/types/map'
+import { Routes } from '@/shared/lib/utils/navigation'
+import { resolveSceneFromPoint } from '@/features/map/lib/resolveSceneBinding'
+import { usePlayerProgress } from '@/shared/hooks/usePlayer'
 
 export const MapPage: React.FC = () => {
+  const navigate = useNavigate()
+  const { progress } = usePlayerProgress()
   const [selectedPoint, setSelectedPoint] = useState<MapPoint | null>(null)
   const [showSafeZones, setShowSafeZones] = useState(true)
+  const [interactionNotice, setInteractionNotice] = useState<string | null>(null)
 
-  const handleSelectPoint = (point: MapPoint | null) => {
+  const handleSelectPoint = useCallback((point: MapPoint | null) => {
     setSelectedPoint(point)
     console.log('Selected point:', point)
-  }
+  }, [])
+
+  const handlePointInteract = useCallback(
+    (point: MapPoint) => {
+      if (!progress) {
+        setInteractionNotice('Прогресс игрока загружается...')
+        setSelectedPoint(point)
+        return
+      }
+
+      const resolution = resolveSceneFromPoint(point, progress)
+      if (resolution.sceneId) {
+        navigate(`${Routes.VISUAL_NOVEL}/${resolution.sceneId}`)
+        return
+      }
+
+      setInteractionNotice(resolution.reason ?? 'Эта локация пока недоступна')
+      setSelectedPoint(point)
+    },
+    [navigate, progress]
+  )
+
+  useEffect(() => {
+    if (!interactionNotice) return
+    const timer = window.setTimeout(() => setInteractionNotice(null), 4000)
+    return () => {
+      window.clearTimeout(timer)
+    }
+  }, [interactionNotice])
 
   return (
     <div className="relative w-full h-screen overflow-hidden bg-gray-900">
@@ -48,6 +83,12 @@ export const MapPage: React.FC = () => {
         </div>
       </div>
 
+      {interactionNotice && (
+        <div className="absolute top-24 left-1/2 z-30 -translate-x-1/2 rounded-full border border-white/15 bg-gray-900/85 px-5 py-2 text-xs uppercase tracking-[0.28em] text-white">
+          {interactionNotice}
+        </div>
+      )}
+
       {/* Карта - fullscreen */}
       <div className="absolute inset-0">
         <ErrorBoundary
@@ -61,6 +102,7 @@ export const MapPage: React.FC = () => {
             initialZoom={13}
             showSafeZones={showSafeZones}
             onSelectPoint={handleSelectPoint}
+            onInteractPoint={handlePointInteract}
             className="w-full h-full"
           />
         </ErrorBoundary>
