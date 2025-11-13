@@ -64,6 +64,10 @@ const applyReputation = (
   return next
 }
 
+const log = (...args: unknown[]) => {
+  console.log('🗂️ [VN Session]', ...args)
+}
+
 export const useVisualNovelSessionStore = create<VisualNovelSessionState>((set, get) => ({
   rootSceneId: null,
   visitedScenes: [],
@@ -73,7 +77,8 @@ export const useVisualNovelSessionStore = create<VisualNovelSessionState>((set, 
   pendingRemoveFlags: [],
   pendingXp: 0,
   pendingReputation: {},
-  startSession: (sceneId) =>
+  startSession: (sceneId) => {
+    log('🚀 Новая сессия визуальной новеллы', { sceneId })
     set({
       rootSceneId: sceneId,
       visitedScenes: [sceneId],
@@ -83,34 +88,52 @@ export const useVisualNovelSessionStore = create<VisualNovelSessionState>((set, 
       pendingRemoveFlags: [],
       pendingXp: 0,
       pendingReputation: {},
-    }),
+    })
+  },
   trackScene: (sceneId) =>
-    set((state) => ({
-      visitedScenes: uniquePush(state.visitedScenes, sceneId),
-    })),
+    set((state) => {
+      const visitedScenes = uniquePush(state.visitedScenes, sceneId)
+      log('🧭 Посещение сцены', { sceneId, totalVisited: visitedScenes.length })
+      return {
+        visitedScenes,
+      }
+    }),
   recordChoice: ({ sceneId, lineId, choice }) =>
-    set((state) => ({
-      choices: [
-        ...state.choices,
-        {
-          sceneId,
-          lineId,
-          choiceId: choice.id,
-          effects: choice.effects,
-          timestamp: Date.now(),
-        },
-      ],
-      pendingAddFlags: applyFlagCollection(state.pendingAddFlags, choice.effects?.addFlags),
-      pendingRemoveFlags: applyRemovalCollection(
+    set((state) => {
+      const nextAddFlags = applyFlagCollection(state.pendingAddFlags, choice.effects?.addFlags)
+      const nextRemoveFlags = applyRemovalCollection(
         state.pendingRemoveFlags,
         choice.effects?.removeFlags
-      ),
-      pendingXp: state.pendingXp + (choice.effects?.xp ?? 0),
-      pendingReputation: applyReputation(state.pendingReputation, choice.effects?.reputation),
-    })),
+      )
+      const nextXp = state.pendingXp + (choice.effects?.xp ?? 0)
+      const nextReputation = applyReputation(state.pendingReputation, choice.effects?.reputation)
+      const entry = {
+        sceneId,
+        lineId,
+        choiceId: choice.id,
+        effects: choice.effects,
+        timestamp: Date.now(),
+      }
+      log('✅ Выбор записан в сессию', {
+        sceneId,
+        lineId,
+        choiceId: choice.id,
+        addFlagsDelta: nextAddFlags.length - state.pendingAddFlags.length,
+        removeFlagsDelta: nextRemoveFlags.length - state.pendingRemoveFlags.length,
+        xpDelta: choice.effects?.xp ?? 0,
+      })
+      return {
+        choices: [...state.choices, entry],
+        pendingAddFlags: nextAddFlags,
+        pendingRemoveFlags: nextRemoveFlags,
+        pendingXp: nextXp,
+        pendingReputation: nextReputation,
+      }
+    }),
   consumePayload: (finishedAt) => {
     const state = get()
     if (!state.rootSceneId) {
+      log('ℹ️ Нет активной сессии для выгрузки')
       return null
     }
     const hasEffects =
@@ -121,6 +144,7 @@ export const useVisualNovelSessionStore = create<VisualNovelSessionState>((set, 
       Object.keys(state.pendingReputation).length > 0
 
     if (!hasEffects) {
+      log('🧹 Сессия завершена без изменений, сбрасываем состояние', { sceneId: state.rootSceneId })
       set({
         rootSceneId: null,
         visitedScenes: [],
@@ -145,6 +169,7 @@ export const useVisualNovelSessionStore = create<VisualNovelSessionState>((set, 
       xpDelta: state.pendingXp,
       reputation: state.pendingReputation,
     }
+    log('📤 Формируем payload для сохранения', payload)
 
     set({
       rootSceneId: null,
@@ -157,9 +182,11 @@ export const useVisualNovelSessionStore = create<VisualNovelSessionState>((set, 
       pendingReputation: {},
     })
 
+    log('✅ Сессия очищена после выгрузки')
     return payload
   },
-  reset: () =>
+  reset: () => {
+    log('♻️ Принудительный сброс состояния сессии')
     set({
       rootSceneId: null,
       visitedScenes: [],
@@ -169,5 +196,6 @@ export const useVisualNovelSessionStore = create<VisualNovelSessionState>((set, 
       pendingRemoveFlags: [],
       pendingXp: 0,
       pendingReputation: {},
-    }),
+    })
+  },
 }))

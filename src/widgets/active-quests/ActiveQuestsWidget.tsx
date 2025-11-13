@@ -1,12 +1,22 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useActiveQuests } from '@/shared/hooks/useQuests'
+import { convexMutations } from '@/shared/api/convex'
 import { Badge } from '@/shared/ui/components/Badge'
 import { Text } from '@/shared/ui/components/Text'
 import { MotionContainer } from '@/shared/ui/components/MotionContainer'
 import { LoadingSpinner } from '@/shared/ui/components/LoadingSpinner'
 import { Routes } from '@/shared/lib/utils/navigation'
 import { cn } from '@/shared/lib/utils/cn'
+
+/**
+ * Результат мутации abandon.
+ * Контракт: { ok?: boolean; error?: string }
+ * - ok === true означает успех
+ * - ok === false или отсутствие ok означает ошибку
+ * - error содержит сообщение об ошибке (если есть)
+ */
+type AbandonQuestResult = { ok?: boolean; error?: string }
 
 export interface ActiveQuestsWidgetProps {
   className?: string
@@ -15,6 +25,40 @@ export interface ActiveQuestsWidgetProps {
 export const ActiveQuestsWidget: React.FC<ActiveQuestsWidgetProps> = ({ className }) => {
   const { quests, isLoading } = useActiveQuests()
   const navigate = useNavigate()
+  const [abandoningQuestId, setAbandoningQuestId] = useState<string | null>(null)
+  const [removedQuestIds, setRemovedQuestIds] = useState<Set<string>>(() => new Set())
+
+  const visibleQuests = quests.filter((quest) => !removedQuestIds.has(quest.id))
+
+  const handleCancelQuest = async (questId: string) => {
+    const ok = window.confirm('Отменить квест? Прогресс по нему будет остановлен.')
+    if (!ok) return
+
+    setAbandoningQuestId(questId)
+    try {
+      const result = await convexMutations.quests.abandon({ questId }) as AbandonQuestResult
+
+      // Явная проверка успеха: result.ok должно быть true
+      if (result?.ok !== true) {
+        // Если есть сообщение об ошибке, используем его; иначе — дефолтное
+        const errorMessage = result?.error || 'Не удалось отменить квест. Попробуйте ещё раз позже.'
+        window.alert(errorMessage)
+        return
+      }
+
+      // Успех: удаляем квест из видимого списка
+      setRemovedQuestIds((prev) => {
+        const next = new Set(prev)
+        next.add(questId)
+        return next
+      })
+    } catch (e) {
+      console.warn('Failed to abandon quest', e)
+      window.alert('Произошла ошибка при отмене квеста. Попробуйте ещё раз позже.')
+    } finally {
+      setAbandoningQuestId(null)
+    }
+  }
 
   const handleViewAllQuests = () => {
     navigate(Routes.QUESTS)
@@ -32,7 +76,7 @@ export const ActiveQuestsWidget: React.FC<ActiveQuestsWidgetProps> = ({ classNam
             Активные квесты
           </h3>
           <span className="text-sm text-[color:var(--color-text-secondary)]">
-            {quests.length}/{quests.length}
+            {visibleQuests.length}/{quests.length}
           </span>
         </div>
         <Badge variant="glow">
@@ -42,7 +86,7 @@ export const ActiveQuestsWidget: React.FC<ActiveQuestsWidgetProps> = ({ classNam
 
       {isLoading ? (
         <LoadingSpinner text="Загрузка квестов" />
-      ) : quests.length === 0 ? (
+      ) : visibleQuests.length === 0 ? (
         <div className="text-center py-8">
           <Text variant="muted" size="sm">
             Нет активных квестов
@@ -50,7 +94,7 @@ export const ActiveQuestsWidget: React.FC<ActiveQuestsWidgetProps> = ({ classNam
         </div>
       ) : (
         <div className="space-y-3">
-          {quests.map((quest, index) => (
+          {visibleQuests.map((quest, index) => (
             <MotionContainer
               key={quest.id}
               direction="left"
@@ -87,6 +131,21 @@ export const ActiveQuestsWidget: React.FC<ActiveQuestsWidgetProps> = ({ classNam
                     </Text>
                   </div>
                 )}
+                <div className="mt-3 flex items-center justify-end gap-3">
+                  <button
+                    onClick={() => handleCancelQuest(quest.id)}
+                    className={cn(
+                      'px-3 py-1 rounded text-xs',
+                      'text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text)]',
+                      'border border-[color:var(--color-border-strong)]/50 hover:border-[color:var(--color-border-strong)]',
+                      'disabled:opacity-60 disabled:cursor-not-allowed'
+                    )}
+                    title="Отменить квест"
+                    disabled={abandoningQuestId === quest.id}
+                  >
+                    {abandoningQuestId === quest.id ? 'Отменяем…' : 'Отменить'}
+                  </button>
+                </div>
               </div>
             </MotionContainer>
           ))}

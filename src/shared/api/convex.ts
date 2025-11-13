@@ -108,6 +108,16 @@ export type ConvexApi = {
         createdAt?: number
       }>
     >
+    getCompleted: FunctionReference<
+      'query',
+      'public',
+      { deviceId: string; limit?: number },
+      Array<{ id: string; title: string; status: 'completed' | 'abandoned'; completedAt?: number; abandonedAt?: number; attempt?: number; templateVersion?: number; currentStep?: string; startedAt?: number }>
+    >
+    start: FunctionReference<'mutation', 'public', { deviceId?: string; userId?: string; questId: string }, { started: true; questId: string; already?: boolean }>
+    updateProgress: FunctionReference<'mutation', 'public', { deviceId?: string; userId?: string; questId: string; expectedStep?: string; nextStepId?: string; deltaProgress?: number; setProgress?: number }, { updated: boolean; questId: string; currentStep?: string; progress?: number; completed?: boolean }>
+    complete: FunctionReference<'mutation', 'public', { deviceId?: string; userId?: string; questId: string; expectedStep?: string; resultDetails?: { templateVersion?: number; sceneLog?: Array<{ stepId: string; choiceId?: string; success?: boolean; reward?: unknown }> } }, { completed: true; questId: string; already?: boolean }>
+    sync: FunctionReference<'mutation', 'public', { deviceId?: string; userId?: string; lastKnownSeq: number; events: Array<{ seq: number; type: 'start' | 'update' | 'complete' | 'abandon'; questId: string; payload?: any }> }, { ack: number; nextExpectedSeq: number; echos: Array<{ questId: string; status: 'active' | 'completed'; currentStep?: string; progress?: number; completedAt?: number }> }>
   }
   vn: {
     commitScene: FunctionReference<'mutation', 'public', CommitSceneArgs, { success: boolean }>
@@ -445,6 +455,42 @@ export const api = {
         createdAt?: number
       }>,
     } as ConvexApi['quests']['getActive'],
+    getCompleted: {
+      _type: 'query' as const,
+      _visibility: 'public' as const,
+      _args: {} as { deviceId: string; limit?: number },
+      _returnType: [] as Array<{ id: string; title: string; status: 'completed' | 'abandoned'; completedAt?: number; abandonedAt?: number; attempt?: number; templateVersion?: number; currentStep?: string; startedAt?: number }>,
+    } as any,
+    getById: {
+      _type: 'query' as const,
+      _visibility: 'public' as const,
+      _args: {} as { questId: string },
+      _returnType: null as { id: string; title: string; description: string; phase: number; isActive: boolean; stepsCount: number; repeatable: boolean; templateVersion: number } | null,
+    } as any,
+    start: {
+      _type: 'mutation' as const,
+      _visibility: 'public' as const,
+      _args: {} as { deviceId?: string; userId?: string; questId: string },
+      _returnType: { started: true, questId: '' },
+    } as ConvexApi['quests']['start'],
+    updateProgress: {
+      _type: 'mutation' as const,
+      _visibility: 'public' as const,
+      _args: {} as { deviceId?: string; userId?: string; questId: string; expectedStep?: string; nextStepId?: string; deltaProgress?: number; setProgress?: number },
+      _returnType: { updated: true, questId: '' },
+    } as ConvexApi['quests']['updateProgress'],
+    complete: {
+      _type: 'mutation' as const,
+      _visibility: 'public' as const,
+      _args: {} as { deviceId?: string; userId?: string; questId: string; expectedStep?: string; resultDetails?: { templateVersion?: number; sceneLog?: Array<{ stepId: string; choiceId?: string; success?: boolean; reward?: unknown }> } },
+      _returnType: { completed: true, questId: '' },
+    } as ConvexApi['quests']['complete'],
+    sync: {
+      _type: 'mutation' as const,
+      _visibility: 'public' as const,
+      _args: {} as { deviceId?: string; userId?: string; lastKnownSeq: number; events: Array<{ seq: number; type: 'start' | 'update' | 'complete'; questId: string; payload?: any }> },
+      _returnType: { ack: 0, nextExpectedSeq: 1, echos: [] as Array<{ questId: string; status: 'active' | 'completed'; currentStep?: string; progress?: number; completedAt?: number }> },
+    } as ConvexApi['quests']['sync'],
   },
   vn: {
     commitScene: {
@@ -508,6 +554,85 @@ export const convexMutations = {
     register: async (args: { name: string }) => {
       console.log('register admin called with:', args)
       return Promise.resolve()
+    },
+  },
+  quests: {
+    start: async (args: { questId: string }) => {
+      try {
+        if (convexClient) {
+          // Enqueue in outbox and attempt immediate sync, to ensure idempotent seq
+          const { enqueueStart, syncOutboxNow } = await import('@/shared/stores/questOutbox')
+          enqueueStart(args.questId)
+          await syncOutboxNow()
+          return { started: true, questId: args.questId }
+        }
+      } catch (e) {
+        console.warn('quests.start failed; falling back to local state', e)
+      }
+      // Fallback: update local state
+      updateLocalState((draft) => {
+        const existing = draft.quests.find((q) => q.id === args.questId)
+        if (!existing) {
+          draft.quests.push({ id: args.questId, title: args.questId, status: 'active', createdAt: Date.now() })
+        }
+      })
+      return { started: true, questId: args.questId }
+    },
+    updateProgress: async (args: { questId: string; expectedStep?: string; nextStepId?: string; deltaProgress?: number; setProgress?: number }) => {
+      try {
+        if (convexClient) {
+          const { enqueueUpdate, syncOutboxNow } = await import('@/shared/stores/questOutbox')
+          enqueueUpdate(args.questId, { expectedStep: args.expectedStep, nextStepId: args.nextStepId, deltaProgress: args.deltaProgress, setProgress: args.setProgress })
+          await syncOutboxNow()
+          return { updated: true, questId: args.questId }
+        }
+      } catch (e) {
+        console.warn('quests.updateProgress failed; falling back to local state', e)
+      }
+      return { updated: true, questId: args.questId }
+    },
+    complete: async (args: { questId: string; expectedStep?: string; resultDetails?: { templateVersion?: number; sceneLog?: Array<{ stepId: string; choiceId?: string; success?: boolean; reward?: unknown }> } }) => {
+      try {
+        if (convexClient) {
+          const { enqueueComplete, syncOutboxNow } = await import('@/shared/stores/questOutbox')
+          enqueueComplete(args.questId, { expectedStep: args.expectedStep, resultDetails: args.resultDetails })
+          await syncOutboxNow()
+          return { completed: true, questId: args.questId, already: false }
+        }
+      } catch (e) {
+        console.warn('quests.complete failed; falling back to local state', e)
+      }
+      // Fallback: mark local quest completed
+      updateLocalState((draft) => {
+        const q = draft.quests.find((x) => x.id === args.questId)
+        if (q) q.status = 'completed'
+      })
+      return { completed: true, questId: args.questId }
+    },
+    sync: async () => {
+      try {
+        if (convexClient) {
+          const { syncOutboxNow } = await import('@/shared/stores/questOutbox')
+          return await syncOutboxNow()
+        }
+      } catch (e) {
+        console.warn('quests.sync failed', e)
+      }
+      return null
+    },
+    abandon: async (args: { questId: string }) => {
+      try {
+        if (convexClient) {
+          const { useQuestOutbox } = await import('@/shared/stores/questOutbox')
+          useQuestOutbox.getState().enqueue({ type: 'abandon', questId: args.questId })
+          const { syncOutboxNow } = await import('@/shared/stores/questOutbox')
+          await syncOutboxNow()
+          return { ok: true }
+        }
+      } catch (e) {
+        console.warn('quests.abandon failed', e)
+      }
+      return { ok: false }
     },
   },
 }
@@ -604,6 +729,28 @@ export const convexQueries = {
       console.log('quests.getActive called with:', args)
       const state = ensureLocalState()
       return state.quests.map((quest) => ({ ...quest }))
+    },
+    getById: async (args: { questId: string }): Promise<{ id: string; title: string; description: string; phase: number; isActive: boolean; stepsCount: number; repeatable: boolean; templateVersion: number } | null> => {
+      if (convexClient) {
+        try {
+          // @ts-expect-error Allow calling by string without codegen
+          return await convexClient.query('quests:getById', args)
+        } catch (e) {
+          console.warn('Convex query quests:getById failed; returning null', e)
+        }
+      }
+      return null
+    },
+    getCompleted: async (args: { deviceId: string; limit?: number }): Promise<Array<{ id: string; title: string; status: 'completed' | 'abandoned'; completedAt?: number; abandonedAt?: number; attempt?: number; templateVersion?: number; currentStep?: string; startedAt?: number }>> => {
+      if (convexClient) {
+        try {
+          // @ts-expect-error Allow calling by string without codegen
+          return await convexClient.query('quests:getCompleted', args)
+        } catch (e) {
+          console.warn('Convex query quests:getCompleted failed; returning empty list', e)
+        }
+      }
+      return []
     },
   },
 }

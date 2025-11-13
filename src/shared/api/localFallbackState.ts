@@ -87,3 +87,9 @@ function saveLocalState(state: LocalState) {
     console.warn('[localFallbackState] Не удалось сохранить состояние', error)
   }
 }
+
+
+
+
+
+

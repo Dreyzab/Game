@@ -136,7 +136,7 @@ export const MapPointPopup: React.FC<MapPointPopupProps> = ({
   return (
     <div className="bg-gray-900 text-white rounded-lg shadow-xl overflow-hidden max-w-sm">
       {/* Заголовок */}
-      <div className="bg-linear-to-r from-blue-600 to-purple-600 p-4">
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-4">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-2">
             <div className="text-white">

@@ -10,7 +10,10 @@ export default defineSchema({
     name: v.string(),
     fame: v.number(),
     createdAt: v.number(),
-    updatedAt: v.number()
+    updatedAt: v.number(),
+    abandonedAt: v.optional(v.number()),
+    attempt: v.optional(v.number()),
+    templateVersion: v.optional(v.number())
   })
     .index('by_userId', ['userId'])
     .index('by_deviceId', ['deviceId'])
@@ -40,10 +43,13 @@ export default defineSchema({
       requirements: v.optional(v.any()) // Гибкие требования для каждого типа
     })),
     isActive: v.boolean(),
+    repeatable: v.optional(v.boolean()),
+    templateVersion: v.optional(v.number()),
     createdAt: v.number()
   })
     .index('by_phase', ['phase'])
-    .index('by_active', ['isActive']),
+    .index('by_active', ['isActive'])
+    .index('byQuestId', ['id']),
 
   // Прогресс игроков по квестам
   quest_progress: defineTable({
@@ -52,13 +58,18 @@ export default defineSchema({
     currentStep: v.string(),
     startedAt: v.number(),
     completedAt: v.optional(v.number()),
-    progress: v.optional(v.any()), // Дополнительные данные прогресса
+    progress: v.optional(v.any()),
+    abandonedAt: v.optional(v.number()),
+    attempt: v.optional(v.number()),
+    templateVersion: v.optional(v.number()),
     updatedAt: v.number()
   })
     .index('by_player', ['playerId'])
     .index('by_quest', ['questId'])
     .index('by_player_quest', ['playerId', 'questId'])
-    .index('by_completed', ['completedAt']),
+    .index('by_completed', ['completedAt'])
+    .index('by_player_completed', ['playerId', 'completedAt'])
+    .index('by_player_abandoned', ['playerId', 'abandonedAt']),
 
   // Пространственные точки карты
   map_points: defineTable({
@@ -151,8 +162,11 @@ export default defineSchema({
     xp: v.optional(v.number()),        // Experience towards next level
     skillPoints: v.optional(v.number()), // Unspent skill points
     reputation: v.optional(v.any()),
+    lastAppliedSeq: v.optional(v.number()),
     createdAt: v.number(),
-    updatedAt: v.number()
+    updatedAt: v.number(),
+    abandonedAt: v.optional(v.number()),
+    attempt: v.optional(v.number())
   })
     .index('by_deviceId', ['deviceId'])
     .index('by_userId', ['userId'])

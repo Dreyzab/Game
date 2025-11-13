@@ -29,6 +29,9 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
   const recordChoice = useVisualNovelSessionStore((state) => state.recordChoice)
   const consumePayload = useVisualNovelSessionStore((state) => state.consumePayload)
   const [isCommitting, setIsCommitting] = useState(false)
+  const log = useCallback((...args: unknown[]) => {
+    console.log('🎮 [VN Experience]', ...args)
+  }, [])
 
   const baseSceneId = useMemo(
     () => lockedSceneId ?? params.sceneId ?? DEFAULT_VN_SCENE_ID,
@@ -41,25 +44,34 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
       {
         onChoiceApplied: ({ sceneId: appliedSceneId, lineId, choice }) => {
           recordChoice({ sceneId: appliedSceneId, lineId, choice })
+          log('🗳️ Выбор передан в стор сессии', {
+            sceneId: appliedSceneId,
+            lineId,
+            choiceId: choice.id,
+          })
         },
       }
     )
 
   useEffect(() => {
+    log('🚀 Старт визуальной новеллы', { baseSceneId })
     startSession(baseSceneId)
-  }, [baseSceneId, startSession])
+  }, [baseSceneId, log, startSession])
 
   useEffect(() => {
+    log('📍 Активная сцена обновлена', { sceneId: scene.id })
     trackScene(scene.id)
-  }, [scene.id, trackScene])
+  }, [log, scene.id, trackScene])
 
   const flushSession = useCallback(async () => {
     const payload = consumePayload(Date.now())
     if (!payload) {
+      log('ℹ️ Нечего отправлять на сервер')
       return
     }
     setIsCommitting(true)
     try {
+      log('📡 Отправка данных сцены на сервер', { sceneId: payload.sceneId, choices: payload.choices.length })
       await convexMutations.vn.commitScene({
         deviceId,
         sceneId: payload.sceneId,
@@ -82,22 +94,25 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
         },
       })
       refreshProgress()
+      log('✅ Сервер подтвердил сохранение сцены', { sceneId: payload.sceneId })
     } catch (error) {
       console.error('[VisualNovelExperience] Ошибка при сохранении сцены', error)
     } finally {
       setIsCommitting(false)
     }
-  }, [baseSceneId, consumePayload, deviceId, headerLabel, refreshProgress])
+  }, [baseSceneId, consumePayload, deviceId, headerLabel, log, refreshProgress])
 
   const handleExit = useCallback(async () => {
+    log('🚪 Выход из визуальной новеллы')
     await flushSession()
     navigate(Routes.MAP)
-  }, [flushSession, navigate])
+  }, [flushSession, log, navigate])
 
   const handleRestart = useCallback(() => {
+    log('🔄 Перезапуск сцены', { baseSceneId })
     startSession(baseSceneId)
     jumpToScene(baseSceneId)
-  }, [baseSceneId, jumpToScene, startSession])
+  }, [baseSceneId, jumpToScene, log, startSession])
 
   return (
     <div className="relative min-h-svh bg-black text-white">

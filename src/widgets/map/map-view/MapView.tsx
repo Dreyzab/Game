@@ -108,7 +108,9 @@ export const MapView: React.FC<MapViewProps> = ({
   // Refs для маркеров и попапов
   const markersRef = useRef<Map<string, { marker: mapboxgl.Marker; root: Root }>>(new Map())
   const popupRef = useRef<{ popup: mapboxgl.Popup; root: Root } | null>(null)
+  const tooltipRef = useRef<{ popup: mapboxgl.Popup; root: Root } | null>(null)
   const safeZonesControlRef = useRef<SafeZonesControl | null>(null)
+  const [hoveredPointId, setHoveredPointId] = useState<string | null>(null)
 
   /**
    * Обработчик загрузки карты
@@ -154,6 +156,13 @@ export const MapView: React.FC<MapViewProps> = ({
    */
   const handleZoomChange = useCallback((newZoom: number) => {
     zoomRef.current = newZoom
+  }, [])
+
+  /**
+   * Обработчик наведения на точку
+   */
+  const handleHoverPoint = useCallback((point: MapPoint | null) => {
+    setHoveredPointId(point?.id || null)
   }, [])
 
   /**
@@ -243,6 +252,7 @@ export const MapView: React.FC<MapViewProps> = ({
               <MapPointMarker
                 point={point}
                 isSelected={selectedPointId === point.id}
+                isHovered={hoveredPointId === point.id}
                 onClick={() => handleSelectPoint(point)}
               />
             )
@@ -261,6 +271,7 @@ export const MapView: React.FC<MapViewProps> = ({
               <MapPointMarker
                 point={point}
                 isSelected={selectedPointId === point.id}
+                isHovered={hoveredPointId === point.id}
                 onClick={() => handleSelectPoint(point)}
               />
             )
@@ -271,6 +282,16 @@ export const MapView: React.FC<MapViewProps> = ({
             })
               .setLngLat([point.coordinates.lng, point.coordinates.lat])
               .addTo(map)
+
+            // Добавляем обработчики наведения с более подробным логированием
+            el.addEventListener('mouseenter', () => {
+              console.log(`🖱️ [MapView] Наведение на маркер: ${point.title}`)
+              handleHoverPoint(point)
+            })
+            el.addEventListener('mouseleave', () => {
+              console.log(`🖱️ [MapView] Покинули маркер: ${point.title}`)
+              handleHoverPoint(null)
+            })
 
             console.log(`📍 [MapView] Маркер создан: ${point.title} на [${point.coordinates.lng}, ${point.coordinates.lat}]`)
             
@@ -292,103 +313,238 @@ export const MapView: React.FC<MapViewProps> = ({
     } catch (error) {
       console.error('❌ [MapView] Критическая ошибка при обновлении маркеров:', error)
     }
-  }, [map, points, selectedPointId, handleSelectPoint])
+  }, [map, points, selectedPointId, hoveredPointId, handleSelectPoint, handleHoverPoint])
 
   /**
-   * Обновление попапа
+   * Обновление tooltip при hover
    */
   useEffect(() => {
     if (!map) return
 
+    console.log(`🔍 [MapView] Tooltip useEffect. hoveredPointId: ${hoveredPointId}, selectedPointId: ${selectedPointId}`)
+
     try {
-      // Удаляем старый попап
-      if (popupRef.current) {
-        console.log('🗑️ [MapView] Удаление попапа')
+      // Удаляем старый tooltip
+      if (tooltipRef.current) {
+        console.log('🗑️ [MapView] Удаление старого tooltip')
         try {
-          popupRef.current.popup.remove()
+          tooltipRef.current.popup.remove()
           queueMicrotask(() => {
             try {
-              popupRef.current?.root.unmount()
+              tooltipRef.current?.root.unmount()
             } catch (e) {
-              console.warn('⚠️ [MapView] Ошибка при размонтировании попапа:', e)
+              console.warn('⚠️ [MapView] Ошибка при размонтировании tooltip:', e)
             }
           })
-          popupRef.current = null
+          tooltipRef.current = null
         } catch (e) {
-          console.error('❌ [MapView] Ошибка при удалении попапа:', e)
-          popupRef.current = null
+          console.error('❌ [MapView] Ошибка при удалении tooltip:', e)
+          tooltipRef.current = null
         }
       }
 
-      // Создаём новый попап для выбранной точки
-      if (selectedPointId) {
-        const point = points.find((p) => p.id === selectedPointId)
+      // Создаём tooltip только если нет выбранной точки и есть наведение
+      if (hoveredPointId && !selectedPointId) {
+        const point = points.find((p) => p.id === hoveredPointId)
         if (!point) {
-          console.warn(`⚠️ [MapView] Точка ${selectedPointId} не найдена в списке`)
+          console.warn(`⚠️ [MapView] Точка ${hoveredPointId} не найдена для tooltip`)
           return
         }
 
         if (!point.coordinates || typeof point.coordinates.lng !== 'number' || typeof point.coordinates.lat !== 'number') {
-          console.error('❌ [MapView] Невалидные координаты точки:', point)
+          console.warn('⚠️ [MapView] Невалидные координаты для tooltip:', point)
           return
         }
 
-        console.log(`💬 [MapView] Создание попапа для точки: ${point.title} (${point.id})`)
+        console.log(`💡 [MapView] Создание tooltip для точки: ${point.title}`)
 
         try {
           const el = document.createElement('div')
-          const root = createRoot(el)
-
-          root.render(
-            <MapPointPopup
-              point={point}
-              onClose={() => handleSelectPoint(null)}
-              onInteract={() => {
-                console.log('🔄 [MapView] Взаимодействие с точкой:', point.id)
-                onInteractPoint?.(point)
-              }}
-              onNavigate={() => {
-                console.log('🧭 [MapView] Навигация к точке:', point.id)
-                onNavigatePoint?.(point)
-              }}
-              onScanQR={() => {
-                console.log('📷 [MapView] Сканирование QR для точки:', point.id)
-                onScanQRPoint?.(point)
-              }}
-              onActionSelect={(key) => {
-                try {
-                  console.log('MapView action select:', key, 'for point:', point.id)
-                  onActionSelect?.(point, key)
-                } catch (e) {
-                  console.error('MapView onActionSelect error:', e)
-                }
-              }}
-            />
-          )
-
-          const popup = new mapboxgl.Popup({
+          el.className = 'bg-gray-800 text-white px-3 py-2 rounded-lg shadow-lg text-sm max-w-xs'
+          el.style.zIndex = '1000'
+          el.innerHTML = `
+            <div class="font-bold mb-1">${point.title}</div>
+            <div class="text-xs text-gray-300">${point.description || 'Нет описания'}</div>
+            ${point.distance !== undefined ? `<div class="text-xs text-gray-400 mt-1">📍 ${point.distance < 1 ? `${Math.round(point.distance * 1000)} м` : `${point.distance.toFixed(1)} км`}</div>` : ''}
+          `
+          
+          const tooltip = new mapboxgl.Popup({
             closeButton: false,
             closeOnClick: false,
-            offset: 25,
-            maxWidth: '320px',
+            offset: 15,
+            maxWidth: '300px',
+            className: 'map-tooltip',
           })
             .setLngLat([point.coordinates.lng, point.coordinates.lat])
             .setDOMContent(el)
             .addTo(map)
 
-          popup.on('close', () => {
-            handleSelectPoint(null)
-          })
-
-          popupRef.current = { popup, root }
+          console.log(`✅ [MapView] Tooltip создан и добавлен на карту`)
+          tooltipRef.current = { popup: tooltip, root: null as any }
         } catch (e) {
-          console.error('❌ [MapView] Ошибка при создании попапа:', e)
+          console.error('❌ [MapView] Ошибка при создании tooltip:', e)
         }
+      } else {
+        console.log(`ℹ️ [MapView] Tooltip не создан. Условия: hoveredPointId=${!!hoveredPointId}, !selectedPointId=${!selectedPointId}`)
       }
     } catch (error) {
-      console.error('❌ [MapView] Критическая ошибка при обновлении попапа:', error)
+      console.error('❌ [MapView] Критическая ошибка при обновлении tooltip:', error)
     }
-  }, [map, selectedPointId, points, handleSelectPoint, onInteractPoint, onNavigatePoint, onScanQRPoint])
+  }, [map, hoveredPointId, selectedPointId, points])
+
+  /**
+   * Создание/удаление попапа при изменении selectedPointId
+   */
+  useEffect(() => {
+    if (!map) return
+
+    try {
+      // Если нет выбранной точки, удаляем попап
+      if (!selectedPointId) {
+        if (popupRef.current) {
+          console.log('🗑️ [MapView] Удаление попапа - точка не выбрана')
+          try {
+            popupRef.current.popup.remove()
+            queueMicrotask(() => {
+              try {
+                popupRef.current?.root.unmount()
+              } catch (e) {
+                console.warn('⚠️ [MapView] Ошибка при размонтировании попапа:', e)
+              }
+            })
+            popupRef.current = null
+          } catch (e) {
+            console.error('❌ [MapView] Ошибка при удалении попапа:', e)
+            popupRef.current = null
+          }
+        }
+        return
+      }
+
+      // Если попап уже существует, не пересоздаем его
+      if (popupRef.current) {
+        console.log('ℹ️ [MapView] Попап уже существует, пропуск пересоздания')
+        return
+      }
+
+      // Создаём новый попап для выбранной точки
+      const point = points.find((p) => p.id === selectedPointId)
+      if (!point) {
+        console.warn(`⚠️ [MapView] Точка ${selectedPointId} не найдена в списке`)
+        return
+      }
+
+      if (!point.coordinates || typeof point.coordinates.lng !== 'number' || typeof point.coordinates.lat !== 'number') {
+        console.error('❌ [MapView] Невалидные координаты точки:', point)
+        return
+      }
+
+      console.log(`💬 [MapView] Создание попапа для точки: ${point.title} (${point.id})`)
+
+      try {
+        const el = document.createElement('div')
+        const root = createRoot(el)
+
+        root.render(
+          <MapPointPopup
+            point={point}
+            onClose={() => handleSelectPoint(null)}
+            onInteract={() => {
+              console.log('🔄 [MapView] Взаимодействие с точкой:', point.id)
+              onInteractPoint?.(point)
+            }}
+            onNavigate={() => {
+              console.log('🧭 [MapView] Навигация к точке:', point.id)
+              onNavigatePoint?.(point)
+            }}
+            onScanQR={() => {
+              console.log('📷 [MapView] Сканирование QR для точки:', point.id)
+              onScanQRPoint?.(point)
+            }}
+            onActionSelect={(key) => {
+              try {
+                console.log('MapView action select:', key, 'for point:', point.id)
+                onActionSelect?.(point, key)
+              } catch (e) {
+                console.error('MapView onActionSelect error:', e)
+              }
+            }}
+          />
+        )
+
+        // Предотвращаем закрытие попапа при клике внутри
+        el.addEventListener('click', (e) => {
+          e.stopPropagation()
+        })
+
+        const popup = new mapboxgl.Popup({
+          closeButton: false,
+          closeOnClick: false,
+          closeOnMove: false,
+          offset: 25,
+          maxWidth: '320px',
+          focusAfterOpen: false,
+        })
+          .setLngLat([point.coordinates.lng, point.coordinates.lat])
+          .setDOMContent(el)
+          .addTo(map)
+
+        // Предотвращаем закрытие попапа при движении карты
+        popup.on('close', () => {
+          console.log('🔒 [MapView] Попап закрыт событием')
+          // Не сбрасываем selectedPointId автоматически, только по действию пользователя
+        })
+
+        popupRef.current = { popup, root }
+      } catch (e) {
+        console.error('❌ [MapView] Ошибка при создании попапа:', e)
+      }
+    } catch (error) {
+      console.error('❌ [MapView] Критическая ошибка при создании попапа:', error)
+    }
+  }, [map, selectedPointId, handleSelectPoint, onInteractPoint, onNavigatePoint, onScanQRPoint, onActionSelect])
+
+  /**
+   * Обновление контента попапа при изменении данных точек
+   */
+  useEffect(() => {
+    if (!map || !selectedPointId || !popupRef.current) return
+
+    const point = points.find((p) => p.id === selectedPointId)
+    if (!point) return
+
+    try {
+      console.log(`🔄 [MapView] Обновление контента попапа для: ${point.title}`)
+      popupRef.current.root.render(
+        <MapPointPopup
+          point={point}
+          onClose={() => handleSelectPoint(null)}
+          onInteract={() => {
+            console.log('🔄 [MapView] Взаимодействие с точкой:', point.id)
+            onInteractPoint?.(point)
+          }}
+          onNavigate={() => {
+            console.log('🧭 [MapView] Навигация к точке:', point.id)
+            onNavigatePoint?.(point)
+          }}
+          onScanQR={() => {
+            console.log('📷 [MapView] Сканирование QR для точки:', point.id)
+            onScanQRPoint?.(point)
+          }}
+          onActionSelect={(key) => {
+            try {
+              console.log('MapView action select:', key, 'for point:', point.id)
+              onActionSelect?.(point, key)
+            } catch (e) {
+              console.error('MapView onActionSelect error:', e)
+            }
+          }}
+        />
+      )
+    } catch (error) {
+      console.error('❌ [MapView] Ошибка при обновлении контента попапа:', error)
+    }
+  }, [points, selectedPointId, handleSelectPoint, onInteractPoint, onNavigatePoint, onScanQRPoint, onActionSelect])
 
   /**
    * Обновление безопасных зон
@@ -407,6 +563,7 @@ export const MapView: React.FC<MapViewProps> = ({
   useEffect(() => {
     const markersStore = markersRef.current
     const popupStore = popupRef.current
+    const tooltipStore = tooltipRef.current
     const safeZonesStore = safeZonesControlRef.current
 
     return () => {
@@ -420,6 +577,14 @@ export const MapView: React.FC<MapViewProps> = ({
         popupStore.popup.remove()
         queueMicrotask(() => popupStore.root.unmount())
         popupRef.current = null
+      }
+
+      if (tooltipStore) {
+        tooltipStore.popup.remove()
+        if (tooltipStore.root) {
+          queueMicrotask(() => tooltipStore.root.unmount())
+        }
+        tooltipRef.current = null
       }
 
       if (safeZonesStore) {

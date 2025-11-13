@@ -100,6 +100,18 @@ export const commitScene = mutation({
           })
         )
       ),
+      questId: v.optional(v.string()),
+      attempt: v.optional(v.number()),
+      sceneLog: v.optional(
+        v.array(
+          v.object({
+            stepId: v.string(),
+            choiceId: v.optional(v.string()),
+            success: v.optional(v.boolean()),
+            reward: v.optional(v.any()),
+          })
+        )
+      ),
       addFlags: v.optional(v.array(v.string())),
       removeFlags: v.optional(v.array(v.string())),
       xpDelta: v.optional(v.number()),

@@ -1,10 +1,14 @@
-import { scenarios as prologueScenarios } from '@/entities/visual-novel/scenarios/prolog/scenarioTr-ST'
+import {
+  scenarios as prologueScenarios,
+  chapter1ArrivalScenes,
+  infoBureauScenes,
+} from '@/entities/visual-novel/scenarios/prolog/scenarioTr-ST'
 import { chapter1Scenes } from '@/entities/visual-novel/scenarios/chapter1'
-import { BACKGROUNDS } from './backgrounds'
 import type { Scene, SceneCharacter, SceneChoice } from '@/entities/visual-novel/model/types'
 import type {
   VisualNovelChoice,
   VisualNovelChoiceView,
+  VisualNovelChoiceImpact,
   VisualNovelLine,
   VisualNovelSceneDefinition,
   VisualNovelCharacter,
@@ -20,13 +24,15 @@ const COLOR_PALETTE = ['#7dd3fc', '#f97316', '#facc15', '#f472b6', '#a855f7', '#
 type SceneRecord = Record<string, VisualNovelSceneDefinition>
 
 const convertedPrologue = Object.values(prologueScenarios).map((scene) => convertScene(scene))
+const convertedArrivals = Object.values(chapter1ArrivalScenes).map((scene) => convertScene(scene))
+const convertedInfoBureau = Object.values(infoBureauScenes).map((scene) => convertScene(scene))
 const convertedChapter1 = Object.values(chapter1Scenes).map((scene) => convertScene(scene))
-const exitScene = createExitScene()
 
 const ALL_SCENES: VisualNovelSceneDefinition[] = [
   ...convertedPrologue,
+  ...convertedArrivals,
+  ...convertedInfoBureau,
   ...convertedChapter1,
-  exitScene,
 ]
 
 export const VISUAL_NOVEL_SCENES: SceneRecord = ALL_SCENES.reduce<SceneRecord>((acc, scene) => {
@@ -131,6 +137,14 @@ function convertScene(scene: Scene): VisualNovelSceneDefinition {
     terminalLine.choices = scene.choices.map(convertChoice)
   }
 
+  if (scene.nextScene && (!scene.choices || scene.choices.length === 0)) {
+    const terminalLine = lines[lines.length - 1]
+    terminalLine.transition = {
+      ...(terminalLine.transition ?? {}),
+      nextSceneId: scene.nextScene,
+    }
+  }
+
   const convertedCharacters = scene.characters.map((character, index) =>
     convertCharacter(character, index)
   )
@@ -141,7 +155,7 @@ function convertScene(scene: Scene): VisualNovelSceneDefinition {
     id: scene.id,
     title: formatTitle(scene.id),
     location: BASE_LOCATION,
-    background: scene.background,
+    background: normalizeAssetPath(scene.background) ?? scene.background ?? '',
     ambientColor: DEFAULT_AMBIENT,
     music: scene.music,
     entryLineId: lines[0].id,
@@ -156,7 +170,7 @@ function convertCharacter(character: SceneCharacter, index: number): VisualNovel
     name: character.name,
     color: pickColor(COLOR_PALETTE, index, character.id),
     alignment: convertAlignment(character.position),
-    portraitUrl: character.sprite,
+    portraitUrl: normalizeAssetPath(character.sprite) ?? character.sprite,
   }
 }
 
@@ -181,10 +195,54 @@ function convertChoice(choice: SceneChoice): VisualNovelChoice {
     choice.effects?.onSuccess?.nextScene ?? choice.nextScene ?? choice.effects?.onFailure?.nextScene
 
   const addFlags = new Set<string>()
-  choice.effects?.addFlags?.forEach((flag) => addFlags.add(flag))
-  choice.effects?.onSuccess?.addFlags?.forEach((flag) => addFlags.add(flag))
+  const removeFlags = new Set<string>()
 
-  const effects = addFlags.size > 0 ? { addFlags: Array.from(addFlags) } : undefined
+  choice.effects?.addFlags?.forEach((flag) => {
+    if (flag) {
+      addFlags.add(flag)
+      removeFlags.delete(flag)
+    }
+  })
+
+  choice.effects?.removeFlags?.forEach((flag) => {
+    if (flag) {
+      removeFlags.add(flag)
+      addFlags.delete(flag)
+    }
+  })
+
+  choice.effects?.flags?.forEach(({ key, value }) => {
+    if (!key) return
+    if (value === false) {
+      removeFlags.add(key)
+      addFlags.delete(key)
+      return
+    }
+    addFlags.add(key)
+    removeFlags.delete(key)
+  })
+
+  const impact: VisualNovelChoiceImpact = {}
+  if (addFlags.size > 0) {
+    impact.addFlags = Array.from(addFlags)
+  }
+  if (removeFlags.size > 0) {
+    impact.removeFlags = Array.from(removeFlags)
+  }
+  if (typeof choice.effects?.xp === 'number' && choice.effects.xp !== 0) {
+    impact.xp = choice.effects.xp
+  }
+  if (choice.effects?.reputation?.length) {
+    impact.reputation = choice.effects.reputation.map((entry) => ({ ...entry }))
+  }
+  if (choice.effects?.immediate?.length) {
+    impact.immediate = choice.effects.immediate.map((entry) => ({ ...entry }))
+  }
+  if (choice.effects?.narrative) {
+    impact.narrative = choice.effects.narrative
+  }
+
+  const effects = Object.keys(impact).length > 0 ? impact : undefined
 
   return {
     id: choice.id,
@@ -202,26 +260,6 @@ function convertChoice(choice: SceneChoice): VisualNovelChoice {
         }
       : undefined,
     effects,
-  }
-}
-
-function createExitScene(): VisualNovelSceneDefinition {
-  const lineId = 'exit_to_map__line0'
-  return {
-    id: 'exit_to_map',
-    title: 'Возвращение на карту',
-    location: BASE_LOCATION,
-    background: BACKGROUNDS.station,
-    ambientColor: DEFAULT_AMBIENT,
-    entryLineId: lineId,
-    characters: [],
-    lines: [
-      {
-        id: lineId,
-        text: 'Вы готовы продолжить путь по карте. Нажмите «Завершить», чтобы перейти на карту.',
-        mood: 'neutral',
-      },
-    ],
   }
 }
 
@@ -295,6 +333,35 @@ function pickColor(palette: string[], index: number, key?: string) {
     return palette[hash % palette.length]
   }
   return palette[index % palette.length]
+}
+
+function normalizeAssetPath(path?: string | null): string | undefined {
+  if (!path) {
+    return undefined
+  }
+
+  const trimmed = path.trim()
+  if (!trimmed) {
+    return undefined
+  }
+
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed
+  }
+
+  let normalized = trimmed
+
+  if (normalized.startsWith('/public/')) {
+    normalized = `/${normalized.slice('/public/'.length)}`
+  } else if (normalized.startsWith('public/')) {
+    normalized = `/${normalized.slice('public/'.length)}`
+  }
+
+  if (!normalized.startsWith('/')) {
+    normalized = `/${normalized}`
+  }
+
+  return normalized.replace(/\/{2,}/g, '/')
 }
 
 function slugify(value: string) {

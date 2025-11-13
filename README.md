@@ -88,6 +88,10 @@ npm run preview      # Preview production build locally
 npm run lint         # Run ESLint for code quality checks
 ```
 
+## React Strict Mode
+
+React 19 runs components twice in development when `StrictMode` is enabled, which caused duplicate visual-novel lines and repeated map/geolocation requests. Strict mode is now behind the `VITE_ENABLE_STRICT_MODE` flag (default `false`) so local side effects stay single-run. Set `VITE_ENABLE_STRICT_MODE=true` in `.env.local` and restart Vite if you still want those extra checks.
+
 ## 🎯 Development Status
 
 ### ✅ **Completed**

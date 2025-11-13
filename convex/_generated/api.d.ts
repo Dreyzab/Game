@@ -11,6 +11,8 @@
 import type * as gameProgress from "../gameProgress.js";
 import type * as mapPoints from "../mapPoints.js";
 import type * as mapPointsSeed from "../mapPointsSeed.js";
+import type * as player from "../player.js";
+import type * as quests from "../quests.js";
 import type * as seedData from "../seedData.js";
 import type * as vn from "../vn.js";
 import type * as zones from "../zones.js";
@@ -34,6 +36,8 @@ declare const fullApi: ApiFromModules<{
   gameProgress: typeof gameProgress;
   mapPoints: typeof mapPoints;
   mapPointsSeed: typeof mapPointsSeed;
+  player: typeof player;
+  quests: typeof quests;
   seedData: typeof seedData;
   vn: typeof vn;
   zones: typeof zones;

@@ -23,6 +23,11 @@ export interface VisualNovelChoiceRequirement {
   }
 }
 
+export interface VisualNovelImmediateEffect {
+  type: string
+  data?: Record<string, unknown>
+}
+
 export interface VisualNovelChoiceImpact {
   addFlags?: string[]
   removeFlags?: string[]
@@ -31,6 +36,8 @@ export interface VisualNovelChoiceImpact {
     delta: number
   }[]
   xp?: number
+  immediate?: VisualNovelImmediateEffect[]
+  narrative?: string
 }
 
 export interface VisualNovelChoice {

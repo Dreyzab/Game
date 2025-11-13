@@ -43,3 +43,19 @@
 .mapboxgl-marker {
   cursor: pointer;
 }
+
+/* Tooltip styles */
+.map-tooltip .mapboxgl-popup-content {
+  background: rgba(31, 41, 55, 0.95) !important;
+  backdrop-filter: blur(8px);
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  padding: 0 !important;
+  z-index: 1000;
+}
+
+.map-tooltip .mapboxgl-popup-tip {
+  display: block !important;
+  border-top-color: rgba(31, 41, 55, 0.95) !important;
+  border-bottom-color: rgba(31, 41, 55, 0.95) !important;
+}

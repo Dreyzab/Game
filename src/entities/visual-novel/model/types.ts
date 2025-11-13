@@ -7,6 +7,7 @@ export interface Scene {
   characters: SceneCharacter[]
   dialogue: SceneDialogue[]
   choices?: SceneChoice[]
+  nextScene?: string
 }
 
 export interface SceneCharacter {
@@ -29,6 +30,39 @@ export interface SceneDialogue {
   emotion?: SceneEmotion
 }
 
+export interface SceneChoiceFlagEffect {
+  key: string
+  value?: boolean
+}
+
+export interface SceneChoiceImmediateEffect {
+  type: string
+  data?: Record<string, unknown>
+}
+
+export interface SceneChoiceReputationEffect {
+  faction: string
+  delta: number
+}
+
+export interface SceneChoiceBranchEffects {
+  nextScene?: string
+  addFlags?: string[]
+  removeFlags?: string[]
+}
+
+export interface SceneChoiceEffects {
+  addFlags?: string[]
+  removeFlags?: string[]
+  flags?: SceneChoiceFlagEffect[]
+  immediate?: SceneChoiceImmediateEffect[]
+  narrative?: string
+  xp?: number
+  reputation?: SceneChoiceReputationEffect[]
+  onSuccess?: SceneChoiceBranchEffects
+  onFailure?: SceneChoiceBranchEffects
+}
+
 export interface SceneChoice {
   id: string
   text: string
@@ -46,14 +80,6 @@ export interface SceneChoice {
       failureText?: string
     }
   }
-  effects?: {
-    addFlags?: string[]
-    onSuccess?: {
-      nextScene?: string
-      addFlags?: string[]
-    }
-    onFailure?: {
-      nextScene?: string
-    }
-  }
+  effects?: SceneChoiceEffects
 }
+
