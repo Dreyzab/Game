@@ -22,6 +22,7 @@ export interface DialogueBoxProps {
   isPending?: boolean
   onAdvance?: () => void
   onRevealComplete?: () => void
+  onManualInteraction?: () => void
   forceTypingAnimation?: boolean
 }
 
@@ -39,6 +40,7 @@ export const DialogueBox = forwardRef<DialogueBoxRef, DialogueBoxProps>(({
   isPending,
   onAdvance,
   onRevealComplete,
+  onManualInteraction,
   forceTypingAnimation = false,
 }, ref) => {
   const log = useCallback((...args: unknown[]) => {
@@ -214,11 +216,12 @@ export const DialogueBox = forwardRef<DialogueBoxRef, DialogueBoxProps>(({
     if (isTypingRef.current) {
       log('⚡ Завершение печати по клику')
       revealImmediately()
+      onManualInteraction?.()
       return
     }
     log('➡️ Передача события onAdvance')
     onAdvance?.()
-  }, [disabled, log, onAdvance, revealImmediately])
+  }, [disabled, log, onAdvance, revealImmediately, onManualInteraction])
 
   // Экспортируем метод ускорения через ref
   useImperativeHandle(ref, () => ({
