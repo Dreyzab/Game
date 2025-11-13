@@ -17,6 +17,12 @@ import { Routes } from '@/shared/lib/utils/navigation'
 import { resolveSceneFromPoint } from '@/features/map/lib/resolveSceneBinding'
 import { usePlayerProgress } from '@/shared/hooks/usePlayer'
 import type { InteractionKey } from '@/features/interaction/model/useMapPointInteraction'
+import {
+  buildInteractionsForPoint,
+  findInteractionByKey,
+  type MapPointInteraction,
+} from '@/features/interaction/model/mapPointInteractions'
+import { MapPointInteractionModal } from '@/features/interaction/ui/MapPointInteractionModal'
 
 export const MapPage: React.FC = () => {
   const navigate = useNavigate()
@@ -24,6 +30,10 @@ export const MapPage: React.FC = () => {
   const [selectedPoint, setSelectedPoint] = useState<MapPoint | null>(null)
   const [showSafeZones, setShowSafeZones] = useState(true)
   const [interactionNotice, setInteractionNotice] = useState<string | null>(null)
+  const [activeInteraction, setActiveInteraction] = useState<{
+    point: MapPoint
+    interaction: MapPointInteraction
+  } | null>(null)
 
   const handleSelectPoint = useCallback((point: MapPoint | null) => {
     setSelectedPoint(point)
@@ -52,36 +62,53 @@ export const MapPage: React.FC = () => {
 
   const handleActionSelect = useCallback(
     (point: MapPoint, action: InteractionKey) => {
-      switch (action) {
-        case 'dialog':
-        case 'quests': {
-          if (!progress) {
-            setInteractionNotice('Нужна авторизация для взаимодействия...')
-            setSelectedPoint(point)
-            return
-          }
-          const resolution = resolveSceneFromPoint(point, progress)
-          if (resolution.sceneId) {
-            navigate(`${Routes.VISUAL_NOVEL}/${resolution.sceneId}`)
-            return
-          }
+      setSelectedPoint(point)
+
+      if ((action === 'dialog' || action === 'quests') && !progress) {
+        setInteractionNotice('Нужна авторизация для взаимодействия...')
+        return
+      }
+
+      const interactions = buildInteractionsForPoint(point)
+      const interaction = findInteractionByKey(interactions, action)
+
+      if (!interaction) {
+        setInteractionNotice('Скоро: интерфейс для действия — ' + action)
+        return
+      }
+
+      let resolvedInteraction: MapPointInteraction = interaction
+
+      if (interaction.type === 'dialogue' && progress) {
+        const resolution = resolveSceneFromPoint(point, progress)
+        if (!resolution.sceneId) {
           setInteractionNotice(resolution.reason ?? 'Сцена недоступна по условиям')
-          setSelectedPoint(point)
           return
         }
-        default: {
-          setInteractionNotice('Скоро: интерфейс для действия — ' + action)
-          setSelectedPoint(point)
-        }
+        resolvedInteraction = { ...interaction, sceneId: resolution.sceneId }
       }
+
+      setActiveInteraction({ point, interaction: resolvedInteraction })
     },
-    [navigate, progress]
+    [progress]
   )
 
   const handleScanQRPoint = useCallback((point: MapPoint) => {
     setInteractionNotice('Требуется сканирование QR для этой точки')
     setSelectedPoint(point)
   }, [])
+
+  const handleCloseInteraction = useCallback(() => {
+    setActiveInteraction(null)
+  }, [])
+
+  const handleStartDialogue = useCallback(
+    (sceneId: string) => {
+      setActiveInteraction(null)
+      navigate(`${Routes.VISUAL_NOVEL}/${sceneId}`)
+    },
+    [navigate]
+  )
 
   useEffect(() => {
     if (!interactionNotice) return
@@ -166,6 +193,12 @@ export const MapPage: React.FC = () => {
           )}
         </div>
       )}
+
+      <MapPointInteractionModal
+        interaction={activeInteraction?.interaction ?? null}
+        onClose={handleCloseInteraction}
+        onStartDialogue={handleStartDialogue}
+      />
     </div>
   )
 }

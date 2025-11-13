@@ -2,6 +2,7 @@ import { ConvexClient } from 'convex/browser'
 import type { FunctionReference } from 'convex/server'
 import type { MapPoint, SafeZone } from '@/shared/types/map'
 import type { Player, PlayerProgress } from '@/shared/types/player'
+import type { VisualNovelChoiceEffect } from '@/shared/types/visualNovel'
 import { DEFAULT_VN_SCENE_ID } from '@/shared/data/visualNovel/scenes'
 import { loadLocalState, updateLocalState, type LocalQuest, type LocalState } from './localFallbackState'
 
@@ -43,17 +44,14 @@ type CommitSceneArgs = {
       sceneId: string
       lineId?: string
       choiceId: string
-      effects?: {
-        addFlags?: string[]
-        removeFlags?: string[]
-        xp?: number
-        reputation?: Array<{ faction: string; delta: number }>
-      }
+      effects?: VisualNovelChoiceEffect[]
     }>
     addFlags?: string[]
     removeFlags?: string[]
     xpDelta?: number
     reputation?: Record<string, number>
+    items?: { itemId: string; quantity: number }[]
+    quests?: string[]
     advancePhaseTo?: number
   }
 }
@@ -541,7 +539,40 @@ export const convexMutations = {
         applyFlags(draft, args.payload.addFlags, args.payload.removeFlags)
 
         args.payload.choices?.forEach((entry) => {
-          applyFlags(draft, entry.effects?.addFlags, entry.effects?.removeFlags)
+          if (!entry.effects?.length) {
+            return
+          }
+          const add: string[] = []
+          const remove: string[] = []
+          entry.effects.forEach((effect) => {
+            switch (effect.type) {
+              case 'flag': {
+                if (!effect.flag) return
+                if (effect.value) {
+                  add.push(effect.flag)
+                } else {
+                  remove.push(effect.flag)
+                }
+                break
+              }
+              case 'stat_modifier': {
+                if (!effect.stat?.startsWith('flag:')) return
+                const flagName = effect.stat.slice(5)
+                if (!flagName) return
+                if (effect.delta > 0) {
+                  add.push(flagName)
+                } else if (effect.delta < 0) {
+                  remove.push(flagName)
+                }
+                break
+              }
+              default:
+                break
+            }
+          })
+          if (add.length > 0 || remove.length > 0) {
+            applyFlags(draft, add, remove)
+          }
         })
 
         ensurePrologueQuests(draft)

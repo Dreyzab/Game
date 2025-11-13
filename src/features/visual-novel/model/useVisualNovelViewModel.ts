@@ -111,18 +111,32 @@ export function useVisualNovelViewModel(
 
   const applyEffects = useCallback(
     (choice?: VisualNovelChoice) => {
-      if (!choice?.effects) return
+      if (!choice?.effects?.length) return
       log('✨ Применение эффектов выбора', {
         choiceId: choice.id,
-        addFlags: choice.effects.addFlags,
-        removeFlags: choice.effects.removeFlags,
-        xp: choice.effects.xp,
-        reputation: choice.effects.reputation,
+        effectTypes: choice.effects.map((effect) => effect.type),
       })
       setFlags((prev) => {
         const next = new Set(prev)
-        choice.effects?.addFlags?.forEach((flag) => next.add(flag))
-        choice.effects?.removeFlags?.forEach((flag) => next.delete(flag))
+        choice.effects?.forEach((effect) => {
+          if (effect.type === 'flag') {
+            if (effect.value) {
+              next.add(effect.flag)
+            } else {
+              next.delete(effect.flag)
+            }
+          }
+          if (effect.type === 'stat_modifier' && effect.stat.startsWith('flag:')) {
+            const flagName = effect.stat.slice(5)
+            if (flagName) {
+              if (effect.delta > 0) {
+                next.add(flagName)
+              } else if (effect.delta < 0) {
+                next.delete(flagName)
+              }
+            }
+          }
+        })
         return next
       })
     },

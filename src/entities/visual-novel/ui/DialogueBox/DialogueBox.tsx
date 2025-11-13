@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useImperativeHandle, useRef, useState, forwardRef } from 'react'
 import { motion } from 'framer-motion'
 import { cn } from '@/shared/lib/utils/cn'
 import type { VisualNovelMood } from '@/shared/types/visualNovel'
@@ -25,7 +25,11 @@ export interface DialogueBoxProps {
   forceTypingAnimation?: boolean
 }
 
-export const DialogueBox: React.FC<DialogueBoxProps> = ({
+export interface DialogueBoxRef {
+  speedUp: () => void
+}
+
+export const DialogueBox = forwardRef<DialogueBoxRef, DialogueBoxProps>(({
   speakerName,
   speakerTitle,
   text,
@@ -36,7 +40,7 @@ export const DialogueBox: React.FC<DialogueBoxProps> = ({
   onAdvance,
   onRevealComplete,
   forceTypingAnimation = false,
-}) => {
+}, ref) => {
   const log = useCallback((...args: unknown[]) => {
     console.log('💬 [VN Dialogue]', ...args)
   }, [])
@@ -64,10 +68,12 @@ export const DialogueBox: React.FC<DialogueBoxProps> = ({
     }
     return ''
   })
-  const [isTyping, setIsTyping] = useState<boolean>(() => Boolean(text && text.length > 0))
   const timeoutRef = useRef<number | null>(null)
   const hasNotifiedRef = useRef(false)
   const fullTextRef = useRef<string>(text ?? '')
+  const prevTextRef = useRef<string | null>(null)
+  const isTypingRef = useRef<boolean>(false)
+  const textParagraphRef = useRef<HTMLParagraphElement>(null)
   const [prefersReducedMotion, setPrefersReducedMotion] = useState<boolean>(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
       return false
@@ -114,31 +120,40 @@ export const DialogueBox: React.FC<DialogueBoxProps> = ({
   }, [log, onRevealComplete])
 
   useEffect(() => {
+    const paragraph = textParagraphRef.current
+    if (!paragraph) {
+      return
+    }
+
     const fullText = text ?? ''
     const sanitizedFullText = sanitizeText(fullText)
-    const effectiveText = sanitizedFullText.length > 0 ? sanitizedFullText : '...'
+    const hasContent = sanitizedFullText.length > 0
+    const effectiveText = hasContent ? sanitizedFullText : '...'
+
     fullTextRef.current = effectiveText
     hasNotifiedRef.current = false
     clearTimer()
 
-    const shouldSkipTyping =
-      !sanitizedFullText || isPending || (prefersReducedMotion && !forceTypingAnimation)
+    prevTextRef.current = effectiveText
+
+    const shouldSkipTyping = !hasContent || (prefersReducedMotion && !forceTypingAnimation)
 
     if (shouldSkipTyping) {
       log('ℹ️ Пропуск анимации печати', {
-        hasText: Boolean(fullText),
+        hasText: hasContent,
         prefersReducedMotion,
         forceTypingAnimation,
-        isPending,
       })
+      paragraph.textContent = effectiveText
       setDisplayedText(effectiveText)
-      setIsTyping(false)
+      isTypingRef.current = false
       notifyRevealComplete()
       return
     }
 
+    paragraph.textContent = ''
     setDisplayedText('')
-    setIsTyping(true)
+    isTypingRef.current = true
 
     const characters = Array.from(effectiveText)
     log('⌨️ Начало анимации печати', { characters: characters.length })
@@ -146,20 +161,19 @@ export const DialogueBox: React.FC<DialogueBoxProps> = ({
     let builtText = ''
 
     const typeNext = () => {
-      // Добавляем текущий символ к накопленному тексту
       builtText += characters[index]
-      setDisplayedText(builtText)
+      paragraph.textContent = builtText
       index += 1
 
       if (index >= characters.length) {
-        setIsTyping(false)
+        setDisplayedText(effectiveText)
+        isTypingRef.current = false
         notifyRevealComplete()
         clearTimer()
         return
       }
 
       const previousChar = characters[index - 1]
-      // Увеличиваем задержку после знаков препинания для лучшей читабельности
       const delay = /[.,!?…;:]/.test(previousChar) ? 180 : 35
       timeoutRef.current = window.setTimeout(typeNext, delay)
     }
@@ -173,7 +187,6 @@ export const DialogueBox: React.FC<DialogueBoxProps> = ({
   }, [
     clearTimer,
     forceTypingAnimation,
-    isPending,
     log,
     notifyRevealComplete,
     prefersReducedMotion,
@@ -183,22 +196,39 @@ export const DialogueBox: React.FC<DialogueBoxProps> = ({
 
   const revealImmediately = useCallback(() => {
     clearTimer()
+    const paragraph = textParagraphRef.current
+    if (paragraph) {
+      paragraph.textContent = fullTextRef.current
+    }
     setDisplayedText(fullTextRef.current)
-    setIsTyping(false)
+    isTypingRef.current = false
     notifyRevealComplete()
     log('⏭️ Мгновенное раскрытие текста', { characters: fullTextRef.current.length })
   }, [clearTimer, log, notifyRevealComplete])
 
-  const handleAdvance = useCallback(() => {
+  const handleAdvance = useCallback((e?: React.MouseEvent) => {
     if (disabled) return
-    if (isTyping) {
+    // Останавливаем всплытие события, чтобы клик на DialogueBox не вызывал обработчик родителя
+    e?.stopPropagation()
+    // Используем ref для проверки реального состояния анимации
+    if (isTypingRef.current) {
       log('⚡ Завершение печати по клику')
       revealImmediately()
       return
     }
     log('➡️ Передача события onAdvance')
     onAdvance?.()
-  }, [disabled, isTyping, log, onAdvance, revealImmediately])
+  }, [disabled, log, onAdvance, revealImmediately])
+
+  // Экспортируем метод ускорения через ref
+  useImperativeHandle(ref, () => ({
+    speedUp: () => {
+      if (!disabled && isTypingRef.current) {
+        log('⚡ Ускорение анимации через ref')
+        revealImmediately()
+      }
+    },
+  }), [disabled, log, revealImmediately])
 
   useEffect(
     () => () => {
@@ -234,12 +264,15 @@ export const DialogueBox: React.FC<DialogueBoxProps> = ({
         <span className="text-xs text-white/50">{moodLabel[mood]}</span>
       </div>
 
-      <p className="text-base leading-relaxed text-white md:text-lg hyphens-auto break-words">
+      <p
+        ref={textParagraphRef}
+        className="text-base leading-relaxed text-white md:text-lg hyphens-auto wrap-break-word"
+      >
         {sanitizeText(displayedText)}
       </p>
 
       {stageDirection && (
-        <p className="pt-3 text-xs italic text-white/60 hyphens-auto break-words">
+        <p className="pt-3 text-xs italic text-white/60 hyphens-auto wrap-break-word">
           {sanitizeText(stageDirection)}
         </p>
       )}
@@ -255,4 +288,6 @@ export const DialogueBox: React.FC<DialogueBoxProps> = ({
       )}
     </motion.div>
   )
-}
+})
+
+DialogueBox.displayName = 'DialogueBox'

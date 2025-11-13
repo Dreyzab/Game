@@ -7,8 +7,8 @@ import { chapter1Scenes } from '@/entities/visual-novel/scenarios/chapter1'
 import type { Scene, SceneCharacter, SceneChoice } from '@/entities/visual-novel/model/types'
 import type {
   VisualNovelChoice,
+  VisualNovelChoiceEffect,
   VisualNovelChoiceView,
-  VisualNovelChoiceImpact,
   VisualNovelLine,
   VisualNovelSceneDefinition,
   VisualNovelCharacter,
@@ -222,27 +222,47 @@ function convertChoice(choice: SceneChoice): VisualNovelChoice {
     removeFlags.delete(key)
   })
 
-  const impact: VisualNovelChoiceImpact = {}
-  if (addFlags.size > 0) {
-    impact.addFlags = Array.from(addFlags)
-  }
-  if (removeFlags.size > 0) {
-    impact.removeFlags = Array.from(removeFlags)
-  }
+  const effects: VisualNovelChoiceEffect[] = []
+
+  addFlags.forEach((flag) => {
+    effects.push({ type: 'flag', flag, value: true })
+  })
+
+  removeFlags.forEach((flag) => {
+    effects.push({ type: 'flag', flag, value: false })
+  })
+
   if (typeof choice.effects?.xp === 'number' && choice.effects.xp !== 0) {
-    impact.xp = choice.effects.xp
-  }
-  if (choice.effects?.reputation?.length) {
-    impact.reputation = choice.effects.reputation.map((entry) => ({ ...entry }))
-  }
-  if (choice.effects?.immediate?.length) {
-    impact.immediate = choice.effects.immediate.map((entry) => ({ ...entry }))
-  }
-  if (choice.effects?.narrative) {
-    impact.narrative = choice.effects.narrative
+    effects.push({ type: 'xp', amount: choice.effects.xp })
   }
 
-  const effects = Object.keys(impact).length > 0 ? impact : undefined
+  if (choice.effects?.reputation?.length) {
+    choice.effects.reputation.forEach((entry) => {
+      if (!entry?.faction) return
+      effects.push({
+        type: 'relationship_change',
+        targetId: entry.faction,
+        delta: entry.delta ?? 0,
+      })
+    })
+  }
+
+  if (choice.effects?.immediate?.length) {
+    choice.effects.immediate.forEach((entry) => {
+      if (!entry?.type) return
+      effects.push({
+        type: 'immediate',
+        action: entry.type,
+        data: entry.data,
+      })
+    })
+  }
+
+  if (choice.effects?.narrative) {
+    effects.push({ type: 'narrative', text: choice.effects.narrative })
+  }
+
+  const normalizedEffects = effects.length > 0 ? effects : undefined
 
   return {
     id: choice.id,
@@ -259,7 +279,7 @@ function convertChoice(choice: SceneChoice): VisualNovelChoice {
           },
         }
       : undefined,
-    effects,
+    effects: normalizedEffects,
   }
 }
 

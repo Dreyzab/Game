@@ -28,17 +28,16 @@ export interface VisualNovelImmediateEffect {
   data?: Record<string, unknown>
 }
 
-export interface VisualNovelChoiceImpact {
-  addFlags?: string[]
-  removeFlags?: string[]
-  reputation?: {
-    faction: string
-    delta: number
-  }[]
-  xp?: number
-  immediate?: VisualNovelImmediateEffect[]
-  narrative?: string
-}
+export type VisualNovelChoiceEffect =
+  | { type: 'flag'; flag: string; value: boolean }
+  | { type: 'stat_modifier'; stat: string; delta: number; duration?: number }
+  | { type: 'xp'; amount: number }
+  | { type: 'add_item'; itemId: string; quantity?: number }
+  | { type: 'add_quest'; questId: string; questData?: Record<string, unknown> }
+  | { type: 'relationship_change'; targetId: string; delta: number }
+  | { type: 'immediate'; action: string; data?: Record<string, unknown> }
+  | { type: 'narrative'; text: string }
+  | { type: 'custom'; id: string; payload?: Record<string, unknown> }
 
 export interface VisualNovelChoice {
   id: string
@@ -48,7 +47,7 @@ export interface VisualNovelChoice {
   nextLineId?: string
   nextSceneId?: string
   requirements?: VisualNovelChoiceRequirement
-  effects?: VisualNovelChoiceImpact
+  effects?: VisualNovelChoiceEffect[]
 }
 
 export interface VisualNovelLine {

@@ -1,11 +1,11 @@
 import { create } from 'zustand'
-import type { VisualNovelChoice, VisualNovelChoiceImpact } from '@/shared/types/visualNovel'
+import type { VisualNovelChoice, VisualNovelChoiceEffect } from '@/shared/types/visualNovel'
 
 interface SessionChoiceEntry {
   sceneId: string
   lineId?: string
   choiceId: string
-  effects?: VisualNovelChoiceImpact
+  effects?: VisualNovelChoiceEffect[]
   timestamp: number
 }
 
@@ -18,6 +18,8 @@ interface VisualNovelSessionState {
   pendingRemoveFlags: string[]
   pendingXp: number
   pendingReputation: Record<string, number>
+  pendingItems: { itemId: string; quantity: number }[]
+  pendingQuests: string[]
   startSession: (sceneId: string) => void
   trackScene: (sceneId: string) => void
   recordChoice: (payload: { sceneId: string; lineId?: string; choice: VisualNovelChoice }) => void
@@ -31,6 +33,8 @@ interface VisualNovelSessionState {
     removeFlags: string[]
     xpDelta: number
     reputation: Record<string, number>
+    items: { itemId: string; quantity: number }[]
+    quests: string[]
   }
   reset: () => void
 }
@@ -38,30 +42,33 @@ interface VisualNovelSessionState {
 const uniquePush = (list: string[], value: string) =>
   list.includes(value) ? list : [...list, value]
 
-const applyFlagCollection = (collection: string[], incoming?: string[]) => {
-  if (!incoming?.length) return collection
-  const set = new Set(collection)
-  incoming.forEach((flag) => set.add(flag))
-  return [...set]
-}
+const withoutValue = (list: string[], value: string) => list.filter((item) => item !== value)
 
-const applyRemovalCollection = (collection: string[], incoming?: string[]) => {
-  if (!incoming?.length) return collection
-  const set = new Set(collection)
-  incoming.forEach((flag) => set.delete(flag))
-  return [...set]
-}
-
-const applyReputation = (
-  current: Record<string, number>,
-  incoming?: VisualNovelChoiceImpact['reputation']
+const upsertItemCollection = (
+  collection: { itemId: string; quantity: number }[],
+  itemId: string,
+  delta: number
 ) => {
-  if (!incoming?.length) return current
-  const next = { ...current }
-  incoming.forEach(({ faction, delta }) => {
-    next[faction] = (next[faction] ?? 0) + delta
-  })
-  return next
+  if (!itemId || delta === 0) {
+    return collection
+  }
+  const existingIndex = collection.findIndex((item) => item.itemId === itemId)
+  if (existingIndex >= 0) {
+    const updatedQuantity = collection[existingIndex].quantity + delta
+    if (updatedQuantity <= 0) {
+      return collection.filter((_, index) => index !== existingIndex)
+    }
+    const next = [...collection]
+    next[existingIndex] = { itemId, quantity: updatedQuantity }
+    return next
+  }
+
+  if (delta < 0) {
+    // Игнорируем отрицательные значения, если предмета ещё нет
+    return collection
+  }
+
+  return [...collection, { itemId, quantity: delta }]
 }
 
 const log = (...args: unknown[]) => {
@@ -77,6 +84,8 @@ export const useVisualNovelSessionStore = create<VisualNovelSessionState>((set, 
   pendingRemoveFlags: [],
   pendingXp: 0,
   pendingReputation: {},
+  pendingItems: [],
+  pendingQuests: [],
   startSession: (sceneId) => {
     log('🚀 Новая сессия визуальной новеллы', { sceneId })
     set({
@@ -88,6 +97,8 @@ export const useVisualNovelSessionStore = create<VisualNovelSessionState>((set, 
       pendingRemoveFlags: [],
       pendingXp: 0,
       pendingReputation: {},
+      pendingItems: [],
+      pendingQuests: [],
     })
   },
   trackScene: (sceneId) =>
@@ -100,34 +111,95 @@ export const useVisualNovelSessionStore = create<VisualNovelSessionState>((set, 
     }),
   recordChoice: ({ sceneId, lineId, choice }) =>
     set((state) => {
-      const nextAddFlags = applyFlagCollection(state.pendingAddFlags, choice.effects?.addFlags)
-      const nextRemoveFlags = applyRemovalCollection(
-        state.pendingRemoveFlags,
-        choice.effects?.removeFlags
-      )
-      const nextXp = state.pendingXp + (choice.effects?.xp ?? 0)
-      const nextReputation = applyReputation(state.pendingReputation, choice.effects?.reputation)
-      const entry = {
+      let nextAddFlags = [...state.pendingAddFlags]
+      let nextRemoveFlags = [...state.pendingRemoveFlags]
+      let nextXp = state.pendingXp
+      let nextReputation = { ...state.pendingReputation }
+      let nextItems = [...state.pendingItems]
+      let nextQuests = [...state.pendingQuests]
+      let xpDelta = 0
+
+      const effectsList: VisualNovelChoiceEffect[] = choice.effects ?? []
+
+      effectsList.forEach((effect) => {
+        switch (effect.type) {
+          case 'flag': {
+            if (!effect.flag) return
+            if (effect.value) {
+              nextAddFlags = uniquePush(nextAddFlags, effect.flag)
+              nextRemoveFlags = withoutValue(nextRemoveFlags, effect.flag)
+            } else {
+              nextRemoveFlags = uniquePush(nextRemoveFlags, effect.flag)
+              nextAddFlags = withoutValue(nextAddFlags, effect.flag)
+            }
+            break
+          }
+          case 'stat_modifier': {
+            if (effect.stat === 'xp') {
+              nextXp += effect.delta
+              xpDelta += effect.delta
+            }
+            break
+          }
+          case 'xp': {
+            nextXp += effect.amount
+            xpDelta += effect.amount
+            break
+          }
+          case 'relationship_change': {
+            if (!effect.targetId) return
+            nextReputation = {
+              ...nextReputation,
+              [effect.targetId]: (nextReputation[effect.targetId] ?? 0) + effect.delta,
+            }
+            break
+          }
+          case 'add_item': {
+            if (!effect.itemId) return
+            const quantity = effect.quantity ?? 1
+            nextItems = upsertItemCollection(nextItems, effect.itemId, quantity)
+            break
+          }
+          case 'add_quest': {
+            if (!effect.questId) return
+            nextQuests = uniquePush(nextQuests, effect.questId)
+            break
+          }
+          default: {
+            break
+          }
+        }
+      })
+
+      const recordedEffects = effectsList.length > 0 ? effectsList : undefined
+
+      const entry: SessionChoiceEntry = {
         sceneId,
         lineId,
         choiceId: choice.id,
-        effects: choice.effects,
+        effects: recordedEffects,
         timestamp: Date.now(),
       }
+
       log('✅ Выбор записан в сессию', {
         sceneId,
         lineId,
         choiceId: choice.id,
-        addFlagsDelta: nextAddFlags.length - state.pendingAddFlags.length,
-        removeFlagsDelta: nextRemoveFlags.length - state.pendingRemoveFlags.length,
-        xpDelta: choice.effects?.xp ?? 0,
+        effectTypes: effectsList.map((effect) => effect.type),
+        xpDelta,
+        totalFlags: nextAddFlags.length + nextRemoveFlags.length,
+        items: nextItems.length,
+        quests: nextQuests.length,
       })
+
       return {
         choices: [...state.choices, entry],
         pendingAddFlags: nextAddFlags,
         pendingRemoveFlags: nextRemoveFlags,
         pendingXp: nextXp,
         pendingReputation: nextReputation,
+        pendingItems: nextItems,
+        pendingQuests: nextQuests,
       }
     }),
   consumePayload: (finishedAt) => {
@@ -141,7 +213,9 @@ export const useVisualNovelSessionStore = create<VisualNovelSessionState>((set, 
       state.pendingAddFlags.length > 0 ||
       state.pendingRemoveFlags.length > 0 ||
       state.pendingXp !== 0 ||
-      Object.keys(state.pendingReputation).length > 0
+      Object.keys(state.pendingReputation).length > 0 ||
+      state.pendingItems.length > 0 ||
+      state.pendingQuests.length > 0
 
     if (!hasEffects) {
       log('🧹 Сессия завершена без изменений, сбрасываем состояние', { sceneId: state.rootSceneId })
@@ -154,6 +228,8 @@ export const useVisualNovelSessionStore = create<VisualNovelSessionState>((set, 
         pendingRemoveFlags: [],
         pendingXp: 0,
         pendingReputation: {},
+        pendingItems: [],
+        pendingQuests: [],
       })
       return null
     }
@@ -168,6 +244,8 @@ export const useVisualNovelSessionStore = create<VisualNovelSessionState>((set, 
       removeFlags: state.pendingRemoveFlags,
       xpDelta: state.pendingXp,
       reputation: state.pendingReputation,
+      items: state.pendingItems,
+      quests: state.pendingQuests,
     }
     log('📤 Формируем payload для сохранения', payload)
 
@@ -180,6 +258,8 @@ export const useVisualNovelSessionStore = create<VisualNovelSessionState>((set, 
       pendingRemoveFlags: [],
       pendingXp: 0,
       pendingReputation: {},
+      pendingItems: [],
+      pendingQuests: [],
     })
 
     log('✅ Сессия очищена после выгрузки')
@@ -196,6 +276,8 @@ export const useVisualNovelSessionStore = create<VisualNovelSessionState>((set, 
       pendingRemoveFlags: [],
       pendingXp: 0,
       pendingReputation: {},
+      pendingItems: [],
+      pendingQuests: [],
     })
   },
 }))

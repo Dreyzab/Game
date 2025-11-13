@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { DialogueBox, ChoicePanel, CharacterGroup } from '@/entities/visual-novel/ui'
+import { DialogueBox, ChoicePanel, CharacterGroup, type DialogueBoxRef } from '@/entities/visual-novel/ui'
 import type {
   VisualNovelChoiceView,
   VisualNovelLine,
@@ -41,6 +41,7 @@ export const VNScreen: React.FC<VNScreenProps> = ({
 
   const backgroundImage = currentLine?.backgroundOverride ?? scene.background
   const [isLineRevealed, setLineRevealed] = useState(false)
+  const dialogueBoxRef = useRef<DialogueBoxRef>(null)
   const visibleChoices = useMemo(
     () => (isLineRevealed && !isPending ? choices : []),
     [choices, isLineRevealed, isPending]
@@ -104,6 +105,15 @@ export const VNScreen: React.FC<VNScreenProps> = ({
     [isLineRevealed, isPending, isSceneCompleted, log, onChoice]
   )
 
+  const handleScreenClick = useCallback(() => {
+    // Если есть выборы или сцена завершена, не обрабатываем клик
+    if (visibleChoices.length > 0 || isSceneCompleted || isPending) {
+      return
+    }
+    // Пытаемся ускорить анимацию через ref
+    dialogueBoxRef.current?.speedUp()
+  }, [visibleChoices.length, isSceneCompleted, isPending])
+
   return (
     <div className="relative min-h-svh w-full overflow-hidden text-white">
       <motion.div
@@ -124,7 +134,10 @@ export const VNScreen: React.FC<VNScreenProps> = ({
           background: scene.ambientColor ?? 'rgba(2, 6, 23, 0.78)',
         }}
       />
-      <div className="relative z-10 flex min-h-svh flex-col gap-6 px-4 pb-8 pt-10 md:px-10">
+      <div 
+        className="relative z-10 flex min-h-svh flex-col gap-6 px-4 pb-8 pt-10 md:px-10"
+        onClick={handleScreenClick}
+      >
         <div className="flex flex-col gap-2">
           <div className="text-xs uppercase tracking-[0.4em] text-white/60">
             {scene.location}
@@ -139,6 +152,7 @@ export const VNScreen: React.FC<VNScreenProps> = ({
 
         <div className="mt-auto flex flex-col gap-4">
           <DialogueBox
+            ref={dialogueBoxRef}
             speakerName={speaker?.name}
             speakerTitle={speaker?.title}
             text={currentLine?.text}
