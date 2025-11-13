@@ -6,7 +6,7 @@ export function useSyncQuests(options: { intervalMs?: number } = {}) {
 
   useEffect(() => {
     let stopped = false
-    let timer: number | null = null
+    let timer: ReturnType<typeof window.setInterval> | null = null
 
     const sync = async () => {
       if (stopped) return
@@ -30,10 +30,9 @@ export function useSyncQuests(options: { intervalMs?: number } = {}) {
     document.addEventListener('visibilitychange', onVisibility)
 
     if (intervalMs > 0) {
-      // @ts-ignore setInterval typing in DOM
       timer = window.setInterval(() => {
         requestSync()
-      }, intervalMs) as unknown as number
+      }, intervalMs)
     }
 
     return () => {

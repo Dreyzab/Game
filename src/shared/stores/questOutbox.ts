@@ -68,10 +68,57 @@ export const useQuestOutbox = create<QuestOutboxState>()(
             lastKnownSeq: state.lastSyncedSeq,
             events,
           })
-          if (res && typeof res.ack === 'number') {
-            get().ack(res.ack)
+          
+          // Runtime validation вместо небезопасного type assertion
+          if (!res || typeof res !== 'object') {
+            console.warn('[questOutbox] Invalid response: not an object', res)
+            return null
           }
-          return res as { ack: number; echos: Echo[]; nextExpectedSeq: number }
+          
+          if (typeof res.ack !== 'number') {
+            console.warn('[questOutbox] Invalid response: ack is not a number', res)
+            return null
+          }
+          
+          if (typeof res.nextExpectedSeq !== 'number') {
+            console.warn('[questOutbox] Invalid response: nextExpectedSeq is not a number', res)
+            return null
+          }
+          
+          if (!Array.isArray(res.echos)) {
+            console.warn('[questOutbox] Invalid response: echos is not an array', res)
+            return null
+          }
+          
+          // Валидация каждого элемента echos
+          const validatedEchos: Echo[] = []
+          for (const echo of res.echos) {
+            if (
+              typeof echo === 'object' &&
+              echo !== null &&
+              typeof echo.questId === 'string' &&
+              (echo.status === 'active' || echo.status === 'completed') &&
+              (echo.currentStep === undefined || typeof echo.currentStep === 'string') &&
+              (echo.progress === undefined || typeof echo.progress === 'number') &&
+              (echo.completedAt === undefined || typeof echo.completedAt === 'number')
+            ) {
+              validatedEchos.push(echo as Echo)
+            } else {
+              console.warn('[questOutbox] Invalid echo item:', echo)
+            }
+          }
+          
+          const validatedRes = {
+            ack: res.ack,
+            echos: validatedEchos,
+            nextExpectedSeq: res.nextExpectedSeq,
+          }
+          
+          if (validatedRes.ack >= 0) {
+            get().ack(validatedRes.ack)
+          }
+          
+          return validatedRes
         } catch (e) {
           console.warn('[questOutbox] sync failed', e)
           return null

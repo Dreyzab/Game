@@ -58,7 +58,13 @@ export default defineSchema({
     currentStep: v.string(),
     startedAt: v.number(),
     completedAt: v.optional(v.number()),
-    progress: v.optional(v.any()),
+    // Прогресс может быть числом (для простых квестов), объектом (для сложных с несколькими параметрами)
+    // или массивом (для квестов с несколькими шагами). Используем union вместо v.any() для типобезопасности.
+    progress: v.optional(v.union(
+      v.number(),
+      v.object({}),
+      v.array(v.any())
+    )),
     abandonedAt: v.optional(v.number()),
     attempt: v.optional(v.number()),
     templateVersion: v.optional(v.number()),
