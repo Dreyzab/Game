@@ -893,7 +893,7 @@ export const scenarios: Record<string, Scene> = {
         id: 'gustav',
         name: 'Контролёр Густав',
         position: 'center',
-        sprite: '/public/images/characters/gustav.png',
+        sprite: '/images/characters/gustav.png',
         emotion: { primary: 'neutral', intensity: 60 }
       }
     ],
@@ -1187,7 +1187,7 @@ export const chapter1ArrivalScenes: Record<string, Scene> = {
       {
         id: 'open_map',
         text: 'Изучить карту и начать исследование',
-        nextScene: undefined, // Выход на карту
+        nextScene: 'info_bureau_meeting',
         effects: {
           flags: [{ key: 'can_use_map', value: true }],
           narrative: 'Теперь вы можете использовать карту для навигации по Фрайбургу'
@@ -1558,7 +1558,7 @@ export const infoBureauScenes: Record<string, Scene> = {
       {
         id: 'return_to_map',
         text: 'Открыть карту станции.',
-        nextScene: undefined,
+        nextScene: 'exit_to_map',
         effects: {
           flags: [{ key: 'need_info_bureau', value: false }],
           narrative: 'Карта доступна для исследования. Новые точки могут активироваться.',

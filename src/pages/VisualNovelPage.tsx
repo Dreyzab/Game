@@ -23,7 +23,7 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
   const params = useParams<{ sceneId?: string }>()
   const navigate = useNavigate()
   const { deviceId } = useDeviceId()
-  const { refresh: refreshProgress } = usePlayerProgress()
+  const { progress, refresh: refreshProgress } = usePlayerProgress()
   const startSession = useVisualNovelSessionStore((state) => state.startSession)
   const trackScene = useVisualNovelSessionStore((state) => state.trackScene)
   const recordChoice = useVisualNovelSessionStore((state) => state.recordChoice)
@@ -38,7 +38,7 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
     [lockedSceneId, params.sceneId]
   )
 
-  const { scene, currentLine, choices, goNext, choose, isPending, isSceneCompleted, jumpToScene } =
+  const { scene, currentLine, choices, goNext, choose, isPending, isSceneCompleted, jumpToScene, flags } =
     useVisualNovelViewModel(
       { sceneId: baseSceneId },
       {
@@ -52,6 +52,13 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
         },
       }
     )
+
+  // Получаем skills из game_progress через Convex
+  const skills = useMemo(() => {
+    if (!progress) return {}
+    // В game_progress есть поле skills как Record<string, number>
+    return (progress as any).skills ?? {}
+  }, [progress])
 
   useEffect(() => {
     log('🚀 Старт визуальной новеллы', { baseSceneId })
@@ -146,11 +153,24 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
         scene={scene}
         currentLine={currentLine}
         choices={choices}
+        skills={skills}
+        flags={flags}
         isPending={isPending}
         isSceneCompleted={isSceneCompleted}
         onAdvance={goNext}
         onChoice={choose}
         onExit={() => void handleExit()}
+        onAdviceViewed={async (payload) => {
+          log('📊 Просмотр совета голоса', payload)
+          try {
+            await convexMutations.vn.logCharacterAdviceViewed({
+              deviceId,
+              ...payload,
+            })
+          } catch (error) {
+            console.error('[VisualNovelExperience] Ошибка при логировании совета', error)
+          }
+        }}
         isCommitting={isCommitting}
       />
     </div>

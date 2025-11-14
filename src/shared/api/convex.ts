@@ -119,6 +119,21 @@ export type ConvexApi = {
   }
   vn: {
     commitScene: FunctionReference<'mutation', 'public', CommitSceneArgs, { success: boolean }>
+    logCharacterAdviceViewed: FunctionReference<
+      'mutation',
+      'public',
+      {
+        deviceId?: string
+        userId?: string
+        sceneId: string
+        lineId: string
+        characterId: string
+        choiceContext: string[]
+        skillLevel: number
+        viewOrder: number
+      },
+      { success: boolean; timestamp: number }
+    >
   }
   admin: {
     register: FunctionReference<'mutation', 'public', { name: string }, void>
@@ -130,51 +145,6 @@ type MapPointsResponse = {
   timestamp: number
   ttlMs: number
 }
-
-const createDemoPlayer = (deviceId?: string): Player => ({
-  id: deviceId ? `${deviceId}-demo` : 'demo-player',
-  deviceId: deviceId ?? 'demo-device',
-  createdAt: Date.now() - 1000 * 60 * 60,
-  status: 'active',
-  reputation: 5,
-  level: 2,
-  xp: 30,
-  completedQuests: 1,
-  fame: 0,
-  points: 0,
-  daysInGame: 2,
-  developmentPhase: 'alpha',
-})
-
-const createDemoProgress = (): PlayerProgress => ({
-  level: 2,
-  xp: 30,
-  maxXp: 150,
-  skillPoints: 1,
-  reputation: 5,
-  completedQuests: 0,
-  fame: 0,
-  points: 0,
-  daysInGame: 2,
-  flags: {},
-  visitedScenes: [DEFAULT_VN_SCENE_ID],
-  completedQuestIds: [],
-  currentScene: DEFAULT_VN_SCENE_ID,
-  phase: 1,
-  reputationByFaction: {
-    synthesis: 5,
-    merchants: 2,
-  },
-  lastUpdatedAt: Date.now(),
-})
-
-const flagsArrayToRecord = (flags: string[]) =>
-  flags.reduce<Record<string, true>>((acc, flag) => {
-    if (!acc[flag]) {
-      acc[flag] = true
-    }
-    return acc
-  }, {})
 
 const PROLOGUE_QUESTS: Array<Omit<LocalQuest, 'createdAt'>> = [
   {
@@ -242,131 +212,6 @@ const applyVisitedScenes = (state: LocalState, scenes?: string[]) => {
       state.visitedScenes.push(sceneId)
     }
   })
-}
-
-const DEMO_MAP_POINTS: MapPoint[] = [
-  {
-    id: 'info_bureau',
-    title: 'Information Bureau',
-    description: 'Start your journey here and gather details about the region and anomalies.',
-    coordinates: { lng: 7.852, lat: 48 },
-    type: 'poi',
-    isActive: true,
-    status: 'not_found',
-    metadata: {
-      faction: 'synthesis',
-      danger_level: 'low',
-      category: 'information',
-      isActiveQuestTarget: true,
-      sceneBindings: [
-        {
-          sceneId: 'info_bureau_meeting',
-          triggerType: 'click',
-          priority: 5,
-          conditions: {
-            flags: ['arrived_at_freiburg'],
-          },
-        },
-      ],
-    },
-  },
-  {
-    id: 'market_square',
-    title: 'Market Square',
-    description: 'Merchants, Dieter, and the busiest place in Freiburg. Ideal for delivery quests.',
-    coordinates: { lng: 7.845, lat: 47.998 },
-    type: 'settlement',
-    isActive: true,
-    status: 'not_found',
-    metadata: {
-      faction: 'merchants',
-      danger_level: 'low',
-      services: ['trade', 'repair'],
-      sceneBindings: [
-        {
-          sceneId: 'trader_first_meeting',
-          triggerType: 'click',
-          priority: 4,
-          conditions: {
-            flags: ['arrived_at_freiburg'],
-          },
-        },
-      ],
-    },
-  },
-  {
-    id: 'safe_hub',
-    title: 'Alliance Safe Hub',
-    description: 'Headquarters where Synthesys operatives regroup and plan expeditions.',
-    coordinates: { lng: 7.86, lat: 48.005 },
-    type: 'location',
-    isActive: true,
-    status: 'not_found',
-    metadata: {
-      faction: 'synthesis',
-      danger_level: 'low',
-    },
-  },
-  {
-    id: 'anomaly_zone_1',
-    title: 'Anomaly Hotspot',
-    description: 'An unstable anomaly detected on the outskirts. Approach with extreme caution.',
-    coordinates: { lng: 7.855, lat: 48.01 },
-    type: 'anomaly',
-    isActive: true,
-    status: 'not_found',
-    metadata: {
-      danger_level: 'high',
-    },
-  },
-]
-
-const DEMO_SAFE_ZONES: SafeZone[] = [
-  {
-    id: 'central_safe_zone',
-    name: 'Central Station Perimeter',
-    faction: 'synthesis',
-    polygon: [
-      { lng: 7.84, lat: 47.995 },
-      { lng: 7.87, lat: 47.995 },
-      { lng: 7.87, lat: 48.01 },
-      { lng: 7.84, lat: 48.01 },
-      { lng: 7.84, lat: 47.995 },
-    ],
-    isActive: true,
-  },
-]
-
-const buildProgressFromState = (state: LocalState): PlayerProgress => {
-  const base = createDemoProgress()
-  const completedQuestIds = state.quests
-    .filter((quest) => quest.status === 'completed')
-    .map((quest) => quest.id)
-
-  return {
-    ...base,
-    flags: {
-      ...base.flags,
-      ...flagsArrayToRecord(state.flags),
-    },
-    visitedScenes: Array.from(new Set([...base.visitedScenes, ...state.visitedScenes])),
-    completedQuestIds: Array.from(new Set([...base.completedQuestIds, ...completedQuestIds])),
-    completedQuests: completedQuestIds.length,
-    lastUpdatedAt: state.lastUpdatedAt,
-  }
-}
-
-const ensureLocalState = (): LocalState => {
-  try {
-    return updateLocalState((draft) => {
-      ensurePrologueQuests(draft)
-    })
-  } catch (error) {
-    console.warn('[convex] Failed to update local state, using in-memory fallback', error)
-    const fallback = loadLocalState()
-    ensurePrologueQuests(fallback)
-    return fallback
-  }
 }
 
 export const api = {
@@ -580,6 +425,28 @@ export const convexMutations = {
 
       return { success: true }
     },
+    logCharacterAdviceViewed: async (args: {
+      deviceId?: string
+      userId?: string
+      sceneId: string
+      lineId: string
+      characterId: string
+      choiceContext: string[]
+      skillLevel: number
+      viewOrder: number
+    }) => {
+      if (convexClient) {
+        try {
+          // @ts-expect-error Allow calling by string without codegen
+          return await convexClient.mutation('vn:logCharacterAdviceViewed', args)
+        } catch (e) {
+          console.warn('Convex mutation vn:logCharacterAdviceViewed failed', e)
+        }
+      }
+
+      console.log('vn.logCharacterAdviceViewed called with:', args)
+      return { success: true, timestamp: Date.now() }
+    },
   },
   admin: {
     register: async (args: { name: string }) => {
@@ -677,21 +544,16 @@ export const convexQueries = {
       phase?: number
       limit?: number
     }): Promise<MapPointsResponse> => {
-      if (convexClient) {
-        try {
-          // @ts-expect-error Allow calling by string without codegen
-          return await convexClient.query('mapPoints:listVisible', args)
-        } catch (e) {
-          console.warn('Convex query mapPoints:listVisible failed; falling back to demo', e)
-        }
+      if (!convexClient) {
+        throw new Error('Convex client is not configured for mapPoints:listVisible')
       }
 
-      console.log('mapPoints.listVisible called with:', args)
-
-      return {
-        points: DEMO_MAP_POINTS,
-        timestamp: Date.now(),
-        ttlMs: 5 * 60 * 1000,
+      try {
+        // @ts-expect-error Allow calling by string without codegen
+        return await convexClient.query('mapPoints:listVisible', args)
+      } catch (e) {
+        console.warn('Convex query mapPoints:listVisible failed', e)
+        throw e
       }
     },
   },
@@ -699,89 +561,111 @@ export const convexQueries = {
     listActiveSafeZones: async (
       args: { bbox?: { minLat: number; maxLat: number; minLng: number; maxLng: number } } = {}
     ): Promise<SafeZone[]> => {
-      if (convexClient) {
-        try {
-          // @ts-expect-error Allow calling by string without codegen
-          return await convexClient.query('zones:listSafeZones', args)
-        } catch (e) {
-          console.warn('Convex query zones:listSafeZones failed; returning demo data', e)
-        }
+      if (!convexClient) {
+        throw new Error('Convex client is not configured for zones:listActiveSafeZones')
       }
 
-      console.log('zones.listActiveSafeZones called with:', args)
-      return DEMO_SAFE_ZONES
+      try {
+        // @ts-expect-error Allow calling by string without codegen
+        return await convexClient.query('zones:listActiveSafeZones', args)
+      } catch (e) {
+        console.warn('Convex query zones:listActiveSafeZones failed', e)
+        throw e
+      }
     },
     listSafeZones: async (
       args: { bbox?: { minLat: number; maxLat: number; minLng: number; maxLng: number } } = {}
     ): Promise<SafeZone[]> => {
-      return convexQueries.zones.listActiveSafeZones(args)
+      if (!convexClient) {
+        throw new Error('Convex client is not configured for zones:listSafeZones')
+      }
+
+      try {
+        // @ts-expect-error Allow calling by string without codegen
+        return await convexClient.query('zones:listSafeZones', args)
+      } catch (e) {
+        console.warn('Convex query zones:listSafeZones failed', e)
+        throw e
+      }
     },
   },
   player: {
     get: async (args: { deviceId: string }): Promise<Player | null> => {
-      if (convexClient) {
-        try {
-          // @ts-expect-error Allow calling by string without codegen
-          return await convexClient.query('player:get', args)
-        } catch (e) {
-          console.warn('Convex query player:get failed; returning demo data', e)
-        }
+      if (!convexClient) {
+        throw new Error('Convex client is not configured for player:get')
       }
 
-      console.log('player.get called with:', args)
-      return createDemoPlayer(args.deviceId)
+      try {
+        // @ts-expect-error Allow calling by string without codegen
+        return await convexClient.query('player:get', args)
+      } catch (e) {
+        console.warn('Convex query player:get failed', e)
+        throw e
+      }
     },
     getProgress: async (args: { deviceId: string }): Promise<PlayerProgress> => {
-      if (convexClient) {
-        try {
-          // @ts-expect-error Allow calling by string without codegen
-          return await convexClient.query('player:getProgress', args)
-        } catch (e) {
-          console.warn('Convex query player:getProgress failed; returning demo data', e)
-        }
+      if (!convexClient) {
+        throw new Error('Convex client is not configured for player:getProgress')
       }
 
-      console.log('player.getProgress called with:', args)
-      const state = ensureLocalState()
-      return buildProgressFromState(state)
+      try {
+        // @ts-expect-error Allow calling by string without codegen
+        return await convexClient.query('player:getProgress', args)
+      } catch (e) {
+        console.warn('Convex query player:getProgress failed', e)
+        throw e
+      }
     },
   },
   quests: {
-    getActive: async (args: { deviceId: string }): Promise<LocalQuest[]> => {
-      if (convexClient) {
-        try {
-          // @ts-expect-error Allow calling by string without codegen
-          return await convexClient.query('quests:getActive', args)
-        } catch (e) {
-          console.warn('Convex query quests:getActive failed; returning demo data', e)
-        }
+    getActive: async (args: {
+      deviceId: string
+    }): Promise<{
+      id: string
+      title: string
+      description?: string
+      status: 'active' | 'completed'
+      progress?: number
+      maxProgress?: number
+      createdAt?: number
+    }[]> => {
+      if (!convexClient) {
+        throw new Error('Convex client is not configured for quests:getActive')
       }
 
-      console.log('quests.getActive called with:', args)
-      const state = ensureLocalState()
-      return state.quests.map((quest) => ({ ...quest }))
+      try {
+        // @ts-expect-error Allow calling by string without codegen
+        return await convexClient.query('quests:getActive', args)
+      } catch (e) {
+        console.warn('Convex query quests:getActive failed', e)
+        throw e
+      }
     },
     getById: async (args: { questId: string }): Promise<{ id: string; title: string; description: string; phase: number; isActive: boolean; stepsCount: number; repeatable: boolean; templateVersion: number } | null> => {
-      if (convexClient) {
-        try {
-          // @ts-expect-error Allow calling by string without codegen
-          return await convexClient.query('quests:getById', args)
-        } catch (e) {
-          console.warn('Convex query quests:getById failed; returning null', e)
-        }
+      if (!convexClient) {
+        throw new Error('Convex client is not configured for quests:getById')
       }
-      return null
+
+      try {
+        // @ts-expect-error Allow calling by string without codegen
+        return await convexClient.query('quests:getById', args)
+      } catch (e) {
+        console.warn('Convex query quests:getById failed', e)
+        throw e
+      }
     },
     getCompleted: async (args: { deviceId: string; limit?: number }): Promise<Array<{ id: string; title: string; status: 'completed' | 'abandoned'; completedAt?: number; abandonedAt?: number; attempt?: number; templateVersion?: number; currentStep?: string; startedAt?: number }>> => {
-      if (convexClient) {
-        try {
-          // @ts-expect-error Allow calling by string without codegen
-          return await convexClient.query('quests:getCompleted', args)
-        } catch (e) {
-          console.warn('Convex query quests:getCompleted failed; returning empty list', e)
-        }
+      if (!convexClient) {
+        throw new Error('Convex client is not configured for quests:getCompleted')
       }
-      return []
+
+      try {
+        // @ts-expect-error Allow calling by string without codegen
+        return await convexClient.query('quests:getCompleted', args)
+      } catch (e) {
+        console.warn('Convex query quests:getCompleted failed', e)
+        throw e
+      }
     },
   },
 }

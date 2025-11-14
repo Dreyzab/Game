@@ -177,3 +177,44 @@ export const commitScene = mutation({
     return { success: true }
   },
 })
+
+/**
+ * Логирует просмотр совета от внутреннего голоса (навыка)
+ * Используется для аналитики популярности голосов и навыков
+ */
+export const logCharacterAdviceViewed = mutation({
+  args: {
+    deviceId: v.optional(v.string()),
+    userId: v.optional(v.string()),
+    sceneId: v.string(),
+    lineId: v.string(),
+    characterId: v.string(), // ID навыка (logic, perception, etc.)
+    choiceContext: v.array(v.string()), // ID доступных choices
+    skillLevel: v.number(), // Уровень навыка в момент просмотра
+    viewOrder: v.number(), // Порядковый номер просмотра (1-й, 2-й голос?)
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now()
+
+    // Логируем событие в scene_logs с типом 'advice_viewed'
+    await ctx.db.insert('scene_logs', {
+      deviceId: args.deviceId,
+      userId: args.userId,
+      sceneId: args.sceneId,
+      choices: [], // Пустой массив, т.к. это не выбор, а просмотр совета
+      startedAt: now,
+      finishedAt: now,
+      payload: {
+        type: 'advice_viewed',
+        lineId: args.lineId,
+        characterId: args.characterId,
+        choiceContext: args.choiceContext,
+        skillLevel: args.skillLevel,
+        viewOrder: args.viewOrder,
+      },
+      createdAt: now,
+    })
+
+    return { success: true, timestamp: now }
+  },
+})

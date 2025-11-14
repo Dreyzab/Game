@@ -1,12 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { DialogueBox, ChoicePanel, CharacterGroup, type DialogueBoxRef } from '@/entities/visual-novel/ui'
+import { DialogueBox, ChoicePanel, CharacterGroup } from '@/entities/visual-novel/ui'
 import type {
   VisualNovelChoiceView,
   VisualNovelLine,
   VisualNovelSceneDefinition,
 } from '@/shared/types/visualNovel'
 import { Button } from '@/shared/ui/components/Button'
+import { VoiceCardGroup, useConsultationMode, getVoiceDefinition } from '@/features/visual-novel/consultation'
 
 export interface VNScreenProps {
   scene: VisualNovelSceneDefinition
@@ -14,9 +15,19 @@ export interface VNScreenProps {
   choices: VisualNovelChoiceView[]
   isSceneCompleted: boolean
   isPending: boolean
+  skills?: Record<string, number>
+  flags?: Set<string>
   onAdvance: () => void
   onChoice: (choiceId: string) => void
   onExit: () => void
+  onAdviceViewed?: (payload: {
+    sceneId: string
+    lineId: string
+    characterId: string
+    choiceContext: string[]
+    skillLevel: number
+    viewOrder: number
+  }) => void
   isCommitting?: boolean
 }
 
@@ -26,9 +37,12 @@ export const VNScreen: React.FC<VNScreenProps> = ({
   choices,
   isSceneCompleted,
   isPending,
+  skills = {},
+  flags = new Set<string>(),
   onAdvance,
   onChoice,
   onExit,
+  onAdviceViewed,
   isCommitting = false,
 }) => {
   const log = useCallback((...args: unknown[]) => {
@@ -41,16 +55,46 @@ export const VNScreen: React.FC<VNScreenProps> = ({
 
   const backgroundImage = currentLine?.backgroundOverride ?? scene.background
   const [isLineRevealed, setLineRevealed] = useState(false)
-  const dialogueBoxRef = useRef<DialogueBoxRef>(null)
+  const [isWaitingForAdvance, setWaitingForAdvance] = useState(false)
+  const autoAdvanceTimeoutRef = useRef<number | null>(null)
+
+  // Система консультаций с внутренними голосами
+  const consultation = useConsultationMode({
+    currentLine,
+    choices,
+    skills,
+    flags,
+    onAdviceViewed,
+    sceneId: scene.id,
+  })
+
+  // Получаем определение активного голоса
+  const activeVoice = useMemo(
+    () => (consultation.activeVoiceId ? getVoiceDefinition(consultation.activeVoiceId) : null),
+    [consultation.activeVoiceId]
+  )
+
+  // Выборы видны только если: 1) реплика раскрыта, 2) не в режиме консультации, 3) нет pending
   const visibleChoices = useMemo(
-    () => (isLineRevealed && !isPending ? choices : []),
-    [choices, isLineRevealed, isPending]
+    () => (isLineRevealed && !isPending && !consultation.isConsultationMode ? choices : []),
+    [choices, isLineRevealed, isPending, consultation.isConsultationMode]
   )
 
   useEffect(() => {
     log('🆕 Активная реплика изменена', { lineId: currentLine?.id, sceneId: scene.id })
     setLineRevealed(false)
+    setWaitingForAdvance(false)
   }, [currentLine?.id, log, scene.id])
+
+  // Очищаем таймер при размонтировании компонента
+  useEffect(() => {
+    return () => {
+      if (autoAdvanceTimeoutRef.current !== null) {
+        clearTimeout(autoAdvanceTimeoutRef.current)
+        autoAdvanceTimeoutRef.current = null
+      }
+    }
+  }, [])
 
   useEffect(() => {
     if (!isLineRevealed) return
@@ -61,21 +105,31 @@ export const VNScreen: React.FC<VNScreenProps> = ({
     const hasNext = Boolean(currentLine?.nextLineId || currentLine?.transition?.nextSceneId)
     if (!hasNext) return
 
-    const AUTO_ADVANCE_DELAY = 900
-    log('⏳ Планируем автоматический переход после реплики', {
+    // Пауза между репликами - 5 секунд
+    const PAUSE_BEFORE_ADVANCE = 5000
+    log('⏳ Пауза перед следующей репликой', {
       lineId: currentLine?.id,
       nextLineId: currentLine?.nextLineId,
       nextSceneId: currentLine?.transition?.nextSceneId,
-      delay: AUTO_ADVANCE_DELAY,
+      delay: PAUSE_BEFORE_ADVANCE,
     })
-    const timeoutId = setTimeout(() => {
-      log('⏩ Выполняем автоматический переход', { fromLineId: currentLine?.id })
+    
+    setWaitingForAdvance(true)
+    
+    autoAdvanceTimeoutRef.current = window.setTimeout(() => {
+      log('⏩ Автоматический переход после паузы', { fromLineId: currentLine?.id })
+      setWaitingForAdvance(false)
       onAdvance()
-    }, AUTO_ADVANCE_DELAY)
+      autoAdvanceTimeoutRef.current = null
+    }, PAUSE_BEFORE_ADVANCE)
 
     return () => {
-      log('🧹 Отмена автоматического перехода', { lineId: currentLine?.id })
-      clearTimeout(timeoutId)
+      log('🧹 Отмена паузы', { lineId: currentLine?.id })
+      if (autoAdvanceTimeoutRef.current !== null) {
+        clearTimeout(autoAdvanceTimeoutRef.current)
+        autoAdvanceTimeoutRef.current = null
+      }
+      setWaitingForAdvance(false)
     }
   }, [
     choices.length,
@@ -105,14 +159,32 @@ export const VNScreen: React.FC<VNScreenProps> = ({
     [isLineRevealed, isPending, isSceneCompleted, log, onChoice]
   )
 
+  const skipPause = useCallback(() => {
+    if (autoAdvanceTimeoutRef.current !== null) {
+      log('⏭️ Пропуск паузы по клику')
+      clearTimeout(autoAdvanceTimeoutRef.current)
+      autoAdvanceTimeoutRef.current = null
+      setWaitingForAdvance(false)
+      onAdvance()
+    }
+  }, [log, onAdvance])
+
   const handleScreenClick = useCallback(() => {
+    // В режиме консультации - выходим из него
+    if (consultation.isConsultationMode) {
+      consultation.exitConsultationMode()
+      return
+    }
     // Если есть выборы или сцена завершена, не обрабатываем клик
     if (visibleChoices.length > 0 || isSceneCompleted || isPending) {
       return
     }
-    // Пытаемся ускорить анимацию через ref
-    dialogueBoxRef.current?.speedUp()
-  }, [visibleChoices.length, isSceneCompleted, isPending])
+    // Если ждём автоматического перехода - пропускаем паузу
+    if (isWaitingForAdvance) {
+      skipPause()
+      return
+    }
+  }, [consultation, visibleChoices.length, isSceneCompleted, isPending, isWaitingForAdvance, skipPause])
 
   return (
     <div className="relative min-h-svh w-full overflow-hidden text-white">
@@ -151,19 +223,50 @@ export const VNScreen: React.FC<VNScreenProps> = ({
         <CharacterGroup characters={scene.characters} activeCharacterId={currentLine?.speakerId} />
 
         <div className="mt-auto flex flex-col gap-4">
-          <DialogueBox
-            ref={dialogueBoxRef}
-            speakerName={speaker?.name}
-            speakerTitle={speaker?.title}
-            text={currentLine?.text}
-            mood={currentLine?.mood}
-            stageDirection={currentLine?.stageDirection}
-            disabled={visibleChoices.length > 0 || isSceneCompleted}
-            isPending={isPending}
-            onAdvance={onAdvance}
-            onRevealComplete={() => setLineRevealed(true)}
-            forceTypingAnimation
-          />
+          {/* Голоса для консультаций - показываем когда есть выборы и доступные советы */}
+          {isLineRevealed && choices.length > 0 && consultation.availableVoiceIds.length > 0 && (
+            <VoiceCardGroup
+              skills={skills}
+              availableVoiceIds={consultation.availableVoiceIds}
+              activeVoiceId={consultation.activeVoiceId}
+              viewedVoiceIds={consultation.viewedVoiceIds}
+              onVoiceClick={consultation.consultVoice}
+              disabled={isPending || isSceneCompleted}
+            />
+          )}
+
+          {/* DialogueBox - показываем совет голоса ИЛИ обычный диалог */}
+          <AnimatePresence mode="wait">
+            {consultation.isConsultationMode && consultation.currentAdvice && activeVoice ? (
+              // Режим консультации - показываем совет голоса
+              <DialogueBox
+                key={`advice-${consultation.activeVoiceId}`}
+                speakerName={activeVoice.name}
+                speakerTitle={`Уровень: ${skills[consultation.activeVoiceId || ''] ?? 0}`}
+                text={consultation.currentAdvice.text}
+                mood={consultation.currentAdvice.mood}
+                stageDirection={consultation.currentAdvice.stageDirection}
+                disabled={false}
+                isPending={false}
+                onAdvance={consultation.exitConsultationMode}
+                onRevealComplete={() => {}}
+              />
+            ) : (
+              // Обычный режим - показываем диалог сцены
+              <DialogueBox
+                key={`dialogue-${currentLine?.id}`}
+                speakerName={speaker?.name}
+                speakerTitle={speaker?.title}
+                text={currentLine?.text}
+                mood={currentLine?.mood}
+                stageDirection={currentLine?.stageDirection}
+                disabled={visibleChoices.length > 0 || isSceneCompleted}
+                isPending={isPending || isWaitingForAdvance}
+                onAdvance={isWaitingForAdvance ? skipPause : onAdvance}
+                onRevealComplete={() => setLineRevealed(true)}
+              />
+            )}
+          </AnimatePresence>
 
           <ChoicePanel choices={visibleChoices} onSelect={handleChoiceSelect} />
 

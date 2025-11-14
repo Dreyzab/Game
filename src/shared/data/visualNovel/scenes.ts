@@ -4,6 +4,7 @@ import {
   infoBureauScenes,
 } from '@/entities/visual-novel/scenarios/prolog/scenarioTr-ST'
 import { chapter1Scenes } from '@/entities/visual-novel/scenarios/chapter1'
+import { TEST_SCENE_WITH_ADVICES } from './testSceneWithAdvices'
 import type { Scene, SceneCharacter, SceneChoice } from '@/entities/visual-novel/model/types'
 import type {
   VisualNovelChoice,
@@ -33,6 +34,7 @@ const ALL_SCENES: VisualNovelSceneDefinition[] = [
   ...convertedArrivals,
   ...convertedInfoBureau,
   ...convertedChapter1,
+  TEST_SCENE_WITH_ADVICES, // Тестовая сцена с системой консультаций
 ]
 
 export const VISUAL_NOVEL_SCENES: SceneRecord = ALL_SCENES.reduce<SceneRecord>((acc, scene) => {

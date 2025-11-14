@@ -50,6 +50,17 @@ export interface VisualNovelChoice {
   effects?: VisualNovelChoiceEffect[]
 }
 
+export interface VisualNovelAdvice {
+  characterId: string
+  text: string
+  mood?: VisualNovelMood
+  stageDirection?: string
+  minSkillLevel?: number
+  maxSkillLevel?: number
+  requiredFlags?: string[]
+  excludedFlags?: string[]
+}
+
 export interface VisualNovelLine {
   id: string
   speakerId?: string
@@ -63,6 +74,7 @@ export interface VisualNovelLine {
   nextLineId?: string
   autoAdvance?: boolean
   choices?: VisualNovelChoice[]
+  characterAdvices?: VisualNovelAdvice[]
   transition?: {
     nextSceneId?: string
     label?: string
