@@ -1,0 +1,3 @@
+export const INVENTORY_GRID_COLUMNS = 6
+export const INVENTORY_GRID_ROWS = 10
+export const INVENTORY_QUICK_SLOTS = 5
