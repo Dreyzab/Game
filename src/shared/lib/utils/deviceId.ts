@@ -8,7 +8,7 @@ const DEVICE_ID_KEY = 'grezwanderer_device_id'
 /**
  * Generate a unique device ID
  */
-function generateDeviceId(): string {
+export function generateDeviceId(): string {
   // Generate a simple UUID-like string
   return `${Date.now()}-${Math.random().toString(36).substring(2, 15)}-${Math.random().toString(36).substring(2, 15)}`
 }
@@ -36,6 +36,23 @@ export function getDeviceId(): string {
     // Fallback if localStorage is not available
     console.warn('Failed to access localStorage, using session device ID', error)
     return generateDeviceId()
+  }
+}
+
+/**
+ * Forcefully set the current device ID (used for account switching)
+ */
+export function setDeviceId(nextId: string): string {
+  if (typeof window === 'undefined') {
+    return nextId
+  }
+
+  try {
+    localStorage.setItem(DEVICE_ID_KEY, nextId)
+    return nextId
+  } catch (error) {
+    console.warn('Failed to set device ID in localStorage', error)
+    return nextId
   }
 }
 

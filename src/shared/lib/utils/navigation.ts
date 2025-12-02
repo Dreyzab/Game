@@ -26,10 +26,13 @@ export const Routes = {
   ENHANCED_MAP: '/enhanced-map',
   QUESTS: '/quests',
   COMBAT: '/combat',
+  TUTORIAL_BATTLE: '/tutorial-battle',
   INVENTORY: '/inventory',
   SETTINGS: '/settings',
   QR_SCANNER: '/qr-scanner',
-  DEVTOOLS: '/dev-tools'
+  DEVTOOLS: '/dev-tools',
+  PVP: '/pvp',
+  PVP_BATTLE: '/pvp/:battleId'
 } as const
 
 export type RoutePath = typeof Routes[keyof typeof Routes]

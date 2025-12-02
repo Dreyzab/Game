@@ -23,7 +23,13 @@ const barColor: Record<EncumbranceState['level'], string> = {
 }
 
 export const EncumbrancePanel: React.FC<EncumbrancePanelProps> = ({ encumbrance }) => {
-  const ratio = Math.min(1, encumbrance.currentWeight / encumbrance.maxWeight)
+  const safeMax =
+    Number.isFinite(encumbrance.maxWeight) && encumbrance.maxWeight > 0
+      ? encumbrance.maxWeight
+      : 0
+  const rawRatio =
+    safeMax > 0 ? encumbrance.currentWeight / safeMax : 0
+  const ratio = Math.min(1, Math.max(0, rawRatio))
   const barWidth = `${Math.round(ratio * 100)}%`
 
   return (
@@ -34,12 +40,12 @@ export const EncumbrancePanel: React.FC<EncumbrancePanelProps> = ({ encumbrance 
       </div>
       <div className="relative h-4 overflow-hidden rounded bg-slate-800/90">
         <div
-          className={clsx('absolute inset-y-0 left-0 rounded-r bg-gradient-to-r', barColor[encumbrance.level])}
+          className={clsx('absolute inset-y-0 left-0 rounded-r bg-linear-to-r', barColor[encumbrance.level])}
           style={{ width: barWidth }}
         />
       </div>
       <div className="flex items-center justify-between text-sm">
-        <span className="text-[color:var(--color-text-secondary)]">
+        <span className="text-(--color-text-secondary)">
           {encumbrance.currentWeight}/{encumbrance.maxWeight} kg
         </span>
         <span className="text-xs text-slate-500">Speed -{Math.round(encumbrance.speedPenalty * 100)}%</span>

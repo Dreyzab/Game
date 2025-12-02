@@ -10,15 +10,13 @@ import CharacterPage from '@/pages/CharacterPage'
 import InventoryPage from '@/pages/InventoryPage'
 import SettingsPage from '@/pages/SettingsPage'
 import DevToolsPage from '@/pages/DevToolsPage'
+import QuestsPage from '@/pages/QuestsPage'
+import QRScannerPage from '@/pages/QRScannerPage'
+import BattlePage from '@/pages/BattlePage'
+import TutorialBattlePage from '@/pages/TutorialBattlePage'
+import PvPPage from '@/pages/PvPPage'
 
-const PlaceholderPage = ({ title }: { title: string }) => (
-  <div className="min-h-screen flex items-center justify-center">
-    <div className="text-center">
-      <h1 className="text-2xl font-bold mb-4">{title}</h1>
-      <p className="text-[color:var(--color-text-secondary)]">Компонент находится в разработке</p>
-    </div>
-  </div>
-)
+
 
 const AppShell = () => (
   <>
@@ -43,14 +41,19 @@ function App() {
         <Route path={RoutePaths.DEVTOOLS} element={<DevToolsPage />} />
 
         {/* Temporary placeholders for remaining routes */}
-        <Route path={RoutePaths.QUESTS} element={<PlaceholderPage title="Квесты" />} />
-        <Route path={RoutePaths.COMBAT} element={<PlaceholderPage title="Бой" />} />
-        <Route path={RoutePaths.QR_SCANNER} element={<PlaceholderPage title="QR сканер" />} />
+        <Route path={RoutePaths.QUESTS} element={<QuestsPage />} />
+        <Route path={RoutePaths.COMBAT} element={<BattlePage />} />
+        <Route path={RoutePaths.QR_SCANNER} element={<QRScannerPage />} />
+        <Route path={RoutePaths.PVP} element={<PvPPage />} />
+        <Route path={RoutePaths.PVP_BATTLE} element={<PvPPage />} />
       </Route>
 
       {/* VN routes without navbar */}
       <Route path={RoutePaths.PROLOGUE} element={<ProloguePage />} />
       <Route path={`${RoutePaths.VISUAL_NOVEL}/:sceneId?`} element={<VisualNovelPage />} />
+
+      {/* Tutorial Battle (no navbar) */}
+      <Route path={RoutePaths.TUTORIAL_BATTLE} element={<TutorialBattlePage />} />
 
       {/* Fallback */}
       <Route path="*" element={<Navigate to={RoutePaths.HOME} replace />} />

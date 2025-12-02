@@ -3,6 +3,9 @@ import { mutation } from './_generated/server'
 import type { MutationCtx } from './_generated/server'
 import type { Doc } from './_generated/dataModel'
 import { STARTING_SKILLS, awardXPAndLevelUp } from './gameProgress'
+import { ITEM_TEMPLATES } from './templates'
+import { coreStart, coreUpdate, coreComplete } from './quests'
+import { getPlayerByDeviceOrUser } from './player'
 
 type SceneChoiceLog = {
   sceneId: string
@@ -145,13 +148,142 @@ export const commitScene = mutation({
       args.payload.reputation
     )
 
+    // Initialize skills for accumulation
+    const currentSkills = { ...((progress as any).skills || STARTING_SKILLS) }
+    let skillsModified = false
+
+    // Process immediate effects from choices
+    if (args.payload.choices) {
+      const player = await getPlayerByDeviceOrUser(ctx, args)
+      const ownerId = args.userId ?? args.deviceId
+
+      const handleImmediate = async (effect: any) => {
+        const actionType = effect?.action
+        const data = (effect?.data ?? {}) as Record<string, any>
+
+        try {
+          if (actionType === 'item' && ownerId) {
+            const { itemId, amount } = data
+            if (ITEM_TEMPLATES[itemId]) {
+              const template = ITEM_TEMPLATES[itemId]
+              const quantity = amount ?? 1
+              const stats = {
+                weight: 1,
+                width: template.width ?? 1,
+                height: template.height ?? 1,
+                damage: template.baseStats?.damage,
+                defense: template.baseStats?.defense,
+                maxDurability: template.baseStats?.maxDurability,
+                capacity: template.baseStats?.capacity,
+                specialEffects: template.baseStats?.specialEffects,
+              }
+              await ctx.db.insert('items', {
+                ownerId,
+                templateId: itemId,
+                instanceId: `${itemId}-${now}`,
+                kind: template.kind,
+                name: itemId,
+                description: 'VN reward item',
+                icon: 'vn_reward',
+                rarity: 'common',
+                stats,
+                quantity,
+                gridPosition: { x: 0, y: 0 },
+                createdAt: now,
+                updatedAt: now,
+              })
+              console.log(`[VN] Awarded item: ${itemId} x${quantity}`)
+            } else {
+              console.warn('[VN] Unknown item template:', itemId)
+            }
+            return
+          }
+
+          if (actionType === 'quest' && player) {
+            const {
+              questId,
+              action,
+              expectedStep,
+              nextStepId,
+              deltaProgress,
+              setProgress,
+            } = data
+            if (!questId || !action) return
+
+            if (action === 'start') {
+              await coreStart(ctx, player, questId)
+              console.log('[VN] Started quest from scene:', questId)
+            } else if (action === 'update') {
+              await coreUpdate(ctx, player, questId, {
+                expectedStep,
+                nextStepId,
+                deltaProgress,
+                setProgress,
+              })
+              console.log('[VN] Updated quest from scene:', questId, {
+                expectedStep,
+                nextStepId,
+                deltaProgress,
+                setProgress,
+              })
+            } else if (action === 'complete') {
+              await coreComplete(ctx, player, {
+                deviceId: args.deviceId,
+                userId: args.userId,
+                questId,
+                expectedStep,
+              })
+              console.log('[VN] Completed quest from scene:', questId)
+            }
+            return
+          }
+
+          if (actionType === 'skill_boost') {
+            const { skillId, amount } = data
+            if (!skillId || typeof amount !== 'number') return
+            currentSkills[skillId] = (currentSkills[skillId] || 0) + amount
+            skillsModified = true
+            console.log('[VN] Boosted skill:', skillId, '+', amount)
+          }
+        } catch (err) {
+          console.error('[VN] Error processing immediate effect', { actionType, data }, err)
+        }
+      }
+
+      for (const choice of args.payload.choices) {
+        const effects: any = choice.effects
+        if (!effects) continue
+
+        // New-style: VisualNovelChoiceEffect[] with type === 'immediate'
+        if (Array.isArray(effects)) {
+          for (const effect of effects) {
+            if (effect && effect.type === 'immediate') {
+              // effect: { type: 'immediate', action, data }
+              // eslint-disable-next-line @typescript-eslint/no-floating-promises
+              await handleImmediate(effect)
+            }
+          }
+          continue
+        }
+
+        // Legacy: { immediate: Array<{ type, data }> }
+        if (Array.isArray((effects as any).immediate)) {
+          for (const legacy of (effects as any).immediate) {
+            if (!legacy) continue
+            // eslint-disable-next-line @typescript-eslint/no-floating-promises
+            await handleImmediate({ action: legacy.type, data: legacy.data })
+          }
+        }
+      }
+    }
+
     // Phase advancement
     let newPhase = (progress as unknown as { phase?: number }).phase ?? 1
     if (typeof args.payload.advancePhaseTo === 'number' && args.payload.advancePhaseTo > newPhase) {
       newPhase = args.payload.advancePhaseTo
     }
 
-    await ctx.db.patch(progressId, {
+    const patchData: any = {
       currentScene: args.sceneId,
       visitedScenes: Array.from(visitedScenes),
       flags,
@@ -161,7 +293,13 @@ export const commitScene = mutation({
       phase: newPhase,
       updatedAt: now,
       reputation,
-    })
+    }
+
+    if (skillsModified) {
+      patchData.skills = currentSkills
+    }
+
+    await ctx.db.patch(progressId, patchData)
 
     await ctx.db.insert('scene_logs', {
       deviceId: args.deviceId,

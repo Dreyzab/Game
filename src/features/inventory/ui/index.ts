@@ -1,5 +1,5 @@
 export { InventoryGrid } from './InventoryGrid/InventoryGrid'
-export { EquipmentSlots } from './EquipmentSlots/EquipmentSlots'
+export { default as EquipmentSlots } from './EquipmentSlots/EquipmentSlots'
 export { QuickAccessBar } from './QuickAccessBar/QuickAccessBar'
 export { ItemDetailsPanel } from './ItemDetailsPanel/ItemDetailsPanel'
 export { EncumbrancePanel } from './EncumbrancePanel/EncumbrancePanel'

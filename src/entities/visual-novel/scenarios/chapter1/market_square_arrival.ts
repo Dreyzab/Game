@@ -8,40 +8,68 @@ export const scenarios: SceneMap = {
     characters: [],
     dialogue: [
       {
-        speaker: 'Рассказчик',
-        text: 'Вы выходите с территории сортировочной станции, и город обрушивается на вас. Не грохотом и скрежетом, а гулом тысяч голосов, запахами и жизнью.'
+        speaker: 'Narrator',
+        text: 'The market square opens in front of you: stalls, smells of food, fragments of conversations, and the distant ringing of a tram. After the cramped alleys this place feels almost overwhelming.',
       },
       {
-        speaker: 'Рассказчик',
-        text: 'Это площадь Старой Синагоги — сердце Фрайбурга. Его артерия и базар. Контролируемый хаос.'
+        speaker: 'Narrator',
+        text: 'Vendors shout over each other, students rush past with coffee, and somewhere nearby a street musician is struggling to tune his guitar against the city noise.',
       },
       {
-        speaker: 'ВОСПРИЯТИЕ',
-        text: '[ПАРАМЕТР: ПСИХЕ/ВОСПРИЯТИЕ (Успех)] Запахи. Смесь специй, жареного мяса, дешёвого табака и сырости. Звуки — десятки языков, смех, ругань, торг. Это... жизнь.',
-        emotion: { primary: 'surprised', intensity: 70 }
+        speaker: 'Protagonist',
+        text: 'Okay… Focus. I am not here as a tourist. There are clues hidden in this chaos — people, posters, maybe even a familiar face among the crowd.',
+        emotion: { primary: 'surprised', intensity: 70 },
       },
       {
-        speaker: 'ЛОГИКА',
-        text: 'Центральный узел. Здесь пересекаются все пути. Идеальное место для сбора информации. И для того, чтобы всадить нож в спину.',
-        emotion: { primary: 'neutral', intensity: 80 }
+        speaker: 'Narrator',
+        text: 'Your gaze slides over the food stalls, the improvised notice board, and the tight cluster of umbrellas where students are huddling with their laptops.',
+        emotion: { primary: 'neutral', intensity: 80 },
       },
       {
-        speaker: 'Рассказчик',
-        text: 'Ваш взгляд цепляется за несколько ключевых точек в этой суете.'
-      }
+        speaker: 'Narrator',
+        text: 'Somewhere here must be the stall of Elias, the trader you were told about — if you can spot it before the crowd swallows you again.',
+      },
     ],
     choices: [
-      { id: 'look_at_kitchen', text: '[Осмотреться] Посмотреть направо, к полевой кухне.', nextScene: 'market_node_kitchen' },
-      { id: 'look_at_market', text: '[Осмотреться] Посмотреть налево, на торговые ряды.', nextScene: 'market_node_market' },
-      { id: 'look_at_posters', text: '[Осмотреться] Изучить объявления на стене.', nextScene: 'market_node_posters' },
+      {
+        id: 'look_at_kitchen',
+        text: '[Look at the food stalls] The smells of spices and roasted vegetables pull your attention toward a small improvised kitchen under a striped awning.',
+        nextScene: 'market_node_kitchen',
+      },
+      {
+        id: 'look_at_market',
+        text: '[Survey the central square] You take a step back and try to take in the whole market at once, hoping that distance will help you notice details.',
+        nextScene: 'market_node_market',
+      },
+      {
+        id: 'look_at_posters',
+        text: '[Examine the posters] A dense patch of flyers and announcements on a nearby board looks like a good place to search for hints.',
+        nextScene: 'market_node_posters',
+      },
       {
         id: 'find_elias_shop',
-        text: '[Задание] Искать лавку Элиаса "Ржавый Якорь".',
-        presentation: { color: 'skill', icon: '🎯', tooltip: 'Основное задание: "Шанс для новичка"' },
-        nextScene: 'market_quest_nudge'
-      }
-    ]
-  }
+        text: '[Try to find Elias’s stall] You narrow your eyes and scan the stands for anything that looks like a place where information and odd goods are traded.',
+        presentation: {
+          color: 'skill',
+          icon: 'logic',
+          tooltip: 'Logic skill check: notice the small but telling details in the arrangement of stalls.',
+        },
+        nextScene: 'trader_meeting_dialog',
+        availability: {
+          skillCheck: {
+            skill: 'logic',
+            difficulty: 6,
+            successText:
+              'Patterns emerge from the noise: the way people move, where they stall, how some avoid one particular stand. You are pretty sure you have found Elias.',
+            failureText:
+              'Everything blends into one big blur of noise and color. Maybe you should gather more context before trying again.',
+          },
+        },
+        effects: {
+          xp: 5,
+        },
+      },
+    ],
+  },
 }
-
 

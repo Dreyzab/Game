@@ -1,8 +1,7 @@
 import React, { useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { VoiceCard } from './VoiceCard'
-import { VOICE_DEFINITIONS } from '../lib/voiceDefinitions'
-import type { VoiceId } from '../lib/voiceDefinitions'
+import { VOICE_DEFINITIONS, CATEGORY_LABELS, CATEGORY_DESCRIPTIONS, type VoiceId, type VoiceCategory } from '../lib/voiceDefinitions'
 
 export interface VoiceCardGroupProps {
   skills: Record<string, number>
@@ -21,27 +20,34 @@ export const VoiceCardGroup: React.FC<VoiceCardGroupProps> = ({
   onVoiceClick,
   disabled = false,
 }) => {
-  // Сортируем голоса по категориям и доступности
-  const sortedVoices = useMemo(() => {
-    const voices = Object.values(VOICE_DEFINITIONS)
-    
-    // Сначала доступные, потом недоступные
-    return voices.sort((a, b) => {
-      const aAvailable = availableVoiceIds.includes(a.id)
-      const bAvailable = availableVoiceIds.includes(b.id)
-      
-      if (aAvailable && !bAvailable) return -1
-      if (!aAvailable && bAvailable) return 1
-      
-      // Внутри групп сортируем по категориям
-      if (a.category !== b.category) {
-        const categoryOrder = { cogito: 0, spirit: 1, psyche: 2, corpus: 3 }
-        return categoryOrder[a.category] - categoryOrder[b.category]
+  // Группируем голоса по категориям
+  const voicesByCategory = useMemo(() => {
+    const groups: Record<VoiceCategory, typeof VOICE_DEFINITIONS[VoiceId][]> = {
+      body: [],
+      motorics: [],
+      mind: [],
+      consciousness: [],
+      psyche: [],
+      sociality: [],
+    }
+
+    Object.values(VOICE_DEFINITIONS).forEach((voice) => {
+      if (groups[voice.category]) {
+        groups[voice.category].push(voice)
       }
-      
-      return 0
     })
-  }, [availableVoiceIds])
+
+    return groups
+  }, [])
+
+  const categoryOrder: VoiceCategory[] = [
+    'body',
+    'motorics',
+    'mind',
+    'consciousness',
+    'psyche',
+    'sociality',
+  ]
 
   const container = {
     hidden: { opacity: 0 },
@@ -65,29 +71,46 @@ export const VoiceCardGroup: React.FC<VoiceCardGroupProps> = ({
       initial="hidden"
       animate="show"
     >
-      <div className="grid grid-cols-3 gap-2 md:grid-cols-4 lg:grid-cols-6">
-        {sortedVoices.map((voice) => {
-          const skillLevel = skills[voice.id as VoiceId] ?? 0
-          const isAvailable = availableVoiceIds.includes(voice.id)
-          const isActive = activeVoiceId === voice.id
-          const isViewed = viewedVoiceIds.has(voice.id)
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {categoryOrder.map((category) => {
+          const voices = voicesByCategory[category]
+          if (!voices || voices.length === 0) return null
 
           return (
-            <motion.div key={voice.id} variants={item}>
-              <VoiceCard
-                voice={voice}
-                skillLevel={skillLevel}
-                isAvailable={isAvailable}
-                isActive={isActive}
-                isViewed={isViewed}
-                onClick={() => onVoiceClick(voice.id)}
-                disabled={disabled}
-              />
-            </motion.div>
+            <div key={category} className="flex flex-col gap-3">
+              <div className="mb-1 text-center">
+                <h3 className="text-sm font-bold uppercase tracking-widest text-white/90">
+                  {CATEGORY_LABELS[category]}
+                </h3>
+                {/* Optional: Add description tooltip or subtitle here if needed */}
+              </div>
+
+              <div className="flex flex-col gap-3">
+                {voices.map((voice) => {
+                  const skillLevel = skills[voice.id as VoiceId] ?? 0
+                  const isAvailable = availableVoiceIds.includes(voice.id)
+                  const isActive = activeVoiceId === voice.id
+                  const isViewed = viewedVoiceIds.has(voice.id)
+
+                  return (
+                    <motion.div key={voice.id} variants={item}>
+                      <VoiceCard
+                        voice={voice}
+                        skillLevel={skillLevel}
+                        isAvailable={isAvailable}
+                        isActive={isActive}
+                        isViewed={isViewed}
+                        onClick={() => onVoiceClick(voice.id)}
+                        disabled={disabled}
+                      />
+                    </motion.div>
+                  )
+                })}
+              </div>
+            </div>
           )
         })}
       </div>
     </motion.div>
   )
 }
-

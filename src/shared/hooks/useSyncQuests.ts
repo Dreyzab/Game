@@ -12,7 +12,9 @@ export function useSyncQuests(options: { intervalMs?: number } = {}) {
       if (stopped) return
       try {
         await syncOutboxNow()
-      } catch {}
+      } catch {
+        // Ignore sync errors
+      }
       if (stopped) return
     }
 

@@ -10,6 +10,7 @@ import { convexMutations } from '@/shared/api/convex'
 import { usePlayerProgress } from '@/shared/hooks/usePlayer'
 import { useDeviceId } from '@/shared/hooks/useDeviceId'
 import { useVisualNovelSessionStore } from '@/features/visual-novel/model/useVisualNovelSessionStore'
+import type { VisualNovelChoice } from '@/shared/types/visualNovel'
 
 interface VisualNovelExperienceProps {
   lockedSceneId?: string
@@ -38,6 +39,25 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
     [lockedSceneId, params.sceneId]
   )
 
+  // Обработка immediate эффектов (например, start_tutorial_battle)
+  const handleImmediateEffects = useCallback((choice: VisualNovelChoice) => {
+    const immediateEffects = choice.effects?.filter(e => e.type === 'immediate') || []
+
+    for (const effect of immediateEffects) {
+      if (effect.type === 'immediate') {
+        const { action, data } = effect
+
+        // Обработка запуска обучающего боя
+        if (action === 'start_tutorial_battle' || action === 'combat_tutorial') {
+          log('⚔️ Запуск обучающего боя', data)
+          navigate(`${Routes.TUTORIAL_BATTLE}?returnScene=combat_tutorial_victory&defeatScene=combat_tutorial_defeat`)
+          return true
+        }
+      }
+    }
+    return false
+  }, [log, navigate])
+
   const { scene, currentLine, choices, goNext, choose, isPending, isSceneCompleted, jumpToScene, flags } =
     useVisualNovelViewModel(
       { sceneId: baseSceneId },
@@ -49,6 +69,17 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
             lineId,
             choiceId: choice.id,
           })
+
+          // Handle immediate navigation
+          choice.effects?.forEach((effect) => {
+            if (effect.type === 'immediate' && effect.action === 'navigate' && effect.data?.route) {
+              log('🧭 Навигация по эффекту выбора', effect.data.route)
+              navigate(effect.data.route as string)
+            }
+          })
+
+          // Проверяем immediate эффекты
+          handleImmediateEffects(choice)
         },
       }
     )
@@ -57,7 +88,7 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
   const skills = useMemo(() => {
     if (!progress) return {}
     // В game_progress есть поле skills как Record<string, number>
-    return (progress as any).skills ?? {}
+    return progress?.skills ?? {}
   }, [progress])
 
   useEffect(() => {

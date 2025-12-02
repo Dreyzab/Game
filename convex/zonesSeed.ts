@@ -48,10 +48,10 @@ const SAFE_ZONES = [
       [7.850326908922227, 47.9954554639676],
     ]),
   },
-  // FJR North Sector (formerly sector_1)
+  // Station Safe Zone (FJR controlled)
   {
-    id: 'sector_1',
-    name: 'FJR Sector 1',
+    id: 'station_safe_zone',
+    name: 'Station Safe Zone',
     faction: 'fjr',
     polygon: polyToLatLng([
       [7.848624977172506, 47.99852100816156],
@@ -202,6 +202,7 @@ const SAFE_ZONES = [
   },
 ]
 
+
 export const seedSafeZones = mutation({
   handler: async (ctx) => {
     let created = 0
@@ -249,6 +250,87 @@ export const seedSafeZones = mutation({
 export const clearSafeZones = mutation({
   handler: async (ctx) => {
     const zones = await ctx.db.query('safe_zones').collect()
+    for (const z of zones) await ctx.db.delete(z._id)
+    return { success: true, deleted: zones.length }
+  },
+})
+
+const DANGER_ZONES = [
+  // Anomaly near Cathedral (fictional location north of FJR)
+  {
+    id: 'anomaly_north',
+    name: 'Northern Anomaly',
+    dangerLevel: 'high' as const,
+    enemyTypes: ['phantom', 'echo'],
+    maxEnemies: 5,
+    polygon: polyToLatLng([
+      [7.8480, 47.9990],
+      [7.8490, 47.9995],
+      [7.8500, 47.9990],
+      [7.8490, 47.9985],
+      [7.8480, 47.9990],
+    ]),
+    spawnPoints: polyToLatLng([[7.8490, 47.9990]]),
+  },
+  // Hostile Area near Old Believers (East)
+  {
+    id: 'hostile_east',
+    name: 'Eastern Wasteland',
+    dangerLevel: 'medium' as const,
+    enemyTypes: ['scavenger', 'drone'],
+    maxEnemies: 8,
+    polygon: polyToLatLng([
+      [7.8580, 47.9960],
+      [7.8600, 47.9970],
+      [7.8600, 47.9950],
+      [7.8580, 47.9960],
+    ]),
+    spawnPoints: polyToLatLng([[7.8590, 47.9960]]),
+  },
+]
+
+export const seedDangerZones = mutation({
+  handler: async (ctx) => {
+    let created = 0
+    let updated = 0
+    const now = Date.now()
+
+    for (const z of DANGER_ZONES) {
+      const existing = await ctx.db
+        .query('danger_zones')
+        .filter((q) => q.eq(q.field('id'), z.id))
+        .first()
+
+      const data = {
+        name: z.name,
+        polygon: z.polygon,
+        dangerLevel: z.dangerLevel,
+        enemyTypes: z.enemyTypes,
+        spawnPoints: z.spawnPoints,
+        maxEnemies: z.maxEnemies,
+        isActive: true,
+      }
+
+      if (existing) {
+        await ctx.db.patch(existing._id, data)
+        updated++
+      } else {
+        await ctx.db.insert('danger_zones', {
+          id: z.id,
+          ...data,
+          createdAt: now,
+        })
+        created++
+      }
+    }
+
+    return { success: true, created, updated, total: DANGER_ZONES.length }
+  },
+})
+
+export const clearDangerZones = mutation({
+  handler: async (ctx) => {
+    const zones = await ctx.db.query('danger_zones').collect()
     for (const z of zones) await ctx.db.delete(z._id)
     return { success: true, deleted: zones.length }
   },

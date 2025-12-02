@@ -11,6 +11,16 @@ export type ItemKind =
 
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary'
 
+export const RARITY_COLORS: Record<Rarity, string> = {
+  common: 'border-slate-500 bg-slate-900/50',
+  uncommon: 'border-green-500 bg-green-900/20',
+  rare: 'border-blue-500 bg-blue-900/20',
+  epic: 'border-purple-500 bg-purple-900/20 shadow-[0_0_15px_rgba(168,85,247,0.4)]',
+  legendary: 'border-amber-500 bg-amber-900/20 shadow-[0_0_20px_rgba(245,158,11,0.5)]',
+}
+
+export type PlayerRole = 'police' | 'doctor' | 'engineer' | 'smuggler'
+
 export type EquipmentSlotId =
   | 'primary'
   | 'secondary'
@@ -35,6 +45,12 @@ export interface SpecialEffect {
   description: string
 }
 
+export interface ContainerConfig {
+  width: number
+  height: number
+  name: string // e.g., "Vest Pockets", "Main Compartment"
+}
+
 export interface ItemStats {
   damage?: number
   defense?: number
@@ -43,11 +59,14 @@ export interface ItemStats {
   height: number
   maxDurability?: number
   capacity?: number
+  containerConfig?: ContainerConfig // If this item provides storage (e.g. backpack)
   specialEffects?: SpecialEffect[]
 }
 
 export interface Item {
   id: string
+  templateId: string
+  instanceId: string
   kind: ItemKind
   name: string
   description: string
@@ -66,14 +85,16 @@ export interface ItemState extends Item {
     y: number
     rotation?: 0 | 90
   }
-  containerId?: string
+  containerId?: string // ID of the container this item is inside (could be another item's ID if we nest, or a root container ID)
   isEquipped?: boolean
+  equippedSlot?: EquipmentSlotId
 }
 
 export interface InventoryContainer {
   id: string
   ownerId: string
-  kind: 'backpack' | 'rig' | 'pocket' | 'stash'
+  kind: 'backpack' | 'rig' | 'pocket' | 'stash' | 'equipment_storage'
+  name?: string
   width: number
   height: number
   items: ItemState[]
@@ -102,6 +123,8 @@ export interface EquipmentSlots {
   artifacts: ItemState[]
   quick: Array<ItemState | null>
 }
+
+export type SlotKey = keyof EquipmentSlots
 
 export interface MasteryCard {
   id: string

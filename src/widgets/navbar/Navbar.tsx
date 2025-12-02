@@ -47,6 +47,11 @@ export const Navbar: React.FC<NavbarProps> = ({ className }) => {
                 </NavLink>
               </li>
               <li>
+                <NavLink to={Routes.QUESTS} className={({ isActive }) => cn(linkBase, isActive ? active : inactive)}>
+                  <span className="h-4 w-4 flex items-center justify-center font-bold text-[10px] border border-current rounded-sm">!</span> Quests
+                </NavLink>
+              </li>
+              <li>
                 <NavLink to={Routes.PROLOGUE} className={({ isActive }) => cn(linkBase, isActive ? active : inactive)}>
                   <Play className="h-4 w-4" /> Prologue
                 </NavLink>

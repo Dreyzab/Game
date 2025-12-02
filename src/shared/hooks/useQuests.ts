@@ -12,7 +12,7 @@ export interface Quest {
   status: 'active' | 'completed' | 'locked'
   progress?: number
   maxProgress?: number
-  createdAt: number
+  createdAt?: number
 }
 
 /**

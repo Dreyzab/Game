@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { VisualNovelAdvice, VisualNovelChoiceView, VisualNovelLine } from '@/shared/types/visualNovel'
-import { filterAvailableAdvices, getAvailableVoiceIds } from '../lib/consultationUtils'
+import { filterAvailableAdvices } from '../lib/consultationUtils'
 import { getVoiceDefinition } from '../lib/voiceDefinitions'
 
 export interface ConsultationModeState {
@@ -34,7 +34,7 @@ export interface UseConsultationModeParams {
   sceneId: string
 }
 
-export interface UseConsultationModeReturn extends ConsultationModeState, ConsultationModeActions {}
+export interface UseConsultationModeReturn extends ConsultationModeState, ConsultationModeActions { }
 
 export function useConsultationMode({
   currentLine,
@@ -51,15 +51,14 @@ export function useConsultationMode({
   const viewStartTimeRef = useRef<number>(0)
 
   // Фильтруем доступные советы
-  const availableAdvices = useMemo(
-    () => filterAvailableAdvices(currentLine?.characterAdvices, skills, flags),
-    [currentLine?.characterAdvices, skills, flags]
-  )
+  const availableAdvices = useMemo(() => {
+    return filterAvailableAdvices(currentLine?.characterAdvices, skills, flags)
+  }, [currentLine?.characterAdvices, skills, flags])
 
   // Получаем ID доступных голосов
   const availableVoiceIds = useMemo(
-    () => getAvailableVoiceIds(currentLine?.characterAdvices, skills, flags),
-    [currentLine?.characterAdvices, skills, flags]
+    () => availableAdvices.map(a => a.characterId),
+    [availableAdvices]
   )
 
   // Находим текущий активный совет
@@ -75,17 +74,6 @@ export function useConsultationMode({
     setViewedVoiceIds(new Set())
     viewOrderRef.current = 0
   }, [currentLine?.id, sceneId])
-
-  // Автоматически входим в режим консультации если есть выборы и доступные советы
-  useEffect(() => {
-    const hasChoices = choices.length > 0
-    const hasAdvices = availableAdvices.length > 0
-
-    if (hasChoices && hasAdvices && !isConsultationMode) {
-      // Автоматически включаем режим, но не показываем конкретный совет
-      // setConsultationMode(true) // Можно включить автоматически
-    }
-  }, [choices.length, availableAdvices.length, isConsultationMode])
 
   const enterConsultationMode = useCallback(() => {
     setConsultationMode(true)
@@ -203,4 +191,3 @@ export function useConsultationMode({
     reset,
   }
 }
-

@@ -1,10 +1,12 @@
 import { ConvexClient } from 'convex/browser'
-import type { FunctionReference } from 'convex/server'
-import type { MapPoint, SafeZone } from '@/shared/types/map'
+import { api as generatedApi } from '../../../convex/_generated/api'
+import type { DangerZone, MapPoint, SafeZone } from '@/shared/types/map'
 import type { Player, PlayerProgress } from '@/shared/types/player'
 import type { VisualNovelChoiceEffect } from '@/shared/types/visualNovel'
 import { DEFAULT_VN_SCENE_ID } from '@/shared/data/visualNovel/scenes'
 import { loadLocalState, updateLocalState, type LocalQuest, type LocalState } from './localFallbackState'
+import { SEED_MAP_POINTS } from '../../../convex/seedData'
+import type { ItemState, InventoryContainer, EquipmentSlots } from '@/entities/item/model/types'
 
 /**
  * Convex client instance
@@ -56,97 +58,64 @@ type CommitSceneArgs = {
   }
 }
 
-export type ConvexApi = {
-  mapPoints: {
-    listVisible: FunctionReference<
-      'query',
-      'public',
-      {
-        deviceId?: string
-        userId?: string
-        bbox?: { minLat: number; maxLat: number; minLng: number; maxLng: number }
-        phase?: number
-        limit?: number
-      },
-      MapPointsResponse
-    >
-  }
-  zones: {
-    listActiveSafeZones: FunctionReference<
-      'query',
-      'public',
-      { bbox?: { minLat: number; maxLat: number; minLng: number; maxLng: number } },
-      SafeZone[]
-    >
-    listSafeZones: FunctionReference<
-      'query',
-      'public',
-      { bbox?: { minLat: number; maxLat: number; minLng: number; maxLng: number } },
-      SafeZone[]
-    >
-  }
-  player: {
-    ensureByDevice: FunctionReference<'mutation', 'public', { deviceId: string }, void>
-    create: FunctionReference<'mutation', 'public', { deviceId: string }, string>
-    get: FunctionReference<'query', 'public', { deviceId: string }, Player | null>
-    getProgress: FunctionReference<'query', 'public', { deviceId: string }, PlayerProgress>
-  }
-  quests: {
-    getActive: FunctionReference<
-      'query',
-      'public',
-      { deviceId: string },
-      Array<{
-        id: string
-        title: string
-        description?: string
-        status: 'active' | 'completed'
-        progress?: number
-        maxProgress?: number
-        createdAt?: number
-      }>
-    >
-    getCompleted: FunctionReference<
-      'query',
-      'public',
-      { deviceId: string; limit?: number },
-      Array<{ id: string; title: string; status: 'completed' | 'abandoned'; completedAt?: number; abandonedAt?: number; attempt?: number; templateVersion?: number; currentStep?: string; startedAt?: number }>
-    >
-    start: FunctionReference<'mutation', 'public', { deviceId?: string; userId?: string; questId: string }, { started: true; questId: string; already?: boolean }>
-    updateProgress: FunctionReference<'mutation', 'public', { deviceId?: string; userId?: string; questId: string; expectedStep?: string; nextStepId?: string; deltaProgress?: number; setProgress?: number }, { updated: boolean; questId: string; currentStep?: string; progress?: number; completed?: boolean }>
-    complete: FunctionReference<'mutation', 'public', { deviceId?: string; userId?: string; questId: string; expectedStep?: string; resultDetails?: { templateVersion?: number; sceneLog?: Array<{ stepId: string; choiceId?: string; success?: boolean; reward?: unknown }> } }, { completed: true; questId: string; already?: boolean }>
-    sync: FunctionReference<'mutation', 'public', { deviceId?: string; userId?: string; lastKnownSeq: number; events: Array<{ seq: number; type: 'start' | 'update' | 'complete' | 'abandon'; questId: string; payload?: any }> }, { ack: number; nextExpectedSeq: number; echos: Array<{ questId: string; status: 'active' | 'completed'; currentStep?: string; progress?: number; completedAt?: number }> }>
-  }
-  vn: {
-    commitScene: FunctionReference<'mutation', 'public', CommitSceneArgs, { success: boolean }>
-    logCharacterAdviceViewed: FunctionReference<
-      'mutation',
-      'public',
-      {
-        deviceId?: string
-        userId?: string
-        sceneId: string
-        lineId: string
-        characterId: string
-        choiceContext: string[]
-        skillLevel: number
-        viewOrder: number
-      },
-      { success: boolean; timestamp: number }
-    >
-  }
-  admin: {
-    register: FunctionReference<'mutation', 'public', { name: string }, void>
-  }
-}
-
 type MapPointsResponse = {
   points: MapPoint[]
   timestamp: number
   ttlMs: number
 }
 
+const createDemoPlayer = (deviceId?: string): Player => ({
+  id: deviceId ? `${deviceId}-demo` : 'demo-player',
+  deviceId: deviceId ?? 'demo-device',
+  createdAt: Date.now() - 1000 * 60 * 60,
+  status: 'active',
+  reputation: 5,
+  level: 2,
+  xp: 30,
+  completedQuests: 1,
+  fame: 0,
+  points: 0,
+  daysInGame: 2,
+  developmentPhase: 'alpha',
+})
+
+const createDemoProgress = (): PlayerProgress => ({
+  level: 2,
+  xp: 30,
+  maxXp: 150,
+  skillPoints: 1,
+  reputation: 5,
+  completedQuests: 0,
+  fame: 0,
+  points: 0,
+  daysInGame: 2,
+  flags: {},
+  visitedScenes: [DEFAULT_VN_SCENE_ID],
+  completedQuestIds: [],
+  currentScene: DEFAULT_VN_SCENE_ID,
+  phase: 1,
+  reputationByFaction: {
+    synthesis: 5,
+    merchants: 2,
+  },
+  lastUpdatedAt: Date.now(),
+})
+
+const flagsArrayToRecord = (flags: string[]) =>
+  flags.reduce<Record<string, true>>((acc, flag) => {
+    if (!acc[flag]) {
+      acc[flag] = true
+    }
+    return acc
+  }, {})
+
 const PROLOGUE_QUESTS: Array<Omit<LocalQuest, 'createdAt'>> = [
+  {
+    id: 'reach_locomotive',
+    title: 'Reach the Locomotive',
+    description: 'Fight your way through the train to the head of the composition.',
+    status: 'completed',
+  },
   {
     id: 'delivery_for_dieter',
     title: 'Delivery for Dieter',
@@ -157,6 +126,12 @@ const PROLOGUE_QUESTS: Array<Omit<LocalQuest, 'createdAt'>> = [
     id: 'delivery_for_professor',
     title: 'Letter for the Professor',
     description: 'Deliver the professor’s documents to advance the global questline.',
+    status: 'active',
+  },
+  {
+    id: 'whispers_of_rift',
+    title: 'Whispers of the Rift',
+    description: 'Investigate the strange occurrences at Schlossberg for Dieter.',
     status: 'active',
   },
 ]
@@ -214,144 +189,43 @@ const applyVisitedScenes = (state: LocalState, scenes?: string[]) => {
   })
 }
 
-export const api = {
-  mapPoints: {
-    listVisible: {
-      _type: 'query' as const,
-      _visibility: 'public' as const,
-      _args: ({
-        deviceId: undefined,
-        userId: undefined,
-        bbox: undefined,
-        phase: undefined,
-        limit: undefined,
-      } as {
-        deviceId?: string
-        userId?: string
-        bbox?: { minLat: number; maxLat: number; minLng: number; maxLng: number }
-        phase?: number
-        limit?: number
-      }),
-      _returnType: {} as MapPointsResponse,
-    } as ConvexApi['mapPoints']['listVisible'],
-  },
-  zones: {
-    listActiveSafeZones: {
-      _type: 'query' as const,
-      _visibility: 'public' as const,
-      _args: ({
-        bbox: undefined,
-      } as {
-        bbox?: { minLat: number; maxLat: number; minLng: number; maxLng: number }
-      }),
-      _returnType: [] as SafeZone[],
-    } as ConvexApi['zones']['listActiveSafeZones'],
-    listSafeZones: {
-      _type: 'query' as const,
-      _visibility: 'public' as const,
-      _args: ({
-        bbox: undefined,
-      } as {
-        bbox?: { minLat: number; maxLat: number; minLng: number; maxLng: number }
-      }),
-      _returnType: [] as SafeZone[],
-    } as ConvexApi['zones']['listSafeZones'],
-  },
-  player: {
-    ensureByDevice: {
-      _type: 'mutation' as const,
-      _visibility: 'public' as const,
-      _args: {} as { deviceId: string },
-      _returnType: undefined as unknown as void,
-    } as ConvexApi['player']['ensureByDevice'],
-    create: {
-      _type: 'mutation' as const,
-      _visibility: 'public' as const,
-      _args: {} as { deviceId: string },
-      _returnType: '' as string,
-    } as ConvexApi['player']['create'],
-    get: {
-      _type: 'query' as const,
-      _visibility: 'public' as const,
-      _args: {} as { deviceId: string },
-      _returnType: null as Player | null,
-    } as ConvexApi['player']['get'],
-    getProgress: {
-      _type: 'query' as const,
-      _visibility: 'public' as const,
-      _args: {} as { deviceId: string },
-      _returnType: {} as PlayerProgress,
-    } as ConvexApi['player']['getProgress'],
-  },
-  quests: {
-    getActive: {
-      _type: 'query' as const,
-      _visibility: 'public' as const,
-      _args: {} as { deviceId: string },
-      _returnType: [] as Array<{
-        id: string
-        title: string
-        description?: string
-        status: 'active' | 'completed'
-        progress?: number
-        maxProgress?: number
-        createdAt?: number
-      }>,
-    } as ConvexApi['quests']['getActive'],
-    getCompleted: {
-      _type: 'query' as const,
-      _visibility: 'public' as const,
-      _args: {} as { deviceId: string; limit?: number },
-      _returnType: [] as Array<{ id: string; title: string; status: 'completed' | 'abandoned'; completedAt?: number; abandonedAt?: number; attempt?: number; templateVersion?: number; currentStep?: string; startedAt?: number }>,
-    } as any,
-    getById: {
-      _type: 'query' as const,
-      _visibility: 'public' as const,
-      _args: {} as { questId: string },
-      _returnType: null as { id: string; title: string; description: string; phase: number; isActive: boolean; stepsCount: number; repeatable: boolean; templateVersion: number } | null,
-    } as any,
-    start: {
-      _type: 'mutation' as const,
-      _visibility: 'public' as const,
-      _args: {} as { deviceId?: string; userId?: string; questId: string },
-      _returnType: { started: true, questId: '' },
-    } as ConvexApi['quests']['start'],
-    updateProgress: {
-      _type: 'mutation' as const,
-      _visibility: 'public' as const,
-      _args: {} as { deviceId?: string; userId?: string; questId: string; expectedStep?: string; nextStepId?: string; deltaProgress?: number; setProgress?: number },
-      _returnType: { updated: true, questId: '' },
-    } as ConvexApi['quests']['updateProgress'],
-    complete: {
-      _type: 'mutation' as const,
-      _visibility: 'public' as const,
-      _args: {} as { deviceId?: string; userId?: string; questId: string; expectedStep?: string; resultDetails?: { templateVersion?: number; sceneLog?: Array<{ stepId: string; choiceId?: string; success?: boolean; reward?: unknown }> } },
-      _returnType: { completed: true, questId: '' },
-    } as ConvexApi['quests']['complete'],
-    sync: {
-      _type: 'mutation' as const,
-      _visibility: 'public' as const,
-      _args: {} as { deviceId?: string; userId?: string; lastKnownSeq: number; events: Array<{ seq: number; type: 'start' | 'update' | 'complete'; questId: string; payload?: any }> },
-      _returnType: { ack: 0, nextExpectedSeq: 1, echos: [] as Array<{ questId: string; status: 'active' | 'completed'; currentStep?: string; progress?: number; completedAt?: number }> },
-    } as ConvexApi['quests']['sync'],
-  },
-  vn: {
-    commitScene: {
-      _type: 'mutation' as const,
-      _visibility: 'public' as const,
-      _args: {} as CommitSceneArgs,
-      _returnType: { success: true },
-    } as ConvexApi['vn']['commitScene'],
-  },
-  admin: {
-    register: {
-      _type: 'mutation' as const,
-      _visibility: 'public' as const,
-      _args: {} as { name: string },
-      _returnType: undefined as unknown as void,
-    } as ConvexApi['admin']['register'],
-  },
+
+
+const buildProgressFromState = (state: LocalState): PlayerProgress => {
+  const base = createDemoProgress()
+  const completedQuestIds = state.quests
+    .filter((quest) => quest.status === 'completed')
+    .map((quest) => quest.id)
+
+  return {
+    ...base,
+    flags: {
+      ...base.flags,
+      ...flagsArrayToRecord(state.flags),
+    },
+    visitedScenes: Array.from(new Set([...base.visitedScenes, ...state.visitedScenes])),
+    completedQuestIds: Array.from(new Set([...base.completedQuestIds, ...completedQuestIds])),
+    completedQuests: completedQuestIds.length,
+    lastUpdatedAt: state.lastUpdatedAt,
+  }
 }
+
+const ensureLocalState = (): LocalState => {
+  try {
+    return updateLocalState((draft) => {
+      ensurePrologueQuests(draft)
+    })
+  } catch (error) {
+    console.warn('[convex] Failed to update local state, using in-memory fallback', error)
+    const fallback = loadLocalState()
+    ensurePrologueQuests(fallback)
+    return fallback
+  }
+}
+
+// Convex function references generated by `npx convex dev` for use with `useQuery`/`useMutation`.
+// We re-export them under the same name that the rest of the app expects.
+export const api = generatedApi
 
 export const convexMutations = {
   player: {
@@ -533,6 +407,19 @@ export const convexMutations = {
       return { ok: false }
     },
   },
+  inventory: {
+    seed: async (args: { deviceId: string }) => {
+      if (convexClient) {
+        try {
+          // @ts-expect-error Allow calling by string without codegen
+          return await convexClient.mutation('inventory:seedInventory', args)
+        } catch (e) {
+          console.warn('Convex mutation inventory:seedInventory failed', e)
+        }
+      }
+      return { success: false }
+    }
+  }
 }
 
 export const convexQueries = {
@@ -544,16 +431,21 @@ export const convexQueries = {
       phase?: number
       limit?: number
     }): Promise<MapPointsResponse> => {
-      if (!convexClient) {
-        throw new Error('Convex client is not configured for mapPoints:listVisible')
+      if (convexClient) {
+        try {
+          // @ts-expect-error Allow calling by string without codegen
+          return await convexClient.query('mapPoints:listVisible', args)
+        } catch (e) {
+          console.warn('Convex query mapPoints:listVisible failed; falling back to demo', e)
+        }
       }
 
-      try {
-        // @ts-expect-error Allow calling by string without codegen
-        return await convexClient.query('mapPoints:listVisible', args)
-      } catch (e) {
-        console.warn('Convex query mapPoints:listVisible failed', e)
-        throw e
+      console.log('mapPoints.listVisible called with:', args)
+
+      return {
+        points: SEED_MAP_POINTS,
+        timestamp: Date.now(),
+        ttlMs: 5 * 60 * 1000,
       }
     },
   },
@@ -561,111 +453,144 @@ export const convexQueries = {
     listActiveSafeZones: async (
       args: { bbox?: { minLat: number; maxLat: number; minLng: number; maxLng: number } } = {}
     ): Promise<SafeZone[]> => {
-      if (!convexClient) {
-        throw new Error('Convex client is not configured for zones:listActiveSafeZones')
+      if (convexClient) {
+        try {
+          // @ts-expect-error Allow calling by string without codegen
+          return await convexClient.query('zones:listSafeZones', args)
+        } catch (e) {
+          console.warn('Convex query zones:listSafeZones failed; returning demo data', e)
+        }
       }
 
-      try {
-        // @ts-expect-error Allow calling by string without codegen
-        return await convexClient.query('zones:listActiveSafeZones', args)
-      } catch (e) {
-        console.warn('Convex query zones:listActiveSafeZones failed', e)
-        throw e
-      }
+      console.log('zones.listActiveSafeZones called with:', args)
+      return []
     },
     listSafeZones: async (
       args: { bbox?: { minLat: number; maxLat: number; minLng: number; maxLng: number } } = {}
     ): Promise<SafeZone[]> => {
-      if (!convexClient) {
-        throw new Error('Convex client is not configured for zones:listSafeZones')
+      return convexQueries.zones.listActiveSafeZones(args)
+    },
+    listDangerZones: async (): Promise<DangerZone[]> => {
+      if (convexClient) {
+        try {
+          // @ts-expect-error Allow calling by string without codegen
+          return await convexClient.query('zones:listDangerZones', {})
+        } catch (e) {
+          console.warn('Convex query zones:listDangerZones failed; returning demo data', e)
+        }
       }
 
-      try {
-        // @ts-expect-error Allow calling by string without codegen
-        return await convexClient.query('zones:listSafeZones', args)
-      } catch (e) {
-        console.warn('Convex query zones:listSafeZones failed', e)
-        throw e
+      console.log('zones.listDangerZones called')
+      return []
+    },
+  },
+  inventory: {
+    get: async (args: { deviceId?: string; userId?: string }): Promise<{ items: ItemState[]; containers: InventoryContainer[]; equipment: EquipmentSlots } | null> => {
+      if (convexClient) {
+        try {
+          // @ts-expect-error Allow calling by string without codegen
+          return await convexClient.query('inventory:get', args)
+        } catch (e) {
+          console.warn('Convex query inventory:get failed', e)
+        }
+      }
+
+      console.log('inventory.get called with:', args)
+      return {
+        items: [],
+        containers: [],
+        equipment: {
+          primary: null,
+          secondary: null,
+          melee: null,
+          helmet: null,
+          armor: null,
+          clothing_top: null,
+          clothing_bottom: null,
+          backpack: null,
+          rig: null,
+          artifacts: [],
+          quick: [null, null, null, null, null],
+        },
       }
     },
   },
   player: {
     get: async (args: { deviceId: string }): Promise<Player | null> => {
-      if (!convexClient) {
-        throw new Error('Convex client is not configured for player:get')
+      if (convexClient) {
+        try {
+          // @ts-expect-error Allow calling by string without codegen
+          return await convexClient.query('player:get', args)
+        } catch (e) {
+          console.warn('Convex query player:get failed; returning demo data', e)
+        }
       }
 
-      try {
-        // @ts-expect-error Allow calling by string without codegen
-        return await convexClient.query('player:get', args)
-      } catch (e) {
-        console.warn('Convex query player:get failed', e)
-        throw e
-      }
+      console.log('player.get called with:', args)
+      return createDemoPlayer(args.deviceId)
     },
     getProgress: async (args: { deviceId: string }): Promise<PlayerProgress> => {
-      if (!convexClient) {
-        throw new Error('Convex client is not configured for player:getProgress')
+      if (convexClient) {
+        try {
+          // @ts-expect-error Allow calling by string without codegen
+          return await convexClient.query('player:getProgress', args)
+        } catch (e) {
+          console.warn('Convex query player:getProgress failed; returning demo data', e)
+        }
       }
 
-      try {
-        // @ts-expect-error Allow calling by string without codegen
-        return await convexClient.query('player:getProgress', args)
-      } catch (e) {
-        console.warn('Convex query player:getProgress failed', e)
-        throw e
-      }
+      console.log('player.getProgress called with:', args)
+      const state = ensureLocalState()
+      return buildProgressFromState(state)
     },
   },
   quests: {
-    getActive: async (args: {
-      deviceId: string
-    }): Promise<{
-      id: string
-      title: string
-      description?: string
-      status: 'active' | 'completed'
-      progress?: number
-      maxProgress?: number
-      createdAt?: number
-    }[]> => {
-      if (!convexClient) {
-        throw new Error('Convex client is not configured for quests:getActive')
+    getActive: async (args: { deviceId: string }): Promise<LocalQuest[]> => {
+      if (convexClient) {
+        try {
+          // @ts-expect-error Allow calling by string without codegen
+          return await convexClient.query('quests:getActive', args)
+        } catch (e) {
+          console.warn('Convex query quests:getActive failed; returning demo data', e)
+        }
       }
 
-      try {
-        // @ts-expect-error Allow calling by string without codegen
-        return await convexClient.query('quests:getActive', args)
-      } catch (e) {
-        console.warn('Convex query quests:getActive failed', e)
-        throw e
+      console.log('quests.getActive called with:', args)
+      const state = ensureLocalState()
+      return state.quests.map((quest) => ({ ...quest }))
+    },
+    getAvailable: async (args: { deviceId?: string; userId?: string; pointId?: string }): Promise<Array<{ id: string; title: string; description: string; recommendedLevel?: number }>> => {
+      if (convexClient) {
+        try {
+          // @ts-expect-error Allow calling by string without codegen
+          return await convexClient.query('quests:getAvailable', args)
+        } catch (e) {
+          console.warn('Convex query quests:getAvailable failed; returning empty list', e)
+        }
       }
+      return []
     },
     getById: async (args: { questId: string }): Promise<{ id: string; title: string; description: string; phase: number; isActive: boolean; stepsCount: number; repeatable: boolean; templateVersion: number } | null> => {
-      if (!convexClient) {
-        throw new Error('Convex client is not configured for quests:getById')
+      if (convexClient) {
+        try {
+          // @ts-expect-error Allow calling by string without codegen
+          return await convexClient.query('quests:getById', args)
+        } catch (e) {
+          console.warn('Convex query quests:getById failed; returning null', e)
+        }
       }
-
-      try {
-        // @ts-expect-error Allow calling by string without codegen
-        return await convexClient.query('quests:getById', args)
-      } catch (e) {
-        console.warn('Convex query quests:getById failed', e)
-        throw e
-      }
+      return null
     },
     getCompleted: async (args: { deviceId: string; limit?: number }): Promise<Array<{ id: string; title: string; status: 'completed' | 'abandoned'; completedAt?: number; abandonedAt?: number; attempt?: number; templateVersion?: number; currentStep?: string; startedAt?: number }>> => {
-      if (!convexClient) {
-        throw new Error('Convex client is not configured for quests:getCompleted')
+      if (convexClient) {
+        try {
+          // @ts-expect-error Allow calling by string without codegen
+          return await convexClient.query('quests:getCompleted', args)
+        } catch (e) {
+          console.warn('Convex query quests:getCompleted failed; returning empty list', e)
+        }
       }
-
-      try {
-        // @ts-expect-error Allow calling by string without codegen
-        return await convexClient.query('quests:getCompleted', args)
-      } catch (e) {
-        console.warn('Convex query quests:getCompleted failed', e)
-        throw e
-      }
+      return []
     },
   },
 }

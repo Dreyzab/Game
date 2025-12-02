@@ -1,166 +1,138 @@
 import React from 'react'
-import clsx from 'clsx'
-import { motion } from 'framer-motion'
-import type { EquipmentSlots as EquipmentSlotsState, ItemState } from '@/entities/item/model/types'
 import { useInventoryDragStore } from '@/features/inventory/model/useInventoryDrag'
-
-type SlotKey =
-  | 'primary'
-  | 'secondary'
-  | 'melee'
-  | 'helmet'
-  | 'armor'
-  | 'clothing_top'
-  | 'clothing_bottom'
-  | 'backpack'
-  | 'rig'
-
-type SlotConfig = {
-  id: SlotKey
-  label: string
-  hint?: string
-}
-
-const slotSections: Array<{ title: string; columns: number; slots: SlotConfig[] }> = [
-  {
-    title: 'Weapons',
-    columns: 3,
-    slots: [
-      { id: 'primary', label: 'Primary' },
-      { id: 'secondary', label: 'Secondary' },
-      { id: 'melee', label: 'Melee' },
-    ],
-  },
-  {
-    title: 'Protection',
-    columns: 2,
-    slots: [
-      { id: 'helmet', label: 'Helmet' },
-      { id: 'armor', label: 'Armor' },
-    ],
-  },
-  {
-    title: 'Clothing',
-    columns: 2,
-    slots: [
-      { id: 'clothing_top', label: 'Top' },
-      { id: 'clothing_bottom', label: 'Bottom' },
-    ],
-  },
-  {
-    title: 'Carry',
-    columns: 2,
-    slots: [
-      { id: 'backpack', label: 'Backpack', hint: '+ grid capacity' },
-      { id: 'rig', label: 'Rig', hint: 'extra pouches' },
-    ],
-  },
-]
+import type { EquipmentSlots as EquipmentSlotsType, SlotKey, ItemState } from '@/entities/item/model/types'
+import { ITEM_TEMPLATES } from '@/entities/item/model/templates'
+import { clsx } from 'clsx'
 
 type EquipmentSlotsProps = {
-  equipment: EquipmentSlotsState
+  equipment: EquipmentSlotsType
+  onCompare?: (item: ItemState) => void
+  onUnequip?: (slotId: string) => void
 }
 
-const renderItemSummary = (item: ItemState) => (
-  <>
-    <div className="text-2xl leading-none">{item.icon}</div>
-    <div className="text-sm font-semibold text-[color:var(--color-text-primary)]">{item.name}</div>
-    <div className="text-[10px] uppercase tracking-[0.2em] text-amber-400">{item.rarity}</div>
-  </>
-)
+// Positions are percentages relative to the container (which matches the image aspect ratio)
+const SLOT_CONFIG: Record<string, { label: string; icon: string; className: string }> = {
+  helmet: { label: 'Head', icon: 'Helmet', className: 'top-[5%] left-1/2 -translate-x-1/2' },
+  armor: { label: 'Body', icon: 'Armor', className: 'top-[25%] left-1/2 -translate-x-1/2' },
+  primary: { label: 'Primary', icon: 'Weapon', className: 'top-[25%] left-[10%]' },
+  secondary: { label: 'Secondary', icon: 'Shield', className: 'top-[25%] right-[10%]' },
+  clothing_bottom: { label: 'Legs', icon: 'Pants', className: 'top-[55%] left-1/2 -translate-x-1/2' },
+  backpack: { label: 'Backpack', icon: 'Backpack', className: 'bottom-[5%] right-[10%]' },
+  rig: { label: 'Rig', icon: 'Rig', className: 'bottom-[5%] left-[10%]' },
+  artifacts: { label: 'Artifact', icon: 'Artifact', className: 'hidden' },
+  quick: { label: 'Quick', icon: 'Quick', className: 'hidden' },
+}
 
-const renderEmptySummary = (label: string) => (
-  <div className="text-xs text-slate-500">{label} slot empty</div>
-)
+export default function EquipmentSlots({ equipment, onCompare, onUnequip }: EquipmentSlotsProps) {
+  const { isDragging, setDropTarget } = useInventoryDragStore()
+  const [hoveredSlot, setHoveredSlot] = React.useState<string | null>(null)
 
-const SlotCard: React.FC<{
-  slot: SlotConfig
-  item: ItemState | null
-  isActive: boolean
-  onPointerEnter: () => void
-  onPointerLeave: () => void
-}> = ({ slot, item, isActive, onPointerEnter, onPointerLeave }) => (
-  <motion.div
-    layout
-    whileHover={{ scale: 1.02 }}
-    onPointerEnter={onPointerEnter}
-    onPointerLeave={onPointerLeave}
-    className={clsx(
-      'rounded-lg border p-3 text-center transition',
-      item ? 'border-emerald-500/70 bg-emerald-500/10' : 'border-slate-700 bg-slate-900/60',
-      isActive && 'ring-2 ring-emerald-400/70'
-    )}
-  >
-    <div className="mb-2 text-[10px] uppercase tracking-[0.3em] text-slate-400">{slot.label}</div>
-    <div className="flex min-h-[96px] flex-col items-center justify-center gap-2">
-      {item ? renderItemSummary(item) : renderEmptySummary(slot.label)}
-    </div>
-    {slot.hint ? <div className="mt-2 text-[11px] text-slate-500">{slot.hint}</div> : null}
-  </motion.div>
-)
+  // Interaction State
+  const lastTapRef = React.useRef<{ time: number; slot: string } | null>(null)
+  const longPressTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
 
-export const EquipmentSlots: React.FC<EquipmentSlotsProps> = ({ equipment }) => {
-  const isDragging = useInventoryDragStore((state) => state.isDragging)
-  const dropTarget = useInventoryDragStore((state) => state.target)
-  const setDropTarget = useInventoryDragStore((state) => state.setDropTarget)
+  const handleSlotInteraction = (event: React.PointerEvent, slotId: string, item?: ItemState | null) => {
+    event.preventDefault()
+    if (!item) return
+
+    const now = Date.now()
+    const isDoubleTap = lastTapRef.current &&
+      lastTapRef.current.slot === slotId &&
+      (now - lastTapRef.current.time) < 300
+
+    if (isDoubleTap) {
+      console.log('Double tap on slot', slotId)
+      if (onUnequip) onUnequip(slotId)
+    } else {
+      lastTapRef.current = { time: now, slot: slotId }
+
+      longPressTimerRef.current = setTimeout(() => {
+        console.log('Long press on slot', slotId)
+        if (onCompare) onCompare(item)
+      }, 500)
+    }
+  }
+
+  const handlePointerUpSlot = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
+    }
+  }
+
+  const handleMouseEnter = (slotId: string) => {
+    if (isDragging) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setDropTarget({ kind: 'equipment', slotId: slotId as any })
+    }
+    setHoveredSlot(slotId)
+  }
+
+  const handleMouseLeave = () => {
+    if (isDragging) {
+      setDropTarget(null)
+    }
+    setHoveredSlot(null)
+  }
 
   return (
-    <div className="glass-panel space-y-6 p-4">
-      <div className="text-xs uppercase tracking-[0.3em] text-slate-400">Equipment</div>
-
-      {slotSections.map((section) => (
-        <div key={section.title} className="space-y-3">
-          <div className="text-[11px] uppercase tracking-[0.3em] text-slate-500">{section.title}</div>
-          <div
-            className="grid gap-3"
-            style={{ gridTemplateColumns: `repeat(${section.columns}, minmax(0, 1fr))` }}
-          >
-            {section.slots.map((slot) => (
-              <SlotCard
-                key={slot.id}
-                slot={slot}
-                item={equipment[slot.id]}
-                isActive={dropTarget?.kind === 'equipment' && dropTarget.slotId === slot.id}
-                onPointerEnter={() => {
-                  if (!isDragging) return
-                  setDropTarget({ kind: 'equipment', slotId: slot.id })
-                }}
-                onPointerLeave={() => {
-                  if (dropTarget?.kind === 'equipment' && dropTarget.slotId === slot.id) {
-                    setDropTarget(null)
-                  }
-                }}
-              />
-            ))}
-          </div>
-        </div>
-      ))}
-
-      <div className="space-y-3">
-        <div className="text-[11px] uppercase tracking-[0.3em] text-slate-500">Artifacts</div>
-        <div className="grid grid-cols-2 gap-3">
-          {equipment.artifacts.length > 0 ? (
-            equipment.artifacts.map((artifact) => (
-              <div
-                key={artifact.id}
-                className="rounded-lg border border-purple-500/70 bg-purple-500/10 p-3 text-center"
-              >
-                <div className="text-2xl">{artifact.icon}</div>
-                <div className="text-sm font-semibold text-[color:var(--color-text-primary)]">
-                  {artifact.name}
-                </div>
-                <div className="text-[10px] uppercase tracking-[0.2em] text-purple-300">artifact</div>
-              </div>
-            ))
-          ) : (
-            <div className="col-span-2 rounded-lg border border-dashed border-slate-700 p-4 text-center text-sm text-slate-500">
-              No artifacts equipped
-            </div>
-          )}
-        </div>
+    <div className="relative mx-auto w-full rounded-lg border border-slate-800 bg-slate-950/50 p-4" style={{ aspectRatio: '2/3', minHeight: '400px', maxHeight: '600px' }}>
+      {/* Silhouette Background */}
+      <div className="absolute inset-0 flex items-center justify-center p-4 opacity-50 pointer-events-none">
+        <img
+          src="/images/ui/stalker_silhouette.png"
+          alt="Character Silhouette"
+          className="h-full w-auto object-contain opacity-60 mix-blend-overlay"
+        />
       </div>
+
+      {Object.entries(SLOT_CONFIG).map(([key, config]) => {
+        if (config.className === 'hidden') return null
+
+        const item = equipment[key as SlotKey]
+        const singleItem = (item && !Array.isArray(item)) ? item : null
+        const template = singleItem ? ITEM_TEMPLATES[singleItem.templateId] : undefined
+
+        return (
+          <div
+            key={key}
+            className={clsx(
+              'absolute flex h-20 w-20 items-center justify-center transition-all duration-200',
+              // Cutout styling
+              'bg-black/40 shadow-[inset_0_2px_4px_rgba(0,0,0,0.8)] backdrop-blur-sm',
+              'border border-slate-700/50',
+              'rounded-sm', // Slightly rounded corners for a utilitarian look
+              config.className,
+              isDragging && 'border-amber-500/50 bg-amber-500/10 shadow-[0_0_15px_rgba(245,158,11,0.2)]',
+              hoveredSlot === key && 'border-amber-500 bg-amber-500/20 scale-105',
+              !isDragging && !hoveredSlot && 'hover:border-slate-500 hover:bg-slate-900/60'
+            )}
+            onMouseEnter={() => handleMouseEnter(key)}
+            onMouseLeave={handleMouseLeave}
+            onPointerDown={(e) => handleSlotInteraction(e, key, singleItem)}
+            onPointerUp={handlePointerUpSlot}
+            onPointerCancel={handlePointerUpSlot}
+          >
+            {singleItem && template ? (
+              <div className="relative h-full w-full p-1">
+                <div className={clsx(
+                  "h-full w-full flex items-center justify-center text-xs overflow-hidden rounded-sm",
+                  template.rarity === 'legendary' && "bg-amber-500/20 border border-amber-500 shadow-[inset_0_0_10px_rgba(245,158,11,0.3)]",
+                  template.rarity === 'epic' && "bg-purple-500/20 border border-purple-500 shadow-[inset_0_0_10px_rgba(168,85,247,0.3)]",
+                  template.rarity === 'rare' && "bg-blue-500/20 border border-blue-500 shadow-[inset_0_0_10px_rgba(59,130,246,0.3)]",
+                  !template.rarity && "bg-slate-700/50"
+                )}>
+                  {template.icon ?? singleItem.templateId.slice(0, 2)}
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center text-slate-600/50">
+                <span className="text-[10px] uppercase tracking-wider font-bold">{config.label}</span>
+              </div>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }
-
-export default EquipmentSlots

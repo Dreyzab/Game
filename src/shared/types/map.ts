@@ -3,7 +3,7 @@
  * FSD: shared/types
  */
 
-export type MapPointType = 
+export type MapPointType =
   | 'poi'
   | 'quest'
   | 'npc'
@@ -17,13 +17,14 @@ export type MapPointStatus = 'not_found' | 'discovered' | 'researched'
 
 export type DangerLevel = 'low' | 'medium' | 'high'
 
-export type FactionType = 
+export type FactionType =
   | 'fjr'
   | 'ordnung'
   | 'artisans'
   | 'synthesis'
   | 'anarchists'
   | 'merchants'
+  | 'traders'
   | 'old_believers'
   | 'farmers'
   | 'neutral'
@@ -80,6 +81,7 @@ export interface MapPointMetadata {
   sceneBindings?: SceneBinding[]
   unlockRequirements?: UnlockRequirements
   services?: string[]
+  isGlobalObjective?: boolean
   [key: string]: unknown
 }
 

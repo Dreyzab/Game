@@ -13,6 +13,7 @@ const createDefaultProgress = (): PlayerProgress => ({
   fame: 0,
   points: 0,
   daysInGame: 1,
+  skills: {},
   flags: {},
   visitedScenes: [],
   completedQuestIds: [],
@@ -39,7 +40,7 @@ export function usePlayer() {
       try {
         setIsLoading(true)
         setError(null)
-        
+
         // Use Convex query when available
         const playerData = await convexQueries.player.get({ deviceId })
         setPlayer(playerData)
@@ -81,7 +82,7 @@ export function usePlayerProgress() {
       try {
         setIsLoading(true)
         setError(null)
-        
+
         // Use Convex query when available
         const progressData = await convexQueries.player.getProgress({ deviceId })
 
@@ -90,10 +91,13 @@ export function usePlayerProgress() {
             ? progressData.reputationByFaction
             : {}
 
+        const skills = progressData?.skills ?? {}
+
         const normalized: PlayerProgress = {
           ...createDefaultProgress(),
           ...progressData,
           reputationByFaction,
+          skills,
         }
 
         setProgress(normalized)
@@ -128,14 +132,14 @@ export function useCreatePlayer() {
 
   const createPlayer = async () => {
     const deviceId = getDeviceId()
-    
+
     try {
       setIsCreating(true)
       setError(null)
-      
+
       const newPlayerId = await convexMutations.player.create({ deviceId })
       setPlayerId(newPlayerId)
-      
+
       return newPlayerId
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Failed to create player')
@@ -149,4 +153,3 @@ export function useCreatePlayer() {
 
   return { createPlayer, isCreating, error, playerId }
 }
-

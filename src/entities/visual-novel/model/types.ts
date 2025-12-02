@@ -7,7 +7,19 @@ export interface Scene {
   characters: SceneCharacter[]
   dialogue: SceneDialogue[]
   choices?: SceneChoice[]
+  advices?: SceneAdvice[]
   nextScene?: string
+}
+
+export interface SceneAdvice {
+  characterId: string
+  text: string
+  mood?: string
+  stageDirection?: string
+  minSkillLevel?: number
+  maxSkillLevel?: number
+  requiredFlags?: string[]
+  excludedFlags?: string[]
 }
 
 export interface SceneCharacter {
@@ -78,6 +90,10 @@ export interface SceneChoice {
       difficulty: number
       successText?: string
       failureText?: string
+    }
+    condition?: {
+      flag?: string
+      notFlag?: string
     }
   }
   effects?: SceneChoiceEffects

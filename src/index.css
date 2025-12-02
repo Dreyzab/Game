@@ -32,6 +32,18 @@
   display: none;
 }
 
+/* Custom popup styles */
+.custom-popup .mapboxgl-popup-content {
+  background: transparent !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+.custom-popup .mapboxgl-popup-tip {
+  display: none !important;
+}
+
 .mapboxgl-ctrl-group button {
   @apply bg-gray-800 text-white border-gray-700;
 }

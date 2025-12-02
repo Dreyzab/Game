@@ -1,25 +1,56 @@
 import React from 'react'
 import type { ItemState } from '@/entities/item/model/types'
 
+type Rect = {
+  left: number
+  top: number
+  width: number
+  height: number
+}
+
 type ItemTooltipProps = {
   item: ItemState
-  position: { x: number; y: number }
+  anchor: {
+    cellRect: Rect
+    containerRect: Rect
+  }
 }
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max)
 
-export const ItemTooltip: React.FC<ItemTooltipProps> = ({ item, position }) => {
-  const offset = 18
+export const ItemTooltip: React.FC<ItemTooltipProps> = ({ item, anchor }) => {
   const width = 220
   const height = 140
-  const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : width + 24
-  const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : height + 24
-  const left = clamp(position.x + offset, 12, viewportWidth - width - 12)
-  const top = clamp(position.y + offset, 12, viewportHeight - height - 12)
+  const gap = 12
+
+  const relativeLeft = anchor.cellRect.left - anchor.containerRect.left
+  const relativeTop = anchor.cellRect.top - anchor.containerRect.top
+
+  const containerWidth = anchor.containerRect.width
+  const containerHeight = anchor.containerRect.height
+
+  const spaceRight = containerWidth - (relativeLeft + anchor.cellRect.width)
+  const spaceLeft = relativeLeft
+
+  let left: number
+  if (spaceRight >= width + gap) {
+    left = relativeLeft + anchor.cellRect.width + gap
+  } else if (spaceLeft >= width + gap) {
+    left = relativeLeft - width - gap
+  } else {
+    left = clamp(
+      relativeLeft + anchor.cellRect.width / 2 - width / 2,
+      0,
+      Math.max(0, containerWidth - width)
+    )
+  }
+
+  const centerAlignedTop = relativeTop + anchor.cellRect.height / 2 - height / 2
+  const top = clamp(centerAlignedTop, 0, Math.max(0, containerHeight - height))
 
   return (
     <div
-      className="pointer-events-none fixed z-50 w-[220px] rounded-lg border border-amber-500/40 bg-slate-950/95 p-3 shadow-2xl backdrop-blur"
+      className="pointer-events-none absolute z-50 w-[220px] rounded-lg border border-amber-500/40 bg-slate-950/95 p-3 shadow-2xl backdrop-blur"
       style={{ left, top }}
     >
       <div className="flex items-center gap-3">

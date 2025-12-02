@@ -4,6 +4,7 @@ import {
   infoBureauScenes,
 } from '@/entities/visual-novel/scenarios/prolog/scenarioTr-ST'
 import { chapter1Scenes } from '@/entities/visual-novel/scenarios/chapter1'
+import { allTutorialScenes } from '@/entities/visual-novel/scenarios/tutorial'
 import { TEST_SCENE_WITH_ADVICES } from './testSceneWithAdvices'
 import type { Scene, SceneCharacter, SceneChoice } from '@/entities/visual-novel/model/types'
 import type {
@@ -16,7 +17,7 @@ import type {
   VisualNovelMood,
 } from '@/shared/types/visualNovel'
 
-export const DEFAULT_VN_SCENE_ID = 'prologue_start'
+export const DEFAULT_VN_SCENE_ID = 'prologue_coupe_start'
 
 const BASE_LOCATION = 'Фрайбург — Пролог'
 const DEFAULT_AMBIENT = 'rgba(2, 6, 23, 0.78)'
@@ -28,12 +29,14 @@ const convertedPrologue = Object.values(prologueScenarios).map((scene) => conver
 const convertedArrivals = Object.values(chapter1ArrivalScenes).map((scene) => convertScene(scene))
 const convertedInfoBureau = Object.values(infoBureauScenes).map((scene) => convertScene(scene))
 const convertedChapter1 = Object.values(chapter1Scenes).map((scene) => convertScene(scene))
+const convertedTutorial = Object.values(allTutorialScenes).map((scene) => convertScene(scene))
 
 const ALL_SCENES: VisualNovelSceneDefinition[] = [
   ...convertedPrologue,
   ...convertedArrivals,
   ...convertedInfoBureau,
   ...convertedChapter1,
+  ...convertedTutorial,
   TEST_SCENE_WITH_ADVICES, // Тестовая сцена с системой консультаций
 ]
 
@@ -145,6 +148,20 @@ function convertScene(scene: Scene): VisualNovelSceneDefinition {
       ...(terminalLine.transition ?? {}),
       nextSceneId: scene.nextScene,
     }
+  }
+
+  if (scene.advices?.length) {
+    const terminalLine = lines[lines.length - 1]
+    terminalLine.characterAdvices = scene.advices.map((advice) => ({
+      characterId: advice.characterId,
+      text: advice.text,
+      mood: normalizeMood(advice.mood),
+      stageDirection: advice.stageDirection,
+      minSkillLevel: advice.minSkillLevel,
+      maxSkillLevel: advice.maxSkillLevel,
+      requiredFlags: advice.requiredFlags,
+      excludedFlags: advice.excludedFlags,
+    }))
   }
 
   const convertedCharacters = scene.characters.map((character, index) =>
@@ -272,15 +289,27 @@ function convertChoice(choice: SceneChoice): VisualNovelChoice {
     description,
     tone: mapTone(choice.presentation?.color),
     nextSceneId,
-    requirements: skillCheck
-      ? {
+    requirements: {
+      ...(skillCheck
+        ? {
           skillCheck: {
             skill: skillCheck.skill,
             difficulty: skillCheck.difficulty,
             label: buildSkillLabel(skillCheck.skill, skillCheck.difficulty),
           },
         }
-      : undefined,
+        : {}),
+      ...(choice.availability?.condition?.flag
+        ? {
+          flags: [choice.availability.condition.flag],
+        }
+        : {}),
+      ...(choice.availability?.condition?.notFlag
+        ? {
+          notFlags: [choice.availability.condition.notFlag],
+        }
+        : {}),
+    },
     effects: normalizedEffects,
   }
 }

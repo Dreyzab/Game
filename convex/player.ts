@@ -9,7 +9,7 @@ type GameProgressDoc = Doc<'game_progress'>
 
 const xpRequiredForLevel = (level: number) => 50 * level + 50
 
-async function getPlayerByDeviceOrUser(
+export async function getPlayerByDeviceOrUser(
   ctx: QueryCtx | MutationCtx,
   args: { deviceId?: string; userId?: string }
 ): Promise<PlayerDoc | null> {
@@ -91,13 +91,49 @@ async function ensureGameProgress(
   return created
 }
 
+function applySkillAllocation(
+  currentSkills: Record<string, number> | undefined,
+  currentSkillPoints: number | undefined,
+  allocation: Record<string, number>
+) {
+  const skills: Record<string, number> = { ...(currentSkills ?? {}) }
+  let remainingPoints = currentSkillPoints ?? 0
+
+  // Подсчитываем суммарное количество требуемых очков
+  let totalDelta = 0
+  for (const [, delta] of Object.entries(allocation)) {
+    totalDelta += delta
+  }
+
+  if (totalDelta > remainingPoints) {
+    throw new Error('Not enough skill points')
+  }
+
+  for (const [skillId, delta] of Object.entries(allocation)) {
+    if (!delta) continue
+    const current = skills[skillId] ?? 0
+    const next = current + delta
+    if (next < 0) {
+      throw new Error(`Skill "${skillId}" cannot be negative`)
+    }
+    skills[skillId] = next
+    remainingPoints -= delta
+  }
+
+  if (remainingPoints < 0) {
+    throw new Error('Skill point allocation underflow')
+  }
+
+  return { skills, remainingPoints }
+}
+
 export const ensureByDevice = mutation({
   args: { deviceId: v.string() },
   handler: async (ctx, args) => {
     const now = Date.now()
 
     // Upsert player by deviceId
-    let player = await ctx.db
+    const player = await ctx.db
       .query('players')
       .withIndex('by_deviceId', (q) => q.eq('deviceId', args.deviceId))
       .first()
@@ -202,6 +238,7 @@ export const getProgress = query({
     }
 
     const reputationByFaction = (progress as unknown as { reputation?: Record<string, number> }).reputation ?? {}
+    const skills = (progress as unknown as { skills?: Record<string, number> }).skills ?? { ...STARTING_SKILLS }
 
     return {
       level,
@@ -213,6 +250,7 @@ export const getProgress = query({
       fame: 0,
       points: 0,
       daysInGame: 1,
+      skills,
       flags: (progress.flags ?? {}) as Record<string, unknown>,
       visitedScenes: progress.visitedScenes ?? [],
       completedQuestIds,
@@ -224,3 +262,91 @@ export const getProgress = query({
   },
 })
 
+export const allocateSkills = mutation({
+  args: {
+    deviceId: v.string(),
+    allocation: v.record(v.string(), v.number()),
+  },
+  handler: async (ctx, args) => {
+    const progress = await ensureGameProgress(ctx, { deviceId: args.deviceId })
+
+    const currentSkills = progress.skills as Record<string, number> | undefined
+    const currentSkillPoints = progress.skillPoints ?? 0
+
+    const { skills, remainingPoints } = applySkillAllocation(currentSkills, currentSkillPoints, args.allocation)
+
+    await ctx.db.patch(progress._id, {
+      skills,
+      skillPoints: remainingPoints,
+      updatedAt: Date.now(),
+    })
+
+    return {
+      skills,
+      skillPoints: remainingPoints,
+    }
+  },
+})
+
+export const resetProgress = mutation({
+  args: { deviceId: v.string() },
+  handler: async (ctx, args) => {
+    const now = Date.now()
+
+    // Drop quest progress bound to this player
+    const player = await ctx.db
+      .query('players')
+      .withIndex('by_deviceId', (q) => q.eq('deviceId', args.deviceId))
+      .first()
+
+    if (player) {
+      const questProgress = await ctx.db
+        .query('quest_progress')
+        .withIndex('by_player', (q) => q.eq('playerId', player._id))
+        .collect()
+
+      for (const quest of questProgress) {
+        await ctx.db.delete(quest._id)
+      }
+
+      await ctx.db.patch(player._id, {
+        fame: 0,
+        abandonedAt: undefined,
+        attempt: undefined,
+        updatedAt: now,
+      })
+    }
+
+    // Clear map discoveries and scene logs tied to the device
+    const discoveries = await ctx.db
+      .query('point_discoveries')
+      .withIndex('by_deviceId', (q) => q.eq('deviceId', args.deviceId))
+      .collect()
+    for (const entry of discoveries) {
+      await ctx.db.delete(entry._id)
+    }
+
+    const logs = await ctx.db
+      .query('scene_logs')
+      .withIndex('by_device', (q) => q.eq('deviceId', args.deviceId))
+      .collect()
+    for (const log of logs) {
+      await ctx.db.delete(log._id)
+    }
+
+    // Replace game_progress with a clean baseline
+    const existingProgress = await findGameProgress(ctx, { deviceId: args.deviceId })
+    const base = buildInitialGameProgress({ deviceId: args.deviceId }, now)
+
+    if (existingProgress) {
+      await ctx.db.delete(existingProgress._id)
+    }
+
+    await ctx.db.insert('game_progress', base)
+
+    return {
+      reset: true,
+      deviceId: args.deviceId,
+    }
+  },
+})

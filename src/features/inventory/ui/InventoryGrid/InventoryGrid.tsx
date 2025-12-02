@@ -1,73 +1,60 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import clsx from 'clsx'
-import { motion } from 'framer-motion'
 import { INVENTORY_GRID_COLUMNS, INVENTORY_GRID_ROWS } from '@/entities/item/model/constants'
 import type { ItemState } from '@/entities/item/model/types'
+import { ITEM_TEMPLATES } from '@/entities/item/model/templates'
 import { useInventoryDragStore } from '@/features/inventory/model/useInventoryDrag'
 import { useInventoryStore } from '@/shared/stores/inventoryStore'
 import { ItemTooltip } from '../ItemTooltip/ItemTooltip'
+import { useMutation } from 'convex/react'
+import { api } from '../../../../../convex/_generated/api'
 
 type InventoryGridProps = {
   items: ItemState[]
   selectedItemId?: string | null
   onSelect?: (itemId: string) => void
+  onCompare?: (item: ItemState) => void
   isQuestItem?: (itemId: string) => boolean
 }
 
 type GridCell = {
-  key: string
   x: number
   y: number
-  item: ItemState | null
 }
 
-const totalCells = INVENTORY_GRID_COLUMNS * INVENTORY_GRID_ROWS
+type Rect = {
+  left: number
+  top: number
+  width: number
+  height: number
+}
+
+type TooltipState = {
+  item: ItemState
+  cellRect: Rect
+  containerRect: Rect
+}
 
 export const InventoryGrid: React.FC<InventoryGridProps> = ({
   items,
   selectedItemId,
   onSelect,
+  onCompare,
   isQuestItem,
 }) => {
-  const cells = useMemo(() => {
-    const byCoordinates = new Map<string, ItemState>()
-    const unplaced: ItemState[] = []
+  const containerRef = useRef<HTMLDivElement>(null)
 
-    items.forEach((item) => {
-      if (item.gridPosition) {
-        const { x, y } = item.gridPosition
-        const key = `${Math.max(0, Math.min(INVENTORY_GRID_COLUMNS - 1, x))}:${Math.max(
-          0,
-          Math.min(INVENTORY_GRID_ROWS - 1, y)
-        )}`
-        if (!byCoordinates.has(key)) {
-          byCoordinates.set(key, item)
-          return
-        }
-      }
-      unplaced.push(item)
-    })
-
-    const result: GridCell[] = []
-    let fallbackIndex = 0
-
-    for (let y = 0; y < INVENTORY_GRID_ROWS; y += 1) {
-      for (let x = 0; x < INVENTORY_GRID_COLUMNS; x += 1) {
-        const key = `${x}:${y}`
-        let cellItem = byCoordinates.get(key) ?? null
-
-        if (!cellItem && fallbackIndex < unplaced.length) {
-          cellItem = unplaced[fallbackIndex]
-          fallbackIndex += 1
-        }
-
-        result.push({ key, x, y, item: cellItem })
+  // Generate background grid cells
+  const gridCells = useMemo(() => {
+    const cells: GridCell[] = []
+    for (let y = 0; y < INVENTORY_GRID_ROWS; y++) {
+      for (let x = 0; x < INVENTORY_GRID_COLUMNS; x++) {
+        cells.push({ x, y })
       }
     }
-
-    return result
-  }, [items])
+    return cells
+  }, [])
 
   const itemsById = useMemo(
     () =>
@@ -78,33 +65,28 @@ export const InventoryGrid: React.FC<InventoryGridProps> = ({
     [items]
   )
 
-  const cellMap = useMemo(() => {
-    const map = new Map<string, GridCell>()
-    cells.forEach((cell) => map.set(cell.key, cell))
-    return map
-  }, [cells])
-
   const moveItemWithinGrid = useInventoryStore((state) => state.moveItemWithinGrid)
   const equipItem = useInventoryStore((state) => state.equipItem)
   const setQuickSlot = useInventoryStore((state) => state.setQuickSlot)
 
-  const isDragging = useInventoryDragStore((state) => state.isDragging)
-  const draggedItemId = useInventoryDragStore((state) => state.itemId)
-  const dropTarget = useInventoryDragStore((state) => state.target)
-  const startDrag = useInventoryDragStore((state) => state.startDrag)
-  const setDropTarget = useInventoryDragStore((state) => state.setDropTarget)
-  const updateCursor = useInventoryDragStore((state) => state.updateCursor)
-  const endDrag = useInventoryDragStore((state) => state.endDrag)
-  const cursor = useInventoryDragStore((state) => state.cursor)
+  const { isDragging, itemId: draggedItemId, target: dropTarget, startDrag, setDropTarget, updateCursor, endDrag, cursor } = useInventoryDragStore()
 
   const draggedItem = draggedItemId ? itemsById[draggedItemId] ?? null : null
   const isQuestItemFn = isQuestItem ?? (() => false)
-  const [tooltip, setTooltip] = useState<{ item: ItemState; x: number; y: number } | null>(null)
-  const [focusedCell, setFocusedCell] = useState<{ x: number; y: number } | null>(null)
+  const [tooltip, setTooltip] = useState<TooltipState | null>(null)
+
+  // Interaction State
+  const lastTapRef = useRef<{ time: number; id: string } | null>(null)
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     if (isDragging) setTooltip(null)
   }, [isDragging])
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const moveMutation = useMutation((api as any).inventory.move)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const equipMutation = useMutation((api as any).inventory.equip)
 
   useEffect(() => {
     const handlePointerUp = () => {
@@ -112,10 +94,23 @@ export const InventoryGrid: React.FC<InventoryGridProps> = ({
       if (draggedItemId && dropTarget) {
         if (dropTarget.kind === 'grid') {
           moveItemWithinGrid(draggedItemId, dropTarget.cell)
+          moveMutation({
+            itemId: draggedItemId,
+            toGridPosition: dropTarget.cell
+          }).catch(console.error)
         } else if (dropTarget.kind === 'equipment') {
+          // Cast to string as slotId is generic string in mutation but specific in store
           equipItem(draggedItemId, dropTarget.slotId)
+          equipMutation({
+            itemId: draggedItemId,
+            slot: dropTarget.slotId
+          }).catch(console.error)
         } else if (dropTarget.kind === 'quick') {
           setQuickSlot(dropTarget.index, draggedItemId)
+          equipMutation({
+            itemId: draggedItemId,
+            slot: `quick_${dropTarget.index}`
+          }).catch(console.error)
         }
       }
       endDrag()
@@ -123,231 +118,224 @@ export const InventoryGrid: React.FC<InventoryGridProps> = ({
 
     window.addEventListener('pointerup', handlePointerUp)
     return () => window.removeEventListener('pointerup', handlePointerUp)
-  }, [isDragging, draggedItemId, dropTarget, moveItemWithinGrid, equipItem, setQuickSlot, endDrag])
+  }, [isDragging, draggedItemId, dropTarget, moveItemWithinGrid, equipItem, setQuickSlot, endDrag, moveMutation, equipMutation])
 
-  const selectedCell = selectedItemId ? itemsById[selectedItemId]?.gridPosition ?? null : null
 
-  useEffect(() => {
-    if (selectedCell) {
-      setFocusedCell((prev) =>
-        prev && prev.x === selectedCell.x && prev.y === selectedCell.y ? prev : selectedCell
-      )
-    } else if (!focusedCell) {
-      setFocusedCell({ x: 0, y: 0 })
-    }
-  }, [selectedCell, focusedCell])
-
-  const handleSelect = (item: ItemState | null) => {
-    if (!item || !onSelect) return
-    onSelect(item.id)
-  }
-
-  const handleCellInteraction = (cell: GridCell) => {
-    setFocusedCell({ x: cell.x, y: cell.y })
-    handleSelect(cell.item)
-  }
-
-  const handlePointerDown = (event: React.PointerEvent, cell: GridCell) => {
-    if (!cell.item) return
+  const handleItemInteraction = (event: React.PointerEvent, item: ItemState) => {
     event.preventDefault()
-    setFocusedCell({ x: cell.x, y: cell.y })
-    startDrag(cell.item.id, { type: 'grid' })
-    setDropTarget({ kind: 'grid', cell: { x: cell.x, y: cell.y } })
-    updateCursor({ x: event.clientX, y: event.clientY })
+    const now = Date.now()
+    const isDoubleTap = lastTapRef.current &&
+      lastTapRef.current.id === item.id &&
+      (now - lastTapRef.current.time) < 300
+
+    if (isDoubleTap) {
+      console.log('Double tap on', item.name)
+      // TODO: Implement auto-equip logic based on item kind
+    } else {
+      // Single Tap: Select
+      if (onSelect) onSelect(item.id)
+      lastTapRef.current = { time: now, id: item.id }
+
+      // Long Press Logic
+      longPressTimerRef.current = setTimeout(() => {
+        console.log('Long press on', item.name)
+        if (onCompare) onCompare(item)
+      }, 500)
+    }
   }
 
-  const handlePointerEnterCell = (cell: GridCell) => {
-    if (!isDragging) return
-    setDropTarget({ kind: 'grid', cell: { x: cell.x, y: cell.y } })
+  const handlePointerUpItem = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
+    }
+  }
+
+  const handlePointerDownItem = (event: React.PointerEvent, item: ItemState) => {
+    handleItemInteraction(event, item)
+
+    startDrag(item.id, { type: 'grid' })
+    if (item.gridPosition) {
+      setDropTarget({ kind: 'grid', cell: item.gridPosition })
+    }
+    updateCursor({ x: event.clientX, y: event.clientY })
   }
 
   const handlePointerMoveGrid = (event: React.PointerEvent) => {
     if (!isDragging) return
     updateCursor({ x: event.clientX, y: event.clientY })
-  }
 
-  const handlePointerLeaveGrid = () => {
-    if (isDragging && dropTarget?.kind === 'grid') {
-      setDropTarget(null)
+    // Calculate drop target based on cursor position relative to grid
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect()
+      const x = event.clientX - rect.left
+      const y = event.clientY - rect.top
+
+      const cellWidth = rect.width / INVENTORY_GRID_COLUMNS
+      const cellHeight = rect.height / INVENTORY_GRID_ROWS
+
+      const col = Math.floor(x / cellWidth)
+      const row = Math.floor(y / cellHeight)
+
+      if (col >= 0 && col < INVENTORY_GRID_COLUMNS && row >= 0 && row < INVENTORY_GRID_ROWS) {
+        setDropTarget({ kind: 'grid', cell: { x: col, y: row } })
+      }
     }
   }
 
-  const handleMouseEnter = (event: React.MouseEvent, item: ItemState | null) => {
-    if (!item || isDragging) return
-    setTooltip({ item, x: event.clientX, y: event.clientY })
+  const updateTooltipPosition = (target: HTMLElement, item: ItemState) => {
+    const container = containerRef.current
+    if (!container) return
+    const nextCellRect = target.getBoundingClientRect()
+    const nextContainerRect = container.getBoundingClientRect()
+    const nextState: TooltipState = {
+      item,
+      cellRect: {
+        left: nextCellRect.left,
+        top: nextCellRect.top,
+        width: nextCellRect.width,
+        height: nextCellRect.height,
+      },
+      containerRect: {
+        left: nextContainerRect.left,
+        top: nextContainerRect.top,
+        width: nextContainerRect.width,
+        height: nextContainerRect.height,
+      },
+    }
+
+    setTooltip((prev) => {
+      if (
+        prev &&
+        prev.item.id === nextState.item.id &&
+        Math.abs(prev.cellRect.left - nextState.cellRect.left) < 0.5 &&
+        Math.abs(prev.cellRect.top - nextState.cellRect.top) < 0.5 &&
+        Math.abs(prev.cellRect.width - nextState.cellRect.width) < 0.5 &&
+        Math.abs(prev.cellRect.height - nextState.cellRect.height) < 0.5 &&
+        Math.abs(prev.containerRect.left - nextState.containerRect.left) < 0.5 &&
+        Math.abs(prev.containerRect.top - nextState.containerRect.top) < 0.5 &&
+        Math.abs(prev.containerRect.width - nextState.containerRect.width) < 0.5 &&
+        Math.abs(prev.containerRect.height - nextState.containerRect.height) < 0.5
+      ) {
+        return prev
+      }
+      return nextState
+    })
   }
 
-  const handleMouseMove = (event: React.MouseEvent) => {
-    if (!tooltip || isDragging) return
-    setTooltip((prev) => (prev ? { ...prev, x: event.clientX, y: event.clientY } : prev))
+  const handleMouseEnter = (event: React.MouseEvent<HTMLDivElement>, item: ItemState | null) => {
+    if (!item || isDragging) return
+    updateTooltipPosition(event.currentTarget, item)
+  }
+
+  const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>, item: ItemState | null) => {
+    if (!item || isDragging) return
+    updateTooltipPosition(event.currentTarget, item)
   }
 
   const handleMouseLeave = () => setTooltip(null)
 
   const showTooltip = tooltip && !isDragging
 
-  const maxX = INVENTORY_GRID_COLUMNS - 1
-  const maxY = INVENTORY_GRID_ROWS - 1
-
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    const { key } = event
-    const arrowKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']
-    if (!arrowKeys.includes(key) && key !== 'Enter' && key !== ' ') {
-      return
-    }
-
-    event.preventDefault()
-
-    if (!focusedCell) {
-      const initialCell = selectedCell ?? { x: 0, y: 0 }
-      setFocusedCell(initialCell)
-      const cell = cellMap.get(`${initialCell.x}:${initialCell.y}`)
-      if (cell?.item) {
-        handleSelect(cell.item)
-      }
-      return
-    }
-
-    if (arrowKeys.includes(key)) {
-      let { x, y } = focusedCell
-      if (key === 'ArrowUp') y = Math.max(0, y - 1)
-      if (key === 'ArrowDown') y = Math.min(maxY, y + 1)
-      if (key === 'ArrowLeft') x = Math.max(0, x - 1)
-      if (key === 'ArrowRight') x = Math.min(maxX, x + 1)
-      const nextCell = { x, y }
-      setFocusedCell(nextCell)
-      const cell = cellMap.get(`${x}:${y}`)
-      if (cell?.item) {
-        handleSelect(cell.item)
-      }
-      return
-    }
-
-    const active = focusedCell ? cellMap.get(`${focusedCell.x}:${focusedCell.y}`) : null
-    if (active) {
-      handleCellInteraction(active)
-    }
-  }
-
   return (
     <div
-      className="glass-panel relative space-y-4 p-4"
-      tabIndex={0}
-      role="grid"
-      aria-label="Inventory grid"
-      onKeyDown={handleKeyDown}
+      className="glass-panel relative h-[600px] w-full select-none overflow-hidden p-4"
+      ref={containerRef}
+      onPointerMove={handlePointerMoveGrid}
+      onPointerLeave={() => isDragging && setDropTarget(null)}
     >
-      <div className="flex items-center justify-between text-xs uppercase tracking-[0.22em] text-slate-400">
-        <span>Inventory Grid</span>
-        <span>
-          {items.length}/{totalCells} items
-        </span>
+      <div className="mb-2 flex items-center justify-between text-xs uppercase tracking-[0.22em] text-slate-400">
+        <span>Stash</span>
+        <span>{items.length} items</span>
       </div>
 
+      {/* The Grid Container */}
       <div
-        className="grid gap-2"
-        onPointerMove={handlePointerMoveGrid}
-        onPointerLeave={handlePointerLeaveGrid}
-        style={{ gridTemplateColumns: `repeat(${INVENTORY_GRID_COLUMNS}, minmax(0, 1fr))` }}
+        className="relative grid h-full w-full border border-slate-800 bg-slate-950/80"
+        style={{
+          gridTemplateColumns: `repeat(${INVENTORY_GRID_COLUMNS}, 1fr)`,
+          gridTemplateRows: `repeat(${INVENTORY_GRID_ROWS}, 1fr)`
+        }}
       >
-        {cells.map((cell) => {
-          const isSelected = cell.item?.id === selectedItemId
-          const isQuestProtected = cell.item ? isQuestItemFn(cell.item.id) : false
-          const isDropTarget =
-            isDragging &&
-            dropTarget?.kind === 'grid' &&
-            dropTarget.cell.x === cell.x &&
-            dropTarget.cell.y === cell.y
+        {/* Background Cells */}
+        {gridCells.map((cell) => (
+          <div
+            key={`${cell.x}:${cell.y}`}
+            className={clsx(
+              "border-r border-b border-slate-800/50",
+              isDragging && dropTarget?.kind === 'grid' && dropTarget.cell.x === cell.x && dropTarget.cell.y === cell.y && "bg-emerald-500/20"
+            )}
+          />
+        ))}
+
+        {/* Items Layer */}
+        {items.map((item) => {
+          if (!item.gridPosition) return null
+          const template = ITEM_TEMPLATES[item.templateId]
+          const w = template?.baseStats.width ?? 1
+          const h = template?.baseStats.height ?? 1
+          const isSelected = item.id === selectedItemId
+          const isQuestProtected = isQuestItemFn(item.id)
+
           return (
-            <motion.button
-              key={cell.key}
-              type="button"
-              layout
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.96 }}
-              onClick={() => handleCellInteraction(cell)}
-              onPointerDown={(event) => handlePointerDown(event, cell)}
-              onPointerEnter={() => handlePointerEnterCell(cell)}
-              onMouseEnter={(event) => handleMouseEnter(event, cell.item)}
-              onMouseMove={handleMouseMove}
-              onMouseLeave={handleMouseLeave}
+            <div
+              key={item.id}
               className={clsx(
-                'relative rounded border bg-slate-950/70 p-2 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400/70',
-                cell.item
-                  ? isSelected
-                    ? 'border-amber-400 shadow-[0_0_14px_rgba(251,191,36,0.55)]'
-                    : 'border-amber-500/70 shadow-[0_0_12px_rgba(251,191,36,0.35)] hover:border-amber-400/90'
-                  : 'border-slate-800 hover:border-slate-600/80',
-                isDropTarget && 'ring-2 ring-emerald-400/80 ring-offset-0',
-                focusedCell && focusedCell.x === cell.x && focusedCell.y === cell.y && 'ring-1 ring-sky-400/80'
+                "absolute m-[1px] rounded border transition-all cursor-pointer z-10",
+                isSelected ? "border-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.4)] z-20" : "border-slate-700 hover:border-slate-500",
+                "bg-slate-900/90 flex items-center justify-center",
+                isDragging && draggedItemId === item.id && "opacity-50"
               )}
+              style={{
+                gridColumnStart: item.gridPosition.x + 1,
+                gridColumnEnd: `span ${w}`,
+                gridRowStart: item.gridPosition.y + 1,
+                gridRowEnd: `span ${h}`,
+                position: 'relative',
+                width: 'calc(100% - 2px)',
+                height: 'calc(100% - 2px)'
+              }}
+              onPointerDown={(e) => handlePointerDownItem(e, item)}
+              onPointerUp={handlePointerUpItem}
+              onPointerCancel={handlePointerUpItem}
+              onMouseEnter={(e) => handleMouseEnter(e, item)}
+              onMouseMove={(e) => handleMouseMove(e, item)}
+              onMouseLeave={handleMouseLeave}
             >
-              <span className="absolute left-1 top-1 text-[10px] font-semibold text-slate-500">
-                {cell.x + 1}-{cell.y + 1}
-              </span>
-              {isQuestProtected ? (
-                <span className="absolute right-1 top-1 rounded bg-amber-500/80 px-1 text-[9px] font-semibold uppercase tracking-[0.2em] text-slate-900">
-                  Quest
-                </span>
-              ) : null}
-              <div className="flex h-20 flex-col items-center justify-center gap-1 text-center">
-                {cell.item ? (
-                  <>
-                    <div className="text-2xl">{cell.item.icon}</div>
-                    <div className="text-[11px] font-semibold text-[color:var(--color-text-primary)]">
-                      {cell.item.name}
-                    </div>
-                    <div className="text-[10px] uppercase tracking-[0.2em] text-amber-400">{cell.item.rarity}</div>
-                  </>
-                ) : (
-                  <div className="text-[10px] text-slate-600">Empty</div>
+              <div className="flex flex-col items-center justify-center p-1 text-center overflow-hidden w-full h-full">
+                <div className="text-xl">{template?.icon ?? item.templateId.slice(0, 2)}</div>
+                {w > 1 && <div className="text-[10px] font-medium truncate w-full">{item.name}</div>}
+                {isQuestProtected && (
+                  <div className="absolute top-0 right-0 w-2 h-2 bg-amber-500 rounded-bl" />
                 )}
               </div>
-            </motion.button>
+            </div>
           )
         })}
       </div>
 
-      {isDragging && draggedItem ? (
-        <div className="pointer-events-none absolute inset-0 flex items-end justify-center">
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 8 }}
-            className="mb-4 rounded-full bg-slate-900/90 px-4 py-2 text-sm text-slate-100 shadow-lg ring-1 ring-amber-500/30"
-          >
-            Move <span className="font-semibold text-amber-200">{draggedItem.name}</span>{' '}
-            {dropTarget
-              ? dropTarget.kind === 'grid'
-                ? `to cell ${dropTarget.cell.x + 1}-${dropTarget.cell.y + 1}`
-                : dropTarget.kind === 'equipment'
-                  ? `to ${dropTarget.slotId} slot`
-                  : `to quick slot #${dropTarget.index + 1}`
-              : '— select a slot'}
-          </motion.div>
-        </div>
-      ) : null}
-
-      {showTooltip ? <ItemTooltip item={tooltip.item} position={{ x: tooltip.x, y: tooltip.y }} /> : null}
-
+      {/* Drag Preview */}
       {isDragging && draggedItem && cursor && typeof document !== 'undefined'
         ? createPortal(
-            <motion.div
-              initial={{ opacity: 0, scale: 0.96 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="pointer-events-none fixed z-[9999] flex select-none items-center gap-2 rounded-xl border border-amber-500/40 bg-slate-900/95 px-4 py-2 text-sm text-amber-50 shadow-2xl backdrop-blur"
-              style={{ left: cursor.x + 16, top: cursor.y + 16 }}
-            >
-              <span className="text-2xl">{draggedItem.icon}</span>
-              <div>
-                <div className="font-semibold leading-tight">{draggedItem.name}</div>
-                <div className="text-[10px] uppercase tracking-[0.25em] text-amber-300">{draggedItem.rarity}</div>
-              </div>
-            </motion.div>,
-            document.body
-          )
+          <div
+            className="pointer-events-none fixed z-[9999] flex select-none items-center gap-2 rounded-xl border border-amber-500/40 bg-slate-900/95 px-4 py-2 text-sm text-amber-50 shadow-2xl backdrop-blur"
+            style={{ left: cursor.x + 16, top: cursor.y + 16 }}
+          >
+            <span className="text-2xl">{ITEM_TEMPLATES[draggedItem.templateId]?.icon}</span>
+            <div>
+              <div className="font-semibold leading-tight">{draggedItem.name}</div>
+            </div>
+          </div>,
+          document.body
+        )
         : null}
+
+      {showTooltip ? (
+        <ItemTooltip
+          item={tooltip.item}
+          anchor={{ cellRect: tooltip.cellRect, containerRect: tooltip.containerRect }}
+        />
+      ) : null}
     </div>
   )
 }

@@ -30,9 +30,10 @@ const isUnlockRequirements = (value: unknown): value is UnlockRequirements =>
 
 const hasSceneBindings = (value: unknown): value is SceneBindingDoc[] => Array.isArray(value)
 
-// Helper function: Calculate distance between two coordinates (Haversine formula)
+// Helper function: Calculate distance between two coordinates (Haversine formula).
+// Returns distance in kilometers to align with client expectations (`MapPoint.distance`).
 function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371000 // Earth radius in meters
+  const R = 6371 // Earth radius in kilometers
   const dLat = (lat2 - lat1) * Math.PI / 180
   const dLng = (lng2 - lng1) * Math.PI / 180
 
@@ -45,7 +46,7 @@ function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
   return R * c
 }
 
- // Get visible map points for current user
+// Get visible map points for current user
 export const listVisible = query({
   args: {
     deviceId: v.optional(v.string()),
@@ -65,7 +66,7 @@ export const listVisible = query({
     // Get player flags for unlockRequirements checking
     let playerFlags: PlayerFlags = {}
     let playerPhase: number | undefined = phase
-    
+
     if (deviceId || userId) {
       let progressQuery = ctx.db.query('game_progress')
       if (deviceId) {
@@ -84,13 +85,50 @@ export const listVisible = query({
       }
     }
 
+    // Resolve active quests for this player to highlight quest targets
+    const activeQuestIds = new Set<string>()
+
+    if (deviceId || userId) {
+      const player = deviceId
+        ? await ctx.db
+          .query('players')
+          .withIndex('by_deviceId', (q) => q.eq('deviceId', deviceId!))
+          .first()
+        : await ctx.db
+          .query('players')
+          .withIndex('by_userId', (q) => q.eq('userId', userId!))
+          .first()
+      if (player) {
+        const questProgressDocs = await ctx.db
+          .query('quest_progress')
+          .withIndex('by_player', (q) => q.eq('playerId', player._id))
+          .collect()
+
+        for (const doc of questProgressDocs) {
+          if (!doc.completedAt) {
+            activeQuestIds.add(doc.questId)
+          }
+        }
+      }
+    }
+
+    // Derive baseline prologue quests from flags (first arrival to Freiburg)
+    const hasArrivalFlag =
+      playerFlags['arrived_at_freiburg'] === true ||
+      playerFlags['need_info_bureau'] === true
+
+    if (hasArrivalFlag) {
+      activeQuestIds.add('delivery_for_dieter')
+      activeQuestIds.add('delivery_for_professor')
+    }
+
     // Query active map points
     let pointsQuery = ctx.db.query('map_points')
       .filter((q) => q.eq(q.field('isActive'), true))
 
     // Filter by phase if specified
     if (playerPhase !== undefined) {
-      pointsQuery = pointsQuery.filter((q) => 
+      pointsQuery = pointsQuery.filter((q) =>
         q.or(
           q.eq(q.field('phase'), playerPhase),
           q.eq(q.field('phase'), undefined)
@@ -104,7 +142,7 @@ export const listVisible = query({
     // Filter by bounding box if provided
     let filteredPoints = allPoints
     if (bbox) {
-      filteredPoints = allPoints.filter(point => 
+      filteredPoints = allPoints.filter(point =>
         point.coordinates.lat >= bbox.minLat &&
         point.coordinates.lat <= bbox.maxLat &&
         point.coordinates.lng >= bbox.minLng &&
@@ -117,18 +155,18 @@ export const listVisible = query({
       const unlockData = point.metadata?.unlockRequirements
       const unlockReqs = isUnlockRequirements(unlockData) ? unlockData : undefined
       if (!unlockReqs) return true // No requirements - the point is accessible
-      
+
       if (Array.isArray(unlockReqs.flags)) {
         const hasAllFlags = unlockReqs.flags.every((flag) => playerFlags[flag] === true)
         if (!hasAllFlags) return false
       }
-      
+
       if (unlockReqs.phase !== undefined && playerPhase !== undefined) {
         if (playerPhase < unlockReqs.phase) return false
       }
-      
+
       // TODO: Add questCompleted and reputation checks when implemented
-      
+
       return true
     })
 
@@ -159,8 +197,30 @@ export const listVisible = query({
       return point
     })
 
-    // Limit results
-    const limitedPoints = withEnrichedMetadata.slice(0, limit)
+    // Limit results and decorate quest targets
+    const limitedPoints = withEnrichedMetadata
+      .map((point) => {
+        const metadata: Record<string, unknown> = { ...(point.metadata ?? {}) }
+        const questBindings = Array.isArray((metadata as unknown as { questBindings?: unknown[] }).questBindings)
+          ? ((metadata as unknown as { questBindings?: unknown[] }).questBindings as unknown[])
+          : []
+        const isQuestTarget = questBindings.some(
+          (id) => typeof id === 'string' && activeQuestIds.has(id as string)
+        )
+
+        if (!isQuestTarget) {
+          return point
+        }
+
+        return {
+          ...point,
+          metadata: {
+            ...(point.metadata ?? {}),
+            isActiveQuestTarget: true,
+          },
+        }
+      })
+      .slice(0, limit)
 
     // Get discovery status for each point
     const pointsWithStatus = await Promise.all(
@@ -170,11 +230,11 @@ export const listVisible = query({
           .filter((q) => q.eq(q.field('pointKey'), point.id))
 
         if (deviceId) {
-          discoveryQuery = discoveryQuery.filter((q) => 
+          discoveryQuery = discoveryQuery.filter((q) =>
             q.eq(q.field('deviceId'), deviceId)
           )
         } else if (userId) {
-          discoveryQuery = discoveryQuery.filter((q) => 
+          discoveryQuery = discoveryQuery.filter((q) =>
             q.eq(q.field('userId'), userId)
           )
         }
@@ -184,7 +244,7 @@ export const listVisible = query({
         return {
           ...point,
           status: discovery?.researchedAt ? 'researched' as const :
-                  discovery?.discoveredAt ? 'discovered' as const : 'not_found' as const,
+            discovery?.discoveredAt ? 'discovered' as const : 'not_found' as const,
           discoveredAt: discovery?.discoveredAt,
           researchedAt: discovery?.researchedAt,
           discoveredBy: discovery?.deviceId || discovery?.userId,
@@ -229,11 +289,11 @@ export const markResearched = mutation({
       .filter((q) => q.eq(q.field('pointKey'), pointKey))
 
     if (deviceId) {
-      discoveryQuery = discoveryQuery.filter((q) => 
+      discoveryQuery = discoveryQuery.filter((q) =>
         q.eq(q.field('deviceId'), deviceId)
       )
     } else if (userId) {
-      discoveryQuery = discoveryQuery.filter((q) => 
+      discoveryQuery = discoveryQuery.filter((q) =>
         q.eq(q.field('userId'), userId)
       )
     }
@@ -339,7 +399,7 @@ export const getPointsInRadius = query({
     }
 
     if (phase !== undefined) {
-      pointsQuery = pointsQuery.filter((q) => 
+      pointsQuery = pointsQuery.filter((q) =>
         q.or(
           q.eq(q.field('phase'), phase),
           q.eq(q.field('phase'), undefined)
@@ -358,7 +418,7 @@ export const getPointsInRadius = query({
           point.coordinates.lat, point.coordinates.lng
         )
       }))
-      .filter(point => point.distance <= radiusKm * 1000)
+      .filter(point => point.distance <= radiusKm)
       .sort((a, b) => a.distance - b.distance)
       .slice(0, limit)
 
@@ -367,6 +427,77 @@ export const getPointsInRadius = query({
       totalCount: pointsInRadius.length,
       radiusKm,
       center: { lat, lng },
+    }
+  },
+})
+
+// Discover nearby map points based on real-world proximity.
+// Marks points as "discovered" for this player but does not award XP.
+export const discoverByProximity = mutation({
+  args: {
+    deviceId: v.optional(v.string()),
+    userId: v.optional(v.string()),
+    lat: v.number(),
+    lng: v.number(),
+    radiusMeters: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const { deviceId, userId, lat, lng } = args
+    const radiusMeters = args.radiusMeters ?? 75
+    const radiusKm = radiusMeters / 1000
+
+    if (!deviceId && !userId) {
+      throw new Error('Either deviceId or userId must be provided')
+    }
+
+    // Query active map points
+    const pointsQuery = ctx.db.query('map_points').filter((q) => q.eq(q.field('isActive'), true))
+    const allPoints = await pointsQuery.take(1000)
+
+    const now = Date.now()
+    const discoveredPointIds: string[] = []
+
+    for (const point of allPoints) {
+      const distanceKm = calculateDistance(lat, lng, point.coordinates.lat, point.coordinates.lng)
+      if (distanceKm > radiusKm) continue
+
+      // Upsert discovery without marking as researched
+      let discoveryQuery = ctx.db
+        .query('point_discoveries')
+        .filter((q) => q.eq(q.field('pointKey'), point.id))
+
+      if (deviceId) {
+        discoveryQuery = discoveryQuery.filter((q) => q.eq(q.field('deviceId'), deviceId))
+      } else if (userId) {
+        discoveryQuery = discoveryQuery.filter((q) => q.eq(q.field('userId'), userId))
+      }
+
+      const existing = await discoveryQuery.first()
+
+      if (!existing) {
+        await ctx.db.insert('point_discoveries', {
+          deviceId,
+          userId,
+          pointKey: point.id,
+          discoveredAt: now,
+          researchedAt: undefined,
+          updatedAt: now,
+        })
+        discoveredPointIds.push(point.id)
+      } else if (!existing.discoveredAt) {
+        await ctx.db.patch(existing._id, {
+          discoveredAt: now,
+          updatedAt: now,
+        })
+        discoveredPointIds.push(point.id)
+      }
+    }
+
+    return {
+      success: true,
+      discoveredPointIds,
+      radiusMeters,
+      timestamp: now,
     }
   },
 })
@@ -380,7 +511,7 @@ export const addTestQRCode = mutation({
     const nodeEnv =
       typeof globalThis !== 'undefined'
         ? ((globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env
-            ?.NODE_ENV ?? undefined)
+          ?.NODE_ENV ?? undefined)
         : undefined
 
     if (nodeEnv === 'production') {
@@ -539,11 +670,11 @@ export const getDiscoveryStats = query({
     let discoveriesQuery = ctx.db.query('point_discoveries')
 
     if (deviceId) {
-      discoveriesQuery = discoveriesQuery.filter((q) => 
+      discoveriesQuery = discoveriesQuery.filter((q) =>
         q.eq(q.field('deviceId'), deviceId)
       )
     } else if (userId) {
-      discoveriesQuery = discoveriesQuery.filter((q) => 
+      discoveriesQuery = discoveriesQuery.filter((q) =>
         q.eq(q.field('userId'), userId)
       )
     }
@@ -592,7 +723,7 @@ export const getDiscoveryStats = query({
       const point = pointsMap.get(discovery.pointKey)
       if (point) {
         stats.byType[point.type] = (stats.byType[point.type] || 0) + 1
-        
+
         if (point.phase !== undefined) {
           stats.byPhase[point.phase] = (stats.byPhase[point.phase] || 0) + 1
         }

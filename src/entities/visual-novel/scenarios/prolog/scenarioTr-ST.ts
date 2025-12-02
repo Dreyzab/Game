@@ -1564,6 +1564,106 @@ export const infoBureauScenes: Record<string, Scene> = {
           narrative: 'Карта доступна для исследования. Новые точки могут активироваться.',
         },
       },
+      {
+        id: 'go_combat_tutorial',
+        text: 'Исследовать заброшенный переход (Обучение бою)',
+        presentation: {
+          color: 'negative',
+          icon: '⚔️',
+          tooltip: 'Начать обучающий бой. Узнайте о системе стамины и урона.',
+        },
+        nextScene: 'combat_tutorial_intro',
+      },
+    ],
+  },
+
+  combat_tutorial_intro: {
+    id: 'combat_tutorial_intro',
+    background: '/images/backgrounds/station1.png',
+    characters: [],
+    dialogue: [
+      {
+        speaker: 'Рассказчик',
+        text: 'Вы входите в темный технический коридор. Воздух спертый, пахнет озоном и гнилью. Впереди слышится скрежет хитина о бетон.',
+      },
+      {
+        speaker: 'РЕФЛЕКСЫ',
+        text: 'Они здесь. Двое. Мелкие, но быстрые. Приготовься.',
+        emotion: { primary: 'tense', intensity: 80 },
+      },
+    ],
+    choices: [
+      {
+        id: 'start_combat_tutorial',
+        text: '[БОЙ] Атаковать тварей (Обучение: Стамина и Урон)',
+        presentation: {
+          color: 'negative',
+          icon: '⚔️',
+          tooltip: 'Начать обучающий бой',
+        },
+        effects: {
+          immediate: [{ type: 'start_tutorial_battle' }],
+        },
+      },
+      {
+        id: 'retreat_hub',
+        text: 'Вернуться на станцию (Пропустить обучение)',
+        nextScene: 'station_hub',
+      },
+    ],
+  },
+
+  combat_tutorial_victory: {
+    id: 'combat_tutorial_victory',
+    background: '/images/backgrounds/station1.png',
+    characters: [],
+    dialogue: [
+      {
+        speaker: 'Рассказчик',
+        text: 'Последняя тварь падает, дергаясь в агонии. Вы вытираете пот со лба. Это было... поучительно.',
+      },
+      {
+        speaker: 'ЛОГИКА',
+        text: 'Мы потратили много сил. Но теперь мы знаем, как они двигаются. И как умирают.',
+        emotion: { primary: 'determined', intensity: 70 },
+      },
+    ],
+    choices: [
+      {
+        id: 'return_hub_victory',
+        text: 'Вернуться в хаб.',
+        nextScene: 'station_hub',
+        effects: {
+          xp: 50,
+          flags: [{ key: 'completed_combat_tutorial', value: true }],
+        },
+      },
+    ],
+  },
+
+  combat_tutorial_defeat: {
+    id: 'combat_tutorial_defeat',
+    background: '/images/backgrounds/station1.png',
+    characters: [],
+    dialogue: [
+      {
+        speaker: 'Рассказчик',
+        text: 'Тьма накрывает вас. Боль пронзает тело...',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: '...Вы приходите в себя в медпункте станции. Ганс смотрит на вас с неодобрением.',
+      },
+    ],
+    choices: [
+      {
+        id: 'return_hub_defeat',
+        text: 'Встать и отряхнуться.',
+        nextScene: 'station_hub',
+        effects: {
+          flags: [{ key: 'failed_combat_tutorial', value: true }],
+        },
+      },
     ],
   },
 }

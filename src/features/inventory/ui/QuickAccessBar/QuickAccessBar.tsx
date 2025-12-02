@@ -1,6 +1,5 @@
 import React from 'react'
 import clsx from 'clsx'
-import { motion } from 'framer-motion'
 import { INVENTORY_QUICK_SLOTS } from '@/entities/item/model/constants'
 import type { ItemState } from '@/entities/item/model/types'
 import { useInventoryDragStore } from '@/features/inventory/model/useInventoryDrag'
@@ -24,10 +23,8 @@ export const QuickAccessBar: React.FC<QuickAccessBarProps> = ({ slots }) => {
 
       <div className="grid grid-cols-5 gap-2">
         {normalized.map((item, index) => (
-          <motion.div
+          <div
             key={index}
-            layout
-            whileHover={{ scale: 1.03 }}
             onPointerEnter={() => {
               if (!isDragging) return
               setDropTarget({ kind: 'quick', index })
@@ -38,7 +35,7 @@ export const QuickAccessBar: React.FC<QuickAccessBarProps> = ({ slots }) => {
               }
             }}
             className={clsx(
-              'relative rounded-lg border px-2 py-3 text-center transition',
+              'relative rounded-lg border px-2 py-3 text-center',
               item ? 'border-amber-500/80 bg-amber-500/10' : 'border-slate-700 bg-slate-900/60',
               dropTarget?.kind === 'quick' && dropTarget.index === index && 'ring-2 ring-amber-300/80'
             )}
@@ -47,12 +44,12 @@ export const QuickAccessBar: React.FC<QuickAccessBarProps> = ({ slots }) => {
             {item ? (
               <div className="flex flex-col items-center gap-1">
                 <div className="text-xl leading-none">{item.icon}</div>
-                <div className="text-xs font-semibold text-[color:var(--color-text-primary)]">{item.name}</div>
+                <div className="text-xs font-semibold text-(--color-text-primary)">{item.name}</div>
               </div>
             ) : (
               <div className="text-[11px] text-slate-500">Empty</div>
             )}
-          </motion.div>
+          </div>
         ))}
       </div>
     </div>

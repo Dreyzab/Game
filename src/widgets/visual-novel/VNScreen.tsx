@@ -7,7 +7,7 @@ import type {
   VisualNovelSceneDefinition,
 } from '@/shared/types/visualNovel'
 import { Button } from '@/shared/ui/components/Button'
-import { VoiceCardGroup, useConsultationMode, getVoiceDefinition } from '@/features/visual-novel/consultation'
+import { useConsultationMode, getVoiceDefinition } from '@/features/visual-novel/consultation'
 
 export interface VNScreenProps {
   scene: VisualNovelSceneDefinition
@@ -80,10 +80,18 @@ export const VNScreen: React.FC<VNScreenProps> = ({
     [choices, isLineRevealed, isPending, consultation.isConsultationMode]
   )
 
+  const showVoiceTabs =
+    isLineRevealed && choices.length > 0 && consultation.availableVoiceIds.length > 0
+  const hasCharacterCards = scene.characters.length > 0
+
+  const [isTextTyping, setIsTextTyping] = useState(false)
+  const [forceShowText, setForceShowText] = useState(false)
+
   useEffect(() => {
     log('🆕 Активная реплика изменена', { lineId: currentLine?.id, sceneId: scene.id })
     setLineRevealed(false)
     setWaitingForAdvance(false)
+    setForceShowText(false)
   }, [currentLine?.id, log, scene.id])
 
   // Очищаем таймер при размонтировании компонента
@@ -113,9 +121,9 @@ export const VNScreen: React.FC<VNScreenProps> = ({
       nextSceneId: currentLine?.transition?.nextSceneId,
       delay: PAUSE_BEFORE_ADVANCE,
     })
-    
+
     setWaitingForAdvance(true)
-    
+
     autoAdvanceTimeoutRef.current = window.setTimeout(() => {
       log('⏩ Автоматический переход после паузы', { fromLineId: currentLine?.id })
       setWaitingForAdvance(false)
@@ -133,6 +141,7 @@ export const VNScreen: React.FC<VNScreenProps> = ({
     }
   }, [
     choices.length,
+    currentLine?.id,
     currentLine?.nextLineId,
     currentLine?.transition?.nextSceneId,
     isLineRevealed,
@@ -175,6 +184,13 @@ export const VNScreen: React.FC<VNScreenProps> = ({
       consultation.exitConsultationMode()
       return
     }
+
+    // Если текст печатается - ускоряем его
+    if (isTextTyping) {
+      setForceShowText(true)
+      return
+    }
+
     // Если есть выборы или сцена завершена, не обрабатываем клик
     if (visibleChoices.length > 0 || isSceneCompleted || isPending) {
       return
@@ -184,7 +200,22 @@ export const VNScreen: React.FC<VNScreenProps> = ({
       skipPause()
       return
     }
-  }, [consultation, visibleChoices.length, isSceneCompleted, isPending, isWaitingForAdvance, skipPause])
+
+    // Если ничего не происходит, но кликнули - пробуем перейти дальше (если текст уже показан)
+    if (isLineRevealed && !isWaitingForAdvance) {
+      onAdvance()
+    }
+  }, [
+    consultation,
+    isTextTyping,
+    visibleChoices.length,
+    isSceneCompleted,
+    isPending,
+    isWaitingForAdvance,
+    skipPause,
+    isLineRevealed,
+    onAdvance
+  ])
 
   return (
     <div className="relative min-h-svh w-full overflow-hidden text-white">
@@ -206,7 +237,7 @@ export const VNScreen: React.FC<VNScreenProps> = ({
           background: scene.ambientColor ?? 'rgba(2, 6, 23, 0.78)',
         }}
       />
-      <div 
+      <div
         className="relative z-10 flex min-h-svh flex-col gap-6 px-4 pb-8 pt-10 md:px-10"
         onClick={handleScreenClick}
       >
@@ -220,28 +251,64 @@ export const VNScreen: React.FC<VNScreenProps> = ({
           )}
         </div>
 
-        <CharacterGroup characters={scene.characters} activeCharacterId={currentLine?.speakerId} />
+        {(showVoiceTabs || hasCharacterCards) && (
+          <div className="flex flex-col gap-4">
+            {showVoiceTabs ? (
+              <div className="flex flex-wrap gap-3">
+                <div
+                  onClick={consultation.exitConsultationMode}
+                  className={`min-w-[160px] flex-1 rounded-2xl border px-4 py-3 backdrop-blur cursor-pointer transition-all duration-200 ${!consultation.isConsultationMode
+                    ? 'border-white/70 bg-white/15 shadow-lg'
+                    : 'border-white/10 bg-white/5 hover:bg-white/10'
+                    }`}
+                >
+                  <p
+                    className="text-xs uppercase tracking-[0.35em] text-white/60"
+                    style={{ color: 'rgb(125, 211, 252)' }}
+                  >
+                    Рассказчик
+                  </p>
+                </div>
+
+                {consultation.availableVoiceIds.map((voiceId) => {
+                  const def = getVoiceDefinition(voiceId)
+                  const isActive = consultation.activeVoiceId === voiceId
+                  if (!def) return null
+
+                  return (
+                    <div
+                      key={voiceId}
+                      onClick={() => consultation.consultVoice(voiceId)}
+                      className={`min-w-[160px] flex-1 rounded-2xl border px-4 py-3 backdrop-blur cursor-pointer transition-all duration-200 ${isActive
+                        ? 'border-white/70 bg-white/15 shadow-lg'
+                        : 'border-white/10 bg-white/5 hover:bg-white/10'
+                        }`}
+                    >
+                      <p
+                        className="text-xs uppercase tracking-[0.35em] text-white/60"
+                        style={{ color: def.color }}
+                      >
+                        {def.name}
+                      </p>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <CharacterGroup characters={scene.characters} activeCharacterId={currentLine?.speakerId} />
+            )}
+          </div>
+        )}
 
         <div className="mt-auto flex flex-col gap-4">
-          {/* Голоса для консультаций - показываем когда есть выборы и доступные советы */}
-          {isLineRevealed && choices.length > 0 && consultation.availableVoiceIds.length > 0 && (
-            <VoiceCardGroup
-              skills={skills}
-              availableVoiceIds={consultation.availableVoiceIds}
-              activeVoiceId={consultation.activeVoiceId}
-              viewedVoiceIds={consultation.viewedVoiceIds}
-              onVoiceClick={consultation.consultVoice}
-              disabled={isPending || isSceneCompleted}
-            />
-          )}
-
           {/* DialogueBox - показываем совет голоса ИЛИ обычный диалог */}
           <AnimatePresence mode="wait">
             {consultation.isConsultationMode && consultation.currentAdvice && activeVoice ? (
               // Режим консультации - показываем совет голоса
               <DialogueBox
                 key={`advice-${consultation.activeVoiceId}`}
-                speakerName={activeVoice.name}
+                // Скрываем имя, если есть табы (чтобы не дублировать)
+                speakerName={undefined}
                 speakerTitle={`Уровень: ${skills[consultation.activeVoiceId || ''] ?? 0}`}
                 text={consultation.currentAdvice.text}
                 mood={consultation.currentAdvice.mood}
@@ -249,13 +316,18 @@ export const VNScreen: React.FC<VNScreenProps> = ({
                 disabled={false}
                 isPending={false}
                 onAdvance={consultation.exitConsultationMode}
-                onRevealComplete={() => {}}
+                onRevealComplete={() => { }}
               />
             ) : (
               // Обычный режим - показываем диалог сцены
               <DialogueBox
                 key={`dialogue-${currentLine?.id}`}
-                speakerName={speaker?.name}
+                // Скрываем имя, если есть табы и они активны (есть выборы и голоса)
+                speakerName={
+                  (isLineRevealed && choices.length > 0 && consultation.availableVoiceIds.length > 0)
+                    ? undefined
+                    : speaker?.name
+                }
                 speakerTitle={speaker?.title}
                 text={currentLine?.text}
                 mood={currentLine?.mood}
@@ -264,6 +336,8 @@ export const VNScreen: React.FC<VNScreenProps> = ({
                 isPending={isPending || isWaitingForAdvance}
                 onAdvance={isWaitingForAdvance ? skipPause : onAdvance}
                 onRevealComplete={() => setLineRevealed(true)}
+                onTypingStatusChange={setIsTextTyping}
+                forceShow={forceShowText}
               />
             )}
           </AnimatePresence>

@@ -4,6 +4,9 @@
  */
 
 export { MapView } from './MapView'
+export { MapFilters, type MapFilterType } from './MapFilters'
+export { MapLegend } from './MapLegend'
+export { PointsListPanel } from './PointsListPanel'
 export { SafeZonesControl } from './SafeZonesControl'
 export type { MapViewProps } from './MapView'
 

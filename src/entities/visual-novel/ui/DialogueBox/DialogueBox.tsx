@@ -22,6 +22,8 @@ export interface DialogueBoxProps {
   isPending?: boolean
   onAdvance?: () => void
   onRevealComplete?: () => void
+  onTypingStatusChange?: (isTyping: boolean) => void
+  forceShow?: boolean
 }
 
 export const DialogueBox: React.FC<DialogueBoxProps> = ({
@@ -34,6 +36,8 @@ export const DialogueBox: React.FC<DialogueBoxProps> = ({
   isPending,
   onAdvance,
   onRevealComplete,
+  onTypingStatusChange,
+  forceShow,
 }) => {
   const sanitizeText = useCallback((value: string) => {
     if (!value) {
@@ -44,15 +48,19 @@ export const DialogueBox: React.FC<DialogueBoxProps> = ({
     next = next.replace(/[\s–—\-.,!?…]*undefined\s*$/gi, '')
     // Заменяем множественные пробелы на один
     next = next.replace(/\s+/g, ' ').trim()
-    
+
     // Улучшаем разделение предложений
     // Убираем лишние пробелы вокруг скобок для лучшей читаемости
     next = next.replace(/\s*\(\s*/g, ' (').replace(/\s*\)\s*/g, ') ')
     // Добавляем пробел после многоточия, если его нет
     next = next.replace(/…(?=[А-ЯA-Z])/g, '… ')
-    
+
     return next
   }, [])
+
+  // Typewriter effect state
+  const [visibleCount, setVisibleCount] = React.useState(0)
+  const [isTyping, setIsTyping] = React.useState(false)
 
   const displayedText = useMemo(() => {
     const fullText = text ?? ''
@@ -64,17 +72,58 @@ export const DialogueBox: React.FC<DialogueBoxProps> = ({
     return stageDirection ? sanitizeText(stageDirection) : undefined
   }, [stageDirection, sanitizeText])
 
-  // Уведомляем о завершении показа текста сразу при изменении
+  // Reset typing when text changes
   useEffect(() => {
-    onRevealComplete?.()
-  }, [displayedText, onRevealComplete])
+    setVisibleCount(0)
+    setIsTyping(true)
+  }, [displayedText])
+
+  // Notify parent about typing status
+  useEffect(() => {
+    onTypingStatusChange?.(isTyping)
+  }, [isTyping, onTypingStatusChange])
+
+  // Handle forceShow
+  useEffect(() => {
+    if (forceShow && isTyping) {
+      setVisibleCount(displayedText.length)
+      setIsTyping(false)
+      onRevealComplete?.()
+    }
+  }, [forceShow, isTyping, displayedText.length, onRevealComplete])
+
+  // Typing effect
+  useEffect(() => {
+    if (!isTyping) return
+
+    if (visibleCount >= displayedText.length) {
+      setIsTyping(false)
+      onRevealComplete?.()
+      return
+    }
+
+    const timeoutId = setTimeout(() => {
+      setVisibleCount((prev) => prev + 1)
+    }, 30) // 30ms per character speed
+
+    return () => clearTimeout(timeoutId)
+  }, [visibleCount, isTyping, displayedText.length, onRevealComplete])
 
   const handleAdvance = useCallback((e?: React.MouseEvent) => {
     if (disabled) return
     // Останавливаем всплытие события, чтобы клик на DialogueBox не вызывал обработчик родителя
     e?.stopPropagation()
+
+    // If still typing, finish immediately
+    if (isTyping) {
+      setVisibleCount(displayedText.length)
+      setIsTyping(false)
+      onRevealComplete?.()
+      return
+    }
+
     onAdvance?.()
-  }, [disabled, onAdvance])
+  }, [disabled, isTyping, displayedText.length, onRevealComplete, onAdvance])
 
   return (
     <motion.div
@@ -102,7 +151,7 @@ export const DialogueBox: React.FC<DialogueBoxProps> = ({
       </div>
 
       <p className="text-base leading-relaxed text-white md:text-lg hyphens-auto wrap-break-word">
-        {displayedText}
+        {displayedText.slice(0, visibleCount)}
       </p>
 
       {displayedStageDirection && (

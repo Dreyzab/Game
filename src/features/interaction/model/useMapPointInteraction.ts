@@ -13,6 +13,8 @@ export type InteractionKey =
   | 'heal'
   | 'bless'
   | 'storage'
+  | 'training'
+  | 'deliver'
 
 export interface InteractionAction {
   key: InteractionKey
@@ -46,6 +48,8 @@ function normalizeServices(services: unknown): InteractionKey[] {
         'heal',
         'bless',
         'storage',
+        'training',
+        'deliver',
       ].includes(s)
     )
 }
@@ -74,6 +78,10 @@ function labelFor(key: InteractionKey): string {
       return 'Благословение'
     case 'storage':
       return 'Склад'
+    case 'training':
+      return 'Тренировка'
+    case 'deliver':
+      return 'Доставить'
   }
 }
 
@@ -93,11 +101,13 @@ export function useMapPointInteraction(point: MapPoint | null) {
     const hasSceneBindings = Array.isArray(point?.metadata?.sceneBindings) && (point?.metadata?.sceneBindings?.length ?? 0) > 0
     const isNPC = point?.type === 'npc'
     const isBoard = point?.type === 'board'
+    const isQuestTarget = Boolean(point?.metadata?.isActiveQuestTarget)
 
     const services: InteractionKey[] = [
       ...baseServices,
       ...(hasSceneBindings && isNPC && !baseServices.includes('dialog') ? (['dialog'] as const) : []),
       ...(isBoard && !baseServices.includes('quests') ? (['quests'] as const) : []),
+      ...(isQuestTarget ? (['deliver'] as const) : []),
     ]
 
     // De-duplicate while preserving order
@@ -118,4 +128,3 @@ export function useMapPointInteraction(point: MapPoint | null) {
     }
   }, [point])
 }
-

@@ -3,6 +3,7 @@ export type PlayerFlags = Record<string, boolean | number | string | undefined>
 export interface Player {
   id: string
   deviceId: string
+  name?: string
   createdAt: number
   status?: string
   reputation?: number
@@ -16,6 +17,7 @@ export interface Player {
 }
 
 export interface PlayerProgress {
+  // Базовые характеристики прогресса
   level: number
   xp: number
   maxXp: number
@@ -25,6 +27,8 @@ export interface PlayerProgress {
   fame: number
   points: number
   daysInGame: number
+  // Текущее состояние персонажа
+  skills?: Record<string, number>
   flags: PlayerFlags
   visitedScenes: string[]
   completedQuestIds: string[]

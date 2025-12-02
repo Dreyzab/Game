@@ -5,6 +5,8 @@ import type { ItemState } from '@/entities/item/model/types'
 type ItemDetailsPanelProps = {
   item: ItemState | null
   isQuestItem?: boolean
+  onEquip?: (item: ItemState) => void
+  onUnequip?: (item: ItemState) => void
 }
 
 const StatBadge: React.FC<{ label: string; value: string | number }> = ({ label, value }) => (
@@ -28,7 +30,7 @@ const rarityStyles: Record<string, string> = {
   legendary: 'text-amber-300',
 }
 
-export const ItemDetailsPanel: React.FC<ItemDetailsPanelProps> = ({ item, isQuestItem }) => {
+export const ItemDetailsPanel: React.FC<ItemDetailsPanelProps> = ({ item, isQuestItem, onEquip, onUnequip }) => {
   if (!item) return <PlaceholderPanel />
 
   const stats = [
@@ -79,9 +81,21 @@ export const ItemDetailsPanel: React.FC<ItemDetailsPanelProps> = ({ item, isQues
       <div className="grid gap-2 sm:grid-cols-2">
         <button
           type="button"
-          className="rounded-md border border-amber-500/70 px-4 py-2 text-sm font-semibold text-amber-200 transition hover:bg-amber-500/10"
+          onClick={() => {
+            if (item.isEquipped) {
+              onUnequip?.(item)
+            } else {
+              onEquip?.(item)
+            }
+          }}
+          className={clsx(
+            "rounded-md border px-4 py-2 text-sm font-semibold transition",
+            item.isEquipped
+              ? "border-red-500/70 text-red-200 hover:bg-red-500/10"
+              : "border-amber-500/70 text-amber-200 hover:bg-amber-500/10"
+          )}
         >
-          Equip
+          {item.isEquipped ? 'Unequip' : 'Equip'}
         </button>
         <button
           type="button"

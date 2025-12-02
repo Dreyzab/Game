@@ -13,13 +13,18 @@ const bboxArgs = {
   ),
 }
 
-const filterActiveSafeZones = (zones: any[], bbox?: { minLat: number; maxLat: number; minLng: number; maxLng: number }) => {
+type SafeZone = {
+  isActive: boolean
+  polygon?: { lat: number; lng: number }[]
+}
+
+const filterActiveSafeZones = (zones: SafeZone[], bbox?: { minLat: number; maxLat: number; minLng: number; maxLng: number }) => {
   const active = zones.filter((z) => z.isActive)
   if (!bbox) return active
   const { minLat, maxLat, minLng, maxLng } = bbox
   // Rough bbox filter: any vertex inside bbox
   return active.filter((z) =>
-    z.polygon?.some((p: any) => p.lat >= minLat && p.lat <= maxLat && p.lng >= minLng && p.lng <= maxLng),
+    z.polygon?.some((p) => p.lat >= minLat && p.lat <= maxLat && p.lng >= minLng && p.lng <= maxLng),
   )
 }
 

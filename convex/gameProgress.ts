@@ -1,22 +1,30 @@
 // Shared starting skills for new players
 // Keep minimal but explicit to satisfy imports in mutations
 export const STARTING_SKILLS: Record<string, number> = {
-  // COGITO
-  logic: 45,
-  encyclopedia: 30,
-  technophile: 30,
-  intuition: 35,
-  // SPIRIT
-  authority: 30,
-  cynicism: 25,
-  // PSYCHE
-  empathy: 40,
-  perception: 35,
-  // CORPUS
-  reflexes: 30,
+  // BODY
   strength: 30,
-  combat: 25,
-  technique: 30,
+  endurance: 30,
+  stamina: 30,
+  // MOTORICS
+  perception: 35,
+  reaction: 30,
+  coordination: 30,
+  // MIND
+  logic: 45,
+  rhetoric: 30,
+  analysis: 30,
+  // CONSCIOUSNESS
+  authority: 30,
+  suggestion: 30,
+  courage: 30,
+  // PSYCHE
+  drama: 20,
+  creativity: 20,
+  gambling: 20,
+  // SOCIALITY
+  solidarity: 20,
+  honor: 20,
+  empathy: 20,
 }
 
 export const MAX_LEVEL = 100

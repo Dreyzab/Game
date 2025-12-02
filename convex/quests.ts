@@ -105,7 +105,7 @@ async function getQuestById(ctx: QueryCtx | MutationCtx, questId: string): Promi
 }
 
 // Shared core helpers used by mutations and sync
-async function coreStart(ctx: MutationCtx, player: PlayerDoc, questId: string) {
+export async function coreStart(ctx: MutationCtx, player: PlayerDoc, questId: string) {
   const quest = await getQuestById(ctx, questId)
   if (!quest || !quest.isActive) throw new Error('Quest is not active or missing')
 
@@ -161,7 +161,7 @@ async function coreStart(ctx: MutationCtx, player: PlayerDoc, questId: string) {
   return created as QuestProgressDoc
 }
 
-async function coreUpdate(
+export async function coreUpdate(
   ctx: MutationCtx,
   player: PlayerDoc,
   questId: string,
@@ -208,7 +208,7 @@ async function coreUpdate(
   return updated as QuestProgressDoc
 }
 
-async function coreComplete(
+export async function coreComplete(
   ctx: MutationCtx,
   player: PlayerDoc,
   args: { deviceId?: string; userId?: string; questId: string; expectedStep?: string }
@@ -288,9 +288,9 @@ export const getActive = query({
             progress: typeof doc.progress === 'number' ? (doc.progress as number) : undefined,
             maxProgress: typeof match?.steps?.length === 'number' ? match!.steps!.length : undefined,
             currentStep: doc.currentStep,
-            templateVersion: (doc as any).templateVersion ?? (match as any)?.templateVersion,
-            attempt: (doc as any).attempt,
-            abandonedAt: (doc as any).abandonedAt,
+            templateVersion: (doc as unknown as { templateVersion?: number }).templateVersion ?? (match as unknown as { templateVersion?: number })?.templateVersion,
+            attempt: (doc as unknown as { attempt?: number }).attempt,
+            abandonedAt: (doc as unknown as { abandonedAt?: number }).abandonedAt,
           })
         }
       }
@@ -332,8 +332,8 @@ export const getById = query({
       phase: quest.phase,
       isActive: quest.isActive,
       stepsCount: Array.isArray(quest.steps) ? quest.steps.length : 0,
-      repeatable: (quest as any).repeatable === true,
-      templateVersion: (quest as any).templateVersion ?? 1,
+      repeatable: (quest as unknown as { repeatable?: boolean }).repeatable === true,
+      templateVersion: (quest as unknown as { templateVersion?: number }).templateVersion ?? 1,
     }
   },
 })
@@ -360,8 +360,8 @@ export const getCompleted = query({
       .withIndex('by_player_abandoned', (q) => q.eq('playerId', player._id))
       .collect()
 
-    const rows = [...completed.filter((d: any) => d.completedAt), ...abandoned.filter((d: any) => d.abandonedAt)]
-      .sort((a: any, b: any) => Math.max(a.completedAt ?? 0, a.abandonedAt ?? 0) - Math.max(b.completedAt ?? 0, b.abandonedAt ?? 0))
+    const rows = [...completed.filter((d: QuestProgressDoc) => d.completedAt), ...abandoned.filter((d: QuestProgressDoc) => d.abandonedAt)]
+      .sort((a: QuestProgressDoc, b: QuestProgressDoc) => Math.max(a.completedAt ?? 0, a.abandonedAt ?? 0) - Math.max(b.completedAt ?? 0, b.abandonedAt ?? 0))
       .slice(0, limit)
 
     const result: Array<{ id: string; title: string; status: 'completed' | 'abandoned'; completedAt?: number; abandonedAt?: number; attempt?: number; templateVersion?: number; currentStep?: string; startedAt?: number }> = []
@@ -372,9 +372,9 @@ export const getCompleted = query({
         title: quest?.title ?? `Quest ${doc.questId}`,
         status: doc.completedAt ? 'completed' : 'abandoned',
         completedAt: doc.completedAt ?? undefined,
-        abandonedAt: (doc as any).abandonedAt ?? undefined,
-        attempt: (doc as any).attempt ?? undefined,
-        templateVersion: (doc as any).templateVersion ?? (quest as any)?.templateVersion,
+        abandonedAt: (doc as unknown as { abandonedAt?: number }).abandonedAt ?? undefined,
+        attempt: (doc as unknown as { attempt?: number }).attempt ?? undefined,
+        templateVersion: (doc as unknown as { templateVersion?: number }).templateVersion ?? (quest as unknown as { templateVersion?: number })?.templateVersion,
         currentStep: doc.currentStep,
         startedAt: doc.startedAt,
       })
@@ -383,7 +383,73 @@ export const getCompleted = query({
     return result
   },
 })
+export const getAvailable = query({
+  args: {
+    deviceId: v.optional(v.string()),
+    userId: v.optional(v.string()),
+    pointId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const player = await resolvePlayer(ctx, args)
+    if (!player) return []
 
+    // 1. Get all quests bound to this point (if pointId provided)
+    let candidateQuestIds: string[] = []
+    if (args.pointId) {
+      const bindings = await ctx.db
+        .query('mappoint_bindings')
+        .withIndex('by_mapPoint', (q) => q.eq('mapPointId', args.pointId as any))
+        .filter((q) => q.eq(q.field('bindingType'), 'start'))
+        .collect()
+      candidateQuestIds = bindings.map((b) => b.questId)
+    } else {
+      // If no pointId, maybe return all available global quests?
+      // For now, let's stick to point-bound quests or return empty
+      return []
+    }
+
+    if (candidateQuestIds.length === 0) return []
+
+    // 2. Filter out quests that are already started or completed
+    const available: Array<{ id: string; title: string; description: string; recommendedLevel?: number }> = []
+
+    for (const questId of candidateQuestIds) {
+      // Check progress
+      const progress = await ctx.db
+        .query('quest_progress')
+        .withIndex('by_player_quest', (q) => q.eq('playerId', player._id).eq('questId', questId))
+        .first()
+
+      // If completed, skip (unless repeatable, but let's simplify for now)
+      if (progress?.completedAt) continue
+      // If started (active), skip - it's not "available to start"
+      if (progress && !progress.completedAt) continue
+
+      // Check prerequisites
+      const quest = await getQuestById(ctx, questId)
+      if (!quest || !quest.isActive) continue
+
+      if (Array.isArray(quest.prerequisites) && quest.prerequisites.length > 0) {
+        const prev = await ctx.db
+          .query('quest_progress')
+          .withIndex('by_player', (q) => q.eq('playerId', player._id))
+          .collect()
+        const completedIds = new Set(prev.filter((p) => p.completedAt).map((p) => p.questId))
+        const unmet = quest.prerequisites.filter((id) => !completedIds.has(id))
+        if (unmet.length > 0) continue
+      }
+
+      available.push({
+        id: quest.id,
+        title: quest.title,
+        description: quest.description,
+        recommendedLevel: quest.phase // Using phase as a proxy for level for now
+      })
+    }
+
+    return available
+  },
+})
 export const start = mutation({
   args: {
     deviceId: v.optional(v.string()),
@@ -451,18 +517,18 @@ export const complete = mutation({
     try {
       const now = Date.now()
       const quest = await getQuestById(ctx, args.questId)
-      const tplVersion = (updated as any).templateVersion ?? (quest as any)?.templateVersion ?? args.resultDetails?.templateVersion
+      const tplVersion = (updated as unknown as { templateVersion?: number }).templateVersion ?? (quest as unknown as { templateVersion?: number })?.templateVersion ?? args.resultDetails?.templateVersion
       await ctx.db.insert('scene_logs', {
         deviceId: args.deviceId,
         userId: args.userId,
         sceneId: `quest:${args.questId}:complete`,
-        choices: undefined as any,
-        startedAt: (updated as any).startedAt ?? now,
+        choices: undefined,
+        startedAt: (updated as unknown as { startedAt?: number }).startedAt ?? now,
         finishedAt: now,
         payload: {
           type: 'quest_complete',
           questId: args.questId,
-          attempt: (updated as any).attempt ?? 1,
+          attempt: (updated as unknown as { attempt?: number }).attempt ?? 1,
           templateVersion: tplVersion ?? 1,
           sceneLog: args.resultDetails?.sceneLog ?? [],
         },
@@ -568,14 +634,14 @@ export const sync = mutation({
               deviceId: args.deviceId,
               userId: args.userId,
               sceneId: `quest:${ev.questId}:complete`,
-              choices: undefined as any,
-              startedAt: (updated as any).startedAt ?? finishedAt,
+              choices: undefined,
+              startedAt: (updated as unknown as { startedAt?: number }).startedAt ?? finishedAt,
               finishedAt,
               payload: {
                 type: 'quest_complete',
                 questId: ev.questId,
-                attempt: (updated as any).attempt ?? 1,
-                templateVersion: (updated as any).templateVersion ?? payload.resultDetails?.templateVersion ?? 1,
+                attempt: (updated as unknown as { attempt?: number }).attempt ?? 1,
+                templateVersion: (updated as unknown as { templateVersion?: number }).templateVersion ?? payload.resultDetails?.templateVersion ?? 1,
                 sceneLog: payload.resultDetails?.sceneLog ?? [],
               },
               createdAt: Date.now(),

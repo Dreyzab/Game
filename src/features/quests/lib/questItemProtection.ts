@@ -4,6 +4,11 @@ import { useInventoryStore } from '@/shared/stores/inventoryStore'
 
 type QuestRequiredItem = { id: string } | string
 
+interface QuestWithRequirements {
+  requiredItems?: QuestRequiredItem[]
+  steps?: { requirements?: { items?: QuestRequiredItem[] } }[]
+}
+
 const extractIds = (items: QuestRequiredItem[] | undefined): string[] => {
   if (!Array.isArray(items)) return []
   return items
@@ -19,12 +24,13 @@ export const useQuestItemProtection = () => {
   const questItemIds = useMemo(() => {
     const ids = new Set<string>()
     quests.forEach((quest) => {
-      const requiredItems = extractIds((quest as any)?.requiredItems)
+      const q = quest as unknown as QuestWithRequirements
+      const requiredItems = extractIds(q.requiredItems)
       requiredItems.forEach((id) => ids.add(id))
 
-      const steps = Array.isArray((quest as any)?.steps) ? ((quest as any).steps as any[]) : []
+      const steps = q.steps ?? []
       steps.forEach((step) => {
-        const stepItems = extractIds(step?.requirements?.items)
+        const stepItems = extractIds(step.requirements?.items)
         stepItems.forEach((id) => ids.add(id))
       })
     })
