@@ -1,6 +1,6 @@
 import React from 'react'
 import { NavLink } from 'react-router-dom'
-import { Home, Map, User, Package, Settings, Wrench, Sun, Moon, Play } from 'lucide-react'
+import { Home, Map, User, Package, Settings, Wrench, Sun, Moon, Play, Swords, Users } from 'lucide-react'
 import { cn } from '@/shared/lib/utils/cn'
 import { Routes } from '@/shared/lib/utils/navigation'
 import { useTheme } from '@/shared/hooks/useTheme'
@@ -44,6 +44,16 @@ export const Navbar: React.FC<NavbarProps> = ({ className }) => {
               <li>
                 <NavLink to={Routes.MAP} className={({ isActive }) => cn(linkBase, isActive ? active : inactive)}>
                   <Map className="h-4 w-4" /> Map
+                </NavLink>
+              </li>
+              <li>
+                <NavLink to={Routes.PVP} className={({ isActive }) => cn(linkBase, isActive ? active : inactive)}>
+                  <Swords className="h-4 w-4" /> PvP
+                </NavLink>
+              </li>
+              <li>
+                <NavLink to={Routes.COOP} className={({ isActive }) => cn(linkBase, isActive ? active : inactive)}>
+                  <Users className="h-4 w-4" /> Co-op
                 </NavLink>
               </li>
               <li>

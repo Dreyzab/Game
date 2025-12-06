@@ -29,11 +29,16 @@ export const Routes = {
   TUTORIAL_BATTLE: '/tutorial-battle',
   INVENTORY: '/inventory',
   SETTINGS: '/settings',
-  QR_SCANNER: '/qr-scanner',
   DEVTOOLS: '/dev-tools',
   PVP: '/pvp',
-  PVP_BATTLE: '/pvp/:battleId'
+  PVP_BATTLE: '/pvp/:battleId',
+  QR_SCANNER: '/qr-scanner',
+  SQUAD: '/squad',
+  // LCSD (Local Co-op on Separate Devices)
+  COOP: '/coop',
+  COOP_ROOM: '/coop/:roomCode',
+  COOP_BATTLE: '/coop/:roomCode/battle',
+  COOP_RESULTS: '/coop/:roomCode/results',
 } as const
 
 export type RoutePath = typeof Routes[keyof typeof Routes]
-

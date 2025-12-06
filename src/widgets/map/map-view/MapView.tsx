@@ -25,6 +25,7 @@ import { DangerZonesLayer } from './DangerZonesLayer'
 import { FactionZonesLayer } from './FactionZonesLayer'
 import { NavigationLayer } from './NavigationLayer'
 import { OtherPlayersLayer } from './OtherPlayersLayer'
+import { ZonesLayer } from './ZonesLayer'
 import type { MapFilterType } from './MapFilters'
 
 export interface MapViewProps {
@@ -311,6 +312,9 @@ export const MapView: React.FC<MapViewProps> = ({
         map={map}
         userLocation={position}
       />
+      <ZonesLayer map={map} visible={true} />
+
+      {/* User Location Marker */}
 
       <MapMarkers
         map={map}

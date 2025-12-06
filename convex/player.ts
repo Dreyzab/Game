@@ -350,3 +350,13 @@ export const resetProgress = mutation({
     }
   },
 })
+
+export const getPlayerByDeviceId = query({
+  args: { deviceId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("players")
+      .withIndex("by_deviceId", (q) => q.eq("deviceId", args.deviceId))
+      .first();
+  },
+});

@@ -479,3 +479,8 @@ export function getAverageDamage(notation: string): number {
 
 
 
+
+
+
+
+

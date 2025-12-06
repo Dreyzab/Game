@@ -1,119 +1,76 @@
 import React, { useState } from 'react'
+import { Scanner } from '@yudiel/react-qr-scanner'
 import { useNavigate } from 'react-router-dom'
 import { useMutation } from 'convex/react'
-import { api } from '../../convex/_generated/api'
-import { QRPointActivation } from '@/entities/map-point/ui/QRPointActivation'
+import { api } from '@convex/_generated/api'
 import { useDeviceId } from '@/shared/hooks/useDeviceId'
-import { Routes } from '@/shared/lib/utils/navigation'
+import { cn } from '@/shared/lib/utils/cn'
 
-const QRScannerPage: React.FC = () => {
+export default function QRScannerPage() {
     const navigate = useNavigate()
     const { deviceId } = useDeviceId()
-    const activateByQR = useMutation(api.mapPoints.activateByQR)
+    const joinBattle = useMutation(api.pvp.joinBattle)
+    const [error, setError] = useState<string | null>(null)
 
-    const [scanResult, setScanResult] = useState<{ success: boolean; message: string; xp?: number } | null>(null)
-    const [isProcessing, setIsProcessing] = useState(false)
+    const handleScan = async (result: string) => {
+        if (!result) return
 
-    const handleScan = async (qrCode: string) => {
-        if (isProcessing) return
-        setIsProcessing(true)
-
+        // Parse URL: grezwanderer://join?battleId=...
+        // Or just raw battleId if we simplify
         try {
-            const result = await activateByQR({
-                deviceId,
-                qrCode,
-            })
-
-            if (result.success) {
-                setScanResult({
-                    success: true,
-                    message: `Точка "${result.point.title}" открыта!`,
-                    xp: result.xpGain,
-                })
+            let battleId = result
+            if (result.includes('battleId=')) {
+                battleId = result.split('battleId=')[1]
             }
-        } catch (error) {
-            console.error('QR Activation failed:', error)
-            setScanResult({
-                success: false,
-                message: 'Неверный QR-код или ошибка сети.',
-            })
-        } finally {
-            setIsProcessing(false)
+
+            if (!deviceId) return
+
+            // Default class for QR join? Or prompt?
+            // For MVP, assume "assault" or prompt before scan?
+            // Let's just try to join as "default" for now
+            // @ts-ignore
+            const res = await joinBattle({ deviceId, battleId, classId: "default" })
+
+            if (res.success) {
+                navigate(`/pvp/${battleId}`)
+            } else {
+                setError(res.message || "Failed to join")
+            }
+        } catch (e) {
+            console.error(e)
+            setError("Invalid QR Code or Connection Error")
         }
     }
 
-    const handleClose = () => {
-        navigate(Routes.MAP)
-    }
-
-    if (scanResult) {
-        return (
-            <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 text-center">
-                <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-6 ${scanResult.success ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>
-                    {scanResult.success ? (
-                        <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                    ) : (
-                        <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    )}
-                </div>
-
-                <h2 className="text-2xl font-bold text-white mb-2">
-                    {scanResult.success ? 'Успех!' : 'Ошибка'}
-                </h2>
-
-                <p className="text-gray-300 mb-6">
-                    {scanResult.message}
-                </p>
-
-                {scanResult.success && scanResult.xp && (
-                    <div className="mb-8 px-4 py-2 bg-purple-500/20 border border-purple-500/50 rounded-lg text-purple-300 font-mono">
-                        +{scanResult.xp} XP
-                    </div>
-                )}
-
-                <div className="flex gap-4 w-full max-w-xs">
-                    <button
-                        onClick={() => setScanResult(null)}
-                        className="flex-1 py-3 px-4 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
-                    >
-                        Сканировать ещё
-                    </button>
-                    <button
-                        onClick={handleClose}
-                        className="flex-1 py-3 px-4 bg-blue-600 hover:bg-blue-700 rounded-lg text-white transition-colors"
-                    >
-                        На карту
-                    </button>
-                </div>
-                {isProcessing && (
-                    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-                        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-                    </div>
-                )}
-            </div>
-        )
-    }
-
     return (
-        <div className="min-h-screen bg-black relative">
-            <QRPointActivation
-                pointTitle="Поиск объекта"
-                onScan={handleScan}
-                onClose={handleClose}
-                className="!fixed !inset-0 !bg-black !p-0" // Override modal styles to fill screen
-            />
+        <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-4">
+            <h1 className="text-2xl font-bold mb-4">Scan Lobby QR</h1>
 
-            {isProcessing && (
-                <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+            <div className="w-full max-w-md aspect-square border-2 border-blue-500 rounded-lg overflow-hidden relative">
+                <Scanner
+                    onScan={(result) => result[0] && handleScan(result[0].rawValue)}
+                    onError={(error) => setError(error.message)}
+                />
+                <div className="absolute inset-0 border-2 border-transparent pointer-events-none">
+                    <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-blue-500"></div>
+                    <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-blue-500"></div>
+                    <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-blue-500"></div>
+                    <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-blue-500"></div>
+                </div>
+            </div>
+
+            {error && (
+                <div className="mt-4 p-4 bg-red-900/50 border border-red-500 rounded text-red-200">
+                    {error}
                 </div>
             )}
+
+            <button
+                onClick={() => navigate(-1)}
+                className="mt-8 px-6 py-2 bg-gray-700 rounded hover:bg-gray-600"
+            >
+                Cancel
+            </button>
         </div>
     )
 }
-
-export default QRScannerPage

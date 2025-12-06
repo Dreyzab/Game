@@ -6,18 +6,19 @@ import { cn } from '@/shared/lib/utils/cn'
 interface Props {
     item: ItemState
     isCompact?: boolean
+    isDragging?: boolean
     onClick?: () => void
     onContextMenu?: (e: React.MouseEvent) => void
 }
 
-export const ItemCard = ({ item, isCompact, onClick, onContextMenu }: Props) => {
+export const ItemCard = ({ item, isCompact, isDragging, onClick, onContextMenu }: Props) => {
     const durabilityPercent = item.stats.maxDurability
         ? ((item.condition ?? item.stats.maxDurability) / item.stats.maxDurability) * 100
         : 100
 
     return (
         <motion.div
-            layoutId={item.instanceId}
+            layoutId={isDragging ? undefined : item.instanceId}
             whileTap={{ scale: 0.95 }}
             whileHover={{ scale: 1.05 }}
             onClick={onClick}
@@ -25,7 +26,7 @@ export const ItemCard = ({ item, isCompact, onClick, onContextMenu }: Props) => 
             className={cn(
                 "relative flex flex-col items-center justify-center rounded-md border-2 p-1 transition-colors cursor-pointer backdrop-blur-sm select-none",
                 RARITY_COLORS[item.rarity],
-                isCompact ? "h-12 w-12" : "h-20 w-20" // Slightly smaller to fit grids
+                isCompact ? "h-12 w-12" : "w-full h-full"
             )}
         >
             {/* Icon */}

@@ -1,0 +1,571 @@
+/**
+ * VoiceInjectionStyles — Стили для внутренних голосов (Внутренний Парламент)
+ * 
+ * Каждая группа голосов имеет уникальную визуальную идентичность:
+ * - Body (Тело): красный, пульсирующий, тяжёлый
+ * - Motorics (Моторика): жёлтый, электрический, быстрый
+ * - Mind (Разум): голубой, терминальный, холодный
+ * - Consciousness (Сознание): фиолетовый, авторитетный
+ * - Psyche (Психика): розовый, мерцающий, мистический
+ * - Sociality (Социальность): зелёный, тёплый, мягкий
+ */
+
+/* ============================================================================
+   BASE STYLES
+   ============================================================================ */
+
+.dialogue-injections {
+  --injection-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.injection-bubble {
+  position: relative;
+  overflow: hidden;
+  transition: var(--injection-transition);
+}
+
+.injection-bubble::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.injection-bubble:hover::before {
+  opacity: 0.1;
+}
+
+.injection-new {
+  animation: newInjection 0.5s ease-out;
+}
+
+@keyframes newInjection {
+  0% {
+    transform: scale(0.95);
+    filter: brightness(1.5);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+}
+
+/* ============================================================================
+   BODY GROUP — Тело (Красный, пульсирующий)
+   ============================================================================ */
+
+.injection-body {
+  background: linear-gradient(
+    135deg,
+    rgba(239, 68, 68, 0.15) 0%,
+    rgba(185, 28, 28, 0.1) 100%
+  );
+  border-color: rgba(239, 68, 68, 0.6);
+}
+
+.injection-body::before {
+  background: radial-gradient(
+    circle at center,
+    rgba(239, 68, 68, 0.3) 0%,
+    transparent 70%
+  );
+  animation: bodyPulse 2s ease-in-out infinite;
+}
+
+.injection-body .voice-label {
+  color: #ef4444;
+  text-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+}
+
+.injection-body .injection-text {
+  color: #fca5a5;
+  font-weight: 600;
+}
+
+@keyframes bodyPulse {
+  0%, 100% {
+    opacity: 0.2;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(1.05);
+  }
+}
+
+/* ============================================================================
+   MOTORICS GROUP — Моторика (Жёлтый, электрический)
+   ============================================================================ */
+
+.injection-motorics {
+  background: linear-gradient(
+    135deg,
+    rgba(245, 158, 11, 0.15) 0%,
+    rgba(217, 119, 6, 0.1) 100%
+  );
+  border-color: rgba(245, 158, 11, 0.6);
+}
+
+.injection-motorics::before {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(245, 158, 11, 0.3) 50%,
+    transparent 100%
+  );
+  animation: motoricsScan 1.5s linear infinite;
+}
+
+.injection-motorics .voice-label {
+  color: #f59e0b;
+  text-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+}
+
+.injection-motorics .injection-text {
+  color: #fcd34d;
+  letter-spacing: 0.02em;
+}
+
+@keyframes motoricsScan {
+  0% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  50% {
+    opacity: 0.3;
+  }
+  100% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+/* ============================================================================
+   MIND GROUP — Разум (Голубой, терминальный)
+   ============================================================================ */
+
+.injection-mind {
+  background: linear-gradient(
+    135deg,
+    rgba(6, 182, 212, 0.15) 0%,
+    rgba(8, 145, 178, 0.1) 100%
+  );
+  border-color: rgba(6, 182, 212, 0.6);
+  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+}
+
+.injection-mind::before {
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(6, 182, 212, 0.05) 2px,
+    rgba(6, 182, 212, 0.05) 4px
+  );
+  opacity: 1;
+}
+
+.injection-mind .voice-label {
+  color: #06b6d4;
+  text-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
+}
+
+.injection-mind .injection-text {
+  color: #67e8f9;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 0.8125rem;
+}
+
+.injection-mind .injection-text::before {
+  content: '>';
+  margin-right: 0.5rem;
+  color: rgba(6, 182, 212, 0.5);
+}
+
+/* Cursor blink effect for mind */
+.injection-mind .injection-text::after {
+  content: '█';
+  animation: cursorBlink 1s step-end infinite;
+  color: #06b6d4;
+  margin-left: 2px;
+}
+
+@keyframes cursorBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* ============================================================================
+   CONSCIOUSNESS GROUP — Сознание (Фиолетовый, авторитетный)
+   ============================================================================ */
+
+.injection-consciousness {
+  background: linear-gradient(
+    135deg,
+    rgba(139, 92, 246, 0.15) 0%,
+    rgba(124, 58, 237, 0.1) 100%
+  );
+  border-color: rgba(139, 92, 246, 0.6);
+  border-width: 2px;
+}
+
+.injection-consciousness::before {
+  background: linear-gradient(
+    180deg,
+    rgba(139, 92, 246, 0.2) 0%,
+    transparent 100%
+  );
+  opacity: 1;
+}
+
+.injection-consciousness .voice-label {
+  color: #8b5cf6;
+  text-shadow: 0 0 15px rgba(139, 92, 246, 0.6);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.injection-consciousness .injection-text {
+  color: #c4b5fd;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  font-size: 0.8125rem;
+}
+
+/* ============================================================================
+   PSYCHE GROUP — Психика (Розовый, мерцающий, мистический)
+   ============================================================================ */
+
+.injection-psyche {
+  background: linear-gradient(
+    135deg,
+    rgba(236, 72, 153, 0.15) 0%,
+    rgba(219, 39, 119, 0.1) 100%
+  );
+  border-color: rgba(236, 72, 153, 0.6);
+}
+
+.injection-psyche::before {
+  background: radial-gradient(
+    ellipse at 30% 30%,
+    rgba(236, 72, 153, 0.3) 0%,
+    transparent 50%
+  );
+  animation: psycheShimmer 3s ease-in-out infinite;
+}
+
+.injection-psyche .voice-label {
+  color: #ec4899;
+  text-shadow: 0 0 10px rgba(236, 72, 153, 0.5);
+  font-style: italic;
+}
+
+.injection-psyche .injection-text {
+  color: #f9a8d4;
+  font-style: italic;
+}
+
+.injection-psyche .injection-text::before {
+  content: '«';
+  color: rgba(236, 72, 153, 0.5);
+}
+
+.injection-psyche .injection-text::after {
+  content: '»';
+  color: rgba(236, 72, 153, 0.5);
+}
+
+@keyframes psycheShimmer {
+  0%, 100% {
+    opacity: 0.2;
+    transform: translate(0, 0);
+  }
+  50% {
+    opacity: 0.5;
+    transform: translate(10%, 10%);
+  }
+}
+
+/* ============================================================================
+   SOCIALITY GROUP — Социальность (Зелёный, тёплый)
+   ============================================================================ */
+
+.injection-sociality {
+  background: linear-gradient(
+    135deg,
+    rgba(16, 185, 129, 0.15) 0%,
+    rgba(5, 150, 105, 0.1) 100%
+  );
+  border-color: rgba(16, 185, 129, 0.6);
+}
+
+.injection-sociality::before {
+  background: radial-gradient(
+    circle at 70% 70%,
+    rgba(16, 185, 129, 0.2) 0%,
+    transparent 60%
+  );
+  animation: socialityGlow 4s ease-in-out infinite;
+}
+
+.injection-sociality .voice-label {
+  color: #10b981;
+  text-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+}
+
+.injection-sociality .injection-text {
+  color: #6ee7b7;
+  font-weight: 300;
+}
+
+@keyframes socialityGlow {
+  0%, 100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+/* ============================================================================
+   VISUAL EFFECTS
+   ============================================================================ */
+
+/* Glitch Effect — для параноидных/нестабильных голосов */
+.effect-glitch {
+  animation: glitchEffect 5s infinite;
+}
+
+.effect-glitch::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    transparent 50%,
+    rgba(255, 0, 0, 0.02) 50%
+  );
+  background-size: 100% 4px;
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+@keyframes glitchEffect {
+  0%, 90%, 100% {
+    transform: translate(0);
+  }
+  91% {
+    transform: translate(-2px, 1px);
+  }
+  93% {
+    transform: translate(2px, -1px);
+  }
+  95% {
+    transform: translate(-1px, 2px);
+  }
+  97% {
+    transform: translate(1px, -2px);
+  }
+}
+
+/* Pulse Effect — для телесных/физических голосов */
+.effect-pulse {
+  animation: pulseEffect 2s ease-in-out infinite;
+}
+
+@keyframes pulseEffect {
+  0%, 100% {
+    box-shadow: 
+      0 0 5px var(--voice-glow),
+      0 0 10px var(--voice-glow);
+  }
+  50% {
+    box-shadow: 
+      0 0 10px var(--voice-glow),
+      0 0 20px var(--voice-glow),
+      0 0 30px var(--voice-glow);
+  }
+}
+
+/* Glow Effect — для социальных/эмпатических голосов */
+.effect-glow {
+  box-shadow: 
+    0 0 15px var(--voice-glow),
+    inset 0 0 10px rgba(255, 255, 255, 0.05);
+  transition: box-shadow 0.3s ease;
+}
+
+.effect-glow:hover {
+  box-shadow: 
+    0 0 25px var(--voice-glow),
+    0 0 40px var(--voice-glow),
+    inset 0 0 15px rgba(255, 255, 255, 0.1);
+}
+
+/* Terminal Effect — для логических/аналитических голосов */
+.effect-terminal {
+  border-style: solid;
+  border-width: 1px;
+}
+
+.effect-terminal::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 20px;
+  background: linear-gradient(
+    180deg,
+    rgba(6, 182, 212, 0.1) 0%,
+    transparent 100%
+  );
+}
+
+/* Whisper Effect — для мистических голосов */
+.effect-whisper {
+  animation: whisperFade 4s ease-in-out infinite;
+}
+
+@keyframes whisperFade {
+  0%, 100% {
+    opacity: 0.8;
+    filter: blur(0);
+  }
+  50% {
+    opacity: 1;
+    filter: blur(0.5px);
+  }
+}
+
+/* Shake Effect — для страха/паники */
+.effect-shake {
+  animation: shakeEffect 0.5s ease-in-out infinite;
+}
+
+@keyframes shakeEffect {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-1px);
+  }
+  75% {
+    transform: translateX(1px);
+  }
+}
+
+/* Fade Effect — для слабых/подавленных голосов */
+.effect-fade {
+  opacity: 0.7;
+  filter: saturate(0.7);
+}
+
+/* ============================================================================
+   CONFLICT INDICATOR
+   ============================================================================ */
+
+.conflict-indicator {
+  position: relative;
+  overflow: hidden;
+}
+
+.conflict-indicator::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(234, 179, 8, 0.2),
+    transparent
+  );
+  animation: conflictSweep 2s linear infinite;
+}
+
+@keyframes conflictSweep {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+/* ============================================================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================================================ */
+
+@media (max-width: 640px) {
+  .dialogue-injections {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    top: auto;
+    width: 100%;
+    max-height: 40vh;
+    overflow-y: auto;
+    padding: 1rem;
+    background: linear-gradient(
+      180deg,
+      transparent 0%,
+      rgba(0, 0, 0, 0.9) 20%
+    );
+  }
+  
+  .injection-bubble {
+    padding: 0.75rem;
+  }
+  
+  .injection-text {
+    font-size: 0.875rem;
+  }
+}
+
+/* ============================================================================
+   ACCESSIBILITY
+   ============================================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  .injection-bubble,
+  .injection-bubble::before,
+  .effect-glitch,
+  .effect-pulse,
+  .effect-whisper,
+  .effect-shake {
+    animation: none;
+  }
+  
+  .injection-new {
+    animation: none;
+    filter: brightness(1.2);
+  }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .injection-bubble {
+    border-width: 2px;
+  }
+  
+  .injection-text {
+    font-weight: 500;
+  }
+}
+
+

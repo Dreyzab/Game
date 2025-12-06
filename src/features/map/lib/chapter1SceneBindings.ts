@@ -411,3 +411,8 @@ export function hasSceneBindings(pointId: string): boolean {
 
 
 
+
+
+
+
+

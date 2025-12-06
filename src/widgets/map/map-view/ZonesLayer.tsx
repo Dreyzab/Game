@@ -1,0 +1,162 @@
+import React, { useEffect, useMemo } from 'react'
+import type { Map, GeoJSONSource } from 'mapbox-gl'
+import { useQuery } from 'convex/react'
+import { api } from '@convex/_generated/api'
+
+interface ZonesLayerProps {
+    map: Map | null
+    visible?: boolean
+}
+
+export const ZonesLayer: React.FC<ZonesLayerProps> = ({ map, visible = true }) => {
+    const zones = useQuery(api.zones.getZones, {})
+
+    const sourceId = 'zones-source'
+    const circleLayerId = 'zones-circle'
+    const labelLayerId = 'zones-label'
+
+    const geojson = useMemo(() => {
+        if (!zones || zones.length === 0) return null
+
+        const features = zones
+            .filter(zone => zone && zone.center && typeof zone.center.lng === 'number' && typeof zone.center.lat === 'number')
+            .map(zone => ({
+                type: 'Feature' as const,
+                geometry: {
+                    type: 'Point' as const,
+                    coordinates: [zone.center.lng, zone.center.lat]
+                },
+                properties: {
+                    id: zone._id,
+                    name: zone.name || 'Unknown Zone',
+                    radius: zone.radius || 100,
+                    color: zone.ownerFactionId === 'stalkers' ? '#00ff00' :
+                        zone.ownerFactionId === 'bandits' ? '#ff0000' : '#888888',
+                    opacity: zone.status === 'locked' ? 0.1 : 0.3
+                }
+            }))
+
+        return {
+            type: 'FeatureCollection' as const,
+            features
+        }
+    }, [zones])
+
+    useEffect(() => {
+        if (!map) return
+
+        const setupLayers = () => {
+            if (!map.getStyle()) return
+
+            try {
+                if (!map.getSource(sourceId)) {
+                    map.addSource(sourceId, {
+                        type: 'geojson',
+                        data: {
+                            type: 'FeatureCollection',
+                            features: []
+                        }
+                    })
+
+                    // Circle layer
+                    if (!map.getLayer(circleLayerId)) {
+                        map.addLayer({
+                            id: circleLayerId,
+                            type: 'circle',
+                            source: sourceId,
+                            paint: {
+                                'circle-radius': [
+                                    'interpolate',
+                                    ['linear'],
+                                    ['zoom'],
+                                    10, ['/', ['get', 'radius'], 20],
+                                    15, ['/', ['get', 'radius'], 1]
+                                ],
+                                'circle-color': ['get', 'color'],
+                                'circle-opacity': ['get', 'opacity'],
+                                'circle-stroke-width': 2,
+                                'circle-stroke-color': '#ffffff'
+                            }
+                        })
+                    }
+
+                    // Label layer
+                    if (!map.getLayer(labelLayerId)) {
+                        map.addLayer({
+                            id: labelLayerId,
+                            type: 'symbol',
+                            source: sourceId,
+                            layout: {
+                                'text-field': ['get', 'name'],
+                                'text-variable-anchor': ['top', 'bottom', 'left', 'right'],
+                                'text-radial-offset': 0.5,
+                                'text-justify': 'auto',
+                                'text-size': 12
+                            },
+                            paint: {
+                                'text-color': '#ffffff',
+                                'text-halo-color': '#000000',
+                                'text-halo-width': 2
+                            }
+                        })
+                    }
+                }
+            } catch (error) {
+                console.error('Error setting up zones layers:', error)
+            }
+        }
+
+        // Если стиль уже загружен, устанавливаем слои сразу
+        if (map.getStyle()) {
+            setupLayers()
+        } else {
+            // Иначе ждем загрузки стиля
+            const onStyleLoad = () => {
+                setupLayers()
+            }
+            map.once('style.load', onStyleLoad)
+            map.once('load', onStyleLoad)
+
+            return () => {
+                map.off('style.load', onStyleLoad)
+                map.off('load', onStyleLoad)
+            }
+        }
+
+        return () => {
+            if (!map || !map.getStyle()) return
+            try {
+                if (map.getLayer(labelLayerId)) map.removeLayer(labelLayerId)
+                if (map.getLayer(circleLayerId)) map.removeLayer(circleLayerId)
+                if (map.getSource(sourceId)) map.removeSource(sourceId)
+            } catch (error) {
+                console.error('Error cleaning up zones layers:', error)
+            }
+        }
+    }, [map])
+
+    useEffect(() => {
+        if (!map || !map.getStyle()) return
+
+        try {
+            const visibility = visible ? 'visible' : 'none'
+            if (map.getLayer(circleLayerId)) {
+                map.setLayoutProperty(circleLayerId, 'visibility', visibility)
+            }
+            if (map.getLayer(labelLayerId)) {
+                map.setLayoutProperty(labelLayerId, 'visibility', visibility)
+            }
+
+            if (visible && geojson) {
+                const source = map.getSource(sourceId) as GeoJSONSource
+                if (source) {
+                    source.setData(geojson)
+                }
+            }
+        } catch (error) {
+            console.error('Error updating zones layer:', error)
+        }
+    }, [map, visible, geojson])
+
+    return null
+}

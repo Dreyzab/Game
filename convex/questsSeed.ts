@@ -607,3 +607,13 @@ export const seedQuests = mutation({
     }
   },
 })
+
+export const clearQuests = mutation({
+  handler: async (ctx) => {
+    const quests = await ctx.db.query('quests').collect()
+    for (const q of quests) {
+      await ctx.db.delete(q._id)
+    }
+    return { success: true, count: quests.length }
+  },
+})

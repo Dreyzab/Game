@@ -231,19 +231,20 @@ export const MapPage: React.FC = () => {
 
         // ...
 
-        {/* Фильтры */}
-        <div className="pointer-events-auto">
-          <MapFilters
-            activeFilters={activeFilters}
-            onChange={setActiveFilters}
-            className="bg-gray-900 bg-opacity-90 backdrop-blur-sm rounded-lg shadow-xl p-2"
-          />
-        </div>
+      </div>
 
-        {/* Quest Tracker */}
-        <div className="pointer-events-auto mt-2">
-          <QuestTracker />
-        </div>
+      {/* Quest Tracker - Top Left below header */}
+      <div className="absolute top-24 left-4 z-20 pointer-events-auto">
+        <QuestTracker />
+      </div>
+
+      {/* Фильтры - Centered Top */}
+      <div className="absolute top-20 left-1/2 -translate-x-1/2 z-20 pointer-events-auto">
+        <MapFilters
+          activeFilters={activeFilters}
+          onChange={setActiveFilters}
+          className="bg-gray-900/90 backdrop-blur-md rounded-full shadow-2xl border border-white/10 px-4 py-2"
+        />
       </div>
 
       {/* Легенда */}

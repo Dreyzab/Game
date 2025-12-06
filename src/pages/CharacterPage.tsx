@@ -7,6 +7,8 @@ import { Button } from '@/shared/ui/components/Button'
 import { usePlayer, usePlayerProgress } from '@/shared/hooks/usePlayer'
 import { useDeviceId } from '@/shared/hooks/useDeviceId'
 import { convexMutations } from '@/shared/api/convex'
+import { useQuery, useMutation } from 'convex/react'
+import { api } from '@convex/_generated/api'
 import { VoiceCardGroup } from '@/features/visual-novel/consultation/ui/VoiceCardGroup'
 import { VOICE_DEFINITIONS, type VoiceId } from '@/features/visual-novel/consultation/lib/voiceDefinitions'
 
@@ -14,6 +16,10 @@ export const CharacterPage: React.FC = () => {
   const { player } = usePlayer()
   const { progress, isLoading } = usePlayerProgress()
   const { deviceId } = useDeviceId()
+
+  const skillTree = useQuery(api.skills.getSkillTree)
+  const unlockedSubclasses = useQuery(api.skills.getSubclasses, deviceId ? { deviceId } : "skip")
+  const unlockSubclass = useMutation(api.skills.unlockSubclass)
 
   const [activeVoiceId, setActiveVoiceId] = useState<string | null>(null)
   const [draftSkills, setDraftSkills] = useState<Record<string, number> | null>(null)
@@ -86,6 +92,15 @@ export const CharacterPage: React.FC = () => {
       setError('Не удалось сохранить распределение навыков. Попробуйте ещё раз.')
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  const handleUnlockSubclass = async (subclassId: string, baseSkillId: string) => {
+    if (!deviceId) return
+    try {
+      await unlockSubclass({ deviceId, subclassId, baseSkillId })
+    } catch (e) {
+      alert("Failed to unlock: " + e)
     }
   }
 
@@ -246,6 +261,57 @@ export const CharacterPage: React.FC = () => {
                 <Text variant="muted" size="sm" className="mt-2">
                   {activeVoice.description}
                 </Text>
+
+                {/* Subclass Section */}
+                {/* @ts-ignore */}
+                {skillTree && skillTree[activeVoice.id] && (
+                  <div className="mt-6 border-t border-slate-700 pt-4">
+                    <Heading level={5} className="mb-4">Specializations (Level {
+                      // @ts-ignore
+                      skillTree[activeVoice.id].level
+                    }+)</Heading>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* @ts-ignore */}
+                      {skillTree[activeVoice.id].subclasses.map((sub: any) => {
+                        const isUnlocked = unlockedSubclasses?.includes(sub.id)
+                        // @ts-ignore
+                        const canUnlock = (skills[activeVoice.id] ?? 0) >= skillTree[activeVoice.id].level
+
+                        return (
+                          <div key={sub.id} className={`p-4 rounded border ${isUnlocked ? 'border-green-500 bg-green-900/20' : 'border-slate-600 bg-slate-800'}`}>
+                            <div className="flex justify-between items-start mb-2">
+                              <h4 className="font-bold text-lg">{sub.name}</h4>
+                              {isUnlocked ? (
+                                <span className="text-green-400 text-xs uppercase font-bold">Unlocked</span>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="secondary"
+                                  disabled={!canUnlock}
+                                  onClick={() => handleUnlockSubclass(sub.id, activeVoice.id)}
+                                >
+                                  {canUnlock ? "Unlock" : "Locked"}
+                                </Button>
+                              )}
+                            </div>
+                            <p className="text-sm text-gray-400 mb-2">{sub.description}</p>
+                            {sub.stats && (
+                              <div className="grid grid-cols-2 gap-2 text-xs">
+                                {Object.entries(sub.stats).map(([stat, val]) => (
+                                  <div key={stat} className="flex justify-between bg-black/20 p-1 rounded">
+                                    <span className="text-gray-500 capitalize">{stat}</span>
+                                    <span className="font-bold text-green-400">+{val as number}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
               </div>
               <div className="mt-4 md:mt-0 text-right">
                 <Text variant="muted" size="sm">

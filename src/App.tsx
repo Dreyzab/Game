@@ -12,9 +12,12 @@ import SettingsPage from '@/pages/SettingsPage'
 import DevToolsPage from '@/pages/DevToolsPage'
 import QuestsPage from '@/pages/QuestsPage'
 import QRScannerPage from '@/pages/QRScannerPage'
+import SquadPage from '@/pages/SquadPage'
 import BattlePage from '@/pages/BattlePage'
 import TutorialBattlePage from '@/pages/TutorialBattlePage'
 import PvPPage from '@/pages/PvPPage'
+import CoopPage from '@/pages/CoopPage'
+
 
 
 
@@ -44,6 +47,7 @@ function App() {
         <Route path={RoutePaths.QUESTS} element={<QuestsPage />} />
         <Route path={RoutePaths.COMBAT} element={<BattlePage />} />
         <Route path={RoutePaths.QR_SCANNER} element={<QRScannerPage />} />
+        <Route path={RoutePaths.SQUAD} element={<SquadPage />} />
         <Route path={RoutePaths.PVP} element={<PvPPage />} />
         <Route path={RoutePaths.PVP_BATTLE} element={<PvPPage />} />
       </Route>
@@ -54,6 +58,10 @@ function App() {
 
       {/* Tutorial Battle (no navbar) */}
       <Route path={RoutePaths.TUTORIAL_BATTLE} element={<TutorialBattlePage />} />
+
+      {/* LCSD Coop Routes (no navbar for immersion) */}
+      <Route path={RoutePaths.COOP} element={<CoopPage />} />
+      <Route path="/coop/:roomCode/*" element={<CoopPage />} />
 
       {/* Fallback */}
       <Route path="*" element={<Navigate to={RoutePaths.HOME} replace />} />

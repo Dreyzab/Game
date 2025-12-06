@@ -35,14 +35,32 @@ export const DevToolsPage: React.FC = () => {
   const seedMapPoints = useMutation(api.mapPointsSeed.seedMapPoints)
   const clearMapPoints = useMutation(api.mapPointsSeed.clearMapPoints)
   const reseedMapPoints = useMutation(api.mapPointsSeed.reseedMapPoints)
+
   const seedSafeZones = useMutation(api.zonesSeed.seedSafeZones)
   const clearSafeZones = useMutation(api.zonesSeed.clearSafeZones)
+  const seedDangerZones = useMutation(api.zonesSeed.seedDangerZones)
+  const clearDangerZones = useMutation(api.zonesSeed.clearDangerZones)
+
+  const seedQuests = useMutation(api.questsSeed.seedQuests)
+  const clearQuests = useMutation(api.questsSeed.clearQuests)
+
+  const seedCombat = useMutation(api.combatSeed.seedAllCombatData)
+  const clearCombat = useMutation(api.combatSeed.clearCombatData)
 
   const seedPoints = useCallback(() => seedMapPoints({}), [seedMapPoints])
   const clearPoints = useCallback(() => clearMapPoints({}), [clearMapPoints])
   const reseedPoints = useCallback(() => reseedMapPoints({}), [reseedMapPoints])
+
   const seedZones = useCallback(() => seedSafeZones({}), [seedSafeZones])
   const clearZones = useCallback(() => clearSafeZones({}), [clearSafeZones])
+  const seedDanger = useCallback(() => seedDangerZones({}), [seedDangerZones])
+  const clearDanger = useCallback(() => clearDangerZones({}), [clearDangerZones])
+
+  const seedQuestData = useCallback(() => seedQuests({}), [seedQuests])
+  const clearQuestData = useCallback(() => clearQuests({}), [clearQuests])
+
+  const seedCombatData = useCallback(() => seedCombat({}), [seedCombat])
+  const clearCombatData = useCallback(() => clearCombat({}), [clearCombat])
 
   const run = async (fn: (() => Promise<unknown>) | undefined, label: string) => {
     if (!fn) return setMsg(`${label}: function unavailable`)
@@ -50,9 +68,11 @@ export const DevToolsPage: React.FC = () => {
       const res = await fn()
       const serialized = typeof res === 'object' ? JSON.stringify(res) : ''
       setMsg(`${label}: done ${serialized}`)
+      console.log(`[DevTools] ${label} response:`, res)
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e)
       setMsg(`${label}: error ${message}`)
+      console.error(`[DevTools] ${label} error:`, e)
     }
   }
 
@@ -101,16 +121,98 @@ export const DevToolsPage: React.FC = () => {
           Сиды, очистка и тестовые операции (MVP)
         </Text>
       </div>
-      <div className="glass-panel p-6">
-        <div className="flex flex-wrap gap-3">
-          <button onClick={() => run(() => seedPoints(), 'Seed Map Points')} className="inline-flex items-center gap-2 rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-3 py-2 text-xs uppercase tracking-[0.24em] hover:border-[color:var(--color-cyan)]/70 hover:text-[color:var(--color-cyan)]">Seed Points</button>
-          <button onClick={() => run(() => reseedPoints(), 'Reseed Map Points')} className="inline-flex items-center gap-2 rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-3 py-2 text-xs uppercase tracking-[0.24em] hover:border-[color:var(--color-cyan)]/70 hover:text-[color:var(--color-cyan)]">Reseed Points</button>
-          <button onClick={() => run(() => clearPoints(), 'Clear Map Points')} className="inline-flex items-center gap-2 rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-3 py-2 text-xs uppercase tracking-[0.24em] hover:border-[color:var(--color-cyan)]/70 hover:text-[color:var(--color-cyan)]">Clear Points</button>
-          <button onClick={() => run(() => seedZones(), 'Seed Safe Zones')} className="inline-flex items-center gap-2 rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-3 py-2 text-xs uppercase tracking-[0.24em] hover:border-[color:var(--color-cyan)]/70 hover:text-[color:var(--color-cyan)]">Seed Zones</button>
-          <button onClick={() => run(() => clearZones(), 'Clear Safe Zones')} className="inline-flex items-center gap-2 rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-3 py-2 text-xs uppercase tracking-[0.24em] hover:border-[color:var(--color-cyan)]/70 hover:text-[color:var(--color-cyan)]">Clear Zones</button>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* MAP & ZONES */}
+        <div className="glass-panel p-6 space-y-4">
+          <Heading level={3}>Map & Zones</Heading>
+          <div className="flex flex-wrap gap-2">
+            <div className="flex flex-col gap-2 w-full">
+              <Text size="xs" variant="muted" className="uppercase">Map Points</Text>
+              <div className="flex gap-2">
+                <button onClick={() => run(() => seedPoints(), 'Seed Map')} className="btn-dev">Seed Points</button>
+                <button onClick={() => run(() => reseedPoints(), 'Reseed Map')} className="btn-dev">Reseed Points</button>
+                <button onClick={() => run(() => clearPoints(), 'Clear Map')} className="btn-dev btn-danger">Clear Points</button>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2 w-full mt-2">
+              <Text size="xs" variant="muted" className="uppercase">Zones</Text>
+              <div className="flex gap-2 flex-wrap">
+                <button onClick={() => run(() => seedZones(), 'Seed Safe')} className="btn-dev">Seed Safe Zones</button>
+                <button onClick={() => run(() => clearZones(), 'Clear Safe')} className="btn-dev btn-danger">Clear Safe</button>
+                <button onClick={() => run(() => seedDanger(), 'Seed Danger')} className="btn-dev">Seed Danger</button>
+                <button onClick={() => run(() => clearDanger(), 'Clear Danger')} className="btn-dev btn-danger">Clear Danger</button>
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="mt-4 text-xs text-[color:var(--color-text-secondary)] font-mono break-all">{msg}</div>
+
+        {/* GAMEPLAY SYSTEMS */}
+        <div className="glass-panel p-6 space-y-4">
+          <Heading level={3}>Gameplay Data</Heading>
+          <div className="flex flex-wrap gap-2">
+
+            <div className="flex flex-col gap-2 w-full">
+              <Text size="xs" variant="muted" className="uppercase">Quests</Text>
+              <div className="flex gap-2">
+                <button onClick={() => run(() => seedQuestData(), 'Seed Quests')} className="btn-dev">Seed Quests</button>
+                <button onClick={() => run(() => clearQuestData(), 'Clear Quests')} className="btn-dev btn-danger">Clear Quests</button>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2 w-full mt-2">
+              <Text size="xs" variant="muted" className="uppercase">Combat</Text>
+              <div className="flex gap-2">
+                <button onClick={() => run(() => seedCombatData(), 'Seed Combat')} className="btn-dev">Seed Combat All</button>
+                <button onClick={() => run(() => clearCombatData(), 'Clear Combat')} className="btn-dev btn-danger">Clear Combat All</button>
+              </div>
+            </div>
+
+          </div>
+        </div>
       </div>
+
+      {/* INVENTORY NOTE */}
+      <div className="glass-panel p-4 my-6 text-center">
+        <Text size="sm" variant="muted">
+          Player Inventory & Equipment tools are located in the <span className="text-cyan-400">Inventory Screen</span>
+        </Text>
+      </div>
+
+      <div className="glass-panel p-4 mt-2 mb-6 bg-black/40">
+        <Text size="xs" className="font-mono text-cyan-500 break-all">{msg || 'Ready'}</Text>
+      </div>
+
+      <style>{`
+        .btn-dev {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            border-radius: 9999px;
+            border: 1px solid var(--color-border);
+            background-color: var(--color-surface);
+            padding: 0.5rem 0.75rem;
+            font-size: 0.75rem;
+            line-height: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            transition: all 0.2s;
+        }
+        .btn-dev:hover {
+            border-color: rgba(6, 182, 212, 0.7);
+            color: rgba(6, 182, 212, 1);
+        }
+        .btn-danger {
+            border-color: rgba(239, 68, 68, 0.3);
+            color: rgba(239, 68, 68, 0.8);
+        }
+        .btn-danger:hover {
+             border-color: rgba(239, 68, 68, 0.8);
+             color: rgba(239, 68, 68, 1);
+             background-color: rgba(239, 68, 68, 0.1);
+        }
+      `}</style>
 
       <div className="glass-panel p-6 mt-6">
         <div className="mb-4 flex items-center justify-between gap-3">

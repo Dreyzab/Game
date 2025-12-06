@@ -21,7 +21,7 @@ export const MapControls: React.FC<MapControlsProps> = ({
     return (
         <div className={cn('pointer-events-none absolute inset-0', className)}>
             {/* Кнопка центрирования на пользователе */}
-            <div className="absolute top-4 left-4 z-10 pointer-events-auto">
+            <div className="absolute bottom-20 right-4 z-10 pointer-events-auto">
                 <button
                     onClick={onLocateUser}
                     disabled={isGeoLoading}
