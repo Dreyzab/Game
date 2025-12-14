@@ -217,23 +217,6 @@ export const useVisualNovelSessionStore = create<VisualNovelSessionState>((set, 
       state.pendingItems.length > 0 ||
       state.pendingQuests.length > 0
 
-    if (!hasEffects) {
-      log('🧹 Сессия завершена без изменений, сбрасываем состояние', { sceneId: state.rootSceneId })
-      set({
-        rootSceneId: null,
-        visitedScenes: [],
-        startedAt: null,
-        choices: [],
-        pendingAddFlags: [],
-        pendingRemoveFlags: [],
-        pendingXp: 0,
-        pendingReputation: {},
-        pendingItems: [],
-        pendingQuests: [],
-      })
-      return null
-    }
-
     const payload = {
       sceneId: state.rootSceneId,
       startedAt: state.startedAt ?? Date.now(),
@@ -247,7 +230,7 @@ export const useVisualNovelSessionStore = create<VisualNovelSessionState>((set, 
       items: state.pendingItems,
       quests: state.pendingQuests,
     }
-    log('📤 Формируем payload для сохранения', payload)
+    log('📤 Формируем payload для сохранения', { ...payload, hasEffects })
 
     set({
       rootSceneId: null,

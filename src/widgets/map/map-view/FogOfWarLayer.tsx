@@ -1,27 +1,39 @@
 import React, { useEffect } from 'react'
 import type { Map, GeoJSONSource } from 'mapbox-gl'
-import type { MapPoint } from '@/shared/types/map'
+import type { MapPoint, SafeZone, ConditionalZone } from '@/shared/types/map'
 import { useFogOfWar } from '@/features/map/hooks/useFogOfWar'
 
 interface FogOfWarLayerProps {
     map: Map | null
     playerPosition: GeolocationPosition | null
-    discoveredPoints: MapPoint[]
+    points: MapPoint[]
+    mainFactionZones?: SafeZone[]
+    conditionalZones?: ConditionalZone[]
+    playerVisionRadiusMeters?: number
+    defaultPointRevealRadiusMeters?: number
     visible: boolean
 }
 
 export const FogOfWarLayer: React.FC<FogOfWarLayerProps> = ({
     map,
     playerPosition,
-    discoveredPoints,
+    points,
+    mainFactionZones = [],
+    conditionalZones = [],
+    playerVisionRadiusMeters,
+    defaultPointRevealRadiusMeters,
     visible
 }) => {
     const sourceId = 'fog-of-war-source'
     const layerId = 'fog-of-war-layer'
 
     const mask = useFogOfWar({
-        discoveredPoints,
+        points,
+        mainFactionZones,
+        conditionalZones,
         playerPosition,
+        playerVisionRadiusMeters,
+        defaultPointRevealRadiusMeters,
         visible
     })
 

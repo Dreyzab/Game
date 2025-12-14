@@ -13,7 +13,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/shared/lib/utils/cn'
-import { useNarrativeStore, selectEntropyIntensity } from '@/shared/stores/useNarrativeStore'
+import { useNarrativeStore } from '@/shared/stores/useNarrativeStore'
 
 // ============================================================================
 // TYPES
@@ -501,5 +501,12 @@ export function useEntropyEffects() {
 }
 
 export default EntropyOverlay
+
+
+
+
+
+
+
 
 

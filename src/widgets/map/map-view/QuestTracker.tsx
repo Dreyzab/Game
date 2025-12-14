@@ -1,17 +1,16 @@
 import React from 'react'
-import { useQuery } from 'convex/react'
-import { api } from '@/shared/api/convex'
 import { cn } from '@/shared/lib/utils/cn'
 import { Scroll } from 'lucide-react'
-import { useDeviceId } from '@/shared/hooks/useDeviceId'
+import { useMyQuests } from '@/shared/hooks/useMyQuests'
+import type { Quest } from '@/shared/types/quest'
 
 interface QuestTrackerProps {
     className?: string
 }
 
 export const QuestTracker: React.FC<QuestTrackerProps> = ({ className }) => {
-    const { deviceId } = useDeviceId()
-    const activeQuests = useQuery(api.quests.getActive, deviceId ? { deviceId } : 'skip') || []
+    const { active } = useMyQuests()
+    const activeQuests = (active || []) as Quest[]
 
     if (activeQuests.length === 0) return null
 
@@ -23,7 +22,7 @@ export const QuestTracker: React.FC<QuestTrackerProps> = ({ className }) => {
             </div>
 
             <div className="space-y-3">
-                {activeQuests.map(quest => (
+                {activeQuests.map((quest) => (
                     <div key={quest.id} className="border-l-2 border-yellow-500/30 pl-2">
                         <div className="text-sm font-medium text-white">{quest.title}</div>
                         {quest.description && (

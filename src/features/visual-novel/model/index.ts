@@ -8,10 +8,8 @@ export type { VisualNovelViewModel } from './useVisualNovelViewModel'
 
 export { useVisualNovelSessionStore } from './useVisualNovelSessionStore'
 
-export { 
-  usePolyphonicNarrative,
-  createTestInjections,
-  createTestPolyphonicDialogue,
-} from './usePolyphonicNarrative'
+export { usePolyphonicNarrative } from './usePolyphonicNarrative'
+
+
 
 

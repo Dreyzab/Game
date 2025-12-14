@@ -1,8 +1,12 @@
 import React, { useMemo, useState } from 'react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useAuth } from '@clerk/clerk-react'
 import type { TradeInteraction, TradeItem } from '../../model/mapPointInteractions'
 import { useInventoryStore } from '@/shared/stores/inventoryStore'
 import { ITEM_TEMPLATES } from '@/entities/item/model/templates'
 import type { ItemState } from '@/entities/item/model/types'
+import { authenticatedClient } from '@/shared/api/client'
+import { calculateVendorBuyPrice, calculateVendorSellPrice } from '@/shared/lib/itemPricing'
 
 interface TradeWindowProps {
   interaction: TradeInteraction
@@ -11,36 +15,53 @@ interface TradeWindowProps {
 
 const formatCurrency = (value: number, currency: string) => `${value.toLocaleString('ru-RU')} ${currency}`
 
-const getPrice = (item: ItemState | TradeItem): number => {
-  if ('price' in item) return (item as TradeItem).price
-
-  const template = ITEM_TEMPLATES[(item as ItemState).templateId]
+const getTraderItemPrice = (item: TradeItem): number => {
+  if (typeof item.price === 'number') return item.price
+  const template = ITEM_TEMPLATES[item.templateId]
   if (!template) return 10
+  return calculateVendorSellPrice(template)
+}
 
-  const rarityMultipliers: Record<string, number> = {
-    common: 1,
-    uncommon: 2.5,
-    rare: 6,
-    epic: 15,
-    legendary: 50
-  }
-
-  // Base price calculation
-  let basePrice = 50
-  if (template.kind === 'weapon') basePrice = 150
-  if (template.kind === 'armor') basePrice = 120
-  if (template.kind === 'artifact') basePrice = 500
-
-  return Math.floor(basePrice * (rarityMultipliers[template.rarity] || 1))
+const getPlayerItemPrice = (item: ItemState): number => {
+  const template = ITEM_TEMPLATES[item.templateId]
+  if (!template) return 10
+  return calculateVendorBuyPrice(template)
 }
 
 export const TradeWindow: React.FC<TradeWindowProps> = ({ interaction, onClose }) => {
-  const { items: playerItemsMap } = useInventoryStore()
+  const { getToken } = useAuth()
+  const queryClient = useQueryClient()
+  const { items: playerItemsMap, isQuestItem } = useInventoryStore()
   const playerItems = useMemo(() => Object.values(playerItemsMap), [playerItemsMap])
 
   // State for items currently on the trading table
   const [traderOfferIds, setTraderOfferIds] = useState<string[]>([])
   const [playerOfferIds, setPlayerOfferIds] = useState<string[]>([])
+  const [tradeError, setTradeError] = useState<string | null>(null)
+
+  // Trade mutation
+  const tradeMutation = useMutation({
+    mutationFn: async (payload: {
+      playerOfferIds: string[]
+      traderOffer: Array<{ templateId: string; quantity: number }>
+      npcId?: string
+    }) => {
+      const token = await getToken()
+      const client = authenticatedClient(token || undefined)
+      const { data, error } = await client.inventory.trade.execute.post(payload)
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['myInventory'] })
+      setTraderOfferIds([])
+      setPlayerOfferIds([])
+      setTradeError(null)
+    },
+    onError: (error: Error) => {
+      setTradeError(error.message || 'Ошибка при обмене')
+    }
+  })
 
   // Derived lists
   const traderInventory = useMemo(() =>
@@ -61,11 +82,11 @@ export const TradeWindow: React.FC<TradeWindowProps> = ({ interaction, onClose }
 
   // Totals
   const traderTotal = useMemo(() =>
-    traderOffer.reduce((sum, item) => sum + getPrice(item), 0),
+    traderOffer.reduce((sum, item) => sum + getTraderItemPrice(item), 0),
     [traderOffer])
 
   const playerTotal = useMemo(() =>
-    playerOffer.reduce((sum, item) => sum + getPrice(item), 0),
+    playerOffer.reduce((sum, item) => sum + getPlayerItemPrice(item), 0),
     [playerOffer])
 
   const balance = playerTotal - traderTotal
@@ -78,20 +99,43 @@ export const TradeWindow: React.FC<TradeWindowProps> = ({ interaction, onClose }
   }
 
   const togglePlayerItem = (id: string) => {
+    // Не позволяем продавать квестовые предметы
+    const item = playerItemsMap[id]
+    if (item && isQuestItem(item.id)) {
+      setTradeError('Нельзя продать квестовый предмет')
+      return
+    }
+    
+    setTradeError(null)
     setPlayerOfferIds(prev =>
       prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
     )
   }
 
   const handleTrade = () => {
-    console.log('🤝 Trade executed', {
-      traderOffer,
-      playerOffer,
-      balance
-    })
-    // Reset offers after trade (mock)
-    setTraderOfferIds([])
-    setPlayerOfferIds([])
+    if (traderOffer.length === 0 && playerOffer.length === 0) {
+      return
+    }
+
+    // Проверяем баланс - игрок должен предложить достаточно
+    if (balance < 0) {
+      setTradeError(`Недостаточно предметов. Нужно добавить ещё ${Math.abs(balance)} ${interaction.currency}`)
+      return
+    }
+
+    setTradeError(null)
+
+    // Формируем запрос
+    const payload = {
+      playerOfferIds: playerOffer.map(item => item.id),
+      traderOffer: traderOffer.map(item => ({
+        templateId: item.templateId,
+        quantity: 1
+      })),
+      npcId: interaction.npcId
+    }
+
+    tradeMutation.mutate(payload)
   }
 
   return (
@@ -122,7 +166,7 @@ export const TradeWindow: React.FC<TradeWindowProps> = ({ interaction, onClose }
               >
                 <div className="text-2xl">📦</div>
                 <div className="text-[10px] text-center truncate w-full">{item.name}</div>
-                <div className="text-xs text-amber-400">{formatCurrency(item.price, interaction.currency)}</div>
+                <div className="text-xs text-amber-400">{formatCurrency(getTraderItemPrice(item), interaction.currency)}</div>
               </div>
             ))}
             {traderInventory.length === 0 && (
@@ -148,7 +192,7 @@ export const TradeWindow: React.FC<TradeWindowProps> = ({ interaction, onClose }
                   className="flex justify-between items-center bg-slate-800/80 p-2 rounded border border-red-900/30 cursor-pointer hover:bg-red-900/20"
                 >
                   <span className="text-sm truncate">{item.name}</span>
-                  <span className="text-xs text-amber-500">{formatCurrency(item.price, interaction.currency)}</span>
+                  <span className="text-xs text-amber-500">{formatCurrency(getTraderItemPrice(item), interaction.currency)}</span>
                 </div>
               ))}
             </div>
@@ -165,7 +209,7 @@ export const TradeWindow: React.FC<TradeWindowProps> = ({ interaction, onClose }
                   className="flex justify-between items-center bg-slate-800/80 p-2 rounded border border-green-900/30 cursor-pointer hover:bg-green-900/20"
                 >
                   <span className="text-sm truncate">{ITEM_TEMPLATES[item.templateId]?.name || item.templateId}</span>
-                  <span className="text-xs text-amber-500">{formatCurrency(getPrice(item), interaction.currency)}</span>
+                  <span className="text-xs text-amber-500">{formatCurrency(getPlayerItemPrice(item), interaction.currency)}</span>
                 </div>
               ))}
             </div>
@@ -173,20 +217,32 @@ export const TradeWindow: React.FC<TradeWindowProps> = ({ interaction, onClose }
         </div>
 
         {/* Trade Controls */}
-        <div className="h-14 border-y border-slate-700 bg-slate-950 flex items-center justify-between px-4 shrink-0">
-          <div className="text-sm">
-            <span className="text-slate-400">Баланс: </span>
-            <span className={balance >= 0 ? 'text-green-400' : 'text-red-400'}>
-              {balance > 0 ? '+' : ''}{balance} {interaction.currency}
-            </span>
+        <div className="h-auto min-h-14 border-y border-slate-700 bg-slate-950 flex flex-col justify-center px-4 shrink-0 py-2 gap-1">
+          <div className="flex items-center justify-between">
+            <div className="text-sm">
+              <span className="text-slate-400">Баланс: </span>
+              <span className={balance >= 0 ? 'text-green-400' : 'text-red-400'}>
+                {balance > 0 ? '+' : ''}{balance} {interaction.currency}
+              </span>
+            </div>
+            <button
+              onClick={handleTrade}
+              disabled={tradeMutation.isPending || (traderOffer.length === 0 && playerOffer.length === 0)}
+              className="px-6 py-2 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded font-medium transition-colors"
+            >
+              {tradeMutation.isPending ? 'ОБМЕН...' : 'ОБМЕНЯТЬ'}
+            </button>
           </div>
-          <button
-            onClick={handleTrade}
-            disabled={traderOffer.length === 0 && playerOffer.length === 0}
-            className="px-6 py-2 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded font-medium transition-colors"
-          >
-            ОБМЕНЯТЬ
-          </button>
+          {tradeError && (
+            <div className="text-xs text-red-400 text-center">
+              {tradeError}
+            </div>
+          )}
+          {tradeMutation.isSuccess && (
+            <div className="text-xs text-green-400 text-center">
+              Обмен успешно завершён!
+            </div>
+          )}
         </div>
       </div>
 

@@ -1,337 +1,391 @@
-import React, { useMemo, useState } from 'react'
+import React from 'react'
+import { useAuth } from '@clerk/clerk-react'
+import { useMyPlayer } from '@/shared/hooks/useMyPlayer'
+import { useMySkills } from '@/shared/hooks/useMySkills'
 import { Layout } from '@/widgets/layout'
-import { Heading } from '@/shared/ui/components/Heading'
-import { Text } from '@/shared/ui/components/Text'
-import { LoadingSpinner } from '@/shared/ui/components/LoadingSpinner'
-import { Button } from '@/shared/ui/components/Button'
-import { usePlayer, usePlayerProgress } from '@/shared/hooks/usePlayer'
-import { useDeviceId } from '@/shared/hooks/useDeviceId'
-import { convexMutations } from '@/shared/api/convex'
-import { useQuery, useMutation } from 'convex/react'
-import { api } from '@convex/_generated/api'
-import { VoiceCardGroup } from '@/features/visual-novel/consultation/ui/VoiceCardGroup'
-import { VOICE_DEFINITIONS, type VoiceId } from '@/features/visual-novel/consultation/lib/voiceDefinitions'
+import { Heading, Text } from '@/shared/ui/components'
 
-export const CharacterPage: React.FC = () => {
-  const { player } = usePlayer()
-  const { progress, isLoading } = usePlayerProgress()
-  const { deviceId } = useDeviceId()
+// Локализация названий навыков
+const SKILL_NAMES: Record<string, string> = {
+  // BODY
+  force: 'Сила',
+  resilience: 'Стойкость',
+  endurance: 'Выносливость',
+  // MOTORICS
+  perception: 'Восприятие',
+  reaction: 'Реакция',
+  coordination: 'Координация',
+  // MIND
+  logic: 'Логика',
+  rhetoric: 'Риторика',
+  analysis: 'Анализ',
+  // CONSCIOUSNESS
+  authority: 'Авторитет',
+  suggestion: 'Внушение',
+  courage: 'Смелость',
+  // PSYCHE
+  drama: 'Драма',
+  creativity: 'Креативность',
+  gambling: 'Азарт',
+  // SOCIALITY
+  solidarity: 'Солидарность',
+  honor: 'Честь',
+  empathy: 'Эмпатия',
+}
 
-  const skillTree = useQuery(api.skills.getSkillTree)
-  const unlockedSubclasses = useQuery(api.skills.getSubclasses, deviceId ? { deviceId } : "skip")
-  const unlockSubclass = useMutation(api.skills.unlockSubclass)
+// Категории навыков
+const SKILL_CATEGORIES = {
+  'Тело': ['force', 'resilience', 'endurance'],
+  'Моторика': ['perception', 'reaction', 'coordination'],
+  'Разум': ['logic', 'rhetoric', 'analysis'],
+  'Сознание': ['authority', 'suggestion', 'courage'],
+  'Психика': ['drama', 'creativity', 'gambling'],
+  'Социальность': ['solidarity', 'honor', 'empathy'],
+}
 
-  const [activeVoiceId, setActiveVoiceId] = useState<string | null>(null)
-  const [draftSkills, setDraftSkills] = useState<Record<string, number> | null>(null)
-  const [draftSkillPoints, setDraftSkillPoints] = useState<number | null>(null)
-  const [isSaving, setIsSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+// Локализация фракций
+const FACTION_NAMES: Record<string, string> = {
+  fjr: 'ФЖР',
+  anarchists: 'Анархисты',
+  artisans: 'Ремесленники',
+  old_believers: 'Старообрядцы',
+  synthesis: 'Синтез',
+}
 
-  const baseSkills = progress?.skills ?? {}
-  const skills = draftSkills ?? baseSkills
-  const freePoints = draftSkillPoints ?? progress?.skillPoints ?? 0
+const ProgressBar: React.FC<{ 
+  value: number
+  max: number
+  color: string
+  label?: string 
+}> = ({ value, max, color, label }) => {
+  const percentage = max > 0 ? Math.min(100, (value / max) * 100) : 0
+  
+  return (
+    <div className="space-y-1">
+      {label && (
+        <div className="flex justify-between text-xs">
+          <span className="text-slate-400">{label}</span>
+          <span className="text-slate-300">{value}/{max}</span>
+        </div>
+      )}
+      <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+        <div 
+          className={`h-full ${color} transition-all duration-300`}
+          style={{ width: `${percentage}%` }}
+        />
+      </div>
+    </div>
+  )
+}
 
-  const availableVoiceIds = useMemo(() => Object.keys(VOICE_DEFINITIONS), [])
-  const viewedVoiceIds = useMemo(() => new Set<string>(), [])
+const StatCard: React.FC<{
+  icon: string
+  label: string
+  value: number | string
+  subtext?: string
+}> = ({ icon, label, value, subtext }) => (
+  <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
+    <div className="flex items-center gap-2 mb-1">
+      <span className="text-lg">{icon}</span>
+      <span className="text-xs text-slate-400 uppercase tracking-wide">{label}</span>
+    </div>
+    <div className="text-xl font-bold text-white">{value}</div>
+    {subtext && <div className="text-xs text-slate-500 mt-0.5">{subtext}</div>}
+  </div>
+)
 
-  const activeVoice = useMemo(() => {
-    if (!activeVoiceId) return null
-    return VOICE_DEFINITIONS[activeVoiceId as VoiceId]
-  }, [activeVoiceId])
-
-  const hasDraft = draftSkills !== null
-
-  const handleIncrement = (voiceId: string) => {
-    if (!progress) return
-    if (freePoints <= 0) return
-
-    setDraftSkills((prev) => {
-      const current = prev ?? baseSkills
-      return {
-        ...current,
-        [voiceId]: (current[voiceId] ?? 0) + 1,
-      }
-    })
-    setDraftSkillPoints((prev) => (prev ?? progress.skillPoints ?? 0) - 1)
-    setError(null)
+const SkillBar: React.FC<{
+  name: string
+  value: number
+  maxValue?: number
+}> = ({ name, value, maxValue = 100 }) => {
+  const percentage = (value / maxValue) * 100
+  const getColor = () => {
+    if (value >= 80) return 'bg-purple-500'
+    if (value >= 60) return 'bg-blue-500'
+    if (value >= 40) return 'bg-green-500'
+    if (value >= 20) return 'bg-yellow-500'
+    return 'bg-red-500'
   }
 
-  const handleReset = () => {
-    setDraftSkills(null)
-    setDraftSkillPoints(null)
-    setError(null)
-  }
+  return (
+    <div className="flex items-center gap-2">
+      <div className="w-24 text-xs text-slate-300 truncate" title={name}>{name}</div>
+      <div className="flex-1 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+        <div 
+          className={`h-full ${getColor()} transition-all`}
+          style={{ width: `${percentage}%` }}
+        />
+      </div>
+      <div className="w-8 text-xs text-slate-400 text-right">{value}</div>
+    </div>
+  )
+}
 
-  const handleApply = async () => {
-    if (!progress || !deviceId || !draftSkills) return
+const CharacterPage: React.FC = () => {
+  const { isLoaded: isAuthLoaded, isSignedIn } = useAuth()
+  const { data: playerData, isLoading: playerLoading, error: playerError } = useMyPlayer()
+  const { tree: skillTree, subclasses, isLoading: skillsLoading } = useMySkills()
 
-    const allocation: Record<string, number> = {}
-    for (const [id, value] of Object.entries(draftSkills)) {
-      const base = baseSkills[id] ?? 0
-      const delta = value - base
-      if (delta !== 0) {
-        allocation[id] = delta
-      }
-    }
-
-    if (Object.keys(allocation).length === 0) {
-      return
-    }
-
-    try {
-      setIsSaving(true)
-      setError(null)
-      const result = await convexMutations.player.allocateSkills({
-        deviceId,
-        allocation,
-      })
-      setDraftSkills(null)
-      setDraftSkillPoints(result.skillPoints)
-    } catch (e) {
-      console.error('[CharacterPage] Failed to allocate skills', e)
-      setError('Не удалось сохранить распределение навыков. Попробуйте ещё раз.')
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
-  const handleUnlockSubclass = async (subclassId: string, baseSkillId: string) => {
-    if (!deviceId) return
-    try {
-      await unlockSubclass({ deviceId, subclassId, baseSkillId })
-    } catch (e) {
-      alert("Failed to unlock: " + e)
-    }
-  }
-
-  if (isLoading && !progress) {
+  if (!isAuthLoaded) {
     return (
       <Layout>
-        <div className="glass-panel p-6">
-          <LoadingSpinner text="Загрузка данных персонажа..." />
+        <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6">
+          <div className="text-center space-y-3">
+            <div className="text-4xl animate-pulse">🔐</div>
+            <Text variant="muted">Проверяем сессию...</Text>
+          </div>
         </div>
       </Layout>
     )
   }
 
-  if (!progress) {
+  if (!isSignedIn) {
     return (
       <Layout>
-        <div className="glass-panel p-6 text-center">
-          <Heading level={3}>Персонаж не найден</Heading>
-          <Text variant="muted" size="sm" className="mt-3">
-            Создайте нового игрока на главной странице, чтобы открыть экран персонажа.
-          </Text>
+        <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6">
+          <div className="text-center space-y-3">
+            <div className="text-4xl">🔐</div>
+            <Heading level={3}>Нужно войти</Heading>
+            <Text variant="muted">Авторизуйтесь, чтобы увидеть данные персонажа</Text>
+          </div>
         </div>
       </Layout>
     )
   }
 
-  const level = progress.level ?? 1
-  const xp = progress.xp ?? 0
-  const maxXp = progress.maxXp ?? 100
-  const skillPoints = freePoints
+  const isLoading = playerLoading || skillsLoading
+
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
+          <div className="text-center space-y-3">
+            <div className="text-4xl animate-pulse">👤</div>
+            <Text variant="muted">Загрузка данных персонажа...</Text>
+          </div>
+        </div>
+      </Layout>
+    )
+  }
+
+  if (playerError || !playerData) {
+    return (
+      <Layout>
+        <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6">
+          <div className="text-center space-y-3">
+            <div className="text-5xl">⚠️</div>
+            <Heading level={3}>Ошибка загрузки</Heading>
+            <Text variant="muted">
+              {playerError instanceof Error ? playerError.message : 'Не удалось загрузить данные'}
+            </Text>
+          </div>
+        </div>
+      </Layout>
+    )
+  }
+
+  const { player, progress } = playerData as {
+    player: {
+      id: number
+      name: string
+      fame?: number
+      factionId?: string
+    } | null
+    progress?: {
+      level?: number
+      xp?: number
+      skillPoints?: number
+      skills?: Record<string, number>
+      gold?: number
+      reputation?: Record<string, number>
+      hp?: number
+      maxHp?: number
+      morale?: number
+      maxMorale?: number
+      stamina?: number
+      maxStamina?: number
+      phase?: number
+      subclasses?: string[]
+    }
+  }
+
+  if (!player) {
+    return (
+      <Layout>
+        <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6">
+          <div className="text-center space-y-3">
+            <div className="text-5xl">👤</div>
+            <Heading level={3}>Персонаж не создан</Heading>
+            <Text variant="muted">Начните игру, чтобы создать персонажа</Text>
+          </div>
+        </div>
+      </Layout>
+    )
+  }
+
+  const skills = progress?.skills ?? {}
+  const reputation = progress?.reputation ?? {}
+  const level = progress?.level ?? 1
+  const xp = progress?.xp ?? 0
+  const skillPoints = progress?.skillPoints ?? 0
+  const gold = progress?.gold ?? 0
+  const hp = progress?.hp ?? 100
+  const maxHp = progress?.maxHp ?? 100
+  const morale = progress?.morale ?? 100
+  const maxMorale = progress?.maxMorale ?? 100
+  const currentStamina = progress?.stamina ?? 100
+  const maxStamina = progress?.maxStamina ?? 100
+  const phase = progress?.phase ?? 1
+
+  // XP для следующего уровня
+  const xpForNextLevel = 50 * level + 50
 
   return (
     <Layout>
-      <div className="mb-8 text-center">
-        <Heading level={1}>Персонаж</Heading>
-        <Text variant="muted" size="sm" className="mt-3 uppercase tracking-[0.28em]">
-          Обзор навыков и прогресса
-        </Text>
-      </div>
-
-      <div className="panel-grid mb-8">
-        <div className="panel-span-4">
-          <div className="glass-panel p-6 space-y-4">
-            <Heading level={5} className="panel-section-title">
-              Сводка
-            </Heading>
-            <div className="space-y-2 text-left">
-              <div className="flex items-center justify-between text-sm">
-                <Text variant="muted" size="sm">
-                  Имя
-                </Text>
-                <Text size="sm" className="font-medium">
-                  {player?.name ?? 'Гость'}
-                </Text>
+      <div className="min-h-screen bg-slate-950 text-white p-4 pb-24">
+        {/* Header */}
+        <div className="max-w-2xl mx-auto space-y-6">
+          {/* Player Info Card */}
+          <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl p-5 border border-slate-700/50 shadow-xl">
+            <div className="flex items-start gap-4">
+              {/* Avatar */}
+              <div className="w-20 h-20 rounded-xl bg-slate-700 border-2 border-amber-500/50 flex items-center justify-center text-4xl shrink-0">
+                👤
               </div>
-              <div className="flex items-center justify-between text-sm">
-                <Text variant="muted" size="sm">
-                  Уровень
-                </Text>
-                <Text size="sm" className="font-medium">
-                  {level}
-                </Text>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <Text variant="muted" size="sm">
-                  Опыт
-                </Text>
-                <Text size="sm" className="font-medium">
-                  {xp}/{maxXp} XP
-                </Text>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <Text variant="muted" size="sm">
-                  Свободные очки навыков
-                </Text>
-                <Text size="sm" className="font-medium">
-                  {skillPoints}
-                </Text>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <Text variant="muted" size="sm">
-                  Фаза
-                </Text>
-                <Text size="sm" className="font-medium">
-                  {progress.phase ?? 1}
-                </Text>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <Text variant="muted" size="sm">
-                  Статус
-                </Text>
-                <Text size="sm" className="font-medium">
-                  {player?.status ?? 'Активен'}
-                </Text>
-              </div>
-
-              <div className="pt-4 space-y-2">
-                {error && (
-                  <Text variant="muted" size="xs" className="text-red-500">
-                    {error}
-                  </Text>
-                )}
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    onClick={handleApply}
-                    disabled={!hasDraft || isSaving || freePoints < 0}
-                  >
-                    Сохранить
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={handleReset}
-                    disabled={!hasDraft || isSaving}
-                  >
-                    Сбросить
-                  </Button>
+              
+              {/* Info */}
+              <div className="flex-1 min-w-0">
+                <h1 className="text-xl font-bold text-white truncate">{player.name}</h1>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-amber-400 text-sm">Уровень {level}</span>
+                  {player.factionId && (
+                    <span className="text-xs bg-slate-700 px-2 py-0.5 rounded text-slate-300">
+                      {FACTION_NAMES[player.factionId] ?? player.factionId}
+                    </span>
+                  )}
+                </div>
+                
+                {/* XP Bar */}
+                <div className="mt-3">
+                  <ProgressBar
+                    value={xp}
+                    max={xpForNextLevel}
+                    color="bg-amber-500"
+                    label="Опыт"
+                  />
                 </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <div className="panel-span-8">
-          <div className="glass-panel p-6">
-            <div className="mb-4 flex items-center justify-between">
-              <Heading level={5} className="panel-section-title">
-                Навыки
-              </Heading>
-              <Text variant="muted" size="xs">
-                Всего голосов: {availableVoiceIds.length}
-              </Text>
-            </div>
-            <VoiceCardGroup
-              skills={skills}
-              availableVoiceIds={availableVoiceIds}
-              activeVoiceId={activeVoiceId}
-              viewedVoiceIds={viewedVoiceIds}
-              onVoiceClick={(id) => {
-                setActiveVoiceId(id)
-                if (freePoints > 0) {
-                  handleIncrement(id)
-                }
-              }}
-            />
+          {/* Vital Stats */}
+          <div className="space-y-3">
+            <ProgressBar value={hp} max={maxHp} color="bg-red-500" label="Здоровье" />
+            <ProgressBar value={morale} max={maxMorale} color="bg-blue-500" label="Мораль" />
+            <ProgressBar value={currentStamina} max={maxStamina} color="bg-green-500" label="Выносливость" />
           </div>
+
+          {/* Quick Stats */}
+          <div className="grid grid-cols-3 gap-3">
+            <StatCard icon="💰" label="Золото" value={gold} />
+            <StatCard icon="⭐" label="Очки навыков" value={skillPoints} />
+            <StatCard icon="🏆" label="Слава" value={player.fame ?? 0} />
+          </div>
+
+          {/* Phase Badge */}
+          <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">📜</span>
+              <span className="text-sm text-slate-300">Глава</span>
+            </div>
+            <span className="text-lg font-bold text-amber-400">{phase}</span>
+          </div>
+
+          {/* Skills Section */}
+          <div className="space-y-4">
+            <Heading level={3} className="text-slate-200">Навыки</Heading>
+            
+            {Object.entries(SKILL_CATEGORIES).map(([category, skillIds]) => (
+              <div key={category} className="bg-slate-900/50 rounded-lg p-4 border border-slate-800">
+                <h4 className="text-sm font-medium text-slate-400 mb-3 uppercase tracking-wide">
+                  {category}
+                </h4>
+                <div className="space-y-2">
+                  {skillIds.map((skillId) => (
+                    <SkillBar
+                      key={skillId}
+                      name={SKILL_NAMES[skillId] ?? skillId}
+                      value={skills[skillId] ?? 0}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Subclasses */}
+          {(subclasses.length > 0 || (progress?.subclasses?.length ?? 0) > 0) && (
+            <div className="space-y-3">
+              <Heading level={3} className="text-slate-200">Специализации</Heading>
+              <div className="grid grid-cols-2 gap-3">
+                {[...(subclasses as string[]), ...(progress?.subclasses ?? [])].filter((v, i, a) => a.indexOf(v) === i).map((subclassId) => {
+                  // Находим информацию о подклассе в дереве
+                  let subclassInfo: { name: string; description: string } | undefined
+                  if (skillTree) {
+                    for (const skill of Object.values(skillTree as Record<string, { subclasses: Array<{ id: string; name: string; description: string }> }>)) {
+                      const found = skill.subclasses?.find((s) => s.id === subclassId)
+                      if (found) {
+                        subclassInfo = found
+                        break
+                      }
+                    }
+                  }
+
+                  return (
+                    <div 
+                      key={subclassId}
+                      className="bg-gradient-to-br from-purple-900/30 to-slate-800 rounded-lg p-3 border border-purple-700/30"
+                    >
+                      <div className="font-medium text-purple-300">
+                        {subclassInfo?.name ?? subclassId}
+                      </div>
+                      {subclassInfo?.description && (
+                        <div className="text-xs text-slate-400 mt-1">
+                          {subclassInfo.description}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Reputation */}
+          {Object.keys(reputation).length > 0 && (
+            <div className="space-y-3">
+              <Heading level={3} className="text-slate-200">Репутация</Heading>
+              <div className="bg-slate-900/50 rounded-lg p-4 border border-slate-800 space-y-3">
+                {Object.entries(reputation).map(([factionId, value]) => (
+                  <div key={factionId} className="flex items-center justify-between">
+                    <span className="text-sm text-slate-300">
+                      {FACTION_NAMES[factionId] ?? factionId}
+                    </span>
+                    <span className={`font-medium ${
+                      value > 0 ? 'text-green-400' : value < 0 ? 'text-red-400' : 'text-slate-400'
+                    }`}>
+                      {value > 0 ? '+' : ''}{value}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
-
-      {activeVoice && (
-        <div className="panel-grid">
-          <div className="panel-span-12">
-            <div className="glass-panel p-6 md:flex md:items-start md:justify-between md:gap-6">
-              <div>
-                <Heading level={3}>{activeVoice.name}</Heading>
-                <Text variant="muted" size="sm" className="mt-2">
-                  {activeVoice.description}
-                </Text>
-
-                {/* Subclass Section */}
-                {/* @ts-ignore */}
-                {skillTree && skillTree[activeVoice.id] && (
-                  <div className="mt-6 border-t border-slate-700 pt-4">
-                    <Heading level={5} className="mb-4">Specializations (Level {
-                      // @ts-ignore
-                      skillTree[activeVoice.id].level
-                    }+)</Heading>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* @ts-ignore */}
-                      {skillTree[activeVoice.id].subclasses.map((sub: any) => {
-                        const isUnlocked = unlockedSubclasses?.includes(sub.id)
-                        // @ts-ignore
-                        const canUnlock = (skills[activeVoice.id] ?? 0) >= skillTree[activeVoice.id].level
-
-                        return (
-                          <div key={sub.id} className={`p-4 rounded border ${isUnlocked ? 'border-green-500 bg-green-900/20' : 'border-slate-600 bg-slate-800'}`}>
-                            <div className="flex justify-between items-start mb-2">
-                              <h4 className="font-bold text-lg">{sub.name}</h4>
-                              {isUnlocked ? (
-                                <span className="text-green-400 text-xs uppercase font-bold">Unlocked</span>
-                              ) : (
-                                <Button
-                                  size="sm"
-                                  variant="secondary"
-                                  disabled={!canUnlock}
-                                  onClick={() => handleUnlockSubclass(sub.id, activeVoice.id)}
-                                >
-                                  {canUnlock ? "Unlock" : "Locked"}
-                                </Button>
-                              )}
-                            </div>
-                            <p className="text-sm text-gray-400 mb-2">{sub.description}</p>
-                            {sub.stats && (
-                              <div className="grid grid-cols-2 gap-2 text-xs">
-                                {Object.entries(sub.stats).map(([stat, val]) => (
-                                  <div key={stat} className="flex justify-between bg-black/20 p-1 rounded">
-                                    <span className="text-gray-500 capitalize">{stat}</span>
-                                    <span className="font-bold text-green-400">+{val as number}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
-
-              </div>
-              <div className="mt-4 md:mt-0 text-right">
-                <Text variant="muted" size="sm">
-                  Текущий уровень
-                </Text>
-                <p className="mt-1 text-3xl font-semibold text-[color:var(--color-text)]">
-                  {skills[activeVoice.id] ?? 0}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </Layout>
   )
 }
 
 export default CharacterPage
-
-
-
-
-

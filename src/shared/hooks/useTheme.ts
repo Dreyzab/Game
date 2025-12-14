@@ -6,8 +6,16 @@ const STORAGE_KEY = 'qrboost.theme'
 
 export function useTheme(initial?: Theme) {
   const [theme, setTheme] = useState<Theme>(() => {
-    const saved = typeof window !== 'undefined' ? (localStorage.getItem(STORAGE_KEY) as Theme | null) : null
-    return saved ?? initial ?? 'dark'
+    if (typeof window === 'undefined') {
+      return initial ?? 'dark'
+    }
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY) as Theme | null
+      return saved ?? initial ?? 'dark'
+    } catch (err) {
+      console.warn('[useTheme] Failed to read theme from storage', err)
+      return initial ?? 'dark'
+    }
   })
 
   useEffect(() => {

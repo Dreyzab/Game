@@ -7,9 +7,9 @@
  */
 
 import React, { useCallback, useEffect, useState } from 'react'
+import { useAuth } from '@clerk/clerk-react'
 import { useNavigate } from 'react-router-dom'
-import { useMutation } from 'convex/react'
-import { api } from '../../convex/_generated/api'
+import { useQueryClient } from '@tanstack/react-query'
 import { Heading } from '@/shared/ui/components/Heading'
 import { Text } from '@/shared/ui/components/Text'
 import { MapView, MapFilters, MapLegend, PointsListPanel, type MapFilterType } from '@/widgets/map/map-view'
@@ -19,6 +19,7 @@ import { Routes } from '@/shared/lib/utils/navigation'
 import { resolveSceneFromPoint } from '@/features/map/lib/resolveSceneBinding'
 import { usePlayerProgress } from '@/shared/hooks/usePlayer'
 import { useDeviceId } from '@/shared/hooks/useDeviceId'
+import { authenticatedClient } from '@/shared/api/client'
 import type { InteractionKey } from '@/features/interaction/model/useMapPointInteraction'
 import {
   buildInteractionsForPoint,
@@ -32,7 +33,9 @@ import { QuestTracker } from '@/widgets/map/map-view/QuestTracker'
 export const MapPage: React.FC = () => {
   const navigate = useNavigate()
   const { progress } = usePlayerProgress()
+  const { getToken } = useAuth()
   const { deviceId } = useDeviceId()
+  const queryClient = useQueryClient()
   const [selectedPoint, setSelectedPoint] = useState<MapPoint | null>(null)
 
   // Layer States
@@ -53,10 +56,6 @@ export const MapPage: React.FC = () => {
   // QR Scanning State
   const [isQRScanning, setIsQRScanning] = useState(false)
   const [qrTargetPoint, setQrTargetPoint] = useState<MapPoint | null>(null)
-
-  // Mutations
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const activateByQR = useMutation((api.mapPoints as any).activateByQR)
 
   const handleSelectPoint = useCallback((point: MapPoint | null) => {
     setSelectedPoint(point)
@@ -121,31 +120,85 @@ export const MapPage: React.FC = () => {
     setIsQRScanning(true)
   }, [])
 
-  const handleQRScan = useCallback(async (data: string) => {
-    if (!deviceId || !qrTargetPoint) return
+  const handleQRScan = useCallback(async (qrData: string) => {
+    if (!qrTargetPoint) return
 
     try {
-      // Вызываем мутацию бэкенда
-      const result = await activateByQR({
-        pointId: qrTargetPoint._id,
-        qrCode: data,
-        deviceId
+      const token = await getToken()
+      const client = authenticatedClient(token ?? undefined, deviceId)
+      const { data, error } = await client.map['activate-qr'].post({
+        pointId: qrTargetPoint.id,
+        qrData,
       })
 
-      if (result.success) {
-        setInteractionNotice(result.message || 'QR-код успешно сканирован!')
-        // Закрываем сканер
-        setIsQRScanning(false)
-        setQrTargetPoint(null)
-      } else {
-        setInteractionNotice(result.message || 'Ошибка при сканировании QR-кода')
+      const isRecord = (value: unknown): value is Record<string, unknown> =>
+        typeof value === 'object' && value !== null
+
+      const payload: Record<string, unknown> = isRecord(data) ? data : {}
+      const success = payload.success === true
+
+      if (error || !success) {
+        const message =
+          typeof payload.error === 'string' && payload.error.trim().length > 0
+            ? payload.error
+            : 'Не удалось активировать точку'
+        setInteractionNotice(message)
+        return
       }
-    } catch (error) {
-      console.error('Ошибка при активации точки:', error)
-      const message = error instanceof Error ? error.message : 'Не удалось активировать точку. Попробуйте позже.'
-      setInteractionNotice(message)
+
+      setInteractionNotice(`Точка активирована: ${qrTargetPoint.title}`)
+
+      await queryClient.invalidateQueries({ queryKey: ['mapPoints'] })
+
+      type Action = Record<string, unknown> & { type: string }
+      const isAction = (value: unknown): value is Action => isRecord(value) && typeof value.type === 'string'
+
+      const actionsRaw = payload.actions
+      const actions: Action[] = Array.isArray(actionsRaw) ? actionsRaw.filter(isAction) : []
+
+      if (actions.length > 0) {
+        const noticeAction = actions.find((a) => a.type === 'notice')
+        const notice = noticeAction?.message
+        if (typeof notice === 'string' && notice.trim().length > 0) {
+          setInteractionNotice(notice)
+        }
+
+        const needsPlayerRefresh = actions.some((a) =>
+          ['grant_xp', 'grant_gold', 'add_flags', 'remove_flags', 'grant_reputation'].includes(a.type)
+        )
+        const needsInventoryRefresh = actions.some((a) => a.type === 'grant_items')
+
+        if (needsPlayerRefresh) await queryClient.invalidateQueries({ queryKey: ['myPlayer'] })
+        if (needsInventoryRefresh) await queryClient.invalidateQueries({ queryKey: ['myInventory'] })
+
+        const startVn = actions.find((a) => a.type === 'start_vn')
+        const startVnSceneId = startVn?.sceneId
+        if (typeof startVnSceneId === 'string' && startVnSceneId.length > 0) {
+          navigate(`${Routes.VISUAL_NOVEL}/${startVnSceneId}`)
+          return
+        }
+
+        const startBattle = actions.find((a) => a.type === 'start_tutorial_battle')
+        if (startBattle) {
+          const qs = new URLSearchParams()
+          if (typeof startBattle.returnScene === 'string' && startBattle.returnScene.length > 0) {
+            qs.set('returnScene', startBattle.returnScene)
+          }
+          if (typeof startBattle.defeatScene === 'string' && startBattle.defeatScene.length > 0) {
+            qs.set('defeatScene', startBattle.defeatScene)
+          }
+          const suffix = qs.toString() ? `?${qs.toString()}` : ''
+          navigate(`${Routes.TUTORIAL_BATTLE}${suffix}`)
+        }
+      }
+    } catch (err) {
+      console.error('[MapPage] QR activation failed', err)
+      setInteractionNotice('Ошибка активации QR. Проверьте соединение и попробуйте снова.')
+    } finally {
+      setIsQRScanning(false)
+      setQrTargetPoint(null)
     }
-  }, [deviceId, qrTargetPoint, activateByQR])
+  }, [deviceId, getToken, navigate, qrTargetPoint, queryClient])
 
   const handleCloseInteraction = useCallback(() => {
     setActiveInteraction(null)
@@ -318,8 +371,12 @@ export const MapPage: React.FC = () => {
       {isQRScanning && qrTargetPoint && (
         <QRPointActivation
           pointTitle={qrTargetPoint.title}
+          simulateData={qrTargetPoint.qrCode ?? qrTargetPoint.id}
           onScan={handleQRScan}
-          onClose={() => setIsQRScanning(false)}
+          onClose={() => {
+            setIsQRScanning(false)
+            setQrTargetPoint(null)
+          }}
         />
       )}
 

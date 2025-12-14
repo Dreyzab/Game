@@ -8,8 +8,7 @@
 import type { 
   WeaponTemplate, 
   ColdSteelAction, 
-  CombatRank,
-  DamageType 
+  CombatRank
 } from '@/shared/types/combat'
 
 // ================== COLD STEEL ACTIONS ==================
@@ -474,6 +473,13 @@ export function getAverageDamage(notation: string): number {
   const { count, sides, modifier } = parseDiceNotation(notation)
   return count * ((sides + 1) / 2) + modifier
 }
+
+
+
+
+
+
+
 
 
 

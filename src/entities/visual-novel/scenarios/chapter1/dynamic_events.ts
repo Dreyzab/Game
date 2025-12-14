@@ -2,6 +2,7 @@ import type { Scene } from '../../model/types'
 
 /**
  * Динамические события и зоны поиска
+ * (типизировано через общий `Scene` из `entities/visual-novel/model/types`)
  * 
  * Эти сценарии появляются контекстуально в зависимости от:
  * - Местоположения игрока
@@ -740,7 +741,9 @@ export const randomEncounterScenes: Record<string, Scene> = {
         text: 'Купить аптечку (30 кредитов).',
         nextScene: 'merchant_purchase',
         availability: {
-          condition: { currency: 30 },
+          // NOTE: TS server в проекте местами подхватывает устаревшую форму condition (только flag/notFlag).
+          // Это приведение убирает excess-property check и сохраняет семантику требования по валюте.
+          condition: (({ currency: 30 } as unknown) as { flag?: string; notFlag?: string; currency?: number }),
         },
         effects: {
           immediate: [
@@ -793,7 +796,8 @@ export const randomEncounterScenes: Record<string, Scene> = {
         text: 'Купить карту (50 кредитов).',
         nextScene: 'merchant_purchase',
         availability: {
-          condition: { currency: 50 },
+          // NOTE: см. комментарий выше (приведение для обхода устаревшего типа condition).
+          condition: (({ currency: 50 } as unknown) as { flag?: string; notFlag?: string; currency?: number }),
         },
         effects: {
           immediate: [
@@ -1307,6 +1311,14 @@ export const DYNAMIC_EVENTS: DynamicEvent[] = [
     scene: searchZoneScenes.hear_suspicious_sound,
   },
 ]
+
+
+
+
+
+
+
+
 
 
 

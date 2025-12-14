@@ -1,8 +1,11 @@
 import type { MapPoint } from '@/shared/types/map'
+import { ITEM_TEMPLATES } from '@/shared/data/itemTemplates'
+import { calculateVendorSellPrice } from '@/shared/lib/itemPricing'
 import type { InteractionKey } from './useMapPointInteraction'
 
 export interface TradeItem {
   id: string
+  templateId: string
   name: string
   price: number
   quantity: number
@@ -106,12 +109,77 @@ const buildTradeInteraction = (point: MapPoint): TradeInteraction => ({
   npcId: point.metadata?.characterName ?? point.id,
   currency: 'кр.',
   summary: 'Закупитесь припасами и продайте лишнее снаряжение.',
-  inventory: [
-    { id: 'medkit_basic', name: 'Аптечка полевого типа', price: 120, quantity: 3 },
-    { id: 'ammo_545', name: 'Патроны 5.45 мм', price: 85, quantity: 10 },
-    { id: 'ration_military', name: 'Армейский рацион', price: 45, quantity: 6 },
-  ],
+  inventory: buildVendorInventory(point.metadata?.characterName ?? point.id),
 })
+
+type VendorType = 'medic' | 'black_market' | 'general'
+
+const resolveVendorType = (npcId?: string): VendorType => {
+  const id = (npcId || '').toLowerCase()
+  if (id.includes('sintez') || id.includes('synthesis') || id.includes('synth') || id.includes('med')) return 'medic'
+  if (id.includes('black') || id.includes('black_market') || id.includes('контраб')) return 'black_market'
+  return 'general'
+}
+
+const buildVendorInventory = (npcId?: string): TradeItem[] => {
+  const type = resolveVendorType(npcId)
+
+  const pick = (templateId: string, quantity = 5, priceMultiplier = 1): TradeItem | null => {
+    const tpl = ITEM_TEMPLATES[templateId]
+    if (!tpl) return null
+    const basePrice = calculateVendorSellPrice(tpl)
+    return {
+      id: `${templateId}-${npcId ?? 'vendor'}`,
+      templateId,
+      name: tpl.name,
+      price: Math.floor(basePrice * priceMultiplier),
+      quantity,
+      description: tpl.description,
+    }
+  }
+
+  const medicItems = [
+    pick('field_medkit', 4, 0.9),
+    pick('medkit', 6, 0.95),
+    pick('bandage', 12, 0.9),
+    pick('pills', 10, 1),
+    pick('ration_pack', 6, 1),
+    pick('canned_food', 8, 1),
+  ]
+
+  const blackMarketItems = [
+    pick('glock_19', 2, 1.8),
+    pick('pistol_pm', 3, 1.6),
+    pick('sawed_off_shotgun', 2, 2.0),
+    pick('rifle_ak74', 1, 2.2),
+    pick('knife', 5, 1.4),
+    pick('wrench', 4, 1.2),
+    pick('scrap', 8, 1.3),
+    pick('mica_shard', 1, 3.0),
+  ]
+
+  const generalItems = [
+    pick('bandage', 10, 1.1),
+    pick('medkit', 4, 1.15),
+    pick('ration_pack', 8, 1.1),
+    pick('canned_food', 10, 1.05),
+    pick('pills', 8, 1.1),
+    pick('knife', 3, 1.3),
+    pick('rusty_pipe', 3, 1.25),
+    pick('backpack_medic', 2, 1.4),
+    pick('belt_tool', 3, 1.25),
+    pick('scrap', 12, 1.2),
+  ]
+
+  switch (type) {
+    case 'medic':
+      return medicItems.filter(Boolean) as TradeItem[]
+    case 'black_market':
+      return blackMarketItems.filter(Boolean) as TradeItem[]
+    default:
+      return generalItems.filter(Boolean) as TradeItem[]
+  }
+}
 
 const buildUpgradeInteraction = (point: MapPoint): UpgradeInteraction => ({
   id: `${point.id}-upgrade`,
@@ -157,7 +225,7 @@ const buildTrainingInteraction = (point: MapPoint): TrainingInteraction => ({
   trainerId: point.metadata?.characterName ?? point.id,
   summary: 'Получите развитие ключевых навыков за счёт тренировок.',
   skills: [
-    { id: 'strength', name: 'Физическая подготовка', cost: 150, description: '+1 к силе' },
+    { id: 'force', name: 'Физическая подготовка', cost: 150, description: '+1 к силе' },
     { id: 'shooting', name: 'Стрельба', cost: 130, description: '+1 к меткости' },
     { id: 'endurance', name: 'Выносливость', cost: 110, description: '+1 к выносливости' },
   ],
@@ -243,4 +311,3 @@ export const findInteractionByKey = (
   interactions: MapPointInteraction[],
   key: InteractionKey
 ): MapPointInteraction | undefined => interactions.find((interaction) => interaction.key === key)
-

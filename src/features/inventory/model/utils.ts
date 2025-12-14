@@ -34,7 +34,6 @@ export const filterItems = (
 }
 
 import { ITEM_TEMPLATES } from '@/entities/item/model/templates'
-import type { EquipmentSlotId } from '@/entities/item/model/types'
 
 export const isValidSlotDrop = (slotId: string, item: ItemState): boolean => {
     const template = ITEM_TEMPLATES[item.templateId]

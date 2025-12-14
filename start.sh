@@ -1,94 +1,57 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# Grenzwanderer3 - Quick Start Script
-# This script helps you quickly set up and run the Grenzwanderer3 project
+set -euo pipefail
 
-echo "🚀 Grenzwanderer3 - Starting development environment..."
-echo ""
+ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+FRONT_DIR="$ROOT_DIR"
+BACK_DIR="$ROOT_DIR/server"
 
-# Check if Node.js is installed
-if ! command -v node &> /dev/null; then
-    echo "❌ Node.js is not installed. Please install Node.js (version 18+) first."
-    echo "   Visit: https://nodejs.org/"
-    exit 1
-fi
-
-# Check if npm is installed
-if ! command -v npm &> /dev/null; then
-    echo "❌ npm is not installed. Please install npm first."
-    exit 1
-fi
-
-# Check Node.js version
-NODE_VERSION=$(node -v | sed 's/v//')
-REQUIRED_VERSION="18.0.0"
-
-if ! [ "$(printf '%s\n' "$REQUIRED_VERSION" "$NODE_VERSION" | sort -V | head -n1)" = "$REQUIRED_VERSION" ]; then
-    echo "❌ Node.js version $NODE_VERSION is too old. Please upgrade to Node.js $REQUIRED_VERSION or higher."
-    exit 1
-fi
-
-echo "✅ Node.js version: $NODE_VERSION"
-
-# Install dependencies if node_modules doesn't exist
-if [ ! -d "node_modules" ]; then
-    echo ""
-    echo "📦 Installing dependencies..."
-    npm install
-    if [ $? -ne 0 ]; then
-        echo "❌ Failed to install dependencies"
+require_cmd() {
+    if ! command -v "$1" >/dev/null 2>&1; then
+        echo "❌ Требуется утилита '$1', но она не найдена в PATH."
         exit 1
     fi
-fi
-
-echo ""
-echo "🔧 Setting up environment..."
-
-# Create .env.local if it doesn't exist
-if [ ! -f ".env.local" ]; then
-    echo "📝 Creating .env.local file..."
-    cat > .env.local << EOF
-# Grenzwanderer3 Environment Variables
-# Copy this file and customize for your environment
-
-# Convex Backend (if using)
-# CONVEX_URL=your-convex-url
-
-# Development settings
-NODE_ENV=development
-EOF
-    echo "✅ .env.local created"
-fi
-
-echo ""
-echo "🎯 Starting development servers..."
-echo ""
-echo "🌐 Your app will be available at: http://localhost:5173"
-echo "📊 Build output: ./dist/"
-echo "🔗 Convex backend will be available for real-time features"
-echo ""
-echo "Press Ctrl+C to stop all servers"
-echo ""
-
-# Function to cleanup background processes on script exit
-cleanup() {
-    echo ""
-    echo "🛑 Stopping servers..."
-    kill $CONVEX_PID 2>/dev/null
-    exit
 }
 
-# Set trap to cleanup on script exit
-trap cleanup SIGINT SIGTERM
+echo "🔎 Проверяю зависимости (npm, bun)..."
+require_cmd npm
+require_cmd bun
 
-# Start Convex development server in background
-echo "🚀 Starting Convex backend server..."
-npm run convex:dev &
-CONVEX_PID=$!
+if [ ! -d "$FRONT_DIR/node_modules" ]; then
+    echo "📦 Устанавливаю зависимости фронтенда (npm install)..."
+    (cd "$FRONT_DIR" && npm install)
+fi
 
-# Wait a moment for Convex to initialize
-sleep 2
+if [ ! -d "$BACK_DIR/node_modules" ]; then
+    echo "📦 Устанавливаю зависимости бэкенда (bun install)..."
+    (cd "$BACK_DIR" && bun install)
+fi
 
-# Start the main development server
-echo "🚀 Starting Vite development server..."
-npm run dev
+BACK_PID=""
+FRONT_PID=""
+cleanup() {
+    echo -e "\n🛑 Останавливаю dev-сервера..."
+    if [ -n "$BACK_PID" ] && kill -0 "$BACK_PID" 2>/dev/null; then
+        kill "$BACK_PID" 2>/dev/null || true
+    fi
+    if [ -n "$FRONT_PID" ] && kill -0 "$FRONT_PID" 2>/dev/null; then
+        kill "$FRONT_PID" 2>/dev/null || true
+    fi
+}
+trap cleanup EXIT
+
+echo "🚀 Запускаю backend (bun run dev) в $BACK_DIR..."
+(cd "$BACK_DIR" && bun run dev) &
+BACK_PID=$!
+
+echo "🚀 Запускаю frontend (npm run dev -- --host) в $FRONT_DIR..."
+(cd "$FRONT_DIR" && npm run dev -- --host) &
+FRONT_PID=$!
+
+echo "✅ Оба dev-сервера запущены."
+echo "   • Backend: http://localhost:3000"
+echo "   • Frontend: http://localhost:5173"
+echo "Нажмите Ctrl+C для остановки."
+
+wait $BACK_PID $FRONT_PID
+

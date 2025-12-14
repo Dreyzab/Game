@@ -11,7 +11,6 @@ import type { Scene } from '../../../model/types'
 const ANARCHIST_BACKGROUND = '/images/backgrounds/anarchist_quarter.jpg'
 const LOOKOUT_BACKGROUND = '/images/backgrounds/rooftop_lookout.jpg'
 const ASUA_SPRITE = '/images/npcs/asua.jpg'
-const WALDEMAR_SPRITE = '/images/npcs/waldemar.jpg'
 
 export const anarchistsScenes: Record<string, Scene> = {
   // =====================================
@@ -1111,6 +1110,13 @@ export const anarchistsScenes: Record<string, Scene> = {
     ],
   },
 }
+
+
+
+
+
+
+
 
 
 

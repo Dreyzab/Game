@@ -17,6 +17,57 @@ export type MapPointStatus = 'not_found' | 'discovered' | 'researched'
 
 export type DangerLevel = 'low' | 'medium' | 'high'
 
+export type ActivationType = 'qr' | 'conditional' | 'auto'
+
+export interface SkillCheck {
+  skill: string
+  level?: number
+  perk?: string
+}
+
+export type Condition =
+  | { type: 'item'; id: string; count?: number }
+  | { type: 'time'; range: { from: string; to: string } }
+  | { type: 'reputation'; faction: string; min?: number; max?: number }
+  | { type: 'questFlag'; id: string; value?: string | boolean | number }
+  | { type: 'cooldown'; until: number }
+  | { type: 'story'; id: string }
+
+export interface PointActivationSpec {
+  activationType?: ActivationType
+  qrCodeId?: string
+  conditionalTriggerId?: string
+  conditions?: Condition[]
+}
+
+export interface PointVisibilitySpec {
+  initiallyHidden?: boolean
+  storyUnlockId?: string
+  requiresSkill?: SkillCheck
+  requiresZoneId?: string
+  revealOnProximityRadius?: number
+  autoReveal?: boolean
+  isDiscovered?: boolean
+}
+
+export interface ZoneDiscoverySpec {
+  storyUnlockId?: string
+  requiresSkill?: SkillCheck
+  revealRadiusMeters?: number
+  autoRevealOnEntry?: boolean
+  isDiscovered?: boolean
+  progressFlags?: string[]
+}
+
+export interface ConditionalZone extends ZoneDiscoverySpec {
+  _id?: string
+  id: string
+  name: string
+  faction?: string
+  polygon: Coordinates[]
+  alwaysVisible?: boolean
+}
+
 export type FactionType =
   | 'fjr'
   | 'ordnung'
@@ -80,6 +131,8 @@ export interface MapPointMetadata {
   isActiveQuestTarget?: boolean // Точка является целью активного задания (для пульсации)
   sceneBindings?: SceneBinding[]
   unlockRequirements?: UnlockRequirements
+  visibility?: PointVisibilitySpec
+  activation?: PointActivationSpec
   services?: string[]
   isGlobalObjective?: boolean
   [key: string]: unknown
@@ -96,6 +149,8 @@ export interface MapPoint {
   isActive: boolean
   metadata?: MapPointMetadata
   qrCode?: string
+  visibility?: PointVisibilitySpec
+  activation?: PointActivationSpec
   createdAt?: number
   // Статус открытия (добавляется клиентом)
   status?: MapPointStatus
@@ -112,6 +167,13 @@ export interface SafeZone {
   faction?: string
   polygon: Coordinates[]
   isActive: boolean
+  alwaysVisible?: boolean
+  storyUnlockId?: string
+  requiresSkill?: SkillCheck
+  revealRadiusMeters?: number
+  autoRevealOnEntry?: boolean
+  isDiscovered?: boolean
+  progressFlags?: string[]
   createdAt?: number
 }
 
@@ -125,6 +187,14 @@ export interface DangerZone {
   spawnPoints: Coordinates[]
   maxEnemies: number
   isActive: boolean
+  storyUnlockId?: string
+  requiresSkill?: SkillCheck
+  revealRadiusMeters?: number
+  isDiscovered?: boolean
+  visionRadiusMeters?: number
+  hearingRadiusMeters?: number
+  patrolRoutes?: Coordinates[][]
+  spawnCooldownSec?: number
   createdAt?: number
 }
 

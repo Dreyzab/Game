@@ -9,7 +9,7 @@
  */
 
 import { useCallback, useEffect, useMemo } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import { cn } from '@/shared/lib/utils/cn'
 import type { 
   PrivateInjection, 
@@ -58,7 +58,7 @@ interface DialogueInjectionsProps {
 // ANIMATION VARIANTS
 // ============================================================================
 
-const containerVariants = {
+const containerVariants: Variants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
@@ -76,7 +76,7 @@ const containerVariants = {
   },
 }
 
-const injectionVariants = {
+const injectionVariants: Variants = {
   hidden: { 
     opacity: 0, 
     y: 20,
@@ -122,7 +122,7 @@ const InjectionBubble = ({
   const voiceName = injection.voiceName ?? VOICE_NAMES[injection.voice]
   
   // Получаем CSS класс для эффекта
-  const effectClass = getEffectClass(injection.effect ?? 'none', injection.voiceGroup)
+  const effectClass = getEffectClass(injection.effect ?? 'none')
   
   return (
     <motion.div
@@ -244,7 +244,7 @@ const ConflictIndicator = ({
 /**
  * Получить CSS класс для визуального эффекта
  */
-function getEffectClass(effect: string, voiceGroup: VoiceGroup): string {
+function getEffectClass(effect: string): string {
   const effectClasses: Record<string, string> = {
     glitch: 'effect-glitch',
     pulse: 'effect-pulse',
@@ -336,8 +336,6 @@ export const DialogueInjections = ({
     setConflictingVoices,
     recordInjectionView,
     hasViewedInjection,
-    activeInjections,
-    conflictingVoices,
   } = useNarrativeStore()
   
   // Обогащаем инъекции данными о навыках
@@ -439,5 +437,11 @@ export const DialogueInjections = ({
 }
 
 export default DialogueInjections
+
+
+
+
+
+
 
 

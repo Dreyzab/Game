@@ -1,25 +1,10 @@
 import React, { useEffect, useState } from 'react'
+import { SignInButton, useClerk, useAuth, useUser } from '@clerk/clerk-react'
 import { useNavigate } from 'react-router-dom'
-import {
-  BookOpen,
-  Database,
-  FileText,
-  Map,
-  Package,
-  QrCode,
-  RefreshCw,
-  Settings,
-  ShieldCheck,
-  Shuffle,
-  Sparkles,
-  Sword,
-  User,
-  UserPlus,
-} from 'lucide-react'
+import { BookOpen, FileText, Map, Package, QrCode, RefreshCw, Settings, User, UserPlus } from 'lucide-react'
 import { MotionContainer } from '@/shared/ui/components/MotionContainer'
 import { Routes } from '@/shared/lib/utils/navigation'
 import { cn } from '@/shared/lib/utils/cn'
-import { convexClient, convexMutations } from '@/shared/api/convex'
 import { generateDeviceId, getDeviceId, setDeviceId } from '@/shared/lib/utils/deviceId'
 
 export interface QuickActionsWidgetProps {
@@ -50,29 +35,20 @@ const shortDeviceId = (deviceId: string) =>
 
 const readStoredAccounts = (): StoredAccount[] => {
   if (typeof window === 'undefined') return []
-
   try {
     const raw = localStorage.getItem(ACCOUNT_STORE_KEY)
     if (!raw) return []
     const parsed = JSON.parse(raw)
     if (!Array.isArray(parsed)) return []
     return parsed
-      .filter(
-        (entry) =>
-          entry &&
-          typeof entry.deviceId === 'string' &&
-          (entry.role === 'admin' || entry.role === 'player')
-      )
-      .map(
-        (entry) =>
-          ({
-            deviceId: entry.deviceId,
-            role: entry.role,
-            label: typeof entry.label === 'string' ? entry.label : entry.role === 'admin' ? 'Админ' : 'Игрок',
-            createdAt: typeof entry.createdAt === 'number' ? entry.createdAt : Date.now(),
-            lastUsedAt: typeof entry.lastUsedAt === 'number' ? entry.lastUsedAt : undefined,
-          }) satisfies StoredAccount
-      )
+      .filter((entry) => entry && typeof entry.deviceId === 'string' && (entry.role === 'admin' || entry.role === 'player'))
+      .map((entry) => ({
+        deviceId: entry.deviceId,
+        role: entry.role,
+        label: typeof entry.label === 'string' ? entry.label : entry.role === 'admin' ? 'Админ' : 'Игрок',
+        createdAt: typeof entry.createdAt === 'number' ? entry.createdAt : Date.now(),
+        lastUsedAt: typeof entry.lastUsedAt === 'number' ? entry.lastUsedAt : undefined,
+      })) as StoredAccount[]
   } catch (error) {
     console.warn('[QuickActions] Failed to read stored accounts', error)
     return []
@@ -95,21 +71,19 @@ const upsertAccount = (accounts: StoredAccount[], profile: StoredAccount): Store
 
 export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({ className }) => {
   const navigate = useNavigate()
+  const { signOut } = useClerk()
+  const { isSignedIn, isLoaded: isAuthLoaded } = useAuth()
+  const { user } = useUser()
   const [accounts, setAccounts] = useState<StoredAccount[]>(() => readStoredAccounts())
   const [activeDeviceId, setActiveDeviceId] = useState<string>(() => getDeviceId())
   const [busyAction, setBusyAction] = useState<string | null>(null)
   const [message, setMessage] = useState<string>('')
 
-  const currentTime = new Date().toLocaleTimeString('ru-RU', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  })
+  const currentTime = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', hour12: false })
 
   useEffect(() => {
     const currentId = getDeviceId()
     setActiveDeviceId(currentId)
-
     setAccounts((prev) => {
       const base = prev.length ? prev : readStoredAccounts()
       const hasCurrent = base.some((acc) => acc.deviceId === currentId)
@@ -118,314 +92,249 @@ export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({ classNam
         : [
             {
               deviceId: currentId,
-              role: 'player',
-              label: 'Текущий игрок',
+              role: 'player' as const,
+              label: 'Игрок',
               createdAt: Date.now(),
-              lastUsedAt: Date.now(),
             },
             ...base,
           ]
-
       persistAccounts(next)
       return next
     })
   }, [])
 
-  const handleCreateAccount = async (role: StoredAccount['role']) => {
-    const newDeviceId = generateDeviceId()
-    const busyId = role === 'admin' ? 'create-admin' : 'create-player'
-    setBusyAction(busyId)
-    setMessage('')
-
-    try {
-      await convexMutations.player.ensureByDevice({ deviceId: newDeviceId })
-      if (role === 'admin') {
-        await convexMutations.admin.register({ name: 'Admin QA' })
-      }
-
-      const profile: StoredAccount = {
-        deviceId: newDeviceId,
-        role,
-        label: role === 'admin' ? 'Админ' : 'Игрок',
-        createdAt: Date.now(),
-        lastUsedAt: Date.now(),
-      }
-
-      setAccounts((prev) => {
-        const next = upsertAccount(prev, profile)
-        persistAccounts(next)
-        return next
-      })
-
-      setActiveDeviceId(newDeviceId)
-      setDeviceId(newDeviceId)
-      setMessage(role === 'admin' ? 'Админ-аккаунт создан и активен' : 'Создан новый игровой аккаунт')
-
-      setTimeout(() => window.location.reload(), 350)
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error)
-      setMessage(`Не удалось создать аккаунт: ${errorMessage}`)
-    } finally {
-      setBusyAction(null)
+  const setActive = (deviceId: string, role: 'admin' | 'player', label?: string) => {
+    const profile: StoredAccount = {
+      deviceId,
+      role,
+      label: label ?? (role === 'admin' ? 'Админ' : 'Игрок'),
+      createdAt: Date.now(),
+      lastUsedAt: Date.now(),
     }
-  }
-
-  const handleSwitchAccount = (deviceId: string) => {
-    setBusyAction('switch')
-    setMessage('')
-
     setDeviceId(deviceId)
     setActiveDeviceId(deviceId)
-
     setAccounts((prev) => {
-      const next = prev.map((acc) =>
-        acc.deviceId === deviceId ? { ...acc, lastUsedAt: Date.now() } : acc
-      )
+      const next = upsertAccount(prev, profile)
       persistAccounts(next)
       return next
     })
-
-    setMessage(`Переключено на ${shortDeviceId(deviceId)}`)
-    setTimeout(() => {
-      setBusyAction(null)
-      window.location.reload()
-    }, 200)
   }
 
-  const handleResetProgress = async () => {
-    if (!activeDeviceId) return
+  const actions: QuickAction[] = [
+    { id: 'home', icon: <User className="w-4 h-4" />, label: 'Домой', route: Routes.HOME },
+    { id: 'map', icon: <Map className="w-4 h-4" />, label: 'Карта', route: Routes.MAP },
+    { id: 'inv', icon: <Package className="w-4 h-4" />, label: 'Инвентарь', route: Routes.INVENTORY },
+    { id: 'quests', icon: <FileText className="w-4 h-4" />, label: 'Квесты', route: Routes.QUESTS },
+    { id: 'vn', icon: <BookOpen className="w-4 h-4" />, label: 'VN', route: Routes.VISUAL_NOVEL },
+    { id: 'qr', icon: <QrCode className="w-4 h-4" />, label: 'QR Scan', route: Routes.QR_SCANNER },
+    { id: 'settings', icon: <Settings className="w-4 h-4" />, label: 'Настройки', route: Routes.SETTINGS },
+  ]
 
-    setBusyAction('reset')
-    setMessage('')
-
-    try {
-      await convexMutations.player.resetProgress({ deviceId: activeDeviceId })
-      setMessage('Прогресс текущего аккаунта сброшен')
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error)
-      setMessage(`Не удалось сбросить прогресс: ${errorMessage}`)
-    } finally {
-      setBusyAction(null)
-    }
-  }
-
-  const handleSeedAll = async () => {
-    if (!convexClient) {
-      setMessage('Convex не подключен: сиды доступны только при настроенном VITE_CONVEX_URL')
-      return
-    }
-
-    setBusyAction('seed')
-    setMessage('Сидим все данные DevTools...')
-
-    try {
-      // @ts-expect-error Allow calling by string route without generated types
-      const points = await convexClient.mutation('mapPointsSeed:reseedMapPoints', {})
-      // @ts-expect-error Allow calling by string route without generated types
-      const zones = await convexClient.mutation('zonesSeed:seedSafeZones', {})
-      // @ts-expect-error Allow calling by string route without generated types
-      const quests = await convexClient.mutation('questsSeed:seedQuests', {})
-
-      setMessage(
-        `Сид готов: точки ${points?.pointsCreated ?? points?.message ?? 'ok'}, зоны ${
-          zones?.success ? 'ok' : 'skip'
-        }, квесты ${quests?.count ?? 0}`
-      )
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error)
-      setMessage(`Ошибка при сидировании: ${errorMessage}`)
-    } finally {
-      setBusyAction(null)
-    }
-  }
-
-  const navigationActions: QuickAction[] = [
+  const adminActions: QuickAction[] = [
     {
-      id: 'prologue',
-      icon: <FileText className="h-5 w-5" />,
-      label: 'Начать историю',
-      description: 'Перейти в пролог',
-      route: Routes.PROLOGUE,
+      id: 'regen-device',
+      icon: <RefreshCw className="w-4 h-4" />,
+      label: 'Новый deviceId',
+      description: 'Сгенерировать новый deviceId и сохранить',
+      onClick: () => {
+        const newId = generateDeviceId()
+        setActive(newId, 'player', 'Игрок')
+        setMessage(`Новый deviceId: ${newId}`)
+      },
     },
     {
-      id: 'qr',
-      icon: <QrCode className="h-5 w-5" />,
-      label: 'Сканировать код локации',
-      description: 'Открыть сканер QR',
-      route: Routes.QR_SCANNER,
-    },
-    {
-      id: 'map',
-      icon: <Map className="h-5 w-5" />,
-      label: 'Открыть игровую карту',
-      route: Routes.MAP,
-    },
-    {
-      id: 'quests',
-      icon: <BookOpen className="h-5 w-5" />,
-      label: 'Управление заданиями',
-      route: Routes.QUESTS,
-    },
-    {
-      id: 'combat',
-      icon: <Sword className="h-5 w-5" />,
-      label: 'Карточная боевая система',
-      route: Routes.COMBAT,
-    },
-    {
-      id: 'inventory',
-      icon: <Package className="h-5 w-5" />,
-      label: 'Управление предметами',
-      route: Routes.INVENTORY,
-    },
-    {
-      id: 'character',
-      icon: <User className="h-5 w-5" />,
-      label: 'Параметры персонажа',
-      route: Routes.CHARACTER,
-    },
-    {
-      id: 'settings',
-      icon: <Settings className="h-5 w-5" />,
-      label: 'Параметры игры',
-      route: Routes.SETTINGS,
-    },
-    {
-      id: 'devtools',
-      icon: <Sparkles className="h-5 w-5" />,
-      label: 'DevTools',
-      description: 'Панель QA и сиды данных',
-      route: Routes.DEVTOOLS,
+      id: 'admin-label',
+      icon: <UserPlus className="w-4 h-4" />,
+      label: 'Сделать админом',
+      onClick: () => {
+        const id = getDeviceId()
+        setActive(id, 'admin', 'Админ')
+        setMessage(`Текущий deviceId отмечен как админ: ${shortDeviceId(id)}`)
+      },
     },
   ]
 
-  const accountActions: QuickAction[] = [
-    {
-      id: 'create-admin',
-      icon: <ShieldCheck className="h-5 w-5" />,
-      label: 'Создать админ-аккаунт',
-      description: 'Admin QA + авто-свитч',
-      onClick: () => void handleCreateAccount('admin'),
-      busyId: 'create-admin',
-    },
-    {
-      id: 'create-player',
-      icon: <UserPlus className="h-5 w-5" />,
-      label: 'Создать обычный аккаунт',
-      description: 'Гостевой игрок + свитч',
-      onClick: () => void handleCreateAccount('player'),
-      busyId: 'create-player',
-    },
-    {
-      id: 'reset',
-      icon: <RefreshCw className="h-5 w-5" />,
-      label: 'Сбросить прогресс',
-      description: 'Очистить текущий аккаунт',
-      onClick: () => void handleResetProgress(),
-      busyId: 'reset',
-    },
-    {
-      id: 'seed',
-      icon: <Database className="h-5 w-5" />,
-      label: 'Сид всех данных DevTools',
-      description: 'Точки, safe zones, квесты',
-      onClick: () => void handleSeedAll(),
-      busyId: 'seed',
-    },
-  ]
-
-  const renderActionButton = (action: QuickAction, index: number) => {
-    const isBusy = !!action.busyId && busyAction !== null && busyAction !== action.busyId
-    return (
-      <MotionContainer key={action.id} direction="right" delay={0.05 * index} className="contents">
-        <button
-          onClick={() => {
-            if (action.onClick) return action.onClick()
-            if (action.route) return navigate(action.route)
-          }}
-          disabled={isBusy}
-          className={cn(
-            'flex items-center gap-3 rounded-lg border border-[color:var(--color-border-strong)]/60',
-            'bg-[color:var(--color-surface-elevated)] p-4 text-left transition-all duration-200',
-            'hover:border-[color:var(--color-cyan)]/70 hover:bg-[color:var(--color-surface)] hover:text-[color:var(--color-cyan)]',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-cyan)] focus-visible:ring-offset-2',
-            (busyAction && action.busyId === busyAction) || isBusy ? 'opacity-70' : ''
-          )}
-        >
-          <div className="shrink-0 text-[color:var(--color-cyan)]">{action.icon}</div>
-          <div className="flex-1">
-            <div className="text-sm font-medium text-[color:var(--color-text)]">
-              {action.label}
-            </div>
-            {action.description && (
-              <div className="mt-1 text-xs text-[color:var(--color-text-secondary)]">
-                {action.description}
-              </div>
-            )}
-          </div>
-        </button>
-      </MotionContainer>
-    )
+  const handleNavigate = (route?: string, onClick?: () => void, busyId?: string) => async () => {
+    if (busyId) setBusyAction(busyId)
+    try {
+      if (onClick) onClick()
+      if (route) navigate(route)
+    } finally {
+      if (busyId) setBusyAction(null)
+    }
   }
 
   return (
-    <MotionContainer className={cn('glass-panel p-6', className)} direction="fade" delay={0.2}>
-      <div className="mb-6 flex items-center justify-between">
+    <MotionContainer
+      className={cn('glass-panel p-4 shadow-xl border border-white/5', className)}
+      variants={{
+        hidden: { opacity: 0, y: 16 },
+        visible: { opacity: 1, y: 0, transition: { duration: 0.25 } },
+      }}
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true, amount: 0.15 }}
+    >
+      <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-lg font-semibold text-[color:var(--color-text)]">БЫСТРЫЕ ДЕЙСТВИЯ</h3>
-          <p className="text-xs text-[color:var(--color-text-secondary)]">
-            Активный аккаунт: {shortDeviceId(activeDeviceId)} ({accounts.find((a) => a.deviceId === activeDeviceId)?.role ?? 'player'})
-          </p>
+          <div className="text-xs uppercase tracking-[0.28em] text-slate-500">Quick Actions</div>
+          <div className="text-sm text-slate-300">Время: {currentTime}</div>
         </div>
-        <span className="font-mono text-xs text-[color:var(--color-text-secondary)]">{currentTime}</span>
+        <div className="text-right text-xs text-slate-400">
+          <div>Active: {shortDeviceId(activeDeviceId)}</div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3">
-        {accountActions.map((action, index) => renderActionButton(action, index))}
+      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+        {actions.map((action) => (
+          <button
+            key={action.id}
+            onClick={handleNavigate(action.route, action.onClick, action.busyId)}
+            className={cn(
+              'flex flex-col items-center gap-1 px-3 py-3 rounded-lg border border-white/5 bg-white/5 hover:bg-white/10 transition-colors',
+              busyAction === action.busyId && 'opacity-60 pointer-events-none'
+            )}
+          >
+            <span className="text-sm text-white">{action.icon}</span>
+            <span className="text-[11px] text-slate-200 font-semibold text-center leading-tight">{action.label}</span>
+            {action.description && <span className="text-[10px] text-slate-400 text-center">{action.description}</span>}
+          </button>
+        ))}
       </div>
 
-      <div className="mt-4 rounded-lg border border-[color:var(--color-border)]/60 bg-[color:var(--color-surface)]/60 p-4">
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-semibold text-[color:var(--color-text)]">Отслеживание и переключение</span>
-          <span className="text-xs font-mono text-[color:var(--color-text-secondary)]">
-            {accounts.length} аккаунт(ов)
-          </span>
+      <div className="mt-4 pt-4 border-t border-white/5">
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-xs uppercase tracking-[0.28em] text-slate-500">Авторизация</div>
+          <div className="text-xs text-slate-400">
+            {isAuthLoaded
+              ? isSignedIn
+                ? `В сети: ${user?.fullName ?? user?.emailAddresses?.[0]?.emailAddress ?? 'Clerk'}`
+                : 'Не в сети'
+              : 'Проверка...'}
+          </div>
         </div>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {accounts.length === 0 ? (
-            <span className="text-xs text-[color:var(--color-text-secondary)]">
-              Нет сохраненных аккаунтов
-            </span>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {isSignedIn ? (
+            <button className="btn btn--secondary btn--full-width" disabled>
+              Войти через Clerk
+            </button>
           ) : (
-            accounts.map((acc) => (
-              <button
-                key={acc.deviceId}
-                onClick={() => handleSwitchAccount(acc.deviceId)}
-                className={cn(
-                  'inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs transition-all',
-                  acc.deviceId === activeDeviceId
-                    ? 'border-[color:var(--color-cyan)]/80 bg-[color:var(--color-cyan)]/10 text-[color:var(--color-cyan)]'
-                    : 'border-[color:var(--color-border)]/70 text-[color:var(--color-text-secondary)] hover:border-[color:var(--color-cyan)]/70 hover:text-[color:var(--color-cyan)]'
-                )}
-              >
-                <Shuffle className="h-3.5 w-3.5" />
-                <span>{acc.role === 'admin' ? 'Админ' : 'Игрок'}</span>
-                <span className="font-mono">{shortDeviceId(acc.deviceId)}</span>
+            <SignInButton mode="modal">
+              <button className="btn btn--secondary btn--full-width" disabled={!isAuthLoaded}>
+                Войти через Clerk
               </button>
-            ))
+            </SignInButton>
           )}
+          <button
+            className="btn btn--secondary btn--full-width"
+            onClick={() => {
+              signOut({ redirectUrl: '/' })
+              setMessage('Вы вышли из Clerk')
+            }}
+            disabled={!isAuthLoaded || !isSignedIn}
+          >
+            Выйти
+          </button>
         </div>
+        {!isAuthLoaded && (
+          <div className="mt-2 text-[11px] text-slate-500">
+            Если это «Проверка...» не проходит — проверь `VITE_CLERK_PUBLISHABLE_KEY` и доступ к доменам Clerk (adblock/файрвол).
+          </div>
+        )}
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-3">
-        {navigationActions.map((action, index) => renderActionButton(action, index + accountActions.length))}
+      <div className="mt-4 pt-4 border-t border-white/5">
+        <div className="text-xs uppercase tracking-[0.28em] text-slate-500 mb-2">Управление аккаунтами (deviceId)</div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <button
+            onClick={handleNavigate(undefined, () => {
+              const newId = generateDeviceId()
+              setActive(newId, 'player', 'Игрок')
+              setMessage(`Создан новый deviceId: ${newId}`)
+            })}
+            className="btn btn--secondary btn--full-width"
+          >
+            Новый deviceId
+          </button>
+          <button
+            onClick={handleNavigate(undefined, () => {
+              const id = getDeviceId()
+              setActive(id, 'admin', 'Админ')
+              setMessage(`Текущий deviceId отмечен как админ: ${shortDeviceId(id)}`)
+            })}
+            className="btn btn--secondary btn--full-width"
+          >
+            Сделать текущий админом
+          </button>
+        </div>
       </div>
 
       {message && (
-        <div className="mt-4 rounded border border-[color:var(--color-border)]/60 bg-[color:var(--color-surface)]/60 p-3 text-xs font-mono text-[color:var(--color-text-secondary)]">
+        <div className="mt-3 text-xs text-emerald-300 bg-emerald-900/30 border border-emerald-500/40 rounded-lg px-3 py-2">
           {message}
         </div>
       )}
+
+      <div className="mt-4 pt-4 border-t border-white/5">
+        <div className="text-xs uppercase tracking-[0.28em] text-slate-500 mb-2">Сохранённые аккаунты</div>
+        <div className="space-y-2">
+          {accounts.length === 0 && <div className="text-sm text-slate-500">Нет сохранённых профилей.</div>}
+          {accounts.map((acc) => (
+            <div
+              key={acc.deviceId}
+              className="flex items-center justify-between rounded-lg border border-white/5 bg-white/5 px-3 py-2 text-sm"
+            >
+              <div className="flex flex-col">
+                <span className="text-white">{acc.label} · {acc.role}</span>
+                <span className="text-slate-400 text-xs">{shortDeviceId(acc.deviceId)}</span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  className="text-xs text-sky-300 hover:text-sky-200 underline"
+                  onClick={handleNavigate(undefined, () => {
+                    setActive(acc.deviceId, acc.role, acc.label)
+                    setMessage(`Активирован ${acc.label}: ${shortDeviceId(acc.deviceId)}`)
+                  })}
+                >
+                  Активировать
+                </button>
+                <button
+                  className="text-xs text-slate-400 hover:text-slate-200 underline"
+                  onClick={() => {
+                    setAccounts((prev) => {
+                      const next = prev.filter((p) => p.deviceId !== acc.deviceId)
+                      persistAccounts(next)
+                      return next
+                    })
+                  }}
+                >
+                  Удалить
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-4 pt-4 border-t border-white/5">
+        <div className="text-xs uppercase tracking-[0.28em] text-slate-500 mb-2">Админ действия</div>
+        <div className="grid grid-cols-2 gap-2">
+          {adminActions.map((action) => (
+            <button
+              key={action.id}
+              onClick={handleNavigate(undefined, action.onClick, action.busyId)}
+              className="btn btn--secondary btn--full-width"
+            >
+              {action.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
     </MotionContainer>
   )
 }
+
+
+
+

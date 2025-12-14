@@ -1,9 +1,9 @@
 /**
- * @fileoverview Базовая обёртка для Mapbox GL JS карты
+ * @fileoverview Ñ'ÑøÑúÑóÑýÑø¥? ÑóÑñ¥'¥?¥'Ñ§Ñø ÑïÑ¯¥? Mapbox GL JS Ñ§Ñø¥?¥'¥<
  * FSD: shared/ui
  * 
- * Инициализирует карту, добавляет контролы навигации и геолокации,
- * обрабатывает ошибки загрузки стиля (fallback на Carto)
+ * Ñ~Ñ«Ñ÷¥ÅÑ÷ÑøÑ¯Ñ÷ÑúÑ÷¥?¥ŸÑæ¥' Ñ§Ñø¥?¥'¥Ÿ, ÑïÑóÑñÑøÑýÑ¯¥?Ñæ¥' Ñ§ÑóÑ«¥'¥?ÑóÑ¯¥< Ñ«ÑøÑýÑ÷ÑüÑø¥ÅÑ÷Ñ÷ Ñ÷ ÑüÑæÑóÑ¯ÑóÑ§Ñø¥ÅÑ÷Ñ÷,
+ * ÑóÑñ¥?ÑøÑñÑø¥'¥<ÑýÑøÑæ¥' Ñó¥^Ñ÷ÑñÑ§Ñ÷ ÑúÑøÑü¥?¥ŸÑúÑ§Ñ÷ ¥?¥'Ñ÷Ñ¯¥? (fallback Ñ«Ñø Carto)
  */
 
 import React, { useEffect, useRef, useState } from 'react'
@@ -11,10 +11,10 @@ import mapboxgl, { type StyleSpecification } from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { cn } from '@/shared/lib/utils/cn'
 
-// Получаем токен из переменных окружения
+// ÑYÑóÑ¯¥Ÿ¥ÎÑøÑæÑ¬ ¥'ÑóÑ§ÑæÑ« Ñ÷Ñú Ñ¨Ñæ¥?ÑæÑ¬ÑæÑ«Ñ«¥<¥. ÑóÑ§¥?¥ŸÑôÑæÑ«Ñ÷¥?
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || ''
 
-// Fallback стиль (Carto Dark Matter) если токен не указан
+// Fallback ¥?¥'Ñ÷Ñ¯¥O (Carto Dark Matter) Ñæ¥?Ñ¯Ñ÷ ¥'ÑóÑ§ÑæÑ« Ñ«Ñæ ¥ŸÑ§ÑøÑúÑøÑ«
 const FALLBACK_STYLE: StyleSpecification = {
   version: 8,
   sources: {
@@ -41,40 +41,40 @@ const FALLBACK_STYLE: StyleSpecification = {
 }
 
 export interface MapboxMapProps {
-  /** Начальный центр карты [lng, lat] */
+  /** Ñ?Ñø¥ÎÑøÑ¯¥OÑ«¥<Ñû ¥ÅÑæÑ«¥'¥? Ñ§Ñø¥?¥'¥< [lng, lat] */
   center?: [number, number]
-  /** Начальный зум */
+  /** Ñ?Ñø¥ÎÑøÑ¯¥OÑ«¥<Ñû Ñú¥ŸÑ¬ */
   zoom?: number
-  /** Стиль карты (Mapbox style URL или объект стиля) */
+  /** Ñ­¥'Ñ÷Ñ¯¥O Ñ§Ñø¥?¥'¥< (Mapbox style URL Ñ÷Ñ¯Ñ÷ ÑóÑñ¥SÑæÑ§¥' ¥?¥'Ñ÷Ñ¯¥?) */
   style?: string | StyleSpecification
-  /** Минимальный зум */
+  /** ÑoÑ÷Ñ«Ñ÷Ñ¬ÑøÑ¯¥OÑ«¥<Ñû Ñú¥ŸÑ¬ */
   minZoom?: number
-  /** Максимальный зум */
+  /** ÑoÑøÑ§¥?Ñ÷Ñ¬ÑøÑ¯¥OÑ«¥<Ñû Ñú¥ŸÑ¬ */
   maxZoom?: number
-  /** Начальный bearing (поворот) */
+  /** Ñ?Ñø¥ÎÑøÑ¯¥OÑ«¥<Ñû bearing (Ñ¨ÑóÑýÑó¥?Ñó¥') */
   bearing?: number
-  /** Начальный pitch (наклон) */
+  /** Ñ?Ñø¥ÎÑøÑ¯¥OÑ«¥<Ñû pitch (Ñ«ÑøÑ§Ñ¯ÑóÑ«) */
   pitch?: number
-  /** CSS класс для контейнера */
+  /** CSS Ñ§Ñ¯Ñø¥?¥? ÑïÑ¯¥? Ñ§ÑóÑ«¥'ÑæÑûÑ«Ñæ¥?Ñø */
   className?: string
-  /** Колбэк после загрузки карты */
+  /** ÑsÑóÑ¯Ññ¥?Ñ§ Ñ¨Ñó¥?Ñ¯Ñæ ÑúÑøÑü¥?¥ŸÑúÑ§Ñ÷ Ñ§Ñø¥?¥'¥< */
   onMapLoad?: (map: mapboxgl.Map) => void
-  /** Колбэк при изменении границ карты */
+  /** ÑsÑóÑ¯Ññ¥?Ñ§ Ñ¨¥?Ñ÷ Ñ÷ÑúÑ¬ÑæÑ«ÑæÑ«Ñ÷Ñ÷ Ñü¥?ÑøÑ«Ñ÷¥Å Ñ§Ñø¥?¥'¥< */
   onBoundsChange?: (bounds: mapboxgl.LngLatBounds) => void
-  /** Колбэк при изменении зума */
+  /** ÑsÑóÑ¯Ññ¥?Ñ§ Ñ¨¥?Ñ÷ Ñ÷ÑúÑ¬ÑæÑ«ÑæÑ«Ñ÷Ñ÷ Ñú¥ŸÑ¬Ñø */
   onZoomChange?: (zoom: number) => void
-  /** Показывать ли контролы навигации */
+  /** ÑYÑóÑ§ÑøÑú¥<ÑýÑø¥'¥O Ñ¯Ñ÷ Ñ§ÑóÑ«¥'¥?ÑóÑ¯¥< Ñ«ÑøÑýÑ÷ÑüÑø¥ÅÑ÷Ñ÷ */
   showNavigation?: boolean
-  /** Показывать ли контрол геолокации */
+  /** ÑYÑóÑ§ÑøÑú¥<ÑýÑø¥'¥O Ñ¯Ñ÷ Ñ§ÑóÑ«¥'¥?ÑóÑ¯ ÑüÑæÑóÑ¯ÑóÑ§Ñø¥ÅÑ÷Ñ÷ */
   showGeolocate?: boolean
-  /** Показывать ли контрол масштаба */
+  /** ÑYÑóÑ§ÑøÑú¥<ÑýÑø¥'¥O Ñ¯Ñ÷ Ñ§ÑóÑ«¥'¥?ÑóÑ¯ Ñ¬Ñø¥?¥^¥'ÑøÑñÑø */
   showScale?: boolean
-  /** Дети (React элементы поверх карты) */
+  /** Ñ"Ñæ¥'Ñ÷ (React ¥?Ñ¯ÑæÑ¬ÑæÑ«¥'¥< Ñ¨ÑóÑýÑæ¥?¥. Ñ§Ñø¥?¥'¥<) */
   children?: React.ReactNode
 }
 
 /**
- * Базовый компонент карты Mapbox GL JS
+ * Ñ'ÑøÑúÑóÑý¥<Ñû Ñ§ÑóÑ¬Ñ¨ÑóÑ«ÑæÑ«¥' Ñ§Ñø¥?¥'¥< Mapbox GL JS
  */
 export const MapboxMap: React.FC<MapboxMapProps> = ({
   center = [7.8494, 48.0],
@@ -99,6 +99,9 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
   const [error, setError] = useState<string | null>(null)
   const boundsChangeRef = useRef<MapboxMapProps['onBoundsChange']>(onBoundsChange)
   const zoomChangeRef = useRef<MapboxMapProps['onZoomChange']>(onZoomChange)
+  const lastBoundsRef = useRef<[number, number, number, number] | null>(null) // [N,S,E,W] ¥? ÑóÑ§¥?¥ŸÑüÑ¯ÑæÑ«Ñ÷ÑæÑ¬
+  const lastZoomRef = useRef<number | null>(null) // Ñú¥ŸÑ¬ ¥? ÑóÑ§¥?¥ŸÑüÑ¯ÑæÑ«Ñ÷ÑæÑ¬
+  const boundsEmitTimerRef = useRef<number | null>(null)
 
   useEffect(() => {
     boundsChangeRef.current = onBoundsChange
@@ -111,18 +114,17 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return
 
-    console.log('🗺️ [MapboxMap] Начало инициализации карты')
-    console.log('🔑 [MapboxMap] Mapbox token configured:', MAPBOX_TOKEN ? 'present' : 'missing')
-
-    // Устанавливаем токен Mapbox
+    // Mapbox GL JS ¥'¥?ÑæÑñ¥ŸÑæ¥' Ñ«ÑæÑ¨¥Ÿ¥?¥'ÑóÑû ¥'ÑóÑ§ÑæÑ« ÑïÑøÑôÑæ ÑïÑ¯¥? ¥?¥'Ñó¥?ÑóÑ«Ñ«Ñ÷¥. ¥'ÑøÑûÑ¯ÑóÑý.
+    // ÑYÑó¥?¥'ÑóÑ¬¥Ÿ Ñ§Ñ¯ÑøÑï¥'Ñ¬ Ñ¯Ñ÷ÑñÑó ¥?ÑæÑøÑ¯¥OÑ«¥<Ñû ¥'ÑóÑ§ÑæÑ«, Ñ¯Ñ÷ÑñÑó ÑñÑæÑúÑóÑ¨Ñø¥?Ñ«¥<Ñû ÑúÑøÑüÑ¯¥Ÿ¥^Ñæ¥ÎÑ«¥<Ñû,
+    // ¥Î¥'ÑóÑñ¥< fallback ¥?¥'Ñ÷Ñ¯¥O Carto Ñ¬ÑóÑü Ñó¥'¥?Ñ÷¥?ÑóÑýÑø¥'¥O¥?¥? Ñý ÑïÑæÑý-¥?ÑñÑó¥?Ñ§Ñæ.
     if (MAPBOX_TOKEN) {
       mapboxgl.accessToken = MAPBOX_TOKEN
-      console.log('✅ [MapboxMap] Токен Mapbox установлен')
     } else {
-      console.warn('⚠️ [MapboxMap] VITE_MAPBOX_TOKEN не установлен. Используется fallback стиль Carto.')
+      mapboxgl.accessToken = 'dev-fallback-token'
+      console.warn('[MapboxMap] VITE_MAPBOX_TOKEN is missing. Falling back to CARTO raster tiles.')
     }
 
-    // Определяем стиль для использования
+    // ÑzÑ¨¥?ÑæÑïÑæÑ¯¥?ÑæÑ¬ ¥?¥'Ñ÷Ñ¯¥O ÑïÑ¯¥? Ñ÷¥?Ñ¨ÑóÑ¯¥OÑúÑóÑýÑøÑ«Ñ÷¥?
     const mapStyle: string | StyleSpecification =
       typeof style === 'object'
         ? style
@@ -130,12 +132,8 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
           ? style
           : FALLBACK_STYLE
 
-    console.log('🎨 [MapboxMap] Используемый стиль:', typeof mapStyle === 'string' ? mapStyle : 'Fallback Carto')
-
     try {
-      console.log('📍 [MapboxMap] Создание карты с параметрами:', { center, zoom, minZoom, maxZoom })
-      
-      // Создаём экземпляр карты
+      // Ñ­ÑóÑúÑïÑø¥'Ñ¬ ¥?Ñ§ÑúÑæÑ¬Ñ¨Ñ¯¥?¥? Ñ§Ñø¥?¥'¥<
       const map = new mapboxgl.Map({
         container: mapContainerRef.current,
         style: mapStyle,
@@ -146,36 +144,33 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
         bearing,
         pitch,
         attributionControl: true,
-        // Улучшенная производительность
+        // ÑœÑ¯¥Ÿ¥Î¥^ÑæÑ«Ñ«Ñø¥? Ñ¨¥?ÑóÑ÷ÑúÑýÑóÑïÑ÷¥'ÑæÑ¯¥OÑ«Ñó¥?¥'¥O
         fadeDuration: 100,
         refreshExpiredTiles: false,
       })
 
       mapRef.current = map
-      console.log('✅ [MapboxMap] Экземпляр карты создан')
 
-      // Обработчик успешной загрузки
-      map.on('load', () => {
-        console.log('🎉 [MapboxMap] Карта успешно загружена!')
+      // ÑzÑñ¥?ÑøÑñÑó¥'¥ÎÑ÷Ñ§ ¥Ÿ¥?Ñ¨Ñæ¥^Ñ«ÑóÑû ÑúÑøÑü¥?¥ŸÑúÑ§Ñ÷
+        map.on('load', () => {
         setIsLoaded(true)
         setError(null)
         onMapLoad?.(map)
       })
 
-      // Обработчик ошибок загрузки стиля
+      // ÑzÑñ¥?ÑøÑñÑó¥'¥ÎÑ÷Ñ§ Ñó¥^Ñ÷ÑñÑóÑ§ ÑúÑøÑü¥?¥ŸÑúÑ§Ñ÷ ¥?¥'Ñ÷Ñ¯¥?
       map.on('error', (e) => {
-        console.error('❌ [MapboxMap] Ошибка карты:', e)
+        console.error('[MapboxMap] Mapbox error event', e)
         
-        // Если ошибка связана со стилем и мы ещё не пробовали fallback
+        // Ñ¥?Ñ¯Ñ÷ Ñó¥^Ñ÷ÑñÑ§Ñø ¥?Ñý¥?ÑúÑøÑ«Ñø ¥?Ñó ¥?¥'Ñ÷Ñ¯ÑæÑ¬ Ñ÷ Ñ¬¥< Ñæ¥%¥' Ñ«Ñæ Ñ¨¥?ÑóÑñÑóÑýÑøÑ¯Ñ÷ fallback
         if (e.error?.message?.includes('style')) {
-          console.warn('⚠️ [MapboxMap] Ошибка загрузки стиля Mapbox. Оставляем текущий стиль, чтобы не дёргать источники повторно.')
+          console.warn('[MapboxMap] Map style failed to load. Check VITE_MAPBOX_TOKEN (401/403 usually means invalid token).')
         }
 
-        console.error('❌ [MapboxMap] Критическая ошибка загрузки карты')
-        setError('Ошибка загрузки карты')
+        setError('Failed to load map.')
       })
 
-      // Добавляем контролы навигации
+      // Ñ"ÑóÑñÑøÑýÑ¯¥?ÑæÑ¬ Ñ§ÑóÑ«¥'¥?ÑóÑ¯¥< Ñ«ÑøÑýÑ÷ÑüÑø¥ÅÑ÷Ñ÷
       if (showNavigation) {
         const nav = new mapboxgl.NavigationControl({
           showCompass: true,
@@ -183,10 +178,9 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
           visualizePitch: true,
         })
         map.addControl(nav, 'top-right')
-        console.log('🧭 [MapboxMap] Контрол навигации добавлен')
       }
 
-      // Добавляем контрол геолокации
+      // Ñ"ÑóÑñÑøÑýÑ¯¥?ÑæÑ¬ Ñ§ÑóÑ«¥'¥?ÑóÑ¯ ÑüÑæÑóÑ¯ÑóÑ§Ñø¥ÅÑ÷Ñ÷
       if (showGeolocate) {
         const geolocate = new mapboxgl.GeolocateControl({
           positionOptions: {
@@ -197,57 +191,85 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
           showAccuracyCircle: true,
         })
         map.addControl(geolocate, 'top-right')
-        console.log('📍 [MapboxMap] Контрол геолокации добавлен')
       }
 
-      // Добавляем контрол масштаба
+      // Ñ"ÑóÑñÑøÑýÑ¯¥?ÑæÑ¬ Ñ§ÑóÑ«¥'¥?ÑóÑ¯ Ñ¬Ñø¥?¥^¥'ÑøÑñÑø
       if (showScale) {
         const scale = new mapboxgl.ScaleControl({
           maxWidth: 100,
           unit: 'metric',
         })
         map.addControl(scale, 'bottom-left')
-        console.log('📏 [MapboxMap] Контрол масштаба добавлен')
       }
 
-      // Слушатели событий
-      const handleMoveEnd = () => {
+      // Ñ­Ñ¯¥Ÿ¥^Ñø¥'ÑæÑ¯Ñ÷ ¥?ÑóÑñ¥<¥'Ñ÷Ñû
+      const roundCoord = (value: number) => Number(value.toFixed(4)) // 4 ÑúÑ«ÑøÑ§Ñø ~ 11 Ñ¬ ¥'Ñó¥ÎÑ«Ñó¥?¥'Ñ÷
+      const roundZoom = (value: number) => Number(value.toFixed(1)) // ¥^ÑøÑü 0.1
+
+      const emitBoundsThrottled = () => {
+        boundsEmitTimerRef.current = null
         const callback = boundsChangeRef.current
         if (!callback) return
         const bounds = map.getBounds()
-        if (bounds) {
-          console.log('🔄 [MapboxMap] Границы карты изменились:', {
-            north: bounds.getNorth().toFixed(4),
-            south: bounds.getSouth().toFixed(4),
-            east: bounds.getEast().toFixed(4),
-            west: bounds.getWest().toFixed(4)
-          })
-          callback(bounds)
-        }
+        if (!bounds) return
+
+        const north = roundCoord(bounds.getNorth())
+        const south = roundCoord(bounds.getSouth())
+        const east = roundCoord(bounds.getEast())
+        const west = roundCoord(bounds.getWest())
+
+        const prev = lastBoundsRef.current
+        const unchanged =
+          prev &&
+          prev[0] === north &&
+          prev[1] === south &&
+          prev[2] === east &&
+          prev[3] === west
+
+        if (unchanged) return
+
+        lastBoundsRef.current = [north, south, east, west]
+        callback(bounds)
+      }
+
+      const scheduleBoundsEmit = () => {
+        if (boundsEmitTimerRef.current !== null) return
+        boundsEmitTimerRef.current = window.setTimeout(emitBoundsThrottled, 150)
+      }
+
+      const handleMoveEnd = () => {
+        scheduleBoundsEmit()
       }
 
       const handleZoomChange = () => {
         const callback = zoomChangeRef.current
         if (!callback) return
         const currentZoom = map.getZoom()
-        console.log('🔍 [MapboxMap] Зум изменился:', currentZoom.toFixed(2))
-        callback(currentZoom)
+        const rounded = roundZoom(currentZoom)
+        const prev = lastZoomRef.current
+        if (prev !== null && Math.abs(prev - rounded) < 0.05) return
+        lastZoomRef.current = rounded
+        callback(rounded)
       }
 
       map.on('moveend', handleMoveEnd)
-      map.on('zoom', handleZoomChange)
+      map.on('zoomend', handleZoomChange)
 
 
       // Cleanup
       return () => {
+        if (boundsEmitTimerRef.current !== null) {
+          clearTimeout(boundsEmitTimerRef.current)
+          boundsEmitTimerRef.current = null
+        }
         map.off('moveend', handleMoveEnd)
-        map.off('zoom', handleZoomChange)
+        map.off('zoomend', handleZoomChange)
         map.remove()
         mapRef.current = null
       }
     } catch (err) {
-      console.error('Ошибка инициализации карты:', err)
-      setError('Не удалось инициализировать карту')
+      console.error('[MapboxMap] Map initialization error', err)
+      setError('Failed to initialize map.')
     }
   }, [
     bearing,
@@ -263,14 +285,14 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
     zoom,
   ])
 
-  // Обновляем центр карты при изменении пропса
+  // ÑzÑñÑ«ÑóÑýÑ¯¥?ÑæÑ¬ ¥ÅÑæÑ«¥'¥? Ñ§Ñø¥?¥'¥< Ñ¨¥?Ñ÷ Ñ÷ÑúÑ¬ÑæÑ«ÑæÑ«Ñ÷Ñ÷ Ñ¨¥?ÑóÑ¨¥?Ñø
   useEffect(() => {
     if (mapRef.current && isLoaded) {
       mapRef.current.jumpTo({ center })
     }
   }, [center, isLoaded])
 
-  // Обновляем зум при изменении пропса
+  // ÑzÑñÑ«ÑóÑýÑ¯¥?ÑæÑ¬ Ñú¥ŸÑ¬ Ñ¨¥?Ñ÷ Ñ÷ÑúÑ¬ÑæÑ«ÑæÑ«Ñ÷Ñ÷ Ñ¨¥?ÑóÑ¨¥?Ñø
   useEffect(() => {
     if (mapRef.current && isLoaded) {
       mapRef.current.setZoom(zoom)
@@ -281,21 +303,21 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
     <div className={cn('relative w-full h-full', className)}>
       <div ref={mapContainerRef} className="absolute inset-0" />
       
-      {/* Индикатор загрузки */}
+      {/* Ñ~Ñ«ÑïÑ÷Ñ§Ñø¥'Ñó¥? ÑúÑøÑü¥?¥ŸÑúÑ§Ñ÷ */}
       {!isLoaded && !error && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-900 bg-opacity-75 z-10">
-          <div className="text-white text-lg">Загрузка карты...</div>
+          <div className="text-white text-lg">Loading map…</div>
         </div>
       )}
 
-      {/* Сообщение об ошибке */}
+      {/* Ñ­ÑóÑóÑñ¥%ÑæÑ«Ñ÷Ñæ ÑóÑñ Ñó¥^Ñ÷ÑñÑ§Ñæ */}
       {error && (
         <div className="absolute inset-0 flex items-center justify-center bg-red-900 bg-opacity-75 z-10">
           <div className="text-white text-lg">{error}</div>
         </div>
       )}
 
-      {/* Дочерние элементы (рендерятся поверх карты) */}
+      {/* Ñ"Ñó¥ÎÑæ¥?Ñ«Ñ÷Ñæ ¥?Ñ¯ÑæÑ¬ÑæÑ«¥'¥< (¥?ÑæÑ«ÑïÑæ¥?¥?¥'¥?¥? Ñ¨ÑóÑýÑæ¥?¥. Ñ§Ñø¥?¥'¥<) */}
       {isLoaded && children}
     </div>
   )

@@ -1,15 +1,13 @@
-export type ItemKind =
-  | 'weapon'
-  | 'armor'
-  | 'artifact'
-  | 'consumable'
-  | 'clothing'
-  | 'backpack'
-  | 'rig'
-  | 'quest'
-  | 'misc'
+// Base types from shared
+export type {
+  ItemKind,
+  Rarity,
+  ItemStats,
+  ContainerConfig,
+  SpecialEffect,
+} from '@/shared/data/itemTypes'
 
-export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary'
+import type { ItemKind, Rarity, ItemStats } from '@/shared/data/itemTypes'
 
 export const RARITY_COLORS: Record<Rarity, string> = {
   common: 'border-slate-500 bg-slate-900/50',
@@ -38,35 +36,11 @@ export type EquipmentSlotId =
   | 'quick_4'
   | 'quick_5'
 
-export interface SpecialEffect {
-  name: string
-  type: 'buff' | 'debuff' | 'passive'
-  value: number
-  description: string
-}
-
-export interface ContainerConfig {
-  width: number
-  height: number
-  name: string // e.g., "Vest Pockets", "Main Compartment"
-}
-
-export interface ItemStats {
-  damage?: number
-  defense?: number
-  weight: number
-  width: number
-  height: number
-  maxDurability?: number
-  capacity?: number
-  containerConfig?: ContainerConfig // If this item provides storage (e.g. backpack)
-  specialEffects?: SpecialEffect[]
-}
-
 export interface Item {
   id: string
   templateId: string
   instanceId: string
+  ownerId?: string
   kind: ItemKind
   name: string
   description: string

@@ -3,16 +3,15 @@ import { cn } from '@/shared/lib/utils/cn'
 import { User } from 'lucide-react'
 
 export interface PlayerMarkerProps {
-    name: string
+    name?: string
     status?: string
     factionId?: string
     onClick?: () => void
 }
 
 export const PlayerMarker: React.FC<PlayerMarkerProps> = ({
-    name,
+    name = 'Player',
     status,
-    factionId,
     onClick,
 }) => {
     // Determine color based on faction or status

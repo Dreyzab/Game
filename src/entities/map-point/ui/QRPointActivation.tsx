@@ -8,6 +8,7 @@ interface QRPointActivationProps {
     pointTitle: string
     onScan: (data: string) => void
     onClose: () => void
+    simulateData?: string
     className?: string
 }
 
@@ -15,6 +16,7 @@ export const QRPointActivation: React.FC<QRPointActivationProps> = ({
     pointTitle,
     onScan,
     onClose,
+    simulateData,
     className,
 }) => {
     const [error, setError] = useState<string | null>(null)
@@ -38,9 +40,7 @@ export const QRPointActivation: React.FC<QRPointActivationProps> = ({
     // Debug simulation
     const handleSimulateScan = () => {
         setIsScanning(false)
-        // Simulate a valid QR code format (usually just a string ID or specific format)
-        // For now, we'll send a generic "simulated-qr" or let the parent handle logic
-        onScan('simulated-qr-code')
+        onScan(simulateData ?? 'simulated-qr-code')
     }
 
     return (

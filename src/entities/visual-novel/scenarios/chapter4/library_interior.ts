@@ -209,7 +209,7 @@ const golemCombatInjections: PrivateInjection[] = [
   },
   {
     id: 'combat_strength_dominate',
-    voice: 'strength',
+    voice: 'force',
     voiceGroup: 'body',
     threshold: 55,
     text: 'ОНИ — КАМЕНЬ И МЕТАЛЛ. МЫ — ВОЛЯ И ЯРОСТЬ. СЛОМАЙ ИХ.',
@@ -789,7 +789,7 @@ const dialogues: PolyphonicDialogue[] = [
       },
       {
         id: 'released_strength_weak',
-        voice: 'strength',
+        voice: 'force',
         voiceGroup: 'body',
         threshold: 50,
         text: 'Слабость. Отпустил врага. Он вернётся. С друзьями.',
@@ -1593,5 +1593,4 @@ export const libraryEndings = {
 } as const
 
 export type LibraryEndingType = typeof libraryEndings[keyof typeof libraryEndings]
-
 

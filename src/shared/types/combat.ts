@@ -252,7 +252,7 @@ export interface EnemyTemplate {
   // Behavior
   preferredRanks: CombatRank[]
   retreatThreshold: number // HP% at which to retreat
-  immunities: EffectType[]
+  immunities: Array<EffectType | DamageType>
 
   // Cards/Actions
   availableActions: string[] // Card IDs
@@ -439,6 +439,13 @@ export const STAMINA_COSTS = {
 } as const
 
 // ================== ЭКСПОРТ ==================
+
+
+
+
+
+
+
 
 
 

@@ -2,7 +2,6 @@ import type { EquipmentSlots as EquipmentSlotsType, SlotKey, ItemState } from '@
 import { ITEM_TEMPLATES } from '@/entities/item/model/templates'
 import { clsx } from 'clsx'
 import { useDroppable, useDraggable } from '@dnd-kit/core'
-import { isValidSlotDrop } from '../../model/utils'
 
 type EquipmentSlotsProps = {
   equipment: EquipmentSlotsType

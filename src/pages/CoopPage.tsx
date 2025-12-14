@@ -1,209 +1,286 @@
-/**
- * CoopPage - Страница локального кооператива
- * 
- * Маршрутизация:
- * - /coop - Создание комнаты / ввод кода
- * - /coop/:roomCode - Лобби комнаты
- * - /coop/:roomCode/battle - Боевой экран
- * - /coop/:roomCode/results - Результаты боя
- */
+import React, { useCallback, useMemo, useState } from 'react'
+import { useAuth } from '@clerk/clerk-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useNavigate, useParams } from 'react-router-dom'
+import { authenticatedClient } from '@/shared/api/client'
+import { Button } from '@/shared/ui/components/Button'
+import { Text } from '@/shared/ui/components/Text'
+import { Heading } from '@/shared/ui/components/Heading'
+import { CoopBattleScreen } from '@/features/coop'
+import { COOP_ROLES, type CoopRoleId } from '@/shared/types/coop'
+import { PARLIAMENT_VOICES } from '@/shared/types/parliament'
 
-import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from 'convex/react';
-import { api } from '@convex/_generated/api';
-import { useDeviceId } from '@/shared/hooks/useDeviceId';
-import { CoopLobby, RoomLobby, CoopBattleScreen } from '@/features/coop';
-import { motion } from 'framer-motion';
-import { cn } from '@/shared/lib/utils/cn';
+type Role = CoopRoleId
 
-// ============================================================================
-// RESULTS SCREEN
-// ============================================================================
+const CoopPage: React.FC = () => {
+  const { roomCode: paramCode } = useParams()
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const { getToken, isLoaded, isSignedIn, userId } = useAuth()
 
-const CoopResultsScreen = ({ roomCode }: { roomCode: string }) => {
-  const navigate = useNavigate();
-  const room = useQuery(api["coop/rooms"].getRoomByCode, { roomCode });
-  
-  if (!room) {
-    return (
-      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
-        Загрузка...
-      </div>
-    );
+  const [roomCode, setRoomCode] = useState(() => paramCode?.toUpperCase() ?? '')
+  const [activeRoom, setActiveRoom] = useState(() => paramCode?.toUpperCase() ?? '')
+  const [role, setRole] = useState<Role>('body')
+
+  const roleIds: Role[] = ['body', 'mind', 'social']
+  const activeRoleDef = COOP_ROLES[role]
+
+  const roomQuery = useQuery({
+    queryKey: ['coop-room', activeRoom],
+    enabled: isLoaded && isSignedIn && Boolean(activeRoom),
+    refetchInterval: 3000,
+    queryFn: async () => {
+      const token = await getToken()
+      const client = authenticatedClient(token || undefined)
+      const { data, error } = await client.coop.rooms({ code: activeRoom }).get()
+      if (error) throw error
+      if (!data) throw new Error('Empty response')
+      if (typeof (data as any).error === 'string') throw new Error((data as any).error)
+      if (!(data as any).room) throw new Error('Room not found')
+      return (data as any).room
+    },
+  })
+
+  const createRoom = useMutation({
+    mutationFn: async () => {
+      const token = await getToken()
+      const client = authenticatedClient(token || undefined)
+      const { data, error } = await client.coop.rooms.post({ role })
+      if (error) throw error
+      if (!data) throw new Error('Empty response')
+      if (typeof (data as any).error === 'string') throw new Error((data as any).error)
+      if (!(data as any).room) throw new Error('Room not created')
+      return (data as any).room
+    },
+    onSuccess: (room) => {
+      setActiveRoom(room.code)
+      navigate(`/coop/${room.code}`)
+      queryClient.invalidateQueries({ queryKey: ['coop-room', room.code] })
+    },
+  })
+
+  const joinRoom = useMutation({
+    mutationFn: async (code: string) => {
+      const token = await getToken()
+      const client = authenticatedClient(token || undefined)
+      const { data, error } = await client.coop.rooms({ code: code.toUpperCase() }).join.post({ role })
+      if (error) throw error
+      if (!data) throw new Error('Empty response')
+      if (typeof (data as any).error === 'string') throw new Error((data as any).error)
+      if (!(data as any).room) throw new Error('Room not found')
+      return (data as any).room
+    },
+    onSuccess: (room) => {
+      setActiveRoom(room.code)
+      navigate(`/coop/${room.code}`)
+      queryClient.invalidateQueries({ queryKey: ['coop-room', room.code] })
+    },
+  })
+
+  const leaveRoom = useMutation({
+    mutationFn: async () => {
+      if (!activeRoom) return null
+      const token = await getToken()
+      const client = authenticatedClient(token || undefined)
+      const { data, error } = await client.coop.rooms({ code: activeRoom }).leave.post()
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => {
+      setActiveRoom('')
+      navigate('/coop')
+      queryClient.invalidateQueries()
+    },
+  })
+
+  const readyToggle = useMutation({
+    mutationFn: async (ready: boolean) => {
+      if (!activeRoom) return null
+      const token = await getToken()
+      const client = authenticatedClient(token || undefined)
+      const { data, error } = await client.coop.rooms({ code: activeRoom }).ready.post({ ready })
+      if (error) throw error
+      if (!data) throw new Error('Empty response')
+      if (typeof (data as any).error === 'string') throw new Error((data as any).error)
+      if (!(data as any).room) throw new Error('Room not found')
+      return (data as any).room
+    },
+    onSuccess: (room) => {
+      queryClient.setQueryData(['coop-room', activeRoom], room)
+    },
+  })
+
+  const startRoom = useMutation({
+    mutationFn: async () => {
+      if (!activeRoom) return null
+      const token = await getToken()
+      const client = authenticatedClient(token || undefined)
+      const { data, error } = await client.coop.rooms({ code: activeRoom }).start.post()
+      if (error) throw error
+      if (!data) throw new Error('Empty response')
+      if (typeof (data as any).error === 'string') throw new Error((data as any).error)
+      if (!(data as any).room) throw new Error('Room not found')
+      return (data as any).room
+    },
+    onSuccess: (room) => {
+      queryClient.setQueryData(['coop-room', activeRoom], room)
+    },
+  })
+
+  const meReady = useMemo(() => {
+    if (!roomQuery.data || !userId) return false
+    return roomQuery.data.players.some((p: any) => p.id === userId && p.ready)
+  }, [roomQuery.data, userId])
+
+  const everyoneReady = useMemo(() => {
+    if (!roomQuery.data) return false
+    return roomQuery.data.players.length > 0 && roomQuery.data.players.every((p: any) => p.ready)
+  }, [roomQuery.data])
+
+  const handleJoin = useCallback(
+    (code?: string) => {
+      if (!code) return
+      joinRoom.mutate(code)
+    },
+    [joinRoom]
+  )
+
+  // If room exists and coop already started, show the shared quest instead of lobby.
+  if (activeRoom && roomQuery.data?.status === 'in_progress') {
+    return <CoopBattleScreen roomCode={activeRoom} />
   }
-  
-  const isVictory = room.log.some((l: any) => l.action === 'victory');
-  
-  return (
-    <div className={cn(
-      "min-h-screen text-white p-6",
-      "bg-gradient-to-b",
-      isVictory 
-        ? "from-green-900/50 via-gray-900 to-gray-950" 
-        : "from-red-900/50 via-gray-900 to-gray-950"
-    )}>
-      <div className="max-w-md mx-auto text-center">
-        {/* Result Icon */}
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ type: 'spring', delay: 0.2 }}
-          className="text-8xl mb-6"
-        >
-          {isVictory ? '🏆' : '💀'}
-        </motion.div>
-        
-        {/* Result Text */}
-        <motion.h1
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className={cn(
-            "text-4xl font-bold mb-4",
-            isVictory ? "text-green-400" : "text-red-400"
-          )}
-        >
-          {isVictory ? 'ПОБЕДА!' : 'ПОРАЖЕНИЕ'}
-        </motion.h1>
-        
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.6 }}
-          className="text-gray-400 mb-8"
-        >
-          {isVictory 
-            ? 'Отряд успешно выполнил миссию!' 
-            : 'Отряд был уничтожен. Попробуйте снова.'}
-        </motion.p>
-        
-        {/* Stats */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.8 }}
-          className="bg-gray-800/50 rounded-xl p-4 mb-8 border border-gray-700"
-        >
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <div className="text-gray-500">Раундов</div>
-              <div className="text-xl font-bold">{room.currentRound}</div>
-            </div>
-            <div>
-              <div className="text-gray-500">Действий</div>
-              <div className="text-xl font-bold">
-                {room.log.filter((l: any) => l.actorId !== 'system').length}
-              </div>
-            </div>
-          </div>
-        </motion.div>
-        
-        {/* Battle Log Summary */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1 }}
-          className="bg-black/30 rounded-xl p-3 mb-8 max-h-40 overflow-y-auto text-left"
-        >
-          <div className="text-xs text-gray-500 uppercase tracking-wider mb-2">
-            Журнал боя
-          </div>
-          {room.log.slice(-10).map((log: any, i: number) => (
-            <div key={i} className="text-xs text-gray-400 mb-1 font-mono">
-              <span className="text-gray-600">[R{log.round}]</span>{' '}
-              {log.actorName}: {log.action}
-              {log.damage && <span className="text-red-400"> -{log.damage}</span>}
-            </div>
-          ))}
-        </motion.div>
-        
-        {/* Actions */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1.2 }}
-          className="space-y-3"
-        >
-          <button
-            onClick={() => navigate('/coop')}
-            className={cn(
-              "w-full py-4 rounded-xl font-bold text-lg",
-              "bg-gradient-to-r from-cyan-600 to-purple-600",
-              "hover:from-cyan-500 hover:to-purple-500 transition-all"
-            )}
-          >
-            Новая Игра
-          </button>
-          
-          <button
-            onClick={() => navigate('/')}
-            className="w-full py-3 rounded-xl bg-gray-700 text-gray-300 hover:bg-gray-600 transition-all"
-          >
-            На главную
-          </button>
-        </motion.div>
-      </div>
-    </div>
-  );
-};
 
-// ============================================================================
-// BATTLE WRAPPER
-// ============================================================================
-
-const CoopBattleWrapper = ({ roomCode }: { roomCode: string }) => {
-  const { deviceId } = useDeviceId();
-  const room = useQuery(api["coop/rooms"].getRoomByCode, { roomCode });
-  
-  if (!room) {
+  if (!isLoaded || !isSignedIn) {
     return (
-      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin w-8 h-8 border-2 border-cyan-500 border-t-transparent rounded-full mx-auto mb-4" />
-          <div className="text-gray-400">Поиск комнаты...</div>
+      <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center p-6">
+        <div className="max-w-xl text-center space-y-3">
+          <Heading level={2}>Co-op requires sign-in</Heading>
+          <Text variant="muted" size="sm">
+            Please sign in to create or join a local co-op room.
+          </Text>
         </div>
       </div>
-    );
+    )
   }
-  
-  // Redirect to results if finished
-  if (room.status === 'finished') {
-    return <CoopResultsScreen roomCode={roomCode} />;
-  }
-  
-  // Redirect to lobby if not started
-  if (room.status === 'lobby') {
-    return <RoomLobby roomCode={roomCode} />;
-  }
-  
-  return <CoopBattleScreen roomCode={roomCode} />;
-};
 
-// ============================================================================
-// MAIN PAGE COMPONENT
-// ============================================================================
+  return (
+    <div className="min-h-screen bg-gray-950 text-white flex flex-col items-center p-6 gap-6">
+      <div className="max-w-3xl w-full space-y-3 text-center">
+        <Heading level={2}>Local Co-op (LCSD)</Heading>
+        <Text variant="muted" size="sm">
+          Создайте комнату, распределите роли BODY / MIND / SOCIAL и проходите совместный сюжет, принимая решения из
+          разных позиций одного отряда.
+        </Text>
+      </div>
 
-const CoopPage = () => {
-  const { roomCode, '*': subPath } = useParams<{ roomCode?: string; '*'?: string }>();
-  
-  // /coop - Create/Join
-  if (!roomCode) {
-    return <CoopLobby />;
-  }
-  
-  // /coop/:roomCode/battle
-  if (subPath === 'battle') {
-    return <CoopBattleWrapper roomCode={roomCode} />;
-  }
-  
-  // /coop/:roomCode/results
-  if (subPath === 'results') {
-    return <CoopResultsScreen roomCode={roomCode} />;
-  }
-  
-  // /coop/:roomCode - Lobby
-  return <RoomLobby roomCode={roomCode} />;
-};
+      <div className="w-full max-w-3xl grid gap-4 md:grid-cols-2">
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-3">
+          <Heading level={4}>Создать комнату</Heading>
+          <div className="flex gap-2 items-center">
+            <label className="text-sm text-white/70">Роль</label>
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value as Role)}
+              className="bg-gray-900 border border-white/10 rounded px-3 py-2 text-sm"
+            >
+              {roleIds.map((id) => (
+                <option key={id} value={id}>
+                  {COOP_ROLES[id].label} · {COOP_ROLES[id].nameRu}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1 text-left">
+            <Text variant="muted" size="sm">
+              {activeRoleDef.description}
+            </Text>
+            <Text variant="muted" size="xs">
+              Стиль: {activeRoleDef.playstyleHint}
+            </Text>
+            <Text variant="muted" size="xs">
+              Ключевые голоса:{' '}
+              {activeRoleDef.focusVoices
+                .map((id) => PARLIAMENT_VOICES[id]?.nameRu ?? id)
+                .join(', ')}
+            </Text>
+          </div>
+          <Button variant="primary" onClick={() => createRoom.mutate()} disabled={createRoom.isPending}>
+            {createRoom.isPending ? 'Создание…' : 'Создать комнату'}
+          </Button>
+        </div>
 
-export default CoopPage;
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-3">
+          <Heading level={4}>Присоединиться к комнате</Heading>
+          <input
+            value={roomCode}
+            onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+            placeholder="Код комнаты"
+            className="w-full rounded-lg border border-white/10 bg-gray-900 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-sky-500"
+          />
+          <Button variant="secondary" onClick={() => handleJoin(roomCode)} disabled={joinRoom.isPending}>
+            {joinRoom.isPending ? 'Подключение…' : 'Войти по коду'}
+          </Button>
+        </div>
+      </div>
 
+      {activeRoom && (
+        <div className="w-full max-w-3xl rounded-2xl border border-white/10 bg-white/5 p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <Heading level={4}>Комната {activeRoom}</Heading>
+              <Text variant="muted" size="sm">
+                {roomQuery.data?.status === 'in_progress' ? 'Сцена квеста запущена' : 'Лобби'}
+              </Text>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="ghost" onClick={() => readyToggle.mutate(!meReady)}>
+                {meReady ? 'Готов' : 'Отметить «готов»'}
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => startRoom.mutate()}
+                disabled={!everyoneReady || startRoom.isPending}
+              >
+                Начать совместный квест
+              </Button>
+              <Button variant="secondary" onClick={() => leaveRoom.mutate()}>
+                Выйти
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid gap-2">
+            {roomQuery.isLoading && <Text variant="muted">Обновление информации о комнате…</Text>}
+            {roomQuery.data?.players?.map((p: any) => {
+              const playerRole = p.role as Role | undefined
+              const def = playerRole ? COOP_ROLES[playerRole] : undefined
+              return (
+                <div
+                  key={p.id}
+                  className="flex items-center justify-between rounded-xl border border-white/5 bg-black/30 px-3 py-2"
+                >
+                  <div className="flex flex-col">
+                    <span className="text-sm font-semibold">{p.id}</span>
+                    <span className="text-xs text-white/60">
+                      {def ? `${def.label} · ${def.nameRu}` : 'Роль не выбрана'}
+                    </span>
+                  </div>
+                  <span className={`text-xs ${p.ready ? 'text-emerald-400' : 'text-amber-300'}`}>
+                    {p.ready ? 'Готов' : 'Ждём'}
+                  </span>
+                </div>
+              )
+            })}
+            {!roomQuery.data && !roomQuery.isLoading && (
+              <Text variant="muted" size="sm">
+                Информация о комнате недоступна.
+              </Text>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default CoopPage

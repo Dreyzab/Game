@@ -1,16 +1,14 @@
 import React, { useEffect } from 'react'
 import type { Map, GeoJSONSource } from 'mapbox-gl'
-import { useQuery } from 'convex/react'
-import { api } from '@/shared/api/convex'
 import type { DangerZone } from '@/shared/types/map'
 
 interface DangerZonesLayerProps {
     map: Map | null
     visible: boolean
+    dangerZones?: DangerZone[]
 }
 
-export const DangerZonesLayer: React.FC<DangerZonesLayerProps> = ({ map, visible }) => {
-    const dangerZones = useQuery(api.zones.listDangerZones, {}) || []
+export const DangerZonesLayer: React.FC<DangerZonesLayerProps> = ({ map, visible, dangerZones = [] }) => {
 
     const sourceId = 'danger-zones-source'
     const fillLayerId = 'danger-zones-fill'

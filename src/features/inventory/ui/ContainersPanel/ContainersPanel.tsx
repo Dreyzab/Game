@@ -10,6 +10,7 @@ const titleMap: Record<InventoryContainer['kind'], string> = {
   rig: 'Rig',
   pocket: 'Pocket',
   stash: 'Stash',
+  equipment_storage: 'Equipment Storage',
 }
 
 export const ContainersPanel: React.FC<ContainersPanelProps> = ({ containers }) => {

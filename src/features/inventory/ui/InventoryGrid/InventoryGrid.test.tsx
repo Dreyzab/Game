@@ -25,19 +25,6 @@ vi.mock('@/features/inventory/model/useInventoryDrag', () => ({
     })),
 }))
 
-vi.mock('convex/react', () => ({
-    useMutation: vi.fn(() => Promise.resolve()),
-}))
-
-vi.mock('@/shared/api/convex', () => ({
-    api: {
-        inventory: {
-            move: 'move',
-            equip: 'equip',
-        },
-    },
-}))
-
 describe('InventoryGrid', () => {
     const mockItems: ItemState[] = [
         {

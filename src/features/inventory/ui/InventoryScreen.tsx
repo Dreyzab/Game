@@ -1,4 +1,4 @@
-import { DndContext, DragOverlay, useDraggable, useDroppable, DragStartEvent, DragEndEvent } from '@dnd-kit/core'
+import { DndContext, DragOverlay, useDraggable, useDroppable, type DragStartEvent, type DragEndEvent } from '@dnd-kit/core'
 import { ItemCard } from '@/entities/item/ui/ItemCard'
 import { useInventoryStore } from '@/entities/item/model/store'
 import { useState } from 'react'
@@ -155,7 +155,7 @@ export const InventoryScreen = () => {
                         {/* Quick Slots */}
                         <div className="grid grid-cols-5 gap-2 mt-4 w-full">
                             {equipped.quick.map((item, i) => (
-                                // @ts-ignore
+                                // @ts-expect-error - quick slot ids are constructed dynamically for UI rendering
                                 <EquipmentSlot key={i} slotType={`quick_${i + 1}`} item={item} />
                             ))}
                         </div>

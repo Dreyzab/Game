@@ -1,16 +1,29 @@
 import { usePlayerProgress } from '@/shared/hooks/usePlayer'
-import { VOICES, type VoiceDefinition, type VoiceGroup, VOICE_GROUPS } from './voices'
+import {
+    PARLIAMENT_VOICES,
+    ATTRIBUTE_GROUPS,
+    type VoiceDefinition,
+    type AttributeGroup,
+    type VoiceId
+} from '@/shared/types/parliament'
 
+/**
+ * Hook for working with the Internal Parliament (Voices) system
+ * Uses the canonical 18-voice system from parliament.ts
+ */
 export function usePsyche() {
     const { progress } = usePlayerProgress()
     const skills = progress?.skills || {}
 
     const getVoiceLevel = (voiceId: string) => skills[voiceId] || 0
 
-    const getVoice = (voiceId: string): VoiceDefinition | undefined => VOICES[voiceId]
+    const getVoice = (voiceId: string): VoiceDefinition | undefined =>
+        PARLIAMENT_VOICES[voiceId as VoiceId]
 
-    const getVoicesByGroup = (group: VoiceGroup): VoiceDefinition[] => {
-        return Object.values(VOICES).filter((voice) => voice.group === group)
+    const getVoicesByGroup = (group: AttributeGroup): VoiceDefinition[] => {
+        const groupDef = ATTRIBUTE_GROUPS[group]
+        if (!groupDef) return []
+        return groupDef.voices.map(id => PARLIAMENT_VOICES[id])
     }
 
     const checkVoice = (voiceId: string, difficulty: number) => {
@@ -24,7 +37,10 @@ export function usePsyche() {
         getVoice,
         getVoicesByGroup,
         checkVoice,
-        VOICES,
-        VOICE_GROUPS,
+        VOICES: PARLIAMENT_VOICES,
+        VOICE_GROUPS: ATTRIBUTE_GROUPS,
     }
 }
+
+// Re-export types for convenience
+export type { VoiceDefinition, AttributeGroup, VoiceId }

@@ -16,7 +16,7 @@ export const SystemStatusWidget: React.FC<SystemStatusWidgetProps> = ({ classNam
       delay={0.5}
     >
       <div className="mb-6">
-        <h3 className="text-lg font-semibold mb-2 text-[color:var(--color-text)]">
+        <h3 className="text-lg font-semibold mb-2 text-(--color-text)">
           НОВОСТИ И СТАТУС
         </h3>
       </div>
@@ -24,7 +24,7 @@ export const SystemStatusWidget: React.FC<SystemStatusWidgetProps> = ({ classNam
       <div className="space-y-4">
         {/* Статус системы */}
         <div className="flex items-center gap-3">
-          <Zap className="h-5 w-5 text-[color:var(--color-cyan)] flex-shrink-0" />
+          <Zap className="h-5 w-5 text-(--color-cyan) flex-shr  ink-0" />
           <div>
             <Text variant="body" size="sm" className="font-medium">
               Система активна
@@ -35,7 +35,7 @@ export const SystemStatusWidget: React.FC<SystemStatusWidgetProps> = ({ classNam
         {/* Информация о синхронизации */}
         <div className="pt-2 border-t border-[color:var(--color-border-strong)]/60">
           <Text variant="muted" size="xs" className="leading-relaxed">
-            TanStack Query + Convex синхронно поддерживают данные игрока.
+            TanStack Query + Elysia API синхронно поддерживают данные игрока.
           </Text>
         </div>
 

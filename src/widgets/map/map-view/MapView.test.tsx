@@ -44,22 +44,15 @@ vi.mock('mapbox-gl', () => {
 
 // Mock hooks
 vi.mock('@/shared/hooks/useMapData', () => ({
-    useVisibleMapPoints: vi.fn(() => ({ points: [], isLoading: false })),
-    useSafeZones: vi.fn(() => ({ zones: [], isLoading: false })),
+    useMapData: vi.fn(() => ({ points: [], zones: [], safeZones: [], dangerZones: [], discover: vi.fn(), isLoading: false })),
     useGeolocation: vi.fn(() => ({ position: null, isLoading: false, getCurrentPosition: vi.fn() })),
     useCenterOnUser: vi.fn(() => ({ center: null, handleLocateUser: vi.fn() })),
-    convertBBoxToConvex: vi.fn(),
 }))
 
 vi.mock('@/shared/hooks/useDeviceId', () => ({
     useDeviceId: vi.fn(() => ({ deviceId: 'test-device-id' })),
 }))
 
-vi.mock('@/shared/api/convex', () => ({
-    convexClient: {
-        mutation: vi.fn(),
-    },
-}))
 
 describe('MapView', () => {
     beforeEach(() => {

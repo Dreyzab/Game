@@ -5,7 +5,7 @@
  * =====================================================
  */
 
-import type { ZoneModifier, ZoneType, CombatEffect, DamageType, CardType } from '@/shared/types/combat'
+import type { ZoneModifier, DamageType, CardType } from '@/shared/types/combat'
 
 // ================== ЗОНАЛЬНЫЕ МОДИФИКАТОРЫ ==================
 
@@ -354,14 +354,14 @@ export function applyZoneVoiceModifiers(
   
   // Применить баффы
   for (const [voiceId, buff] of Object.entries(zone.voiceBuffs)) {
-    if (modified[voiceId] !== undefined) {
+    if (modified[voiceId] !== undefined && typeof buff === 'number') {
       modified[voiceId] += buff
     }
   }
   
   // Применить дебаффы
   for (const [voiceId, debuff] of Object.entries(zone.voiceDebuffs)) {
-    if (modified[voiceId] !== undefined) {
+    if (modified[voiceId] !== undefined && typeof debuff === 'number') {
       modified[voiceId] = Math.max(0, modified[voiceId] + debuff)
     }
   }
@@ -393,6 +393,13 @@ export function getModifiedDamage(
   const multiplier = 1 + (modifier / 100)
   return Math.floor(baseDamage * multiplier)
 }
+
+
+
+
+
+
+
 
 
 

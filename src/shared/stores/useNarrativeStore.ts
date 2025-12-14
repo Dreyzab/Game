@@ -67,9 +67,9 @@ export const VOICE_GROUP_COLORS: Record<VoiceGroup, {
  */
 export const VOICE_TO_GROUP: Record<VoiceId, VoiceGroup> = {
   // Body
-  strength: 'body',
+  force: 'body',
+  resilience: 'body',
   endurance: 'body',
-  stamina: 'body',
   // Motorics
   perception: 'motorics',
   reaction: 'motorics',
@@ -96,9 +96,9 @@ export const VOICE_TO_GROUP: Record<VoiceId, VoiceGroup> = {
  * Человекочитаемые названия голосов
  */
 export const VOICE_NAMES: Record<VoiceId, string> = {
-  strength: 'СИЛА',
-  endurance: 'СТОЙКОСТЬ',
-  stamina: 'ВЫНОСЛИВОСТЬ',
+  force: 'СИЛА',
+  resilience: 'СТОЙКОСТЬ',
+  endurance: 'ВЫНОСЛИВОСТЬ',
   perception: 'ВОСПРИЯТИЕ',
   reaction: 'РЕАКЦИЯ',
   coordination: 'КООРДИНАЦИЯ',
@@ -378,10 +378,18 @@ export function filterInjectionsBySkills(
     if (inj.maxThreshold !== undefined && skillValue > inj.maxThreshold) return false
     
     // Проверка требуемых флагов
-    if (inj.requiredFlags?.some((flag) => !flags.has(flag))) return false
-    
+    const requiredFlags = [
+      ...(inj.requiredFlags ?? []),
+      ...(inj.requiredFlag ? [inj.requiredFlag] : []),
+    ]
+    if (requiredFlags.some((flag) => !flags.has(flag))) return false
+
     // Проверка исключающих флагов
-    if (inj.excludedFlags?.some((flag) => flags.has(flag))) return false
+    const excludedFlags = [
+      ...(inj.excludedFlags ?? []),
+      ...(inj.excludedFlag ? [inj.excludedFlag] : []),
+    ]
+    if (excludedFlags.some((flag) => flags.has(flag))) return false
     
     return true
   })
@@ -424,5 +432,11 @@ export function resolveInjectionConflicts(
 }
 
 export default useNarrativeStore
+
+
+
+
+
+
 
 

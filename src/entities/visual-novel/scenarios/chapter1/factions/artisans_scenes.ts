@@ -614,15 +614,15 @@ export const artisansScenes: Record<string, Scene> = {
     choices: [
       {
         id: 'technical_check',
-        text: '[ТЕХНОФИЛ] Осмотреть и диагностировать.',
+        text: '[АНАЛИЗ] Осмотреть и диагностировать.',
         presentation: {
           color: 'skilled',
           icon: '⚙️',
-          tooltip: 'Требуется ТЕХНОФИЛ',
+          tooltip: 'Требуется АНАЛИЗ',
         },
         availability: {
           skillCheck: {
-            skill: 'technophile',
+            skill: 'analysis',
             difficulty: 9,
             successText: 'Вы видите проблему сразу.',
             failureText: 'Механизм слишком сложен для вас.',
@@ -1755,6 +1755,13 @@ export const artisansScenes: Record<string, Scene> = {
     ],
   },
 }
+
+
+
+
+
+
+
 
 
 

@@ -22,7 +22,7 @@ import {
 } from '@/features/inventory/model/helpers'
 import type { InventoryFilter } from '@/features/inventory/model/selectors'
 
-// Minimal client-side types matching convex/inventory.get response
+// Client-side types matching /inventory API response
 type InventoryGetResponse = {
   items: ItemState[]
   containers: InventoryContainer[]

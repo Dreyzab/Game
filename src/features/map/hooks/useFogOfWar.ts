@@ -1,105 +1,210 @@
-import { useMemo, useRef, useEffect, useState } from 'react'
+import { useMemo, useRef, useEffect, useState, useCallback } from 'react'
 import * as turf from '@turf/turf'
-import type { MapPoint } from '@/shared/types/map'
+import type { MapPoint, SafeZone, ConditionalZone } from '@/shared/types/map'
 import type { Feature, Polygon, MultiPolygon } from 'geojson'
 
 interface UseFogOfWarProps {
-    discoveredPoints: MapPoint[]
+    mainFactionZones?: SafeZone[]
+    conditionalZones?: ConditionalZone[]
+    points?: MapPoint[]
     playerPosition: GeolocationPosition | null
     visible: boolean
+    playerVisionRadiusMeters?: number
+    defaultPointRevealRadiusMeters?: number
 }
 
-export function useFogOfWar({ discoveredPoints, playerPosition, visible }: UseFogOfWarProps) {
+const DEFAULT_RADIUS_METERS = 15
+const PLAYER_MOVE_THRESHOLD_KM = 0.01 // ~10m
+
+export function useFogOfWar({
+    mainFactionZones = [],
+    conditionalZones = [],
+    points = [],
+    playerPosition,
+    visible,
+    playerVisionRadiusMeters = DEFAULT_RADIUS_METERS,
+    defaultPointRevealRadiusMeters = DEFAULT_RADIUS_METERS
+}: UseFogOfWarProps) {
     const [mask, setMask] = useState<Feature<Polygon | MultiPolygon> | null>(null)
     const lastPlayerPosRef = useRef<[number, number] | null>(null)
+    const lastSignatureRef = useRef<string>('')
+    const world = useMemo(
+        () =>
+            turf.polygon([[
+                [-180, -90],
+                [180, -90],
+                [180, 90],
+                [-180, 90],
+                [-180, -90]
+            ]]),
+        []
+    )
 
-    // Memoize the "static" discovered area (union of all points)
-    // This is the expensive part, so we only do it when points change
-    const discoveredArea = useMemo(() => {
-        if (!discoveredPoints.length) return null
+    const playerPoint = useMemo(() => {
+        if (!playerPosition) return null
+        return turf.point([playerPosition.coords.longitude, playerPosition.coords.latitude])
+    }, [playerPosition])
 
-        const holes = discoveredPoints.map(point =>
-            turf.circle(
-                [point.coordinates.lng, point.coordinates.lat],
-                0.1, // 100m radius
-                { steps: 32, units: 'kilometers' }
-            )
-        )
+    const makePolygon = useCallback((coordinates: { lat: number; lng: number }[]) => {
+        if (!coordinates || coordinates.length < 3) return null
+        const ring = coordinates.map((p) => [p.lng, p.lat])
+        // Close the ring
+        ring.push([coordinates[0].lng, coordinates[0].lat])
+        return turf.polygon([ring])
+    }, [])
 
+    const unionFeatures = useCallback((features: Feature<Polygon | MultiPolygon>[]) => {
+        if (!features.length) return null
+        if (features.length === 1) return features[0]
         try {
-            // Union all holes into a single polygon/multipolygon
-            if (holes.length === 1) return holes[0]
-            // @ts-expect-error - turf types mismatch
-            return holes.reduce((acc, hole) => turf.union(acc, hole) as Feature<Polygon | MultiPolygon>, holes[0])
-        } catch (e) {
-            console.error('Error calculating discovered area', e)
+            const result = turf.union(turf.featureCollection(features))
+            return result as Feature<Polygon | MultiPolygon> | null
+        } catch (error) {
+            console.error('Error during union of features', error)
             return null
         }
-    }, [discoveredPoints])
+    }, [])
 
-    // Combine static area with dynamic player position
+    const buildStaticHoles = useCallback(() => {
+        const features: Feature<Polygon | MultiPolygon>[] = []
+
+        // Always-visible faction zones
+        mainFactionZones.forEach((zone) => {
+            const poly = makePolygon(zone.polygon)
+            if (poly) {
+                features.push(poly)
+            }
+        })
+
+        // Conditional / story zones (only when discovered or revealed by proximity)
+        conditionalZones.forEach((zone) => {
+            const poly = makePolygon(zone.polygon)
+            if (!poly) return
+
+            const revealRadiusMeters = zone.revealRadiusMeters ?? 0
+
+            const inside = playerPoint ? turf.booleanPointInPolygon(playerPoint, poly) : false
+            const near =
+                playerPoint && revealRadiusMeters > 0
+                    ? turf.distance(playerPoint, turf.centroid(poly), { units: 'kilometers' }) <= revealRadiusMeters / 1000
+                    : false
+
+            const shouldReveal = zone.alwaysVisible || zone.isDiscovered || zone.autoRevealOnEntry || inside || near
+
+            if (shouldReveal) {
+                features.push(poly)
+            }
+        })
+
+        // Points already discovered (static holes)
+        points.forEach((point) => {
+            const visibility = point.visibility
+            const discoveredByStatus = point.status === 'discovered' || point.status === 'researched'
+            const pointDiscovered = visibility?.isDiscovered ?? discoveredByStatus
+            const radiusMeters =
+                visibility?.revealOnProximityRadius ?? defaultPointRevealRadiusMeters ?? DEFAULT_RADIUS_METERS
+            const nearPlayer =
+                playerPoint && radiusMeters > 0
+                    ? turf.distance(playerPoint, turf.point([point.coordinates.lng, point.coordinates.lat]), { units: 'kilometers' }) <= radiusMeters / 1000
+                    : false
+            const shouldReveal = pointDiscovered || nearPlayer || visibility?.autoReveal
+
+            if (shouldReveal) {
+                const circle = turf.circle(
+                    [point.coordinates.lng, point.coordinates.lat],
+                    radiusMeters / 1000,
+                    { steps: 32, units: 'kilometers' }
+                )
+                features.push(circle)
+            }
+        })
+
+        return unionFeatures(features)
+    }, [
+        conditionalZones,
+        defaultPointRevealRadiusMeters,
+        mainFactionZones,
+        makePolygon,
+        playerPoint,
+        points,
+        unionFeatures
+    ])
+
     useEffect(() => {
         if (!visible) {
             setMask(null)
             return
         }
 
+        const staticSignature = JSON.stringify({
+            main: mainFactionZones.map((z) => z.id),
+            conditional: conditionalZones.map((z) => `${z.id}:${z.isDiscovered}`),
+            points: points.map((p) => `${p.id}:${p.visibility?.isDiscovered ?? p.status}`),
+        })
+
+        const playerMoved = (() => {
+            if (!playerPosition) return false
+            const currentPos: [number, number] = [playerPosition.coords.longitude, playerPosition.coords.latitude]
+            if (lastPlayerPosRef.current) {
+                const dist = turf.distance(lastPlayerPosRef.current, currentPos, { units: 'kilometers' })
+                return dist >= PLAYER_MOVE_THRESHOLD_KM
+            }
+            return true
+        })()
+
+        const dataChanged = staticSignature !== lastSignatureRef.current
+
+        if (!playerMoved && !dataChanged) {
+            return
+        }
+
+        if (playerPosition) {
+            lastPlayerPosRef.current = [playerPosition.coords.longitude, playerPosition.coords.latitude]
+        }
+        lastSignatureRef.current = staticSignature
+
         const updateMask = () => {
-            // World polygon
-            const world = turf.polygon([[
-                [-180, -90],
-                [180, -90],
-                [180, 90],
-                [-180, 90],
-                [-180, -90]
-            ]])
+            const staticHoles = buildStaticHoles()
 
-            let currentHoles: Feature<Polygon | MultiPolygon> | null = discoveredArea
+            // Player vision hole
+            let combinedHoles: Feature<Polygon | MultiPolygon> | null = staticHoles
+            if (playerPoint) {
+                const playerHole = turf.circle(playerPoint.geometry.coordinates as [number, number], playerVisionRadiusMeters / 1000, {
+                    steps: 32,
+                    units: 'kilometers'
+                })
 
-            // Add player visibility
-            if (playerPosition) {
-                const playerHole = turf.circle(
-                    [playerPosition.coords.longitude, playerPosition.coords.latitude],
-                    0.15, // 150m radius
-                    { steps: 32, units: 'kilometers' }
-                )
-
-                if (currentHoles) {
-                    // @ts-expect-error - turf types mismatch
-                    currentHoles = turf.union(currentHoles, playerHole) as Feature<Polygon | MultiPolygon>
-                } else {
-                    currentHoles = playerHole
-                }
+                combinedHoles = combinedHoles
+                    ? unionFeatures([combinedHoles, playerHole])
+                    : playerHole
             }
 
-            // Subtract holes from world
-            if (currentHoles) {
+            if (combinedHoles) {
                 try {
-                    // @ts-expect-error - turf types are strict about Feature vs FeatureCollection
-                    const newMask = turf.difference(world, currentHoles)
-                    setMask(newMask as Feature<Polygon | MultiPolygon>)
-                } catch (e) {
-                    console.error('Error calculating final mask', e)
+                    const diffResult = turf.difference(turf.featureCollection([world, combinedHoles]))
+                    setMask(diffResult as Feature<Polygon | MultiPolygon>)
+                } catch (error) {
+                    console.error('Error calculating final mask', error)
                 }
             } else {
-                // If no holes, the mask is the entire world
                 setMask(world)
             }
         }
 
-        // Throttle updates based on player movement to avoid excessive calcs
-        // Simple distance check: only update if moved > 10 meters
-        if (playerPosition) {
-            const currentPos: [number, number] = [playerPosition.coords.longitude, playerPosition.coords.latitude]
-            if (lastPlayerPosRef.current) {
-                const dist = turf.distance(lastPlayerPosRef.current, currentPos, { units: 'kilometers' })
-                if (dist < 0.01) return // Less than 10m movement, skip
-            }
-            lastPlayerPosRef.current = currentPos
-        }
-
         updateMask()
-    }, [discoveredArea, playerPosition, visible])
+    }, [
+        playerPoint,
+        playerPosition,
+        visible,
+        world,
+        playerVisionRadiusMeters,
+        defaultPointRevealRadiusMeters,
+        mainFactionZones,
+        conditionalZones,
+        points,
+        buildStaticHoles,
+        unionFeatures
+    ])
 
     return mask
 }

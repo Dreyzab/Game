@@ -15,7 +15,6 @@ import type {
   PolyphonicScene, 
   PolyphonicDialogue, 
   PrivateInjection,
-  PolyphonicChoice,
 } from '../../model/types'
 
 // ============================================================================
@@ -59,7 +58,7 @@ const timeWindowInjections: PrivateInjection[] = [
   // ТИТАН — Группа I: ТЕЛО
   {
     id: 'briefing_strength_holz',
-    voice: 'strength',
+    voice: 'force',
     voiceGroup: 'body',
     threshold: 55,
     text: 'Посмотри на него. Стоит слишком прямо. Левая нога не принимает вес. Он ранен. Он отправляет нас не потому, что мы лучшие, а потому что сам не может пройти этот путь. Слабость. Если что-то пойдёт не так, мы берём командование на себя.',
@@ -78,7 +77,7 @@ const timeWindowInjections: PrivateInjection[] = [
     text: 'Сорок минут? Это спринт. Мы можем сделать это за двадцать. Пусть остальные задыхаются. Мы понесём груз, когда они упадут.',
     effect: 'pulse',
     priority: 6,
-    voiceName: 'СТОЙКОСТЬ',
+    voiceName: 'ВЫНОСЛИВОСТЬ',
   },
   
   // ЭМПАТ — Группа VI: СОЦИАЛЬНОСТЬ
@@ -257,7 +256,7 @@ const equipmentInjections: PrivateInjection[] = [
   },
   {
     id: 'equipment_strength_carry',
-    voice: 'strength',
+    voice: 'force',
     voiceGroup: 'body',
     threshold: 40,
     text: 'Мы можем нести больше. Дай нам тяжёлое оружие. Пусть слабаки несут аптечки — мы возьмём огневую мощь.',
@@ -287,59 +286,6 @@ const equipmentInjections: PrivateInjection[] = [
     effect: 'glitch',
     priority: 6,
     voiceName: 'АЗАРТ',
-  },
-]
-
-/**
- * Инъекции для диалога о погибшей группе
- */
-const lostSquadInjections: PrivateInjection[] = [
-  {
-    id: 'lostsquad_empathy_grief',
-    voice: 'empathy',
-    voiceGroup: 'sociality',
-    threshold: 40,
-    text: 'Четверо. У каждого была семья. Друзья. Мечты. Теперь — только холодные тела в Серости. Или хуже.',
-    effect: 'glow',
-    priority: 9,
-    voiceName: 'ЭМПАТИЯ',
-  },
-  {
-    id: 'lostsquad_logic_pattern',
-    voice: 'logic',
-    voiceGroup: 'mind',
-    threshold: 55,
-    text: 'Четверо за один день. Это не случайность. Либо разведка провалилась, либо что-то изменилось в Серости. Новый враг? Новая тактика Синтеза?',
-    effect: 'terminal',
-    priority: 8,
-    voiceName: 'ЛОГИКА',
-    onView: {
-      addFlags: ['suspects_intelligence_failure'],
-    },
-  },
-  {
-    id: 'lostsquad_honor_revenge',
-    voice: 'honor',
-    voiceGroup: 'sociality',
-    threshold: 50,
-    text: 'Они погибли, чтобы мы могли идти. Их жертва не будет напрасной. Мы вернём то, за что они отдали жизни.',
-    effect: 'glow',
-    priority: 7,
-    voiceName: 'ЧЕСТЬ',
-  },
-  {
-    id: 'lostsquad_perception_bodies',
-    voice: 'perception',
-    voiceGroup: 'motorics',
-    threshold: 60,
-    text: 'Он сказал "потерял". Не "убили". Не "погибли". Потерял. Они ещё там? Живые? Или... не совсем мёртвые?',
-    effect: 'glitch',
-    priority: 10,
-    voiceName: 'ВОСПРИЯТИЕ',
-    onView: {
-      addFlags: ['suspects_bodies_animated'],
-      unlockHint: 'Тела могут быть ещё в Серости',
-    },
   },
 ]
 
@@ -1701,4 +1647,3 @@ export function getDialogueInjections(dialogueId: string): PrivateInjection[] {
   const dialogue = getDialogueById(dialogueId)
   return dialogue?.privateInjections ?? []
 }
-

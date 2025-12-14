@@ -185,7 +185,7 @@ export const sideQuestScenes: Record<string, Scene> = {
         nextScene: 'industrial_hub',
         availability: {
           skillCheck: {
-            skill: 'cynicism',
+            skill: 'analysis',
             difficulty: 4,
             successText: 'Вы прекрасно понимаете, что вас используют, но выгода перевешивает раздражение.',
             failureText: 'Вы не до конца просчитываете сделку, но всё равно киваете — деньги не лишние.',
@@ -207,4 +207,3 @@ export const sideQuestScenes: Record<string, Scene> = {
     ],
   },
 }
-

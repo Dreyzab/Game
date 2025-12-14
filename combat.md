@@ -1,5 +1,8 @@
 # Modern Inventory Page (Gemini Canvas Package)
 
+> ⚠️ **Примечание о миграции:** Backend мигрирован с Convex на Bun + Elysia.
+> API эндпоинты см. в `server/src/api/routes/inventory.ts`. Упоминания Convex в документе устарели.
+
 Готовый набор заметок, который собирает всё, что относится к экрану `http://localhost:5173/inventory`. Используйте файл, чтобы быстро переносить макет и логику в Gemini Canvas или другой песочнице без необходимости постоянно читать исходники.
 
 ## Маршрут и точка входа
@@ -9,7 +12,7 @@
 ## Основной компонент `ModernInventoryPage`
 Источник: `src/features/inventory/ui/InventoryPage.tsx`.
 
-- Подписывается на Convex (`useQuery(api.inventory.get, { deviceId })`) и синхронизирует зухраим с zustand-хранилищем через `syncWithBackend`.
+- Использует `useMyInventory` хук для получения данных через Elysia API и синхронизирует с zustand-хранилищем через `syncWithBackend`.
 - Достаёт из `useInventoryStore` все необходимые куски состояния: предметы, экипировку, энкамбранс, статистику игрока, выбранный предмет, строку поиска, фильтр и утилиты `selectItem`, `setSearchQuery`, `isQuestItem`.
 - Управляет локальным `comparingItem`, чтобы открыть модальное сравнение.
 - Фильтрует массив предметов (`filterItems`) и вычисляет текущий `selectedItem`.

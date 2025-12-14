@@ -13,7 +13,6 @@ import type {
   PolyphonicScene, 
   PolyphonicDialogue, 
   PrivateInjection,
-  PolyphonicChoice,
 } from '../../model/types'
 
 // ============================================================================
@@ -136,13 +135,13 @@ const spatialLoopInjections: PrivateInjection[] = [
 const sirenSongInjections: PrivateInjection[] = [
   {
     id: 'siren_willpower_resist',
-    voice: 'willpower',
+    voice: 'courage',
     voiceGroup: 'consciousness',
     threshold: 50,
     text: 'НЕ СЛУШАЙ. ЭТО ЛОЖЬ. КАЖДОЕ СЛОВО — ЯД. ЗАКРОЙ УШИ. ДУМАЙ О МИССИИ. ТОЛЬКО О МИССИИ.',
     effect: 'pulse',
     priority: 10,
-    voiceName: 'ВОЛЯ',
+    voiceName: 'ОТВАГА',
   },
   {
     id: 'siren_empathy_voices',
@@ -195,11 +194,11 @@ const gravityWellInjections: PrivateInjection[] = [
     text: 'Тяжело? Хорошо. Боль — это слабость, покидающая тело. Ещё шаг. Ещё один. Не останавливайся.',
     effect: 'pulse',
     priority: 9,
-    voiceName: 'СТОЙКОСТЬ',
+    voiceName: 'ВЫНОСЛИВОСТЬ',
   },
   {
     id: 'gravity_strength_carry',
-    voice: 'strength',
+    voice: 'force',
     voiceGroup: 'body',
     threshold: 55,
     text: 'Рюкзак весит тонну? Неважно. Мы несли и больше. Спина прямо. Ноги вперёд. Мы — машина, которая не ломается.',
@@ -232,7 +231,7 @@ const gravityWellInjections: PrivateInjection[] = [
 /**
  * Инъекции при встрече с Мимиком
  */
-const mimicEncounterInjections: PrivateInjection[] = [
+export const mimicEncounterInjections: PrivateInjection[] = [
   {
     id: 'mimic_perception_eyes',
     voice: 'perception',
@@ -605,7 +604,7 @@ const dialogues: PolyphonicDialogue[] = [
       },
       {
         id: 'ambush_strength_charge',
-        voice: 'strength',
+        voice: 'force',
         voiceGroup: 'body',
         threshold: 60,
         text: 'ОНИ МЕДЛЕННЫЕ. МЫ — НЕТ. В АТАКУ. РАЗБИТЬ ИХ РАНЬШЕ, ЧЕМ ОНИ ПОСТРОЯТСЯ.',
@@ -666,7 +665,7 @@ const dialogues: PolyphonicDialogue[] = [
         text: 'Бежим. Но не слишком быстро. Сохранить силы на бой.',
         effect: 'pulse',
         priority: 6,
-        voiceName: 'СТОЙКОСТЬ',
+        voiceName: 'ВЫНОСЛИВОСТЬ',
       },
     ],
     nextDialogue: 'rift_alley_approach',
@@ -806,7 +805,7 @@ const dialogues: PolyphonicDialogue[] = [
         text: 'Истощение. Ноги свинцовые. Но мы всё ещё стоим. Это главное.',
         effect: 'pulse',
         priority: 8,
-        voiceName: 'СТОЙКОСТЬ',
+        voiceName: 'ВЫНОСЛИВОСТЬ',
       },
     ],
     nextDialogue: 'rift_siren_song',
@@ -827,13 +826,13 @@ const dialogues: PolyphonicDialogue[] = [
     options: [
       {
         id: 'siren_resist',
-        text: '[Воля] Заткни уши. Не слушай. Иди вперёд.',
+        text: '[Отвага] Заткни уши. Не слушай. Иди вперёд.',
         nextDialogue: 'rift_siren_resisted',
-        requiredStat: { stat: 'willpower', value: 50 },
+        requiredStat: { stat: 'courage', value: 50 },
         presentation: {
           color: 'violet',
-          icon: 'willpower',
-          voiceHint: 'willpower',
+          icon: 'courage',
+          voiceHint: 'courage',
         },
         effects: {
           addFlags: ['resisted_sirens'],
@@ -892,13 +891,13 @@ const dialogues: PolyphonicDialogue[] = [
     privateInjections: [
       {
         id: 'resisted_willpower',
-        voice: 'willpower',
+        voice: 'courage',
         voiceGroup: 'consciousness',
         threshold: 35,
         text: 'Разум сильнее иллюзий. Запомни это. Ты — хозяин своих мыслей.',
         effect: 'pulse',
         priority: 7,
-        voiceName: 'ВОЛЯ',
+        voiceName: 'ОТВАГА',
       },
     ],
     nextDialogue: 'rift_gravity_well',
@@ -1072,7 +1071,7 @@ const dialogues: PolyphonicDialogue[] = [
     privateInjections: [
       {
         id: 'endured_strength_victory',
-        voice: 'strength',
+        voice: 'force',
         voiceGroup: 'body',
         threshold: 35,
         text: 'Тело не подвело. Мы сильнее этого места. Сильнее любого места.',
@@ -1144,7 +1143,7 @@ const dialogues: PolyphonicDialogue[] = [
         text: 'Плохо. Очень плохо. Мы потеряли слишком много сил. Если будет бой — мы в невыгодном положении.',
         effect: 'pulse',
         priority: 9,
-        voiceName: 'СТОЙКОСТЬ',
+        voiceName: 'ВЫНОСЛИВОСТЬ',
       },
     ],
     nextDialogue: 'rift_library_approach',
@@ -1312,7 +1311,7 @@ const dialogues: PolyphonicDialogue[] = [
         text: 'Живой. Избитый, но живой. Встать. Найти выход. Найти отряд.',
         effect: 'pulse',
         priority: 9,
-        voiceName: 'СТОЙКОСТЬ',
+        voiceName: 'ВЫНОСЛИВОСТЬ',
       },
       {
         id: 'fallen_perception_basement',
@@ -1503,7 +1502,7 @@ export const riftTrialDescriptions: Record<RiftTrialType, {
   [RIFT_TRIAL_TYPES.SIREN_SONG]: {
     name: 'Песня Сирен',
     description: 'Голоса мёртвых зовут по имени.',
-    primaryStat: 'willpower',
+    primaryStat: 'courage',
     fallbackStat: 'empathy',
     difficulty: 50,
   },
@@ -1522,5 +1521,4 @@ export const riftTrialDescriptions: Record<RiftTrialType, {
     difficulty: 55,
   },
 }
-
 

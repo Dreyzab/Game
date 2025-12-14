@@ -1,28 +1,24 @@
 import React, { useEffect, useMemo } from 'react'
 import type { Map, GeoJSONSource } from 'mapbox-gl'
-import { useQuery } from 'convex/react'
-import { api } from '@/shared/api/convex'
-import type { Id } from '../../../../../convex/_generated/dataModel'
 
 interface FactionZonesLayerProps {
     map: Map | null
     visible: boolean
+    safeZones?: SafeZone[]
 }
 
 interface SafeZone {
-    _id: Id<'safe_zones'>
+    _id: string
     name?: string
     faction?: string
     polygon: { lat: number; lng: number }[]
     isActive: boolean
 }
 
-export const FactionZonesLayer: React.FC<FactionZonesLayerProps> = ({ map, visible }) => {
-    const rawSafeZones = useQuery(api.zones.listActiveSafeZones, {})
-
-    const safeZones = useMemo(() => {
-        return (rawSafeZones || []) as SafeZone[]
-    }, [rawSafeZones])
+export const FactionZonesLayer: React.FC<FactionZonesLayerProps> = ({ map, visible, safeZones = [] }) => {
+    const processedSafeZones = useMemo(() => {
+        return (safeZones || []) as SafeZone[]
+    }, [safeZones])
 
     const sourceId = 'faction-zones-source'
     const fillLayerId = 'faction-zones-fill'
@@ -101,8 +97,8 @@ export const FactionZonesLayer: React.FC<FactionZonesLayerProps> = ({ map, visib
         if (map.getLayer(fillLayerId)) map.setLayoutProperty(fillLayerId, 'visibility', visibility)
         if (map.getLayer(lineLayerId)) map.setLayoutProperty(lineLayerId, 'visibility', visibility)
 
-        if (visible && safeZones.length > 0) {
-            const features = safeZones.map((zone) => ({
+        if (visible && processedSafeZones.length > 0) {
+            const features = processedSafeZones.map((zone) => ({
                 type: 'Feature',
                 properties: {
                     name: zone.name,
@@ -118,7 +114,6 @@ export const FactionZonesLayer: React.FC<FactionZonesLayerProps> = ({ map, visib
             if (source) {
                 source.setData({
                     type: 'FeatureCollection',
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     features: features as any
                 })
             }

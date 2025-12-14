@@ -9,8 +9,6 @@ import { QuickActionsWidget } from '@/widgets/quick-actions'
 import { ActiveQuestsWidget } from '@/widgets/active-quests'
 import { SystemStatusWidget } from '@/widgets/system-status'
 import { usePlayerProgress, useCreatePlayer } from '@/shared/hooks/usePlayer'
-import { convexMutations } from '@/shared/api/convex'
-import { getDeviceId } from '@/shared/lib/utils/deviceId'
 import { getStartDestination } from '@/shared/lib/utils/navigation'
 
 export function ModernHomePage() {
@@ -19,25 +17,11 @@ export function ModernHomePage() {
   const { createPlayer, isCreating } = useCreatePlayer()
   const [createMsg, setCreateMsg] = useState<string | null>(null)
 
-  // Определяем, зарегистрирован ли игрок
   const isSignedIn = progress !== null
-
-  // Проверяем наличие нераспределенных очков навыков
   const hasUnallocatedSkills = progress?.skillPoints ? progress.skillPoints > 0 : false
 
   const handleStartGame = async () => {
-    const deviceId = getDeviceId()
-    
-    try {
-      // Убеждаемся, что игрок существует
-      if (deviceId) {
-        await convexMutations.player.ensureByDevice({ deviceId })
-      }
-    } catch (e) {
-      console.warn('ensureByDevice before prologue failed; proceeding anyway', e)
-    } 
-
-    // Определяем маршрут на основе наличия очков навыков
+    // Просто отправляем на стартовый роут согласно прогрессу
     const dest = getStartDestination(progress?.skillPoints)
     navigate(dest)
   }
@@ -47,10 +31,9 @@ export function ModernHomePage() {
       setCreateMsg(null)
       await createPlayer()
       setCreateMsg('Игрок успешно создан!')
-      // Обновляем страницу для загрузки данных нового игрока
       setTimeout(() => {
         window.location.reload()
-      }, 1000)
+      }, 500)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Не удалось создать игрока'
       setCreateMsg(`Ошибка: ${errorMessage}`)
@@ -59,14 +42,7 @@ export function ModernHomePage() {
   }
 
   const handleRegisterAdmin = async () => {
-    try {
-      await convexMutations.admin.register({ name: 'Admin' })
-      setCreateMsg('Админ успешно зарегистрирован')
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Не удалось зарегистрировать админа'
-      setCreateMsg(`Ошибка: ${errorMessage}`)
-      console.error('Error registering admin:', err)
-    }
+    setCreateMsg('Регистрация админа доступна через серверную консоль.')
   }
 
   return (

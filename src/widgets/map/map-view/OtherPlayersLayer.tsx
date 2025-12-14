@@ -1,32 +1,24 @@
 import React, { useEffect, useRef } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import mapboxgl from 'mapbox-gl'
-import { useQuery } from 'convex/react'
-import { api } from '@convex/_generated/api'
 import { PlayerMarker } from './PlayerMarker'
-import { useDeviceId } from '@/shared/hooks/useDeviceId'
 
 export interface OtherPlayersLayerProps {
     map: mapboxgl.Map | null
     userLocation: GeolocationPosition | null
+    players?: Array<{
+        _id: string
+        name?: string
+        status?: string
+        factionId?: string
+        location?: { lat: number; lng: number }
+    }>
 }
 
 export const OtherPlayersLayer: React.FC<OtherPlayersLayerProps> = ({
     map,
-    userLocation,
+    players = [],
 }) => {
-    const { deviceId } = useDeviceId()
-
-    // Query nearby players
-    // We only query if we have a location
-    const players = useQuery(api.presence.getNearbyPlayers,
-        userLocation ? {
-            myLat: userLocation.coords.latitude,
-            myLng: userLocation.coords.longitude,
-            radiusKm: 5, // 5km radius
-            deviceId: deviceId ?? undefined,
-        } : "skip"
-    )
 
     const markersRef = useRef<Map<string, { marker: mapboxgl.Marker; root: Root }>>(new Map())
 

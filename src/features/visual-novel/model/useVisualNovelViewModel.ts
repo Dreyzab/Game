@@ -16,6 +16,7 @@ import type {
 
 interface UseVisualNovelViewModelParams {
   sceneId?: string
+  initialFlags?: Iterable<string>
 }
 
 interface UseVisualNovelViewModelOptions {
@@ -35,17 +36,30 @@ export interface VisualNovelViewModel {
   jumpToScene: (nextSceneId: string) => void
 }
 
+const EMPTY_SCENE: VisualNovelSceneDefinition = {
+  id: '__missing_scene__',
+  title: 'Missing scene',
+  location: 'Unknown',
+  background: '',
+  entryLineId: '',
+  characters: [],
+  lines: [],
+}
+
 export function useVisualNovelViewModel(
   params: UseVisualNovelViewModelParams,
   options: UseVisualNovelViewModelOptions = {}
 ): VisualNovelViewModel {
   const initialSceneId = params.sceneId ?? DEFAULT_VN_SCENE_ID
-  const initialScene = getVisualNovelScene(initialSceneId) ?? getVisualNovelScene(DEFAULT_VN_SCENE_ID)!
+  const initialScene =
+    getVisualNovelScene(initialSceneId) ??
+    getVisualNovelScene(DEFAULT_VN_SCENE_ID) ??
+    EMPTY_SCENE
 
   const [sceneId, setSceneId] = useState<string | undefined>(initialSceneId)
   const [scene, setScene] = useState<VisualNovelSceneDefinition>(initialScene)
-  const [lineId, setLineId] = useState<string>(initialScene.entryLineId)
-  const [flags, setFlags] = useState<Set<string>>(() => new Set())
+  const [lineId, setLineId] = useState<string>(initialScene.entryLineId ?? '')
+  const [flags, setFlags] = useState<Set<string>>(() => new Set(params.initialFlags ?? []))
   const [history, setHistory] = useState<VisualNovelHistoryEntry[]>([])
   const [isSceneCompleted, setSceneCompleted] = useState(false)
   const [isPending, startTransition] = useTransition()
@@ -58,6 +72,16 @@ export function useVisualNovelViewModel(
   useEffect(() => {
     optionsRef.current = options
   }, [options])
+
+  useEffect(() => {
+    const incoming = new Set(params.initialFlags ?? [])
+    setFlags((prev) => {
+      if (prev.size === incoming.size && Array.from(prev).every((flag) => incoming.has(flag))) {
+        return prev
+      }
+      return incoming
+    })
+  }, [params.initialFlags])
 
   useEffect(() => {
     if (previousExternalSceneIdRef.current === params.sceneId) {
@@ -78,15 +102,15 @@ export function useVisualNovelViewModel(
   useEffect(() => {
     const resolvedId = sceneId ?? DEFAULT_VN_SCENE_ID
     log('[VN] Resolving scene', resolvedId)
-    const resolved = getVisualNovelScene(resolvedId) ?? getVisualNovelScene(DEFAULT_VN_SCENE_ID)
+    const resolved =
+      getVisualNovelScene(resolvedId) ?? getVisualNovelScene(DEFAULT_VN_SCENE_ID) ?? EMPTY_SCENE
 
-    if (!resolved) {
+    if (resolved === EMPTY_SCENE) {
       console.error('[VN] Unknown scene id, fallback failed:', resolvedId)
-      return
     }
 
     setScene(resolved)
-    setLineId(resolved.entryLineId)
+    setLineId(resolved.entryLineId ?? '')
     setSceneCompleted(false)
     log('[VN] Reset to entry line', resolved.entryLineId)
   }, [log, sceneId])

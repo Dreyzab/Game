@@ -8,7 +8,7 @@
 
 import React from 'react'
 import { cn } from '@/shared/lib/utils/cn'
-import type { MapPoint, MapPointType, MapPointStatus } from '@/shared/types/map'
+import type { MapPoint } from '@/shared/types/map'
 import {
   MapPin,
   Users,

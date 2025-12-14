@@ -14,6 +14,52 @@ export const scenarios: Record<string, Scene> = {
   // ПРОЛОГ: ПЕРЕПИСАННЫЕ СЦЕНЫ
   // =====================================
 
+  prologue_coupe_start: {
+    id: 'prologue_coupe_start',
+    background: '/images/backgrounds/train.png',
+    characters: [],
+    dialogue: [
+      {
+        speaker: 'Рассказчик',
+        text: 'Тамбур. Ржавчина. Ритмичный перестук. Редкие лучи солнца пробиваются сквозь мутное окно.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'За стеклом проносятся голые силуэты деревьев. В руке — почти пустая пачка сигарет, и лишь одна сиротливо перекатывается внутри под вибрацию состава.',
+      },
+    ],
+    choices: [
+      {
+        id: 'hear_scratching',
+        text: 'Прислушаться к странному скрежету за дверью...',
+        nextScene: 'prologue_coupe_start',
+        effects: {
+          immediate: [
+            {
+              type: 'start_combat',
+              data: {
+                returnScene: 'prologue_train_battle_victory',
+                defeatScene: 'prologue_train_battle_defeat',
+                enemyKey: 'rail_scorpion',
+              },
+            },
+          ],
+          flags: [{ key: 'prologue_train_battle_started', value: true }],
+        },
+      },
+      {
+        id: 'look_window',
+        text: 'Посмотреть в окно.',
+        nextScene: 'prologue_look_window',
+      },
+      {
+        id: 'get_cigarette',
+        text: 'Достать сигарету.',
+        nextScene: 'prologue_get_cigarette',
+      },
+    ],
+  },
+
   prologue_start: {
     id: 'prologue_start',
     background: '/images/backgrounds/train.png',
@@ -29,6 +75,24 @@ export const scenarios: Record<string, Scene> = {
       }
     ],
     choices: [
+      {
+        id: 'hear_scratching',
+        text: 'Прислушаться к странному скрежету за дверью...',
+        nextScene: 'prologue_start',
+        effects: {
+          immediate: [
+            {
+              type: 'start_combat',
+              data: {
+                returnScene: 'prologue_train_battle_victory',
+                defeatScene: 'prologue_train_battle_defeat',
+                enemyKey: 'rail_scorpion',
+              },
+            },
+          ],
+          flags: [{ key: 'prologue_train_battle_started', value: true }],
+        }
+      },
       {
         id: 'look_window',
         text: 'Посмотреть в окно.',
@@ -246,15 +310,15 @@ export const scenarios: Record<string, Scene> = {
       },
       {
         id: 'pry_seal_tech',
-        text: '[ТЕХНОФИЛ] Попытаться поддеть печать мультитулом (Сложность 9)',
+        text: '[АНАЛИЗ] Попытаться поддеть печать мультитулом (Сложность 9)',
         presentation: {
           color: 'skill',
           icon: '🔧',
-          tooltip: 'Требуется ТЕХНОФИЛ 3+'
+          tooltip: 'Требуется АНАЛИЗ 3+'
         },
         availability: {
           skillCheck: {
-            skill: 'technophile',
+            skill: 'analysis',
             difficulty: 9,
             successText: 'Печать аккуратно снята!',
             failureText: 'Воск раскрошился...'
@@ -409,15 +473,15 @@ export const scenarios: Record<string, Scene> = {
       },
       {
         id: 'try_repair',
-        text: '[ТЕХНОФИЛ] Попытаться починить печать (Сложность 12)',
+        text: '[АНАЛИЗ] Попытаться починить печать (Сложность 12)',
         presentation: {
           color: 'skill',
           icon: '🔧',
-          tooltip: 'Требуется ТЕХНОФИЛ 4+'
+          tooltip: 'Требуется АНАЛИЗ 4+'
         },
         availability: {
           skillCheck: {
-            skill: 'technophile',
+            skill: 'analysis',
             difficulty: 12,
             successText: 'Печать выглядит почти как новая!',
             failureText: 'Стало только хуже...'
@@ -475,6 +539,40 @@ export const scenarios: Record<string, Scene> = {
         }
       }
     ]
+  },
+
+  prologue_train_battle_victory: {
+    id: 'prologue_train_battle_victory',
+    background: '/images/backgrounds/train.png',
+    characters: [],
+    dialogue: [
+      {
+        speaker: 'Рассказчик',
+        text: 'Дверь распахивается — и из тьмы вагона вырывается что‑то металлическое. Секунды превращаются в бой.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Когда всё заканчивается, в ушах ещё звенит, а поезд продолжает свой ход, будто ничего не произошло.',
+      },
+    ],
+    nextScene: 'prologue_train_stop',
+  },
+
+  prologue_train_battle_defeat: {
+    id: 'prologue_train_battle_defeat',
+    background: '/images/backgrounds/train.png',
+    characters: [],
+    dialogue: [
+      {
+        speaker: 'Рассказчик',
+        text: 'Скрежет становится ближе. Удар — и мир на миг гаснет. Ты приходишь в себя под ритм колёс.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Голова гудит, руки дрожат, но поезд уже тормозит. Похоже, вы всё же доехали.',
+      },
+    ],
+    nextScene: 'prologue_train_stop',
   },
 
   prologue_train_stop: {
@@ -553,7 +651,7 @@ export const scenarios: Record<string, Scene> = {
         },
         availability: {
           skillCheck: {
-            skill: 'strength',
+            skill: 'force',
             difficulty: 12,
             failureText: 'Ваш толчок похож на прикосновение комара...',
           }

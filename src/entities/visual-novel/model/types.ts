@@ -1,3 +1,5 @@
+import type { AttributeGroup as VoiceGroup, VoiceId } from '@/shared/types/parliament'
+
 export type SceneMap = Record<string, Scene>
 export type PolyphonicSceneMap = Record<string, PolyphonicScene>
 
@@ -5,27 +7,7 @@ export type PolyphonicSceneMap = Record<string, PolyphonicScene>
 // VOICE GROUPS — Группы внутренних голосов
 // ============================================================================
 
-export type VoiceGroup = 
-  | 'body'         // Тело: сила, стойкость, выносливость
-  | 'motorics'     // Моторика: восприятие, реакция, координация
-  | 'mind'         // Разум: логика, риторика, анализ
-  | 'consciousness'// Сознание: авторитет, внушение, отвага
-  | 'psyche'       // Психика: драма, творчество, азарт
-  | 'sociality'    // Социальность: солидарность, честь, эмпатия
-
-export type VoiceId = 
-  // Body
-  | 'strength' | 'endurance' | 'stamina'
-  // Motorics
-  | 'perception' | 'reaction' | 'coordination'
-  // Mind  
-  | 'logic' | 'rhetoric' | 'analysis'
-  // Consciousness
-  | 'authority' | 'suggestion' | 'courage'
-  // Psyche
-  | 'drama' | 'creativity' | 'gambling'
-  // Sociality
-  | 'solidarity' | 'honor' | 'empathy'
+export type { VoiceGroup, VoiceId }
 
 // ============================================================================
 // PRIVATE INJECTION — Инъекция внутреннего голоса
@@ -61,6 +43,8 @@ export interface PrivateInjection {
   maxThreshold?: number             // Максимальный порог (если есть)
   requiredFlags?: string[]          // Требуемые флаги
   excludedFlags?: string[]          // Исключающие флаги
+  requiredFlag?: string             // Legacy alias (single-flag form)
+  excludedFlag?: string             // Legacy alias (single-flag form)
   
   // Контент
   text: string                      // Текст внутренней мысли
@@ -121,6 +105,9 @@ export interface PolyphonicDialogue {
   // Переход
   nextDialogue?: string
   nextScene?: string
+
+  // Эффекты при показе диалога (совместимость со сценарием)
+  effects?: SceneChoiceEffects
 }
 
 /**
@@ -278,10 +265,15 @@ export interface SceneChoice {
       failureText?: string
     }
     condition?: {
+      [key: string]: unknown
       flag?: string
       notFlag?: string
+      /**
+       * Минимальное количество валюты (кредитов), требуемое для выбора.
+       * Используется в сценариях для покупок/пожертвований.
+       */
+      currency?: number
     }
   }
   effects?: SceneChoiceEffects
 }
-

@@ -1,14 +1,20 @@
-import { useState, useEffect, useCallback } from 'react'
-import { convexQueries, convexMutations } from '../api/convex'
-import { getDeviceId } from '../lib/utils/deviceId'
+import { useMemo } from 'react'
+import { useMyPlayer } from './useMyPlayer'
 import type { Player, PlayerProgress } from '@/shared/types/player'
+
+const coerceNumberRecord = (value: unknown): Record<string, number> => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).filter(([, entryValue]) => typeof entryValue === 'number')
+  ) as Record<string, number>
+}
 
 const createDefaultProgress = (): PlayerProgress => ({
   level: 0,
   xp: 0,
   maxXp: 100,
   skillPoints: 0,
-  reputation: 0,
+  reputation: {},
   completedQuests: 0,
   fame: 0,
   points: 0,
@@ -25,131 +31,31 @@ const createDefaultProgress = (): PlayerProgress => ({
 
 export type { Player, PlayerProgress }
 
-/**
- * Hook to fetch player data
- */
 export function usePlayer() {
-  const [player, setPlayer] = useState<Player | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<Error | null>(null)
-
-  useEffect(() => {
-    const deviceId = getDeviceId()
-
-    const fetchPlayer = async () => {
-      try {
-        setIsLoading(true)
-        setError(null)
-
-        // Use Convex query when available
-        const playerData = await convexQueries.player.get({ deviceId })
-        setPlayer(playerData)
-      } catch (err) {
-        setError(err instanceof Error ? err : new Error('Failed to fetch player'))
-        console.error('Error fetching player:', err)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    if (deviceId) {
-      fetchPlayer()
-    } else {
-      setIsLoading(false)
-    }
-  }, [])
-
+  const { data, isLoading, error } = useMyPlayer()
+  const player = (data as any)?.player ?? null
   return { player, isLoading, error }
 }
 
-/**
- * Hook to fetch player progress
- */
 export function usePlayerProgress() {
-  const [progress, setProgress] = useState<PlayerProgress | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<Error | null>(null)
-  const [refreshToken, setRefreshToken] = useState(0)
-
-  const refresh = useCallback(() => {
-    setRefreshToken((token) => token + 1)
-  }, [])
-
-  useEffect(() => {
-    const deviceId = getDeviceId()
-
-    const fetchProgress = async () => {
-      try {
-        setIsLoading(true)
-        setError(null)
-
-        // Use Convex query when available
-        const progressData = await convexQueries.player.getProgress({ deviceId })
-
-        const reputationByFaction =
-          progressData?.reputationByFaction && typeof progressData.reputationByFaction === 'object'
-            ? progressData.reputationByFaction
-            : {}
-
-        const skills = progressData?.skills ?? {}
-
-        const normalized: PlayerProgress = {
-          ...createDefaultProgress(),
-          ...progressData,
-          reputationByFaction,
-          skills,
-        }
-
-        setProgress(normalized)
-      } catch (err) {
-        const fallbackProgress = createDefaultProgress()
-        setError(err instanceof Error ? err : new Error('Failed to fetch progress'))
-        console.error('Error fetching progress:', err)
-        setProgress(fallbackProgress)
-      } finally {
-        setIsLoading(false)
-      }
+  const { data, isLoading, error, refetch } = useMyPlayer()
+  const progress = useMemo<PlayerProgress | null>(() => {
+    const pg = (data as any)?.progress
+    if (!pg) return createDefaultProgress()
+    const reputationByFaction = coerceNumberRecord(pg.reputationByFaction ?? pg.reputation)
+    return {
+      ...createDefaultProgress(),
+      ...pg,
+      reputation: reputationByFaction,
+      reputationByFaction,
+      skills: pg.skills ?? {},
     }
-
-    if (deviceId) {
-      void fetchProgress()
-    } else {
-      setProgress(createDefaultProgress())
-      setIsLoading(false)
-    }
-  }, [refreshToken])
-
+  }, [data])
+  const refresh = () => { void refetch() }
   return { progress, isLoading, error, refresh }
 }
 
-/**
- * Hook to create a new player
- */
 export function useCreatePlayer() {
-  const [isCreating, setIsCreating] = useState(false)
-  const [error, setError] = useState<Error | null>(null)
-  const [playerId, setPlayerId] = useState<string | null>(null)
-
-  const createPlayer = async () => {
-    const deviceId = getDeviceId()
-
-    try {
-      setIsCreating(true)
-      setError(null)
-
-      const newPlayerId = await convexMutations.player.create({ deviceId })
-      setPlayerId(newPlayerId)
-
-      return newPlayerId
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error('Failed to create player')
-      setError(error)
-      console.error('Error creating player:', err)
-      throw error
-    } finally {
-      setIsCreating(false)
-    }
-  }
-
-  return { createPlayer, isCreating, error, playerId }
+  // Player auto-создаётся на первом запросе /player/init в backend; фронт использует useMyPlayer для чтения.
+  return { createPlayer: async () => null, isCreating: false, error: null, playerId: null }
 }

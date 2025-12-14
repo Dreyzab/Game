@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import type { Map, LngLatBounds } from 'mapbox-gl'
+import { useAuth } from '@clerk/clerk-react'
 import { MapboxMap } from '@/shared/ui/MapboxMap'
 import {
   useVisibleMapPoints,
@@ -9,9 +10,7 @@ import {
   convertBBoxToConvex
 } from '@/shared/hooks/useMapData'
 import { useDeviceId } from '@/shared/hooks/useDeviceId'
-import { convexClient } from '@/shared/api/convex'
-import { useMutation } from 'convex/react'
-import { api } from '@convex/_generated/api'
+import { authenticatedClient } from '@/shared/api/client'
 import type { MapPoint, BBox } from '@/shared/types/map'
 import type { InteractionKey } from '@/features/interaction/model/useMapPointInteraction'
 import { cn } from '@/shared/lib/utils/cn'
@@ -27,6 +26,8 @@ import { NavigationLayer } from './NavigationLayer'
 import { OtherPlayersLayer } from './OtherPlayersLayer'
 import { ZonesLayer } from './ZonesLayer'
 import type { MapFilterType } from './MapFilters'
+
+const DEFAULT_FILTERS: MapFilterType[] = ['quest', 'npc', 'poi', 'board', 'anomaly']
 
 export interface MapViewProps {
   /** Начальный центр карты */
@@ -65,7 +66,7 @@ export const MapView: React.FC<MapViewProps> = ({
   showSafeZones = true,
   showDangerZones = true,
   showFog = true,
-  activeFilters = ['quest', 'npc', 'poi', 'board', 'anomaly'],
+  activeFilters = DEFAULT_FILTERS,
   onSelectPoint,
   onInteractPoint,
   onNavigatePoint,
@@ -74,6 +75,7 @@ export const MapView: React.FC<MapViewProps> = ({
   onBoundsChange,
 }) => {
   const { deviceId } = useDeviceId()
+  const { getToken } = useAuth()
 
   // Состояние карты
   const [map, setMap] = useState<Map | null>(null)
@@ -85,6 +87,7 @@ export const MapView: React.FC<MapViewProps> = ({
   const initialZoomRef = useRef(initialZoom)
   const centerRef = useRef<[number, number]>(initialCenterRef.current)
   const zoomRef = useRef(initialZoomRef.current)
+  const lastBboxRef = useRef<BBox | undefined>(undefined)
 
   // Геолокация
   const { position, isLoading: isGeoLoading, getCurrentPosition } = useGeolocation({
@@ -99,7 +102,6 @@ export const MapView: React.FC<MapViewProps> = ({
   const lastDiscoveryRef = useRef<number>(0)
 
   // Multiplayer Heartbeat
-  const heartbeat = useMutation(api.presence.heartbeat)
   const lastHeartbeatRef = useRef<number>(0)
 
   useEffect(() => {
@@ -109,15 +111,18 @@ export const MapView: React.FC<MapViewProps> = ({
     // Send heartbeat every 5 seconds if position is available
     if (now - lastHeartbeatRef.current < 5000) return
 
-    heartbeat({
-      lat: position.coords.latitude,
-      lng: position.coords.longitude,
-      deviceId,
-      status: 'idle' // TODO: Get real status from global state
-    }).catch(err => console.warn('[MapView] Heartbeat failed', err))
+    ;(async () => {
+      try {
+        const token = await getToken()
+        const client = authenticatedClient(token ?? undefined, deviceId)
+        await client.presence.heartbeat.post()
+      } catch (err) {
+        console.warn('[MapView] Heartbeat failed', err)
+      }
+    })()
 
     lastHeartbeatRef.current = now
-  }, [position, deviceId, heartbeat])
+  }, [position, deviceId, getToken])
 
   // Обновляем центр при геолокации
   useEffect(() => {
@@ -135,11 +140,10 @@ export const MapView: React.FC<MapViewProps> = ({
   // Данные карты
   const { points, isLoading: isPointsLoading } = useVisibleMapPoints({
     bbox,
-    deviceId,
     limit: 100,
   })
 
-  const { isLoading: isZonesLoading } = useSafeZones({
+  const { safeZones, isLoading: isZonesLoading } = useSafeZones({
     bbox,
     enabled: showSafeZones,
   })
@@ -158,7 +162,7 @@ export const MapView: React.FC<MapViewProps> = ({
 
   // Автоматическое открытие ближайших точек карты по реальной геопозиции игрока
   useEffect(() => {
-    if (!deviceId || !position || !convexClient) return
+    if (!deviceId || !position) return
 
     const now = Date.now()
     // Не чаще, чем раз в 15 секунд
@@ -169,20 +173,19 @@ export const MapView: React.FC<MapViewProps> = ({
 
     const { latitude, longitude } = position.coords
 
-      ; (async () => {
+    ;(async () => {
         try {
-          // @ts-expect-error Allow calling by string without codegen
-          await convexClient.mutation('mapPoints:discoverByProximity', {
-            deviceId,
+          const token = await getToken()
+          const client = authenticatedClient(token ?? undefined, deviceId)
+          await client.map.discover.post({
             lat: latitude,
             lng: longitude,
-            radiusMeters: 75,
           })
         } catch (error) {
           console.warn('[MapView] discoverByProximity failed', error)
         }
       })()
-  }, [deviceId, position])
+  }, [deviceId, position, getToken])
 
   const [hoveredPointId, setHoveredPointId] = useState<string | null>(null)
 
@@ -219,6 +222,23 @@ export const MapView: React.FC<MapViewProps> = ({
    */
   const handleBoundsChange = useCallback((bounds: LngLatBounds) => {
     const newBbox = convertBBoxToConvex(bounds)
+    const prev = lastBboxRef.current
+
+    const almostEqual = (a?: number, b?: number) => {
+      if (a === undefined || b === undefined) return false
+      return Math.abs(a - b) < 1e-6
+    }
+
+    const same =
+      prev &&
+      almostEqual(prev.minLat, newBbox.minLat) &&
+      almostEqual(prev.maxLat, newBbox.maxLat) &&
+      almostEqual(prev.minLng, newBbox.minLng) &&
+      almostEqual(prev.maxLng, newBbox.maxLng)
+
+    if (same) return
+
+    lastBboxRef.current = newBbox
     setBbox(newBbox)
     onBoundsChange?.(newBbox)
   }, [onBoundsChange])
@@ -288,7 +308,7 @@ export const MapView: React.FC<MapViewProps> = ({
       <FogOfWarLayer
         map={map}
         playerPosition={position}
-        discoveredPoints={points}
+        points={points}
         visible={showFog}
       />
 
@@ -300,6 +320,7 @@ export const MapView: React.FC<MapViewProps> = ({
       <FactionZonesLayer
         map={map}
         visible={showSafeZones}
+        safeZones={safeZones}
       />
 
       <NavigationLayer
@@ -312,7 +333,7 @@ export const MapView: React.FC<MapViewProps> = ({
         map={map}
         userLocation={position}
       />
-      <ZonesLayer map={map} visible={true} />
+      <ZonesLayer map={map} />
 
       {/* User Location Marker */}
 

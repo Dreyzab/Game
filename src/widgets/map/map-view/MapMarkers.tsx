@@ -27,11 +27,9 @@ export const MapMarkers: React.FC<MapMarkersProps> = ({
         if (!map) return
 
         try {
-            // console.log(`🎯 [MapMarkers] Обновление маркеров. Всего точек: ${points.length}`)
-
             const currentMarkers = markersRef.current
 
-            // Удаляем маркеры, которых больше нет в данных
+            // ÑœÑïÑøÑ¯¥?ÑæÑ¬ Ñ¬Ñø¥?Ñ§Ñæ¥?¥<, Ñ§Ñó¥'Ñó¥?¥<¥. ÑñÑóÑ¯¥O¥^Ñæ Ñ«Ñæ¥' Ñý ÑïÑøÑ«Ñ«¥<¥.
             const pointIds = new Set(points.map((p) => p.id))
             for (const [id, { marker, root }] of currentMarkers.entries()) {
                 if (!pointIds.has(id)) {
@@ -41,17 +39,17 @@ export const MapMarkers: React.FC<MapMarkersProps> = ({
                             try {
                                 root.unmount()
                             } catch (e) {
-                                console.warn('⚠️ [MapMarkers] Ошибка при размонтировании маркера:', e)
+                                console.warn('[MapMarkers] Failed to unmount marker root', e)
                             }
                         })
                         currentMarkers.delete(id)
                     } catch (e) {
-                        console.error('❌ [MapMarkers] Ошибка при удалении маркера:', id, e)
+                        console.error('[MapMarkers] Failed to remove marker', id, e)
                     }
                 }
             }
 
-            // Добавляем или обновляем маркеры
+            // Ñ"ÑóÑñÑøÑýÑ¯¥?ÑæÑ¬ Ñ÷Ñ¯Ñ÷ ÑóÑñÑ«ÑóÑýÑ¯¥?ÑæÑ¬ Ñ¬Ñø¥?Ñ§Ñæ¥?¥<
             for (const point of points) {
                 if (!point || !point.id || !point.coordinates) {
                     continue
@@ -60,11 +58,11 @@ export const MapMarkers: React.FC<MapMarkersProps> = ({
 
                 if (existing) {
                     try {
-                        // Обновляем существующий маркер
+                        // ÑzÑñÑ«ÑóÑýÑ¯¥?ÑæÑ¬ ¥?¥Ÿ¥%Ñæ¥?¥'Ñý¥Ÿ¥Z¥%Ñ÷Ñû Ñ¬Ñø¥?Ñ§Ñæ¥?
                         const { marker, root } = existing
                         marker.setLngLat([point.coordinates.lng, point.coordinates.lat])
 
-                        // Обновляем React-контент
+                        // ÑzÑñÑ«ÑóÑýÑ¯¥?ÑæÑ¬ React-Ñ§ÑóÑ«¥'ÑæÑ«¥'
                         root.render(
                             <MapPointMarker
                                 point={point}
@@ -74,11 +72,11 @@ export const MapMarkers: React.FC<MapMarkersProps> = ({
                             />
                         )
                     } catch (e) {
-                        console.error('❌ [MapMarkers] Ошибка при обновлении маркера:', point.id, e)
+                        console.error('[MapMarkers] Failed to update marker', point.id, e)
                     }
                 } else {
                     try {
-                        // Создаём новый маркер
+                        // Ñ­ÑóÑúÑïÑø¥'Ñ¬ Ñ«ÑóÑý¥<Ñû Ñ¬Ñø¥?Ñ§Ñæ¥?
                         const el = document.createElement('div')
                         el.style.cssText = 'width: 32px; height: 32px;'
                         const root = createRoot(el)
@@ -99,7 +97,7 @@ export const MapMarkers: React.FC<MapMarkersProps> = ({
                             .setLngLat([point.coordinates.lng, point.coordinates.lat])
                             .addTo(map)
 
-                        // Добавляем обработчики наведения
+                        // Ñ"ÑóÑñÑøÑýÑ¯¥?ÑæÑ¬ ÑóÑñ¥?ÑøÑñÑó¥'¥ÎÑ÷Ñ§Ñ÷ Ñ«ÑøÑýÑæÑïÑæÑ«Ñ÷¥?
                         el.addEventListener('mouseenter', () => {
                             onHoverPoint(point)
                         })
@@ -109,12 +107,12 @@ export const MapMarkers: React.FC<MapMarkersProps> = ({
 
                         currentMarkers.set(point.id, { marker, root })
                     } catch (e) {
-                        console.error('❌ [MapMarkers] Ошибка при создании маркера:', point.id, e)
+                        console.error('[MapMarkers] Failed to create marker', point.id, e)
                     }
                 }
             }
         } catch (error) {
-            console.error('❌ [MapMarkers] Критическая ошибка при обновлении маркеров:', error)
+            console.error('[MapMarkers] Marker reconciliation failed', error)
         }
     }, [map, points, selectedPointId, hoveredPointId, onSelectPoint, onHoverPoint])
 

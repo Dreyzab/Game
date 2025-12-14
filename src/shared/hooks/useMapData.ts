@@ -1,332 +1,288 @@
-/**
- * @fileoverview Хуки для работы с данными карты
- * FSD: shared/hooks
- * 
- * Хуки для загрузки точек карты и зон из Convex
- */
+import { useAuth } from "@clerk/clerk-react";
+import { useQuery, useMutation, keepPreviousData } from "@tanstack/react-query";
+import { authenticatedClient } from "../api/client";
+import { useEffect, useState } from "react";
+import type { BBox, MapPointMetadata } from "../types/map";
 
-import { useState, useEffect, useMemo, useCallback } from 'react'
-import { convexQueries } from '@/shared/api/convex'
-import type { MapPoint, SafeZone, BBox } from '@/shared/types/map'
-import type { LngLatBounds } from 'mapbox-gl'
+type ApiPoint = {
+  id: string;
+  title: string;
+  description: string | null;
+  lat: number;
+  lng: number;
+  type: string | null;
+  phase: number | null;
+  isActive: boolean | null;
+  metadata: MapPointMetadata;
+  status: string;
+  discoveredAt: number | undefined;
+  researchedAt: number | undefined;
+};
 
-/**
- * Хук для получения видимых точек карты
- */
-export function useVisibleMapPoints(params: {
-  bbox?: BBox
-  phase?: number
-  limit?: number
-  deviceId?: string
-  userId?: string
-}) {
-  const { bbox, phase, limit = 100, deviceId, userId } = params
+type PointsResponse = { points: ApiPoint[] };
 
-  const queryArgs = useMemo(
-    () => ({
-      deviceId,
-      userId,
-      bbox,
-      phase,
-      limit,
-    }),
-    [bbox, deviceId, limit, phase, userId]
-  )
+type ApiZone = {
+  id: number;
+  status: 'locked' | 'peace' | 'contested' | null;
+  name: string;
+  ownerFactionId?: string | null;
+  center: { lat: number; lng: number };
+  radius: number;
+  health?: number | null;
+  lastCapturedAt?: number | null;
+};
 
-  const [data, setData] = useState<{ points: MapPoint[]; timestamp: number; ttlMs: number } | undefined>(undefined)
-  const [isLoading, setIsLoading] = useState(true)
+type ApiSafeZone = {
+  id: number;
+  title: string | null;
+  isActive: boolean | null;
+  faction: string | null;
+  polygon: { lat: number; lng: number }[];
+};
 
-  console.log('📊 [useMapData] Запрос точек карты:', {
-    bbox: queryArgs.bbox
-      ? `${queryArgs.bbox.minLat.toFixed(3)},${queryArgs.bbox.minLng.toFixed(3)} - ${queryArgs.bbox.maxLat.toFixed(3)},${queryArgs.bbox.maxLng.toFixed(3)}`
-      : 'весь мир',
-    phase: queryArgs.phase ?? 'все фазы',
-    limit: queryArgs.limit,
-    deviceId: queryArgs.deviceId ? `${String(queryArgs.deviceId).substring(0, 8)}...` : 'нет',
-  })
+type ApiDangerZone = {
+  id: number;
+  title: string | null;
+  isActive: boolean | null;
+  polygon: { lat: number; lng: number }[];
+  dangerLevel: string | null;
+};
 
-  // Загружаем данные с Convex
-  useEffect(() => {
-    let cancelled = false
+type ZonesResponse = { zones: ApiZone[]; safeZones: ApiSafeZone[]; dangerZones: ApiDangerZone[] };
 
-    async function fetchData() {
-      try {
-        setIsLoading(true)
-        const result = await convexQueries.mapPoints.listVisible(queryArgs)
-        
-        if (!cancelled) {
-          setData(result)
-          
-          if (result?.points) {
-            console.log(`✅ [useMapData] Получено точек: ${result.points.length}`)
-            console.log('📍 [useMapData] Детали точек:', result.points.map((p: MapPoint) => ({
-              id: p.id,
-              title: p.title,
-              type: p.type,
-              status: p.status,
-              coords: `${p.coordinates.lat.toFixed(4)}, ${p.coordinates.lng.toFixed(4)}`,
-              danger: p.metadata?.danger_level,
-              faction: p.metadata?.faction
-            })))
-          }
-        }
-      } catch (error) {
-        console.error('❌ [useMapData] Ошибка загрузки точек:', error)
-        if (!cancelled) {
-          setData({ points: [], timestamp: Date.now(), ttlMs: 0 })
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false)
-        }
-      }
+export const useMapData = (bbox?: { minLat: number; maxLat: number; minLng: number; maxLng: number }) => {
+  const { getToken, isLoaded } = useAuth();
+
+  // Fetch Points
+  const pointsQuery = useQuery<PointsResponse>({
+    queryKey: ['mapPoints', bbox],
+    queryFn: async () => {
+      const token = await getToken();
+      const client = authenticatedClient(token || undefined); // Allowed without token theoretically, but filtered logic changes
+
+      const { data, error } = await client.map.points.get({
+        query: bbox ? { ...bbox } : {}
+      });
+      if (error) throw error;
+      return data;
+    },
+    placeholderData: keepPreviousData,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
+    enabled: isLoaded, // Can run even if not signed in (guest mode logic in backend?) - backend requires user for progress but maybe base points ok?
+    // Actually backend check "if (!user) return unauthorized" for Points was there, might need to relax for Guest mode if that's a requirement.
+    // For now assuming player context needed.
+    retry: false
+  });
+
+  // Fetch Zones
+  const zonesQuery = useQuery<ZonesResponse>({
+    queryKey: ['mapZones'],
+    queryFn: async () => {
+      const token = await getToken();
+      const client = authenticatedClient(token || undefined);
+      const { data, error } = await client.map.zones.get();
+      if (error) throw error;
+      return data;
+    },
+    placeholderData: keepPreviousData,
+    staleTime: 60000, // Cache zones longer
+    refetchOnWindowFocus: false,
+  });
+
+  // Discover Mutation
+  const discoverMutation = useMutation({
+    mutationFn: async (pos: { lat: number; lng: number }) => {
+      const token = await getToken();
+      if (!token) return; // Silent fail
+      const client = authenticatedClient(token);
+      const { data, error } = await client.map.discover.post(pos);
+      if (error) throw error;
+      return data;
     }
+  });
 
-    fetchData()
+  // Transform API response to match frontend types
+  const transformedPoints = (pointsQuery.data?.points ?? []).map((p: any) => ({
+    ...p,
+    id: String(p.id),
+    title: p.title ?? '',
+    description: p.description ?? '',
+    type: p.type ?? 'poi',
+    isActive: p.isActive ?? true,
+    coordinates: { lat: p.lat, lng: p.lng },
+  }));
 
-    return () => {
-      cancelled = true
-    }
-  }, [queryArgs])
+  const transformedZones = (zonesQuery.data?.zones ?? []).map((z: any) => ({
+    ...z,
+    ownerFactionId: z.ownerFactionId ?? undefined,
+    status: z.status ?? undefined,
+  }));
+
+  const transformedSafeZones = (zonesQuery.data?.safeZones ?? []).map((z: any) => ({
+    ...z,
+    _id: z._id ?? String(z.id),
+    id: String(z.id),
+    name: z.title ?? z.name ?? '',
+    isActive: z.isActive ?? true,
+  }));
+
+  const transformedDangerZones = (zonesQuery.data?.dangerZones ?? []).map((z: any) => ({
+    ...z,
+    _id: z._id ?? String(z.id),
+    id: String(z.id),
+    name: z.title ?? z.name ?? '',
+    dangerLevel: z.dangerLevel ?? 'medium',
+    enemyTypes: z.enemyTypes ?? [],
+    spawnPoints: z.spawnPoints ?? [],
+    maxEnemies: z.maxEnemies ?? 0,
+    isActive: z.isActive ?? true,
+  }));
 
   return {
-    points: (data?.points || []) as MapPoint[],
-    isLoading,
-    timestamp: data?.timestamp,
-    ttlMs: data?.ttlMs,
+    points: transformedPoints,
+    zones: transformedZones,
+    safeZones: transformedSafeZones,
+    dangerZones: transformedDangerZones,
+    isLoading: pointsQuery.isLoading || zonesQuery.isLoading,
+    discover: discoverMutation.mutateAsync
+  };
+};
+
+// Compat helper for legacy components (PointsListPanel)
+export const useVisibleMapPoints = ({
+  bbox,
+  limit = 100,
+}: {
+  bbox?: { minLat: number; maxLat: number; minLng: number; maxLng: number };
+  limit?: number;
+}) => {
+  const { points, isLoading } = useMapData(bbox);
+  const limited = limit ? points.slice(0, limit) : points;
+  return { points: limited, isLoading };
+};
+
+// Получение зон (без отдельного запроса, используем кеш useMapData)
+export const useSafeZones = ({
+  bbox,
+  enabled = true,
+}: {
+  bbox?: BBox;
+  enabled?: boolean;
+}) => {
+  const { safeZones, dangerZones, isLoading } = useMapData(bbox);
+
+  if (!enabled) {
+    return { safeZones: [], dangerZones: [], isLoading: false };
   }
-}
 
-/**
- * Хук для получения безопасных зон
- */
-export function useSafeZones(params: {
-  bbox?: BBox
-  enabled?: boolean
-}) {
-  const { bbox, enabled = true } = params
-  const [data, setData] = useState<SafeZone[] | undefined>(undefined)
-  const [isLoading, setIsLoading] = useState(true)
+  // Здесь можно добавить фильтрацию по bbox, если потребуется
+  return { safeZones, dangerZones, isLoading };
+};
 
-  const queryArgs = useMemo(() => (bbox ? { bbox } : undefined), [bbox])
+// --- Helpers for geolocation ---
+export const useGeolocation = ({
+  enabled = true,
+  watch = false,
+  accuracy = 'high'
+}: {
+  enabled?: boolean;
+  watch?: boolean;
+  accuracy?: 'low' | 'high';
+}) => {
+  const [position, setPosition] = useState<GeolocationPosition | null>(null);
+  const [error, setError] = useState<GeolocationPositionError | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(enabled);
 
-  console.log('🟢 [useMapData] Запрос безопасных зон:', {
-    enabled,
-    bbox: queryArgs?.bbox
-      ? `${queryArgs.bbox.minLat.toFixed(3)},${queryArgs.bbox.minLng.toFixed(3)} - ${queryArgs.bbox.maxLat.toFixed(3)},${queryArgs.bbox.maxLng.toFixed(3)}`
-      : 'весь мир'
-  })
-
-  // Загружаем данные с Convex только если enabled
   useEffect(() => {
-    if (!enabled) {
-      setData([])
-      setIsLoading(false)
-      return
+    if (!enabled || typeof navigator === 'undefined' || !navigator.geolocation) {
+      setIsLoading(false);
+      return;
     }
 
-    let cancelled = false
-
-    async function fetchData() {
-      try {
-        setIsLoading(true)
-        const result = await convexQueries.zones.listSafeZones(queryArgs ?? {})
-        
-        if (!cancelled) {
-          setData(result)
-          
-          if (result) {
-            console.log(`✅ [useMapData] Получено безопасных зон: ${result.length}`)
-            if (result.length > 0) {
-              console.log('🟢 [useMapData] Детали зон:', result.map((z: SafeZone) => ({
-                id: z.id,
-                name: z.name,
-                faction: z.faction,
-                points: z.polygon.length
-              })))
-            }
-          }
-        }
-      } catch (error) {
-        console.error('❌ [useMapData] Ошибка загрузки зон:', error)
-        if (!cancelled) {
-          setData([])
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false)
-        }
-      }
-    }
-
-    fetchData()
-
-    return () => {
-      cancelled = true
-    }
-  }, [enabled, queryArgs])
-
-  return {
-    zones: (data || []) as SafeZone[],
-    isLoading,
-  }
-}
-
-/**
- * Хук для получения геолокации пользователя
- */
-export function useGeolocation(options: {
-  accuracy?: 'high' | 'low'
-  watch?: boolean
-  enabled?: boolean
-} = {}) {
-  const { accuracy = 'high', watch = false, enabled = true } = options
-
-  const [position, setPosition] = useState<GeolocationPosition | null>(null)
-  const [error, setError] = useState<GeolocationPositionError | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-
-  const getCurrentPosition = useCallback(() => {
-    if (!enabled || !navigator.geolocation) {
-      console.warn('⚠️ [useGeolocation] Геолокация недоступна')
-      setError({
-        code: 0,
-        message: 'Геолокация недоступна',
-      } as GeolocationPositionError)
-      return
-    }
-
-    console.log('📍 [useGeolocation] Запрос геолокации...')
-    setIsLoading(true)
-    setError(null)
-
-    const options: PositionOptions = {
+    const opts: PositionOptions = {
       enableHighAccuracy: accuracy === 'high',
+      maximumAge: 5000,
       timeout: 10000,
-      maximumAge: 0,
-    }
+    };
 
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        console.log('✅ [useGeolocation] Позиция получена:', {
-          lat: pos.coords.latitude.toFixed(6),
-          lng: pos.coords.longitude.toFixed(6),
-          accuracy: `${pos.coords.accuracy.toFixed(0)}м`
-        })
-        setPosition(pos)
-        setIsLoading(false)
-      },
-      (err) => {
-        console.error('❌ [useGeolocation] Ошибка:', err.message)
-        setError(err)
-        setIsLoading(false)
-      },
-      options
-    )
-  }, [accuracy, enabled])
+    const onSuccess = (pos: GeolocationPosition) => {
+      setPosition(pos);
+      setIsLoading(false);
+    };
 
-  useEffect(() => {
-    if (!enabled) return
+    const onError = (err: GeolocationPositionError) => {
+      setError(err);
+      setIsLoading(false);
+    };
 
+    let watchId: number | null = null;
     if (watch) {
-      // Режим отслеживания позиции
-      const watchId = navigator.geolocation.watchPosition(
-        (pos) => {
-          setPosition(pos)
-          setIsLoading(false)
-        },
-        (err) => {
-          setError(err)
-          setIsLoading(false)
-        },
-        {
-          enableHighAccuracy: accuracy === 'high',
-          timeout: 10000,
-          maximumAge: 0,
-        }
-      )
-
-      return () => {
-        navigator.geolocation.clearWatch(watchId)
-      }
+      watchId = navigator.geolocation.watchPosition(onSuccess, onError, opts);
     } else {
-      // Одноразовый запрос
-      getCurrentPosition()
+      navigator.geolocation.getCurrentPosition(onSuccess, onError, opts);
     }
-  }, [enabled, watch, accuracy, getCurrentPosition])
 
-  return {
-    position,
-    error,
-    isLoading,
-    getCurrentPosition,
-  }
-}
+    return () => {
+      if (watch && watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+      }
+    };
+  }, [enabled, watch, accuracy]);
 
-/**
- * Хук для центрирования карты на пользователе
- */
-export function useCenterOnUser(params: {
-  position: GeolocationPosition | null
-  getCurrentPosition: () => void
-}) {
-  const { position, getCurrentPosition } = params
+  const getCurrentPosition = () =>
+    new Promise<GeolocationPosition | null>((resolve) => {
+      if (!navigator?.geolocation) {
+        resolve(null);
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve(pos),
+        () => resolve(null),
+        { enableHighAccuracy: accuracy === 'high', timeout: 10000 }
+      );
+    });
 
-  const [center, setCenter] = useState<[number, number] | undefined>(undefined)
-  const [isRequesting, setIsRequesting] = useState(false)
+  return { position, isLoading, error, getCurrentPosition };
+};
 
-  const handleLocateUser = () => {
-    setIsRequesting(true)
-    getCurrentPosition()
-  }
+export const useCenterOnUser = ({
+  position,
+  getCurrentPosition,
+}: {
+  position: GeolocationPosition | null;
+  getCurrentPosition: () => Promise<GeolocationPosition | null>;
+}) => {
+  const [center, setCenter] = useState<[number, number] | null>(null);
 
   useEffect(() => {
-    if (isRequesting && position) {
-      setCenter([position.coords.longitude, position.coords.latitude])
-      setIsRequesting(false)
+    if (!position) return;
+    setCenter([position.coords.longitude, position.coords.latitude]);
+  }, [position]);
+
+  const handleLocateUser = async () => {
+    const pos = position || (await getCurrentPosition());
+    if (pos) {
+      setCenter([pos.coords.longitude, pos.coords.latitude]);
     }
-  }, [position, isRequesting])
+  };
 
-  return {
-    center,
-    setCenter,
-    handleLocateUser,
-  }
-}
+  return { center, handleLocateUser };
+};
 
 /**
- * Вычисляет расстояние между двумя точками (формула Haversine)
+ * Конвертация bbox Mapbox в тип BBox (для запросов к API)
  */
-export function calculateDistance(
-  lat1: number,
-  lng1: number,
-  lat2: number,
-  lng2: number
-): number {
-  const R = 6371 // Радиус Земли в км
-  const dLat = ((lat2 - lat1) * Math.PI) / 180
-  const dLng = ((lng2 - lng1) * Math.PI) / 180
-
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) *
-      Math.sin(dLng / 2)
-
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-  return R * c
-}
-
-/**
- * Конвертирует BBox из Mapbox в формат для Convex
- */
-export function convertBBoxToConvex(bounds: LngLatBounds): BBox {
+export const convertBBoxToConvex = (bounds: {
+  getNorthEast: () => { lat: number; lng: number };
+  getSouthWest: () => { lat: number; lng: number };
+}) => {
+  const ne = bounds.getNorthEast();
+  const sw = bounds.getSouthWest();
   return {
-    minLat: bounds.getSouth(),
-    maxLat: bounds.getNorth(),
-    minLng: bounds.getWest(),
-    maxLng: bounds.getEast(),
-  }
-}
-
+    minLat: sw.lat,
+    maxLat: ne.lat,
+    minLng: sw.lng,
+    maxLng: ne.lng,
+  };
+};

@@ -11,7 +11,7 @@
 
 #### Архитектура и инфраструктура
 - ✅ **FSD Architecture** - Feature-Sliced Design полностью внедрён
-- ✅ **Convex Backend** - Настроен и работает локально/в облаке
+- ✅ **Bun + Elysia Backend** - HTTP/WS API с Drizzle ORM
 - ✅ **TypeScript** - Полная типизация проекта
 - ✅ **React 19** - Последняя версия с concurrent features
 - ✅ **Tailwind CSS v4** - Современная система стилей
@@ -145,7 +145,7 @@
 - **MAP_CONFLICTS_AND_BUGS.md** - Известные проблемы карты
 - **ATTRIBUTES_ANALYSIS.md** - Анализ системы атрибутов (критичные проблемы)
 - **INVENTORY_PAGE_ARCHITECTURE.md** - Архитектура инвентаря
-- **CONVEX_GUIDE.md** - Руководство по Convex
+- **server/README.md** - Руководство по Backend API
 - **requirment.md** - Требования проекта
 
 #### README файлы
@@ -216,6 +216,11 @@
 ---
 
 **Примечание:** Этот документ обновляется по мере развития проекта. Для актуальной информации о конкретных системах см. соответствующие технические документы.
+
+
+
+
+
 
 
 

@@ -68,7 +68,7 @@ export const useInventoryStore = create<InventoryState>()(
                         } else if (item.equippedSlot === 'artifact') {
                             slots.artifacts.push(item)
                         } else {
-                            // @ts-ignore - we know the key matches
+                            // @ts-expect-error - equippedSlot matches EquipmentSlots keys at runtime
                             slots[item.equippedSlot] = item
                         }
                     }
@@ -190,7 +190,8 @@ export const useInventoryStore = create<InventoryState>()(
 
             removeItem: (itemId) => {
                 set((state) => {
-                    const { [itemId]: deleted, ...rest } = state.items
+                    const rest = { ...state.items }
+                    delete rest[itemId]
                     inventoryOutbox.getState().enqueue({ type: 'REMOVE_ITEM', itemId })
                     return { items: rest }
                 })

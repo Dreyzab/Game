@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { VoiceCard } from './VoiceCard'
-import { VOICE_DEFINITIONS, CATEGORY_LABELS, CATEGORY_DESCRIPTIONS, type VoiceId, type VoiceCategory } from '../lib/voiceDefinitions'
+import { VOICE_DEFINITIONS, CATEGORY_LABELS, type VoiceId, type VoiceCategory } from '../lib/voiceDefinitions'
 
 export interface VoiceCardGroupProps {
   skills: Record<string, number>

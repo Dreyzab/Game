@@ -11,9 +11,13 @@ import type { SceneBinding } from '@/shared/types/map'
 // ТИПЫ
 // =====================================
 
+type SceneBindingDraft = Omit<SceneBinding, 'triggerType'> & {
+  triggerType?: SceneBinding['triggerType']
+}
+
 export interface MapPointSceneConfig {
   pointId: string
-  bindings: SceneBinding[]
+  bindings: SceneBindingDraft[]
 }
 
 // =====================================
@@ -395,7 +399,10 @@ export const allChapter1Bindings: MapPointSceneConfig[] = [
  */
 export function getBindingsForPoint(pointId: string): SceneBinding[] {
   const config = allChapter1Bindings.find(c => c.pointId === pointId)
-  return config?.bindings ?? []
+  return (config?.bindings ?? []).map((binding) => ({
+    ...binding,
+    triggerType: binding.triggerType ?? 'click',
+  }))
 }
 
 /**
@@ -404,6 +411,13 @@ export function getBindingsForPoint(pointId: string): SceneBinding[] {
 export function hasSceneBindings(pointId: string): boolean {
   return allChapter1Bindings.some(c => c.pointId === pointId)
 }
+
+
+
+
+
+
+
 
 
 

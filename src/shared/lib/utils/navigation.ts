@@ -26,6 +26,7 @@ export const Routes = {
   ENHANCED_MAP: '/enhanced-map',
   QUESTS: '/quests',
   COMBAT: '/combat',
+  BATTLE: '/battle',
   TUTORIAL_BATTLE: '/tutorial-battle',
   INVENTORY: '/inventory',
   SETTINGS: '/settings',
@@ -39,6 +40,7 @@ export const Routes = {
   COOP_ROOM: '/coop/:roomCode',
   COOP_BATTLE: '/coop/:roomCode/battle',
   COOP_RESULTS: '/coop/:roomCode/results',
+  RESONANCE: '/resonance',
 } as const
 
 export type RoutePath = typeof Routes[keyof typeof Routes]

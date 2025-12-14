@@ -10,7 +10,6 @@ import type { Scene } from '../../../model/types'
 const FJR_HQ_BACKGROUND = '/images/backgrounds/fjr_headquarters.jpg'
 const STADTGARTEN_BACKGROUND = '/images/backgrounds/stadtgarten.jpg'
 const KRUGER_SPRITE = '/images/npcs/kruger.jpg'
-const HANS_SPRITE = '/images/npcs/craftsman.jpg'
 
 export const fjrScenes: Record<string, Scene> = {
   // =====================================
@@ -1119,6 +1118,13 @@ export const fjrScenes: Record<string, Scene> = {
     ],
   },
 }
+
+
+
+
+
+
+
 
 
 

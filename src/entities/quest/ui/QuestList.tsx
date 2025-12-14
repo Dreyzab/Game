@@ -1,15 +1,13 @@
 import React, { useState, useEffect } from 'react'
-import { convexQueries } from '@/shared/api/convex'
 import { QuestItem } from './QuestItem'
-import { QuestDetailsModal } from './QuestDetailsModal'
-import { useDeviceId } from '@/shared/hooks/useDeviceId'
 import { useQuestStore } from '@/shared/stores/questStore'
 import { Loader2, Inbox, Archive } from 'lucide-react'
 import { cn } from '@/shared/lib/utils/cn'
 import type { Quest } from '@/shared/types/quest'
+import { useMyQuests } from '@/shared/hooks/useMyQuests'
+import { QuestDetailsModal } from './QuestDetailsModal'
 
 export const QuestListComponent: React.FC = () => {
-    const { deviceId } = useDeviceId()
     const [activeTab, setActiveTab] = useState<'active' | 'completed'>('active')
     const [activeQuests, setActiveQuests] = useState<Quest[]>([])
     const [completedQuests, setCompletedQuests] = useState<Quest[]>([])
@@ -19,29 +17,14 @@ export const QuestListComponent: React.FC = () => {
     const [selectedQuest, setSelectedQuest] = useState<Quest | null>(null)
     const { trackedQuestId, setTrackedQuestId } = useQuestStore()
 
+    const { active, completed, isLoading: isQueryLoading, error: queryError } = useMyQuests()
+
     useEffect(() => {
-        if (!deviceId) return
-
-        const fetchQuests = async () => {
-            try {
-                setIsLoading(true)
-                setError(null)
-                const [active, completed] = await Promise.all([
-                    convexQueries.quests.getActive({ deviceId }),
-                    convexQueries.quests.getCompleted({ deviceId, limit: 50 })
-                ])
-                setActiveQuests(active as Quest[])
-                setCompletedQuests(completed as Quest[])
-            } catch (err) {
-                console.error('Failed to fetch quests:', err)
-                setError('Не удалось загрузить список заданий')
-            } finally {
-                setIsLoading(false)
-            }
-        }
-
-        void fetchQuests()
-    }, [deviceId])
+        setIsLoading(isQueryLoading)
+        setError(queryError ? 'Не удалось загрузить список заданий' : null)
+        setActiveQuests((active as Quest[]) ?? [])
+        setCompletedQuests((completed as Quest[]) ?? [])
+    }, [active, completed, isQueryLoading, queryError])
 
     const handleTrackQuest = (questId: string) => {
         if (trackedQuestId === questId) {
@@ -52,7 +35,6 @@ export const QuestListComponent: React.FC = () => {
     }
 
     if (error) {
-        // Simple error display instead of throwing to avoid breaking the whole UI if not caught
         return (
             <div className="p-4 text-red-400 bg-red-900/20 rounded-lg border border-red-500/20">
                 <p>{error}</p>
@@ -62,7 +44,6 @@ export const QuestListComponent: React.FC = () => {
 
     return (
         <div className="space-y-4">
-            {/* Tabs */}
             <div className="flex p-1 bg-gray-900/50 rounded-lg backdrop-blur-sm border border-white/5">
                 <button
                     onClick={() => setActiveTab('active')}
@@ -95,7 +76,6 @@ export const QuestListComponent: React.FC = () => {
                 </button>
             </div>
 
-            {/* Content */}
             {isLoading ? (
                 <div className="flex flex-col items-center justify-center py-12 text-gray-500">
                     <Loader2 className="w-8 h-8 animate-spin mb-2" />

@@ -7,40 +7,53 @@
 - 🗺️ **Location-based gameplay** - Real world exploration via QR codes
 - 🎴 **Card battle system** - Strategic combat mechanics
 - 📖 **Visual novel elements** - Immersive storytelling
-- 🔄 **Realtime backend** - Convex-powered multiplayer features
+- 🔄 **Bun + Elysia backend** - Realtime-ready API (HTTP + WS)
 - 🎨 **Cyberpunk UI** - Modern design with Tailwind CSS
 - 📱 **Mobile-first** - Responsive design for all devices
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js 18+
-- npm or yarn
 
-### One-Command Setup
+- Node.js 18+
+- Bun (backend)
+- npm (frontend)
+- Docker (для локальной БД Postgres)
+
+### Шаги запуска
+
 ```bash
-# Clone and run with single command
-./start.sh
+# 1) Установить зависимости (выполнится автоматически при первом запуске)
+# 2) Запустить backend + frontend в dev-режиме
+bash start.sh
 ```
 
-### Manual Setup
+Скрипт поднимет:
+- Backend (Bun) на `http://localhost:3000`
+- Frontend (Vite) на `http://localhost:5173`
+Зависимости `npm` и `bun` ставятся автоматически, если каталоги `node_modules` отсутствуют. Для кастомного Postgres укажите `DATABASE_URL` в `server/.env` (скопируйте `server/.env.example` → `server/.env`) перед запуском.
+
+### Scripts (frontend)
+
 ```bash
-# Install dependencies
-npm install
+npm run dev       # Vite dev сервер
+npm run build     # Production build
+npm run preview   # Preview production build
+npm run lint      # ESLint
+```
 
-# Start development server
-npm run dev
+### Scripts (backend)
 
-# Build for production
-npm run build
-
-# Preview production build
-npm run preview
+```bash
+bun run dev       # Elysia HTTP+WS сервер на Bun
+bun run db:push   # Применить схему в БД (Drizzle)
+bun run db:seed   # Засеять точки карты и шаблоны предметов
 ```
 
 ## 🏗️ Architecture
 
 ### **FSD (Feature-Sliced Design)**
+
 ```text
 src/
 ├── app/                    # App-wide logic
@@ -52,6 +65,7 @@ src/
 ```
 
 ### **UI Component Library**
+
 - **Button** - Enhanced with variants, uppercase, tracking
 - **Badge** - Glow, solid, outline variants
 - **LoadingSpinner** - Configurable sizes and text
@@ -63,6 +77,7 @@ src/
 ## 🛠️ Tech Stack
 
 ### **Frontend**
+
 - **React 19** - Latest React with concurrent features
 - **TypeScript** - Full type safety
 - **Vite** - Lightning-fast build tool
@@ -70,11 +85,15 @@ src/
 - **Framer Motion** - Smooth animations
 
 ### **Backend & Data**
-- **Convex** - Realtime backend-as-a-service
+
+- **Bun + Elysia** - HTTP/WS сервер
+- **Drizzle ORM + Postgres** - Схема и миграции
+- **Clerk** - Аутентификация
 - **Zustand** - Lightweight state management
 - **React Router v7** - Modern routing
 
 ### **Development**
+
 - **ESLint** - Code quality and consistency
 - **TypeScript Compiler** - Strict type checking
 - **Path Mapping** - Clean `@/` imports
@@ -95,6 +114,7 @@ React 19 runs components twice in development when `StrictMode` is enabled, whic
 ## 🎯 Development Status
 
 ### ✅ **Completed**
+
 - **FSD Architecture** - Feature-Sliced Design implementation
 - **Component Library** - 9 reusable UI components
 - **HomePage Refactoring** - Clean, maintainable code structure
@@ -102,12 +122,14 @@ React 19 runs components twice in development when `StrictMode` is enabled, whic
 - **Path Aliases** - Clean import statements with `@/` prefix
 
 ### 🚧 **In Progress**
+
 - **Game Logic** - Core gameplay mechanics
 - **QR Code System** - Location-based interactions
 - **Character System** - Player progression and stats
 - **Quest System** - Dynamic storyline management
 
 ### 📋 **Planned**
+
 - **Multiplayer Features** - Real-time player interactions
 - **Mobile App** - React Native companion
 - **Content Management** - Dynamic quest and location creation

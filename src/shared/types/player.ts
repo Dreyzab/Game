@@ -22,7 +22,7 @@ export interface PlayerProgress {
   xp: number
   maxXp: number
   skillPoints: number
-  reputation: number
+  reputation: Record<string, number>
   completedQuests: number
   fame: number
   points: number

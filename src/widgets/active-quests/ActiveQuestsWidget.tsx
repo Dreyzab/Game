@@ -1,63 +1,34 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useActiveQuests } from '@/shared/hooks/useQuests'
-import { convexMutations } from '@/shared/api/convex'
+import { useMyQuests } from '@/shared/hooks/useMyQuests'
 import { Badge } from '@/shared/ui/components/Badge'
 import { Text } from '@/shared/ui/components/Text'
 import { MotionContainer } from '@/shared/ui/components/MotionContainer'
 import { LoadingSpinner } from '@/shared/ui/components/LoadingSpinner'
 import { Routes } from '@/shared/lib/utils/navigation'
 import { cn } from '@/shared/lib/utils/cn'
-
-/**
- * Результат мутации abandon.
- * Контракт: { ok?: boolean; error?: string }
- * - ok === true означает успех
- * - ok === false или отсутствие ok означает ошибку
- * - error содержит сообщение об ошибке (если есть)
- */
-type AbandonQuestResult = { ok?: boolean; error?: string }
+import type { Quest } from '@/shared/types/quest'
 
 export interface ActiveQuestsWidgetProps {
   className?: string
 }
 
 export const ActiveQuestsWidget: React.FC<ActiveQuestsWidgetProps> = ({ className }) => {
-  const { quests, isLoading } = useActiveQuests()
+  const { active = [], isLoading } = useMyQuests()
   const navigate = useNavigate()
-  const [abandoningQuestId, setAbandoningQuestId] = useState<string | null>(null)
   const [removedQuestIds, setRemovedQuestIds] = useState<Set<string>>(() => new Set())
 
-  const visibleQuests = quests.filter((quest) => !removedQuestIds.has(quest.id))
+  const activeQuests = active as Quest[]
+  const visibleQuests = activeQuests.filter((quest) => !removedQuestIds.has(quest.id))
 
-  const handleCancelQuest = async (questId: string) => {
-    const ok = window.confirm('Отменить квест? Прогресс по нему будет остановлен.')
+  const handleCancelQuest = (questId: string) => {
+    const ok = window.confirm('Отменить квест? Прогресс по нему будет остановлен локально.')
     if (!ok) return
-
-    setAbandoningQuestId(questId)
-    try {
-      const result = await convexMutations.quests.abandon({ questId }) as AbandonQuestResult
-
-      // Явная проверка успеха: result.ok должно быть true
-      if (result?.ok !== true) {
-        // Если есть сообщение об ошибке, используем его; иначе — дефолтное
-        const errorMessage = result?.error || 'Не удалось отменить квест. Попробуйте ещё раз позже.'
-        window.alert(errorMessage)
-        return
-      }
-
-      // Успех: удаляем квест из видимого списка
-      setRemovedQuestIds((prev) => {
-        const next = new Set(prev)
-        next.add(questId)
-        return next
-      })
-    } catch (e) {
-      console.warn('Failed to abandon quest', e)
-      window.alert('Произошла ошибка при отмене квеста. Попробуйте ещё раз позже.')
-    } finally {
-      setAbandoningQuestId(null)
-    }
+    setRemovedQuestIds((prev) => {
+      const next = new Set(prev)
+      next.add(questId)
+      return next
+    })
   }
 
   const handleViewAllQuests = () => {
@@ -76,11 +47,11 @@ export const ActiveQuestsWidget: React.FC<ActiveQuestsWidgetProps> = ({ classNam
             Активные квесты
           </h3>
           <span className="text-sm text-[color:var(--color-text-secondary)]">
-            {visibleQuests.length}/{quests.length}
+            {visibleQuests.length}/{activeQuests.length}
           </span>
         </div>
         <Badge variant="glow">
-          В РЕАЛЬНОМ ВРЕМЕНИ
+          ЛОКАЛЬНО
         </Badge>
       </div>
 
@@ -137,13 +108,11 @@ export const ActiveQuestsWidget: React.FC<ActiveQuestsWidgetProps> = ({ classNam
                     className={cn(
                       'px-3 py-1 rounded text-xs',
                       'text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text)]',
-                      'border border-[color:var(--color-border-strong)]/50 hover:border-[color:var(--color-border-strong)]',
-                      'disabled:opacity-60 disabled:cursor-not-allowed'
+                      'border border-[color:var(--color-border-strong)]/50 hover:border-[color:var(--color-border-strong)]'
                     )}
-                    title="Отменить квест"
-                    disabled={abandoningQuestId === quest.id}
+                    title="Отменить квест (локально)"
                   >
-                    {abandoningQuestId === quest.id ? 'Отменяем…' : 'Отменить'}
+                    Отменить
                   </button>
                 </div>
               </div>
@@ -169,3 +138,4 @@ export const ActiveQuestsWidget: React.FC<ActiveQuestsWidgetProps> = ({ classNam
   )
 }
 
+export default ActiveQuestsWidget

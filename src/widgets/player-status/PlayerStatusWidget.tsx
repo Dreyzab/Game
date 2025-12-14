@@ -25,7 +25,7 @@ export const PlayerStatusWidget: React.FC<PlayerStatusWidgetProps> = ({ classNam
   }
 
   const status = player?.status || 'Новичок'
-  const reputation = progress?.reputation ?? 0
+  const reputationTotal = Object.values(progress?.reputation ?? {}).reduce((acc, value) => acc + value, 0)
   const level = progress?.level ?? 0
   const xp = progress?.xp ?? 0
   const maxXp = progress?.maxXp ?? 100
@@ -58,7 +58,7 @@ export const PlayerStatusWidget: React.FC<PlayerStatusWidgetProps> = ({ classNam
         {/* Репутация */}
         <div className="flex items-center justify-between">
           <Text variant="muted" size="sm">Репутация:</Text>
-          <Text variant="body" size="sm" className="font-medium">{reputation}</Text>
+          <Text variant="body" size="sm" className="font-medium">{reputationTotal}</Text>
         </div>
 
         {/* Уровень и XP */}
@@ -130,4 +130,3 @@ export const PlayerStatusWidget: React.FC<PlayerStatusWidgetProps> = ({ classNam
     </MotionContainer>
   )
 }
-

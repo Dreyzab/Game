@@ -9,7 +9,6 @@ import type { Scene } from '../../../model/types'
 
 const MEDCENTER_BACKGROUND = '/images/backgrounds/synthesis_medcenter.jpg'
 const GREENHOUSE_BACKGROUND = '/images/backgrounds/greenhouse.jpg'
-const CAMPUS_BACKGROUND = '/images/backgrounds/synthesis_campus.jpg'
 const LENA_SPRITE = '/images/npcs/lena_richter.jpg'
 
 export const synthesisScenes: Record<string, Scene> = {
@@ -443,15 +442,15 @@ export const synthesisScenes: Record<string, Scene> = {
     choices: [
       {
         id: 'sneak_around',
-        text: '[РЕФЛЕКСЫ] Тихо обойти их. (Сложность 9)',
+        text: '[РЕАКЦИЯ] Тихо обойти их. (Сложность 9)',
         presentation: {
           color: 'skill',
           icon: '🏃',
-          tooltip: 'Требуется РЕФЛЕКСЫ',
+          tooltip: 'Требуется РЕАКЦИЯ',
         },
         availability: {
           skillCheck: {
-            skill: 'reflexes',
+            skill: 'reaction',
             difficulty: 9,
             successText: 'Ты скользишь мимо как тень.',
             failureText: 'Под ногой хрустит стекло...',
@@ -464,15 +463,15 @@ export const synthesisScenes: Record<string, Scene> = {
       },
       {
         id: 'distract',
-        text: '[ТЕХНОФИЛ] Бросить что-то, чтобы отвлечь. (Сложность 7)',
+        text: '[АНАЛИЗ] Бросить что-то, чтобы отвлечь. (Сложность 7)',
         presentation: {
           color: 'skill',
           icon: '🔧',
-          tooltip: 'Требуется ТЕХНОФИЛ',
+          tooltip: 'Требуется АНАЛИЗ',
         },
         availability: {
           skillCheck: {
-            skill: 'technophile',
+            skill: 'analysis',
             difficulty: 7,
             successText: 'Отличная идея!',
             failureText: 'Они не отвлеклись...',
@@ -1094,6 +1093,12 @@ export const synthesisScenes: Record<string, Scene> = {
     nextScene: 'lena_professor_revelation',
   },
 }
+
+
+
+
+
+
 
 
 

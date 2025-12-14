@@ -1,16 +1,20 @@
 import React, { useEffect, useMemo } from 'react'
 import type { Map, GeoJSONSource } from 'mapbox-gl'
-import { useQuery } from 'convex/react'
-import { api } from '@convex/_generated/api'
 
 interface ZonesLayerProps {
     map: Map | null
     visible?: boolean
+    zones?: Array<{
+        id: number | string
+        name?: string
+        center?: { lat: number; lng: number }
+        radius?: number
+        ownerFactionId?: string
+        status?: string
+    }>
 }
 
-export const ZonesLayer: React.FC<ZonesLayerProps> = ({ map, visible = true }) => {
-    const zones = useQuery(api.zones.getZones, {})
-
+export const ZonesLayer: React.FC<ZonesLayerProps> = ({ map, visible = true, zones = [] }) => {
     const sourceId = 'zones-source'
     const circleLayerId = 'zones-circle'
     const labelLayerId = 'zones-label'
@@ -20,21 +24,24 @@ export const ZonesLayer: React.FC<ZonesLayerProps> = ({ map, visible = true }) =
 
         const features = zones
             .filter(zone => zone && zone.center && typeof zone.center.lng === 'number' && typeof zone.center.lat === 'number')
-            .map(zone => ({
-                type: 'Feature' as const,
-                geometry: {
-                    type: 'Point' as const,
-                    coordinates: [zone.center.lng, zone.center.lat]
-                },
-                properties: {
-                    id: zone._id,
-                    name: zone.name || 'Unknown Zone',
-                    radius: zone.radius || 100,
-                    color: zone.ownerFactionId === 'stalkers' ? '#00ff00' :
-                        zone.ownerFactionId === 'bandits' ? '#ff0000' : '#888888',
-                    opacity: zone.status === 'locked' ? 0.1 : 0.3
-                }
-            }))
+            .map((zone) => {
+                const center = zone.center!
+                return ({
+                    type: 'Feature' as const,
+                    geometry: {
+                        type: 'Point' as const,
+                        coordinates: [center.lng, center.lat]
+                    },
+                    properties: {
+                        id: zone.id,
+                        name: zone.name || 'Unknown Zone',
+                        radius: zone.radius || 100,
+                        color: zone.ownerFactionId === 'stalkers' ? '#00ff00' :
+                            zone.ownerFactionId === 'bandits' ? '#ff0000' : '#888888',
+                        opacity: zone.status === 'locked' ? 0.1 : 0.3
+                    }
+                })
+            })
 
         return {
             type: 'FeatureCollection' as const,

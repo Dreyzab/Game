@@ -17,6 +17,7 @@ import BattlePage from '@/pages/BattlePage'
 import TutorialBattlePage from '@/pages/TutorialBattlePage'
 import PvPPage from '@/pages/PvPPage'
 import CoopPage from '@/pages/CoopPage'
+import ResonancePage from '@/pages/ResonancePage'
 
 
 
@@ -50,6 +51,7 @@ function App() {
         <Route path={RoutePaths.SQUAD} element={<SquadPage />} />
         <Route path={RoutePaths.PVP} element={<PvPPage />} />
         <Route path={RoutePaths.PVP_BATTLE} element={<PvPPage />} />
+        <Route path={RoutePaths.RESONANCE} element={<ResonancePage />} />
       </Route>
 
       {/* VN routes without navbar */}
@@ -58,6 +60,7 @@ function App() {
 
       {/* Tutorial Battle (no navbar) */}
       <Route path={RoutePaths.TUTORIAL_BATTLE} element={<TutorialBattlePage />} />
+      <Route path={RoutePaths.BATTLE} element={<BattlePage />} />
 
       {/* LCSD Coop Routes (no navbar for immersion) */}
       <Route path={RoutePaths.COOP} element={<CoopPage />} />
@@ -70,4 +73,3 @@ function App() {
 }
 
 export default App
-

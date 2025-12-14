@@ -114,11 +114,10 @@ const availableAdvices = filterAvailableAdvices(
 
 ## 📊 Аналитика
 
-Все просмотры советов логируются через Convex:
+Все просмотры советов логируются через API:
 
 ```typescript
-convexMutations.vn.logCharacterAdviceViewed({
-  deviceId,
+client.vn.logAdvice.post({
   sceneId,
   lineId,
   characterId,        // 'logic', 'perception', etc.
@@ -168,7 +167,7 @@ export const VOICE_DEFINITIONS: Record<VoiceId, VoiceDefinition> = {
 }
 ```
 
-2. Добавьте в `STARTING_SKILLS` (convex/gameProgress.ts)
+2. Добавьте в `STARTING_SKILLS` (server/src/lib/gameProgress.ts)
 
 3. Используйте в советах:
 ```typescript
@@ -201,6 +200,6 @@ characterAdvices: [
 - `src/widgets/visual-novel/VNScreen.tsx` — интеграция
 - `src/pages/VisualNovelPage.tsx` — передача skills/flags
 - `src/shared/types/visualNovel.ts` — типы
-- `convex/vn.ts` — бэкенд мутации
+- `server/src/api/routes/vn.ts` — бэкенд API
 - `src/shared/data/visualNovel/testSceneWithAdvices.ts` — пример
 

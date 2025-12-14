@@ -1,18 +1,19 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, RefreshCw } from 'lucide-react'
+import React, { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { useAuth } from '@clerk/clerk-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Layout } from '@/widgets/layout'
+import { Heading } from '@/shared/ui/components/Heading'
+import { Text } from '@/shared/ui/components/Text'
 import { Button } from '@/shared/ui/components/Button'
-import { Routes } from '@/shared/lib/utils/navigation'
+import { authenticatedClient } from '@/shared/api/client'
 import { VNScreen } from '@/widgets/visual-novel'
-import { useVisualNovelViewModel } from '@/features/visual-novel/model/useVisualNovelViewModel'
 import { DEFAULT_VN_SCENE_ID } from '@/shared/data/visualNovel/scenes'
-import { convexMutations } from '@/shared/api/convex'
-import { usePlayerProgress } from '@/shared/hooks/usePlayer'
-import { useDeviceId } from '@/shared/hooks/useDeviceId'
-import { useVisualNovelSessionStore } from '@/features/visual-novel/model/useVisualNovelSessionStore'
-import type { VisualNovelChoice } from '@/shared/types/visualNovel'
+import { useVisualNovelSessionStore, useVisualNovelViewModel } from '@/features/visual-novel/model'
+import { Routes } from '@/shared/lib/utils/navigation'
+import type { VisualNovelChoice, VisualNovelChoiceEffect } from '@/shared/types/visualNovel'
 
-interface VisualNovelExperienceProps {
+export type VisualNovelExperienceProps = {
   lockedSceneId?: string
   headerLabel?: string
 }
@@ -21,195 +22,264 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
   lockedSceneId,
   headerLabel,
 }) => {
-  const params = useParams<{ sceneId?: string }>()
+  const { getToken, isLoaded, isSignedIn } = useAuth()
+  const queryClient = useQueryClient()
+  const { sceneId: routeSceneId } = useParams<{ sceneId?: string }>()
   const navigate = useNavigate()
-  const { deviceId } = useDeviceId()
-  const { progress, refresh: refreshProgress } = usePlayerProgress()
+  type CommitPayload = NonNullable<ReturnType<typeof consumePayload>>
+  type ImmediateEffect = Extract<VisualNovelChoiceEffect, { type: 'immediate' }>
+
+  const rootSceneId = useVisualNovelSessionStore((state) => state.rootSceneId)
   const startSession = useVisualNovelSessionStore((state) => state.startSession)
   const trackScene = useVisualNovelSessionStore((state) => state.trackScene)
   const recordChoice = useVisualNovelSessionStore((state) => state.recordChoice)
   const consumePayload = useVisualNovelSessionStore((state) => state.consumePayload)
-  const [isCommitting, setIsCommitting] = useState(false)
-  const log = useCallback((...args: unknown[]) => {
-    console.log('🎮 [VN Experience]', ...args)
-  }, [])
 
-  const baseSceneId = useMemo(
-    () => lockedSceneId ?? params.sceneId ?? DEFAULT_VN_SCENE_ID,
-    [lockedSceneId, params.sceneId]
+  const vnStateQuery = useQuery({
+    queryKey: ['vn-state'],
+    enabled: isLoaded && isSignedIn,
+    retry: false,
+    queryFn: async () => {
+      const token = await getToken()
+      const client = authenticatedClient(token || undefined)
+      const { data, error } = await client.vn.state.get()
+      if (error) throw error
+      return data
+    },
+  })
+
+  const initialSceneId =
+    lockedSceneId ?? routeSceneId ?? vnStateQuery.data?.progress?.currentScene ?? DEFAULT_VN_SCENE_ID
+  const initialFlags = useMemo(() => {
+    const flags = vnStateQuery.data?.progress?.flags as Record<string, unknown> | undefined
+    if (!flags) return []
+    return Object.entries(flags)
+      .filter(([, value]) => Boolean(value))
+      .map(([key]) => key)
+  }, [vnStateQuery.data?.progress?.flags])
+
+  const skills = useMemo(
+    () => (vnStateQuery.data?.progress?.skills as Record<string, number> | undefined) ?? {},
+    [vnStateQuery.data?.progress?.skills]
   )
 
-  // Обработка immediate эффектов (например, start_tutorial_battle)
-  const handleImmediateEffects = useCallback((choice: VisualNovelChoice) => {
-    const immediateEffects = choice.effects?.filter(e => e.type === 'immediate') || []
+  const handleImmediateEffects = useCallback(
+    (sceneId: string, choice: VisualNovelChoice) => {
+      const effects = choice.effects ?? []
+      const immediateEffects = effects.filter((effect): effect is ImmediateEffect => effect.type === 'immediate')
+      if (immediateEffects.length === 0) return
 
-    for (const effect of immediateEffects) {
-      if (effect.type === 'immediate') {
-        const { action, data } = effect
-
-        // Обработка запуска обучающего боя
-        if (action === 'start_tutorial_battle' || action === 'combat_tutorial') {
-          log('⚔️ Запуск обучающего боя', data)
-          navigate(`${Routes.TUTORIAL_BATTLE}?returnScene=combat_tutorial_victory&defeatScene=combat_tutorial_defeat`)
-          return true
-        }
+      const buildUrl = (path: string, params: Record<string, string | undefined>) => {
+        const searchParams = new URLSearchParams()
+        Object.entries(params).forEach(([key, value]) => {
+          if (!value) return
+          searchParams.set(key, value)
+        })
+        const suffix = searchParams.toString()
+        return suffix ? `${path}?${suffix}` : path
       }
+
+      const pickSceneId = (value: unknown): string | undefined =>
+        typeof value === 'string' && value.trim().length > 0 ? value : undefined
+
+      const startCombat = immediateEffects.find((effect) => effect.action === 'start_combat')
+      if (startCombat) {
+        const data = startCombat.data ?? {}
+        navigate(
+          buildUrl(Routes.BATTLE, {
+            returnScene: pickSceneId(data.returnScene) ?? sceneId,
+            defeatScene: pickSceneId(data.defeatScene) ?? sceneId,
+            enemyKey: pickSceneId(data.enemyKey),
+          })
+        )
+        return
+      }
+
+      const startTutorialBattle = immediateEffects.find((effect) => effect.action === 'start_tutorial_battle')
+      if (startTutorialBattle) {
+        const data = startTutorialBattle.data ?? {}
+        navigate(
+          buildUrl(Routes.TUTORIAL_BATTLE, {
+            returnScene: pickSceneId(data.returnScene) ?? 'combat_tutorial_victory',
+            defeatScene: pickSceneId(data.defeatScene) ?? 'combat_tutorial_defeat',
+          })
+        )
+      }
+    },
+    [navigate]
+  )
+
+  const viewModel = useVisualNovelViewModel(
+    { sceneId: initialSceneId, initialFlags },
+    {
+      onChoiceApplied: ({ sceneId, lineId, choice }) => {
+        recordChoice({ sceneId, lineId, choice })
+        handleImmediateEffects(sceneId, choice)
+      },
     }
-    return false
-  }, [log, navigate])
-
-  const { scene, currentLine, choices, goNext, choose, isPending, isSceneCompleted, jumpToScene, flags } =
-    useVisualNovelViewModel(
-      { sceneId: baseSceneId },
-      {
-        onChoiceApplied: ({ sceneId: appliedSceneId, lineId, choice }) => {
-          recordChoice({ sceneId: appliedSceneId, lineId, choice })
-          log('🗳️ Выбор передан в стор сессии', {
-            sceneId: appliedSceneId,
-            lineId,
-            choiceId: choice.id,
-          })
-
-          // Handle immediate navigation
-          choice.effects?.forEach((effect) => {
-            if (effect.type === 'immediate' && effect.action === 'navigate' && effect.data?.route) {
-              log('🧭 Навигация по эффекту выбора', effect.data.route)
-              navigate(effect.data.route as string)
-            }
-          })
-
-          // Проверяем immediate эффекты
-          handleImmediateEffects(choice)
-        },
-      }
-    )
-
-  // Получаем skills из game_progress через Convex
-  const skills = useMemo(() => {
-    if (!progress) return {}
-    // В game_progress есть поле skills как Record<string, number>
-    return progress?.skills ?? {}
-  }, [progress])
+  )
 
   useEffect(() => {
-    log('🚀 Старт визуальной новеллы', { baseSceneId })
-    startSession(baseSceneId)
-  }, [baseSceneId, log, startSession])
+    if (!isLoaded || !isSignedIn) return
+    if (vnStateQuery.isLoading || vnStateQuery.isError) return
+    if (rootSceneId === initialSceneId) return
+    startSession(initialSceneId)
+  }, [
+    initialSceneId,
+    isLoaded,
+    isSignedIn,
+    rootSceneId,
+    startSession,
+    vnStateQuery.isError,
+    vnStateQuery.isLoading,
+  ])
 
   useEffect(() => {
-    log('📍 Активная сцена обновлена', { sceneId: scene.id })
-    trackScene(scene.id)
-  }, [log, scene.id, trackScene])
+    trackScene(viewModel.scene.id)
+  }, [trackScene, viewModel.scene.id])
 
-  const flushSession = useCallback(async () => {
-    const payload = consumePayload(Date.now())
-    if (!payload) {
-      log('ℹ️ Нечего отправлять на сервер')
-      return
-    }
-    setIsCommitting(true)
-    try {
-      log('📡 Отправка данных сцены на сервер', { sceneId: payload.sceneId, choices: payload.choices.length })
-      await convexMutations.vn.commitScene({
-        deviceId,
-        sceneId: payload.sceneId,
-        payload: {
-          startedAt: payload.startedAt,
-          finishedAt: payload.finishedAt,
-          visitedScenes: payload.visitedScenes,
-          choices: payload.choices.map((entry) => ({
-            sceneId: entry.sceneId,
-            lineId: entry.lineId,
-            choiceId: entry.choiceId,
-            effects: entry.effects,
-          })),
-          addFlags: payload.addFlags,
-          removeFlags: payload.removeFlags,
-          xpDelta: payload.xpDelta,
-          reputation: payload.reputation,
-          advancePhaseTo:
-            headerLabel === 'Пролог' || baseSceneId.startsWith('prologue') ? 1 : undefined,
-        },
-      })
-      refreshProgress()
-      log('✅ Сервер подтвердил сохранение сцены', { sceneId: payload.sceneId })
-    } catch (error) {
-      console.error('[VisualNovelExperience] Ошибка при сохранении сцены', error)
-    } finally {
-      setIsCommitting(false)
-    }
-  }, [baseSceneId, consumePayload, deviceId, headerLabel, log, refreshProgress])
+  const commitMutation = useMutation({
+    mutationFn: async (payload: { sceneId: string; payload: CommitPayload }) => {
+      const token = await getToken()
+      const client = authenticatedClient(token || undefined)
+      const { data, error } = await client.vn.commit.post(payload)
+      if (error) throw error
+      return data
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['vn-state'] })
+      // Если были выданы предметы, обновляем инвентарь
+      const responseData = data as { awardedItems?: Array<{ itemId: string; quantity: number }> } | null
+      if (responseData?.awardedItems && responseData.awardedItems.length > 0) {
+        queryClient.invalidateQueries({ queryKey: ['myInventory'] })
+      }
+    },
+  })
+
+  const adviceMutation = useMutation({
+    mutationFn: async (payload: {
+      sceneId: string
+      lineId: string
+      characterId: string
+      choiceContext: string[]
+      skillLevel: number
+      viewOrder: number
+    }) => {
+      const token = await getToken()
+      const client = authenticatedClient(token || undefined)
+      const { error } = await client.vn.advice.post(payload)
+      if (error) throw error
+      return true
+    },
+  })
 
   const handleExit = useCallback(async () => {
-    log('🚪 Выход из визуальной новеллы')
-    await flushSession()
-    navigate(Routes.MAP)
-  }, [flushSession, log, navigate])
+    const payload = consumePayload(Date.now())
+    if (!payload) return
+    await commitMutation.mutateAsync({
+      sceneId: viewModel.scene.id,
+      payload,
+    })
+  }, [commitMutation, consumePayload, viewModel.scene.id])
 
-  const handleRestart = useCallback(() => {
-    log('🔄 Перезапуск сцены', { baseSceneId })
-    startSession(baseSceneId)
-    jumpToScene(baseSceneId)
-  }, [baseSceneId, jumpToScene, log, startSession])
+  const handleExitRef = useRef(handleExit)
+  useEffect(() => {
+    handleExitRef.current = handleExit
+  }, [handleExit])
 
-  return (
-    <div className="relative min-h-svh bg-black text-white">
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center justify-between px-4 pt-4 md:px-10">
-        <div className="pointer-events-auto flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            leftIcon={<ArrowLeft className="h-4 w-4" />}
-            onClick={() => void handleExit()}
-          >
-            На карту
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            leftIcon={<RefreshCw className="h-4 w-4" />}
-            onClick={handleRestart}
-          >
-            Перезапуск
+  useEffect(() => {
+    return () => {
+      handleExitRef.current().catch((error) => {
+        console.error('[VN] Failed to commit progress on unmount', error)
+      })
+    }
+  }, [])
+
+  const handleAdviceViewed = useCallback(
+    (payload: {
+      sceneId: string
+      lineId: string
+      characterId: string
+      choiceContext: string[]
+      skillLevel: number
+      viewOrder: number
+    }) => {
+      adviceMutation.mutate(payload)
+    },
+    [adviceMutation]
+  )
+
+  if (!isLoaded) {
+    return (
+      <Layout>
+        <div className="min-h-[60vh] flex flex-col items-center justify-center text-center space-y-3">
+          <Heading level={3}>{headerLabel ?? 'Загрузка...'}</Heading>
+          <Text variant="muted" size="sm">
+            Подготавливаем визуальную новеллу.
+          </Text>
+        </div>
+      </Layout>
+    )
+  }
+
+  if (!isSignedIn) {
+    return (
+      <Layout>
+        <div className="min-h-[60vh] flex flex-col items-center justify-center text-center space-y-3">
+          <Heading level={2}>{headerLabel ?? 'Нужен вход'}</Heading>
+          <Text variant="muted" size="sm">
+            Авторизуйтесь, чтобы продолжить прогресс визуальной новеллы.
+          </Text>
+        </div>
+      </Layout>
+    )
+  }
+
+  if (vnStateQuery.isLoading) {
+    return (
+      <Layout>
+        <div className="min-h-[60vh] flex flex-col items-center justify-center text-center space-y-3">
+          <Heading level={3}>{headerLabel ?? 'Загрузка прогресса'}</Heading>
+          <Text variant="muted" size="sm">Получаем состояние VN с сервера...</Text>
+        </div>
+      </Layout>
+    )
+  }
+
+  if (vnStateQuery.isError) {
+    return (
+      <Layout>
+        <div className="min-h-[60vh] flex flex-col items-center justify-center text-center space-y-3">
+          <Heading level={3}>{headerLabel ?? 'Не удалось загрузить VN'}</Heading>
+          <Text variant="muted" size="sm">
+            {(vnStateQuery.error as Error)?.message ?? 'Попробуйте позже.'}
+          </Text>
+          <Button variant="secondary" onClick={() => queryClient.invalidateQueries({ queryKey: ['vn-state'] })}>
+            Повторить
           </Button>
         </div>
-        {headerLabel && (
-          <div className="pointer-events-auto rounded-full border border-white/20 bg-black/50 px-4 py-1 text-xs uppercase tracking-[0.4em]">
-            {headerLabel}
-          </div>
-        )}
-      </div>
+      </Layout>
+    )
+  }
 
-      <VNScreen
-        scene={scene}
-        currentLine={currentLine}
-        choices={choices}
-        skills={skills}
-        flags={flags}
-        isPending={isPending}
-        isSceneCompleted={isSceneCompleted}
-        onAdvance={goNext}
-        onChoice={choose}
-        onExit={() => void handleExit()}
-        onAdviceViewed={async (payload) => {
-          log('📊 Просмотр совета голоса', payload)
-          try {
-            await convexMutations.vn.logCharacterAdviceViewed({
-              deviceId,
-              ...payload,
-            })
-          } catch (error) {
-            console.error('[VisualNovelExperience] Ошибка при логировании совета', error)
-          }
-        }}
-        isCommitting={isCommitting}
-      />
-    </div>
+  return (
+    <VNScreen
+      scene={viewModel.scene}
+      currentLine={viewModel.currentLine}
+      choices={viewModel.choices}
+      isSceneCompleted={viewModel.isSceneCompleted}
+      isPending={viewModel.isPending}
+      flags={viewModel.flags}
+      skills={skills}
+      onAdvance={viewModel.goNext}
+      onChoice={viewModel.choose}
+      onExit={handleExit}
+      onAdviceViewed={handleAdviceViewed}
+      isCommitting={commitMutation.isPending}
+    />
   )
 }
 
-export const VisualNovelPage: React.FC = () => {
-  return <VisualNovelExperience />
-}
+const VisualNovelPage: React.FC = () => <VisualNovelExperience />
 
 export default VisualNovelPage

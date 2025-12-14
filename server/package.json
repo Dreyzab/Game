@@ -1,0 +1,27 @@
+{
+    "name": "grezwanderer-backend",
+    "module": "src/index.ts",
+    "type": "module",
+    "scripts": {
+        "start": "bun run src/index.ts",
+        "dev": "bun run --watch src/index.ts",
+        "test": "bun test",
+        "db:generate": "drizzle-kit generate",
+        "db:migrate": "drizzle-kit migrate",
+        "db:push": "drizzle-kit push",
+        "db:seed": "bun run src/scripts/seed.ts"
+    },
+    "dependencies": {
+        "@clerk/backend": "^2.25.1",
+        "@elysiajs/cors": "latest",
+        "@elysiajs/eden": "latest",
+        "@elysiajs/swagger": "latest",
+        "drizzle-orm": "latest",
+        "elysia": "latest",
+        "postgres": "latest"
+    },
+    "devDependencies": {
+        "bun-types": "latest",
+        "drizzle-kit": "latest"
+    }
+}

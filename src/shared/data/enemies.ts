@@ -7,8 +7,6 @@
 
 import type { 
   EnemyTemplate, 
-  ThreatLevel, 
-  EnemyAIType, 
   CombatRank, 
   EffectType 
 } from '@/shared/types/combat'
@@ -804,6 +802,13 @@ export function selectEnemyAction(
     priority: selected.aiPriority
   }
 }
+
+
+
+
+
+
+
 
 
 
