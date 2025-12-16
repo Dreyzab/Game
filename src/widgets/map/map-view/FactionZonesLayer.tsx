@@ -118,7 +118,7 @@ export const FactionZonesLayer: React.FC<FactionZonesLayerProps> = ({ map, visib
                 })
             }
         }
-    }, [map, visible, safeZones])
+    }, [map, visible, processedSafeZones])
 
     return null
 }

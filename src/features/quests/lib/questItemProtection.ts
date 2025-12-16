@@ -1,6 +1,6 @@
 import { useMemo, useEffect } from 'react'
-import { useActiveQuests } from '@/shared/hooks/useQuests'
-import { useInventoryStore } from '@/shared/stores/inventoryStore'
+import { useActiveQuests } from '../model/useQuests'
+import { useInventoryStore } from '@/entities/inventory'
 
 type QuestRequiredItem = { id: string } | string
 

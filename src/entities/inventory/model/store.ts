@@ -11,7 +11,7 @@ import type {
   ItemMastery,
   ItemState,
 } from '@/entities/item/model/types'
-import { demoMasteries } from '@/features/inventory/model/demoData'
+import { demoMasteries } from './demoData'
 import {
   calculateEncumbrance,
   calculateEquipmentStats,
@@ -19,8 +19,8 @@ import {
   ensureGridPosition,
   type ActiveMastery,
   type PlayerStatsSummary,
-} from '@/features/inventory/model/helpers'
-import type { InventoryFilter } from '@/features/inventory/model/selectors'
+} from './helpers'
+import type { InventoryFilter } from './selectors'
 
 // Client-side types matching /inventory API response
 type InventoryGetResponse = {
@@ -183,10 +183,16 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
       processEquippedContainer(data.equipment.armor, 'armor')
       processEquippedContainer(data.equipment.clothing_bottom, 'clothing_bottom')
 
+      const questProtectedItemIds: Record<string, true> = { ...state.questProtectedItemIds }
+      Object.values(items).forEach((item) => {
+        if (shouldProtectItem(item)) questProtectedItemIds[item.id] = true as const
+      })
+
       return {
         items,
         containers,
         equipment: data.equipment,
+        questProtectedItemIds,
         ...deriveState(items, data.equipment, state.masteries)
       }
     }),

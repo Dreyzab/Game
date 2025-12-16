@@ -1,8 +1,8 @@
 import { useAuth } from "@clerk/clerk-react"
 import { useQuery } from "@tanstack/react-query"
 import { useEffect } from "react"
-import { authenticatedClient } from "../api/client"
-import { useInventoryStore } from "../stores/inventoryStore"
+import { authenticatedClient } from "@/shared/api/client"
+import { useInventoryStore } from "../model/store"
 
 export const useMyInventory = () => {
   const { getToken, isLoaded, isSignedIn } = useAuth()

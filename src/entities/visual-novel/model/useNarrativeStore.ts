@@ -9,7 +9,7 @@
 
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
-import type { ActiveInjection, VoiceGroup, VoiceId } from '@/entities/visual-novel/model/types'
+import type { ActiveInjection, VoiceGroup, VoiceId } from './types'
 
 // ============================================================================
 // TYPES
@@ -432,7 +432,6 @@ export function resolveInjectionConflicts(
 }
 
 export default useNarrativeStore
-
 
 
 

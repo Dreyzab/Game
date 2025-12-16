@@ -1,7 +1,7 @@
 import type { MapPoint } from '@/shared/types/map'
 import { ITEM_TEMPLATES } from '@/shared/data/itemTemplates'
 import { calculateVendorSellPrice } from '@/shared/lib/itemPricing'
-import type { InteractionKey } from './useMapPointInteraction'
+import type { InteractionKey } from '@/entities/map-point/model/useMapPointInteraction'
 
 export interface TradeItem {
   id: string

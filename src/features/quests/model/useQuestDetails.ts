@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useMyQuests } from './useMyQuests'
+import { useMyQuests } from '../api/useMyQuests'
 
 type QuestDetails = {
   id: string

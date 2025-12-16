@@ -209,9 +209,8 @@
 
 ## 🔗 ССЫЛКИ
 
-- [Convex Dashboard](https://dashboard.convex.dev)
 - [Mapbox Studio](https://studio.mapbox.com)
-- [Проект на GitHub](https://github.com/your-org/grezwanderer3)
+- [Проект на GitHub](https://github.com/Dreyzab/Game)
 
 ---
 

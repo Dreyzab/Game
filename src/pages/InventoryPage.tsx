@@ -1,5 +1,5 @@
 import React from 'react'
-import { ModernInventoryPage } from '@/features/inventory/ui/InventoryPage'
+import { ModernInventoryPage } from '@/features/inventory'
 import { ErrorBoundary } from '@/shared/ui/ErrorBoundary'
 
 const InventoryPage: React.FC = () => {
@@ -16,4 +16,3 @@ const InventoryPage: React.FC = () => {
 }
 
 export default InventoryPage
-

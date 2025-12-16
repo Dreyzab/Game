@@ -1,5 +1,5 @@
 import React from 'react'
-import type { ActiveMastery, PlayerStatsSummary } from '@/features/inventory/model/helpers'
+import type { ActiveMastery, PlayerStatsSummary } from '@/entities/inventory/model/helpers'
 
 type EquipmentStatsPanelProps = {
   stats: PlayerStatsSummary

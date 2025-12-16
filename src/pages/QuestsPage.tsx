@@ -2,7 +2,7 @@ import React from 'react'
 import { Layout } from '@/widgets/layout'
 import { Heading } from '@/shared/ui/components/Heading'
 import { Text } from '@/shared/ui/components/Text'
-import { QuestListComponent as QuestList } from '@/entities/quest/ui/QuestList'
+import { QuestList } from '@/features/quests'
 
 import { ErrorBoundary } from '@/shared/ui/ErrorBoundary'
 

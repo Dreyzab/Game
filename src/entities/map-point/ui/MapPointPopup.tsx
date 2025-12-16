@@ -30,9 +30,8 @@ import {
   Wrench,
   ShoppingBag
 } from 'lucide-react'
-import { useMapPointInteraction } from '@/features/interaction/model/useMapPointInteraction'
-import type { InteractionKey } from '@/features/interaction/model/useMapPointInteraction'
-import { InteractionMenu } from '@/features/interaction/ui/InteractionMenu'
+import type { InteractionAction, InteractionKey } from '../model/useMapPointInteraction'
+import { InteractionMenu } from './InteractionMenu'
 
 export interface MapPointPopupProps {
   point: MapPoint
@@ -40,6 +39,7 @@ export interface MapPointPopupProps {
   onNavigate?: () => void
   onInteract?: () => void
   onScanQR?: () => void
+  actions?: InteractionAction[]
   onActionSelect?: (action: InteractionKey) => void
 }
 
@@ -195,6 +195,7 @@ export const MapPointPopup: React.FC<MapPointPopupProps> = ({
   onNavigate,
   onInteract,
   onScanQR,
+  actions,
   onActionSelect,
 }) => {
   const icon = getIconForPoint(point)
@@ -204,8 +205,8 @@ export const MapPointPopup: React.FC<MapPointPopupProps> = ({
   const showScanQR = point.metadata?.qrRequired === true
   const dangerColor = getDangerColor(dangerLevel)
   const hasSceneBinding = Array.isArray(point.metadata?.sceneBindings) && point.metadata.sceneBindings.length > 0
-  const { actions } = useMapPointInteraction(point)
   const headerGradient = getHeaderGradient(point.metadata?.faction)
+  const safeActions = actions ?? []
 
   return (
     <div
@@ -282,7 +283,7 @@ export const MapPointPopup: React.FC<MapPointPopupProps> = ({
             </button>
           )}
 
-          {onInteract && (!actions || actions.length === 0) && (
+          {onInteract && safeActions.length === 0 && (
             <button
               onClick={onInteract}
               className="btn btn--primary btn--sm flex-1 min-w-[120px]"
@@ -313,10 +314,10 @@ export const MapPointPopup: React.FC<MapPointPopupProps> = ({
             </button>
           )}
 
-          {actions && actions.length > 0 && (
+          {safeActions.length > 0 && (
             <div className="w-full">
               <InteractionMenu
-                actions={actions}
+                actions={safeActions}
                 onSelect={(key) => {
                   if (point.distance !== undefined && point.distance > 0.05) {
                     // Prevent interaction if too far

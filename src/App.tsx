@@ -18,18 +18,25 @@ import TutorialBattlePage from '@/pages/TutorialBattlePage'
 import PvPPage from '@/pages/PvPPage'
 import CoopPage from '@/pages/CoopPage'
 import ResonancePage from '@/pages/ResonancePage'
+import { useQuestInventoryProtection } from '@/processes/quests-inventory'
+import { useQuestOutboxSync } from '@/processes/quests-sync'
 
 
 
 
-const AppShell = () => (
-  <>
-    <Navbar />
-    <div className="pt-16">
-      <Outlet />
-    </div>
-  </>
-)
+const AppShell = () => {
+  useQuestInventoryProtection()
+  useQuestOutboxSync({ intervalMs: 30000 })
+
+  return (
+    <>
+      <Navbar />
+      <div className="pt-16">
+        <Outlet />
+      </div>
+    </>
+  )
+}
 
 function App() {
   return (

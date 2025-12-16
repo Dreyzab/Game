@@ -1,5 +1,5 @@
 import React from 'react'
-import type { PlayerStatsSummary } from '@/features/inventory/model/helpers'
+import type { PlayerStatsSummary } from '@/entities/inventory/model/helpers'
 import type { EncumbranceState } from '@/entities/item/model/types'
 
 type QuickStatsPanelProps = {
@@ -29,4 +29,3 @@ export const QuickStatsPanel: React.FC<QuickStatsPanelProps> = ({ stats, encumbr
 }
 
 export default QuickStatsPanel
-

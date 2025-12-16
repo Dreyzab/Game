@@ -7,11 +7,11 @@ import EquipmentSlots from './EquipmentSlots/EquipmentSlots'
 import { QuickAccessBar } from './QuickAccessBar/QuickAccessBar'
 import { QuickStatsPanel } from './QuickStatsPanel'
 import { ContainerPanel } from './ContainerPanel'
-import { useInventoryStore } from '@/shared/stores/inventoryStore'
-import { useMyInventory } from '@/shared/hooks/useMyInventory'
+import { useInventoryStore } from '@/entities/inventory'
+import { useMyInventory } from '@/entities/inventory/api/useMyInventory'
 import { useWorkshop } from '@/shared/hooks/useWorkshop'
 import { isValidSlotDrop } from '../model/utils'
-import type { InventoryFilter } from '@/features/inventory/model/selectors'
+import type { InventoryFilter } from '@/entities/inventory/model/selectors'
 
 export const ModernInventoryPage: React.FC = () => {
   const { data, isLoading } = useMyInventory()

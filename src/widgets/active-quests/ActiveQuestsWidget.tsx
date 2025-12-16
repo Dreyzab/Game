@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useMyQuests } from '@/shared/hooks/useMyQuests'
+import { useMyQuests } from '@/features/quests'
 import { Badge } from '@/shared/ui/components/Badge'
 import { Text } from '@/shared/ui/components/Text'
 import { MotionContainer } from '@/shared/ui/components/MotionContainer'

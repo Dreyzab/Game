@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useInventoryStore } from '@/shared/stores/inventoryStore'
+import { useInventoryStore } from '@/entities/inventory'
 import type { ItemState } from '@/entities/item/model/types'
 
 const shouldProtect = (item: ItemState) => item.kind === 'quest' || item.tags?.includes('quest')

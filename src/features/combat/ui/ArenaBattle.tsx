@@ -414,13 +414,16 @@ export function ArenaBattle({ onBattleEnd }: ArenaBattleProps) {
     const [isProcessing, setIsProcessing] = useState(false)
     const [hoveredCardId, setHoveredCardId] = useState<string | null>(null)
 
+    const battleIsActive = battle?.isActive
+    const battlePhase = battle?.phase
+
     // Handle battle end
     useEffect(() => {
-        if (battle && !battle.isActive) {
-            const result = battle.phase as 'victory' | 'defeat' | 'flee'
-            onBattleEnd?.(result)
-        }
-    }, [battle?.isActive, battle?.phase, onBattleEnd])
+        if (battleIsActive !== false) return
+        if (!battlePhase) return
+        const result = battlePhase as 'victory' | 'defeat' | 'flee'
+        onBattleEnd?.(result)
+    }, [battleIsActive, battlePhase, onBattleEnd])
 
     if (!battle) {
         return (

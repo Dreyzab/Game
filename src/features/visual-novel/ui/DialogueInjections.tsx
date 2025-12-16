@@ -24,7 +24,7 @@ import {
   VOICE_NAMES,
   filterInjectionsBySkills,
   resolveInjectionConflicts,
-} from '@/shared/stores/useNarrativeStore'
+} from '@/entities/visual-novel/model/useNarrativeStore'
 import './VoiceInjectionStyles.css'
 
 // ============================================================================
@@ -437,8 +437,6 @@ export const DialogueInjections = ({
 }
 
 export default DialogueInjections
-
-
 
 
 

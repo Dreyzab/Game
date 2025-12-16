@@ -38,13 +38,13 @@ src/
 
 ### 1.1 Схема данных
 
-**Таблица `map_points`** (`convex/schema.ts:81-109`):
+**Таблица `map_points`** (`server/src/db/schema/world.ts:46-109`):
 
 - Основные поля: `id`, `title`, `description`, `coordinates`, `type`, `phase`, `isActive`
 - Метаданные: `metadata` (JSON) содержит `danger_level`, `faction`, `sceneBindings`, `unlockRequirements`, `qrRequired`
 - Индексы: по `id`, координатам, `qrCode`, типу, фазе, активности
 
-**Таблица `point_discoveries`** (`convex/schema.ts:143-155`):
+**Таблица `point_discoveries`** (`server/src/db/schema/world.ts:110-155`):
 
 - Отслеживает состояние открытия точек для каждого игрока
 - Поля: `deviceId`/`userId`, `pointKey`, `discoveredAt`, `researchedAt`
@@ -57,7 +57,7 @@ src/
 
 ### 1.2 API функции
 
-#### `mapPoints.listVisible` (`convex/mapPoints.ts:50-261`)
+#### `GET /map/points` (`server/src/api/routes/map.ts:50-261`)
 **Назначение**: Получение видимых точек карты с учётом прогресса игрока
 
 **Логика работы**:
@@ -78,7 +78,7 @@ src/
 - ⚠️ **N+1 запросы**: Для каждой точки выполняется отдельный запрос `point_discoveries`
   - **Рекомендация**: Использовать `Promise.all` с батчингом или джойны
 
-#### `mapPoints.activateByQR` (`convex/mapPoints.ts:545-648`)
+#### `POST /map/activate-qr` (`server/src/api/routes/map.ts:545-648`)
 **Назначение**: Активация точки через QR-код
 
 **Логика**:
@@ -93,7 +93,7 @@ src/
 - ✅ Хорошо: Используется индекс для поиска QR
 - ⚠️ **Дублирование логики**: Похожая логика в `markResearched` - можно вынести в общую функцию
 
-#### `mapPoints.discoverByProximity` (`convex/mapPoints.ts:436-503`)
+#### `POST /map/discover` (`server/src/api/routes/map.ts:436-503`)
 **Назначение**: Автоматическое открытие точек при приближении игрока
 
 **Логика**:

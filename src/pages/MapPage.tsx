@@ -6,37 +6,33 @@
  * Вся логика карты инкапсулирована в MapView
  */
 
-import React, { useCallback, useEffect, useState } from 'react'
-import { useAuth } from '@clerk/clerk-react'
-import { useNavigate } from 'react-router-dom'
-import { useQueryClient } from '@tanstack/react-query'
+import React, { useState } from 'react'
 import { Heading } from '@/shared/ui/components/Heading'
 import { Text } from '@/shared/ui/components/Text'
 import { MapView, MapFilters, MapLegend, PointsListPanel, type MapFilterType } from '@/widgets/map/map-view'
 import { ErrorBoundary } from '@/shared/ui/ErrorBoundary'
-import type { MapPoint, BBox } from '@/shared/types/map'
-import { Routes } from '@/shared/lib/utils/navigation'
-import { resolveSceneFromPoint } from '@/features/map/lib/resolveSceneBinding'
-import { usePlayerProgress } from '@/shared/hooks/usePlayer'
-import { useDeviceId } from '@/shared/hooks/useDeviceId'
-import { authenticatedClient } from '@/shared/api/client'
-import type { InteractionKey } from '@/features/interaction/model/useMapPointInteraction'
-import {
-  buildInteractionsForPoint,
-  findInteractionByKey,
-  type MapPointInteraction,
-} from '@/features/interaction/model/mapPointInteractions'
-import { MapPointInteractionModal } from '@/features/interaction/ui/MapPointInteractionModal'
+import type { BBox } from '@/shared/types/map'
+import { MapPointInteractionModal } from '@/features/interaction'
 import { QRPointActivation } from '@/entities/map-point/ui/QRPointActivation'
 import { QuestTracker } from '@/widgets/map/map-view/QuestTracker'
+import { useMapInteractionFlow } from '@/processes/map-interaction-visual-novel'
 
 export const MapPage: React.FC = () => {
-  const navigate = useNavigate()
-  const { progress } = usePlayerProgress()
-  const { getToken } = useAuth()
-  const { deviceId } = useDeviceId()
-  const queryClient = useQueryClient()
-  const [selectedPoint, setSelectedPoint] = useState<MapPoint | null>(null)
+  const {
+    selectedPoint,
+    interactionNotice,
+    activeInteraction,
+    isQRScanning,
+    qrTargetPoint,
+    selectPoint: handleSelectPoint,
+    interactPoint: handlePointInteract,
+    selectAction: handleActionSelect,
+    scanQRPoint: handleScanQRPoint,
+    handleQRScan,
+    closeQRScanner,
+    closeInteraction: handleCloseInteraction,
+    startDialogue: handleStartDialogue,
+  } = useMapInteractionFlow()
 
   // Layer States
   const [showSafeZones, setShowSafeZones] = useState(true)
@@ -47,6 +43,7 @@ export const MapPage: React.FC = () => {
   const [bbox, setBbox] = useState<BBox | undefined>(undefined)
   const [activeFilters, setActiveFilters] = useState<MapFilterType[]>(['quest', 'npc', 'poi', 'board', 'anomaly'])
 
+  /* moved to `src/processes/map-interaction-visual-novel/model/useMapInteractionFlow.ts`
   const [interactionNotice, setInteractionNotice] = useState<string | null>(null)
   const [activeInteraction, setActiveInteraction] = useState<{
     point: MapPoint
@@ -219,6 +216,7 @@ export const MapPage: React.FC = () => {
       window.clearTimeout(timer)
     }
   }, [interactionNotice])
+  */
 
   return (
     <div className="relative w-full h-screen overflow-hidden bg-gray-900">
@@ -344,7 +342,7 @@ export const MapPage: React.FC = () => {
           <div className="flex items-start justify-between mb-2">
             <h3 className="text-lg font-bold text-white">{selectedPoint.title}</h3>
             <button
-              onClick={() => setSelectedPoint(null)}
+              onClick={() => handleSelectPoint(null)}
               className="text-gray-400 hover:text-white transition-colors text-2xl leading-none"
             >
               ✕
@@ -373,10 +371,7 @@ export const MapPage: React.FC = () => {
           pointTitle={qrTargetPoint.title}
           simulateData={qrTargetPoint.qrCode ?? qrTargetPoint.id}
           onScan={handleQRScan}
-          onClose={() => {
-            setIsQRScanning(false)
-            setQrTargetPoint(null)
-          }}
+          onClose={closeQRScanner}
         />
       )}
 

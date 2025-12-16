@@ -83,8 +83,8 @@ export const OtherPlayersLayer: React.FC<OtherPlayersLayerProps> = ({
 
     // Cleanup on unmount
     useEffect(() => {
+        const markers = markersRef.current
         return () => {
-            const markers = markersRef.current
             for (const { marker, root } of markers.values()) {
                 marker.remove()
                 queueMicrotask(() => root.unmount())

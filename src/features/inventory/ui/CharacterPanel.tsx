@@ -1,7 +1,7 @@
 import React from 'react'
 import { EquipmentSlots, EncumbrancePanel, EquipmentStatsPanel } from '@/features/inventory/ui'
 import type { EquipmentSlots as EquipmentSlotsState } from '@/entities/item/model/types'
-import type { PlayerStatsSummary, ActiveMastery } from '@/features/inventory/model/helpers'
+import type { PlayerStatsSummary, ActiveMastery } from '@/entities/inventory/model/helpers'
 
 type CharacterPanelProps = {
   equipment: EquipmentSlotsState
@@ -26,4 +26,3 @@ export const CharacterPanel: React.FC<CharacterPanelProps> = ({
 }
 
 export default CharacterPanel
-

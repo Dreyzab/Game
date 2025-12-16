@@ -30,7 +30,6 @@ function normalizeServices(services: unknown): InteractionKey[] {
     .filter(Boolean)
     .map((s) => s.trim())
     .map((s) => {
-      // map aliases
       if (s === 'quest') return 'quests'
       if (s === 'talk' || s === 'dialogue' || s === 'dialogues') return 'dialog'
       return s as InteractionKey
@@ -57,38 +56,34 @@ function normalizeServices(services: unknown): InteractionKey[] {
 function labelFor(key: InteractionKey): string {
   switch (key) {
     case 'trade':
-      return 'Торговля'
+      return 'Trade'
     case 'repair':
-      return 'Ремонт'
+      return 'Repair'
     case 'crafting':
-      return 'Ремесло'
+      return 'Crafting'
     case 'upgrade':
-      return 'Улучшение'
+      return 'Upgrade'
     case 'quests':
-      return 'Задания'
+      return 'Quests'
     case 'dialog':
-      return 'Разговор'
+      return 'Dialog'
     case 'information':
-      return 'Информация'
+      return 'Information'
     case 'intel':
-      return 'Сведения'
+      return 'Intel'
     case 'heal':
-      return 'Лечение'
+      return 'Heal'
     case 'bless':
-      return 'Благословение'
+      return 'Bless'
     case 'storage':
-      return 'Склад'
+      return 'Storage'
     case 'training':
-      return 'Тренировка'
+      return 'Training'
     case 'deliver':
-      return 'Доставить'
+      return 'Deliver'
   }
 }
 
-/**
- * Returns available interaction actions for a map point.
- * Applies QR gating and simple availability checks.
- */
 export function useMapPointInteraction(point: MapPoint | null) {
   return useMemo(() => {
     const isQRRequired = Boolean(point?.metadata?.qrRequired)
@@ -97,8 +92,9 @@ export function useMapPointInteraction(point: MapPoint | null) {
 
     const baseServices = normalizeServices(point?.metadata?.services)
 
-    // If no services, but there is a scene binding and NPC/board – expose a generic dialog/quest action
-    const hasSceneBindings = Array.isArray(point?.metadata?.sceneBindings) && (point?.metadata?.sceneBindings?.length ?? 0) > 0
+    const hasSceneBindings =
+      Array.isArray(point?.metadata?.sceneBindings) &&
+      (point?.metadata?.sceneBindings?.length ?? 0) > 0
     const isNPC = point?.type === 'npc'
     const isBoard = point?.type === 'board'
     const isQuestTarget = Boolean(point?.metadata?.isActiveQuestTarget)
@@ -110,14 +106,13 @@ export function useMapPointInteraction(point: MapPoint | null) {
       ...(isQuestTarget ? (['deliver'] as const) : []),
     ]
 
-    // De-duplicate while preserving order
     const uniqueServices = services.filter((key, idx) => services.indexOf(key) === idx)
 
     const actions: InteractionAction[] = uniqueServices.map((key) => ({
       key,
       label: labelFor(key),
       disabled: gatedByQR,
-      reason: gatedByQR ? 'Нужно отсканировать QR' : undefined,
+      reason: gatedByQR ? 'Requires QR scan' : undefined,
     }))
 
     return {

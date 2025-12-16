@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react'
 import type { UpgradeInteraction } from '../../model/mapPointInteractions'
-import { useInventoryStore } from '@/shared/stores/inventoryStore'
+import { useInventoryStore } from '@/entities/inventory'
 import { useWorkshop } from '@/shared/hooks/useWorkshop'
 import { ITEM_TEMPLATES } from '@/shared/data/itemTemplates'
 

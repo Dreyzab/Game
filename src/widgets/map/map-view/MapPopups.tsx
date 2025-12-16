@@ -1,9 +1,9 @@
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useMemo, useRef } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import mapboxgl from 'mapbox-gl'
 import { MapPointPopup } from '@/entities/map-point/ui/MapPointPopup'
 import type { MapPoint } from '@/shared/types/map'
-import type { InteractionKey } from '@/features/interaction/model/useMapPointInteraction'
+import { useMapPointInteraction, type InteractionKey } from '@/entities/map-point/model/useMapPointInteraction'
 
 export interface MapPopupsProps {
     map: mapboxgl.Map | null
@@ -30,6 +30,11 @@ export const MapPopups: React.FC<MapPopupsProps> = ({
 }) => {
     const popupRef = useRef<{ popup: mapboxgl.Popup; root: Root } | null>(null)
     const tooltipRef = useRef<{ popup: mapboxgl.Popup; root: Root | null } | null>(null)
+    const selectedPoint = useMemo(
+        () => points.find((p) => p.id === selectedPointId) ?? null,
+        [points, selectedPointId]
+    )
+    const { actions } = useMapPointInteraction(selectedPoint)
 
     // Tooltip (hover)
     useEffect(() => {
@@ -171,6 +176,7 @@ export const MapPopups: React.FC<MapPopupsProps> = ({
                     root.render(
                         <MapPointPopup
                             point={point}
+                            actions={actions}
                             onClose={() => onSelectPoint(null)}
                             onInteract={() => onInteractPoint?.(point)}
                             onNavigate={() => onNavigatePoint?.(point)}
@@ -220,6 +226,7 @@ export const MapPopups: React.FC<MapPopupsProps> = ({
                     popupRef.current.root.render(
                         <MapPointPopup
                             point={point}
+                            actions={actions}
                             onClose={() => onSelectPoint(null)}
                             onInteract={() => onInteractPoint?.(point)}
                             onNavigate={() => onNavigatePoint?.(point)}
@@ -235,7 +242,7 @@ export const MapPopups: React.FC<MapPopupsProps> = ({
         } catch (error) {
             console.error(`ƒ?O [MapPopups] Ñs¥?Ñ÷¥'Ñ÷¥ÎÑæ¥?Ñ§Ñø¥? Ñó¥^Ñ÷ÑñÑ§Ñø Ñ¨¥?Ñ÷ ¥?ÑóÑúÑïÑøÑ«Ñ÷Ñ÷ Ñ¨ÑóÑ¨ÑøÑ¨Ñø:`, error)
         }
-    }, [map, selectedPointId, points, onSelectPoint, onInteractPoint, onNavigatePoint, onScanQRPoint, onActionSelect])
+    }, [map, selectedPointId, points, actions, onSelectPoint, onInteractPoint, onNavigatePoint, onScanQRPoint, onActionSelect])
 
     // Cleanup
     useEffect(() => {

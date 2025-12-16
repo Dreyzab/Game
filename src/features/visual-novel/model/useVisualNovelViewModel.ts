@@ -5,7 +5,7 @@ import {
   buildChoiceViews,
   getLineById,
   getVisualNovelScene,
-} from '@/shared/data/visualNovel/scenes'
+} from '@/entities/visual-novel/model/scenes'
 import type {
   VisualNovelChoice,
   VisualNovelChoiceView,

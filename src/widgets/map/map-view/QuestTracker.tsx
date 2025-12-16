@@ -1,7 +1,7 @@
 import React from 'react'
 import { cn } from '@/shared/lib/utils/cn'
 import { Scroll } from 'lucide-react'
-import { useMyQuests } from '@/shared/hooks/useMyQuests'
+import { useMyQuests } from '@/features/quests'
 import type { Quest } from '@/shared/types/quest'
 
 interface QuestTrackerProps {

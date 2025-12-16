@@ -5,8 +5,8 @@ import {
 } from '@/entities/visual-novel/scenarios/prolog/scenarioTr-ST'
 import { chapter1Scenes } from '@/entities/visual-novel/scenarios/chapter1'
 import { allTutorialScenes } from '@/entities/visual-novel/scenarios/tutorial'
-import { TEST_SCENE_WITH_ADVICES } from './testSceneWithAdvices'
-import type { Scene, SceneCharacter, SceneChoice } from '@/entities/visual-novel/model/types'
+import { TEST_SCENE_WITH_ADVICES } from '@/shared/data/visualNovel/testSceneWithAdvices'
+import type { Scene, SceneCharacter, SceneChoice } from './types'
 import type {
   VisualNovelChoice,
   VisualNovelChoiceEffect,

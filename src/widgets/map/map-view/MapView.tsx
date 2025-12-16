@@ -6,14 +6,23 @@ import {
   useVisibleMapPoints,
   useSafeZones,
   useGeolocation,
-  useCenterOnUser,
-  convertBBoxToConvex
+  useCenterOnUser
 } from '@/shared/hooks/useMapData'
 import { useDeviceId } from '@/shared/hooks/useDeviceId'
 import { authenticatedClient } from '@/shared/api/client'
 import type { MapPoint, BBox } from '@/shared/types/map'
-import type { InteractionKey } from '@/features/interaction/model/useMapPointInteraction'
+import type { InteractionKey } from '@/entities/map-point/model/useMapPointInteraction'
 import { cn } from '@/shared/lib/utils/cn'
+
+/**
+ * Convert Mapbox LngLatBounds to BBox format for API requests
+ */
+const convertBoundsToBBox = (bounds: LngLatBounds): BBox => ({
+  minLat: bounds.getSouth(),
+  maxLat: bounds.getNorth(),
+  minLng: bounds.getWest(),
+  maxLng: bounds.getEast(),
+})
 
 // Sub-components
 import { MapMarkers } from './MapMarkers'
@@ -206,7 +215,7 @@ export const MapView: React.FC<MapViewProps> = ({
       // Получаем начальные границы
       const bounds = loadedMap.getBounds()
       if (bounds) {
-        const bbox = convertBBoxToConvex(bounds)
+        const bbox = convertBoundsToBBox(bounds)
         console.log('📐 [MapView] Начальные границы карты:', bbox)
         setBbox(bbox)
       } else {
@@ -221,7 +230,7 @@ export const MapView: React.FC<MapViewProps> = ({
    * Обработчик изменения границ карты
    */
   const handleBoundsChange = useCallback((bounds: LngLatBounds) => {
-    const newBbox = convertBBoxToConvex(bounds)
+    const newBbox = convertBoundsToBBox(bounds)
     const prev = lastBboxRef.current
 
     const almostEqual = (a?: number, b?: number) => {

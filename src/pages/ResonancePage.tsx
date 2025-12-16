@@ -1,6 +1,5 @@
 import React from 'react'
-import { HostPanel } from '@/features/resonance/HostPanel'
-import { PlayerPanel } from '@/features/resonance/PlayerPanel'
+import { HostPanel, PlayerPanel } from '@/features/resonance'
 import { Heading } from '@/shared/ui/components/Heading'
 import { Text } from '@/shared/ui/components/Text'
 
@@ -26,6 +25,7 @@ const ResonancePage: React.FC = () => {
 }
 
 export default ResonancePage
+
 
 
 

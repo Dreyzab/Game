@@ -9,7 +9,7 @@ import React, { useEffect, useRef } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import mapboxgl from 'mapbox-gl'
 import { MapPointPopup } from '@/entities/map-point/ui'
-import type { InteractionKey } from '@/features/interaction/model/useMapPointInteraction'
+import { useMapPointInteraction, type InteractionKey } from '@/entities/map-point/model/useMapPointInteraction'
 import type { MapPoint } from '@/shared/types/map'
 
 export interface MapPointPopupLayerProps {
@@ -35,6 +35,7 @@ export const MapPointPopupLayer: React.FC<MapPointPopupLayerProps> = ({
   onActionSelect,
 }) => {
   const popupRef = useRef<{ popup: mapboxgl.Popup; root: Root } | null>(null)
+  const { actions } = useMapPointInteraction(point)
 
   useEffect(() => {
     if (!map || !point) {
@@ -61,6 +62,7 @@ export const MapPointPopupLayer: React.FC<MapPointPopupLayerProps> = ({
     root.render(
       <MapPointPopup
         point={point}
+        actions={actions}
         onClose={onClose}
         onInteract={onInteract}
         onNavigate={onNavigate}
@@ -91,7 +93,7 @@ export const MapPointPopupLayer: React.FC<MapPointPopupLayerProps> = ({
         popupRef.current = null
       }
     }
-  }, [map, point, onClose, onInteract, onNavigate, onScanQR, onActionSelect])
+  }, [map, point, actions, onClose, onInteract, onNavigate, onScanQR, onActionSelect])
 
   return null
 }

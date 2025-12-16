@@ -4,7 +4,7 @@ import { InventoryGrid } from './InventoryGrid'
 import type { ItemState } from '@/entities/item/model/types'
 
 // Mock dependencies
-vi.mock('@/shared/stores/inventoryStore', () => ({
+vi.mock('@/entities/inventory', () => ({
     useInventoryStore: vi.fn((selector) => selector({
         moveItemWithinGrid: vi.fn(),
         equipItem: vi.fn(),

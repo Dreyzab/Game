@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react'
 import type { Map, GeoJSONSource } from 'mapbox-gl'
 import type { MapPoint, SafeZone, ConditionalZone } from '@/shared/types/map'
-import { useFogOfWar } from '@/features/map/hooks/useFogOfWar'
+import { useFogOfWar } from '@/features/map'
 
 interface FogOfWarLayerProps {
     map: Map | null

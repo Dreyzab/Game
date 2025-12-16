@@ -1,6 +1,6 @@
 import React from 'react'
-import type { InteractionAction, InteractionKey } from '../model/useMapPointInteraction'
 import { Button } from '@/shared/ui/components/Button'
+import type { InteractionAction, InteractionKey } from '../model/useMapPointInteraction'
 import {
   ShoppingBag,
   Wrench,
@@ -19,7 +19,7 @@ export interface InteractionMenuProps {
   onSelect: (key: InteractionKey) => void
 }
 
-const iconClass = 'w-4 h-4 mr-1'
+const iconClass = 'w-4 h-4'
 
 function iconFor(key: InteractionKey) {
   switch (key) {
@@ -62,8 +62,8 @@ export const InteractionMenu: React.FC<InteractionMenuProps> = ({ actions, onSel
           className="flex-1"
           disabled={action.disabled}
           title={action.disabled ? action.reason : undefined}
+          leftIcon={iconFor(action.key)}
         >
-          {iconFor(action.key)}
           {action.label}
         </Button>
       ))}
