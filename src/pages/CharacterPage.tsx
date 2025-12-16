@@ -4,44 +4,8 @@ import { useMyPlayer } from '@/shared/hooks/useMyPlayer'
 import { useMySkills } from '@/shared/hooks/useMySkills'
 import { Layout } from '@/widgets/layout'
 import { Heading, Text } from '@/shared/ui/components'
+import { ParliamentPanel } from '@/entities/parliament/ui/ParliamentPanel'
 
-// Локализация названий навыков
-const SKILL_NAMES: Record<string, string> = {
-  // BODY
-  force: 'Сила',
-  resilience: 'Стойкость',
-  endurance: 'Выносливость',
-  // MOTORICS
-  perception: 'Восприятие',
-  reaction: 'Реакция',
-  coordination: 'Координация',
-  // MIND
-  logic: 'Логика',
-  rhetoric: 'Риторика',
-  analysis: 'Анализ',
-  // CONSCIOUSNESS
-  authority: 'Авторитет',
-  suggestion: 'Внушение',
-  courage: 'Смелость',
-  // PSYCHE
-  drama: 'Драма',
-  creativity: 'Креативность',
-  gambling: 'Азарт',
-  // SOCIALITY
-  solidarity: 'Солидарность',
-  honor: 'Честь',
-  empathy: 'Эмпатия',
-}
-
-// Категории навыков
-const SKILL_CATEGORIES = {
-  'Тело': ['force', 'resilience', 'endurance'],
-  'Моторика': ['perception', 'reaction', 'coordination'],
-  'Разум': ['logic', 'rhetoric', 'analysis'],
-  'Сознание': ['authority', 'suggestion', 'courage'],
-  'Психика': ['drama', 'creativity', 'gambling'],
-  'Социальность': ['solidarity', 'honor', 'empathy'],
-}
 
 // Локализация фракций
 const FACTION_NAMES: Record<string, string> = {
@@ -52,14 +16,14 @@ const FACTION_NAMES: Record<string, string> = {
   synthesis: 'Синтез',
 }
 
-const ProgressBar: React.FC<{ 
+const ProgressBar: React.FC<{
   value: number
   max: number
   color: string
-  label?: string 
+  label?: string
 }> = ({ value, max, color, label }) => {
   const percentage = max > 0 ? Math.min(100, (value / max) * 100) : 0
-  
+
   return (
     <div className="space-y-1">
       {label && (
@@ -69,7 +33,7 @@ const ProgressBar: React.FC<{
         </div>
       )}
       <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-        <div 
+        <div
           className={`h-full ${color} transition-all duration-300`}
           style={{ width: `${percentage}%` }}
         />
@@ -94,33 +58,6 @@ const StatCard: React.FC<{
   </div>
 )
 
-const SkillBar: React.FC<{
-  name: string
-  value: number
-  maxValue?: number
-}> = ({ name, value, maxValue = 100 }) => {
-  const percentage = (value / maxValue) * 100
-  const getColor = () => {
-    if (value >= 80) return 'bg-purple-500'
-    if (value >= 60) return 'bg-blue-500'
-    if (value >= 40) return 'bg-green-500'
-    if (value >= 20) return 'bg-yellow-500'
-    return 'bg-red-500'
-  }
-
-  return (
-    <div className="flex items-center gap-2">
-      <div className="w-24 text-xs text-slate-300 truncate" title={name}>{name}</div>
-      <div className="flex-1 h-1.5 bg-slate-700 rounded-full overflow-hidden">
-        <div 
-          className={`h-full ${getColor()} transition-all`}
-          style={{ width: `${percentage}%` }}
-        />
-      </div>
-      <div className="w-8 text-xs text-slate-400 text-right">{value}</div>
-    </div>
-  )
-}
 
 const CharacterPage: React.FC = () => {
   const { isLoaded: isAuthLoaded, isSignedIn } = useAuth()
@@ -224,7 +161,7 @@ const CharacterPage: React.FC = () => {
     )
   }
 
-  const skills = progress?.skills ?? {}
+  // const skills = progress?.skills ?? {}
   const reputation = progress?.reputation ?? {}
   const level = progress?.level ?? 1
   const xp = progress?.xp ?? 0
@@ -253,7 +190,7 @@ const CharacterPage: React.FC = () => {
               <div className="w-20 h-20 rounded-xl bg-slate-700 border-2 border-amber-500/50 flex items-center justify-center text-4xl shrink-0">
                 👤
               </div>
-              
+
               {/* Info */}
               <div className="flex-1 min-w-0">
                 <h1 className="text-xl font-bold text-white truncate">{player.name}</h1>
@@ -265,7 +202,7 @@ const CharacterPage: React.FC = () => {
                     </span>
                   )}
                 </div>
-                
+
                 {/* XP Bar */}
                 <div className="mt-3">
                   <ProgressBar
@@ -302,26 +239,10 @@ const CharacterPage: React.FC = () => {
             <span className="text-lg font-bold text-amber-400">{phase}</span>
           </div>
 
-          {/* Skills Section */}
+
+          {/* Skills Section (Internal Parliament) */}
           <div className="space-y-4">
-            <Heading level={3} className="text-slate-200">Навыки</Heading>
-            
-            {Object.entries(SKILL_CATEGORIES).map(([category, skillIds]) => (
-              <div key={category} className="bg-slate-900/50 rounded-lg p-4 border border-slate-800">
-                <h4 className="text-sm font-medium text-slate-400 mb-3 uppercase tracking-wide">
-                  {category}
-                </h4>
-                <div className="space-y-2">
-                  {skillIds.map((skillId) => (
-                    <SkillBar
-                      key={skillId}
-                      name={SKILL_NAMES[skillId] ?? skillId}
-                      value={skills[skillId] ?? 0}
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
+            <ParliamentPanel />
           </div>
 
           {/* Subclasses */}
@@ -343,7 +264,7 @@ const CharacterPage: React.FC = () => {
                   }
 
                   return (
-                    <div 
+                    <div
                       key={subclassId}
                       className="bg-gradient-to-br from-purple-900/30 to-slate-800 rounded-lg p-3 border border-purple-700/30"
                     >
@@ -372,9 +293,8 @@ const CharacterPage: React.FC = () => {
                     <span className="text-sm text-slate-300">
                       {FACTION_NAMES[factionId] ?? factionId}
                     </span>
-                    <span className={`font-medium ${
-                      value > 0 ? 'text-green-400' : value < 0 ? 'text-red-400' : 'text-slate-400'
-                    }`}>
+                    <span className={`font-medium ${value > 0 ? 'text-green-400' : value < 0 ? 'text-red-400' : 'text-slate-400'
+                      }`}>
                       {value > 0 ? '+' : ''}{value}
                     </span>
                   </div>

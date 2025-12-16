@@ -11,7 +11,7 @@ import {
  * Hook for working with the Internal Parliament (Voices) system
  * Uses the canonical 18-voice system from parliament.ts
  */
-export function usePsyche() {
+export function useParliament() {
     const { progress } = usePlayerProgress()
     const skills = progress?.skills || {}
 

@@ -15,7 +15,7 @@ GAME DESIGN DOCUMENT (GDD): ПРОЕКТ «ЭХО ФРАЙБУРГА» (PROJECT 
 - В проекте используется **18 голосов** в 6 группах (6 × 3)
 - ⚠️ В коде сейчас встречаются разные ID голосов (требуется унификация):
   - VN/прогресс/проверки навыков: `server/src/lib/gameProgress.ts` + сценарии VN в `src/entities/visual-novel/scenarios/` (напр. `strength`, `endurance`, `stamina`)
-  - UI/метаданные/боевые прототипы: `src/shared/types/parliament.ts` + `src/features/visual-novel/consultation/lib/voiceDefinitions.ts` (напр. `force`, `resilience`, `endurance`)
+  - UI/метаданные/боевые прототипы: `src/shared/types/parliament.ts` + `src/entities/parliament/lib/voiceDefinitions.ts` (напр. `force`, `resilience`, `endurance`)
 - Группы: ТЕЛО, МОТОРИКА, РАЗУМ, СОЗНАНИЕ, ПСИХИКА, СОЦИАЛЬНОСТЬ
 - См. `ATTRIBUTES_ANALYSIS.md` для анализа проблем и рекомендаций
 

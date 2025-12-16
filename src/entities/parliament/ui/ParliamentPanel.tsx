@@ -1,15 +1,16 @@
 import React from 'react'
-import { usePsyche } from '../model/usePsyche'
+import { useParliament } from '../model/useParliament'
 import { ATTRIBUTE_GROUPS, type AttributeGroup } from '@/shared/types/parliament'
 import { cn } from '@/shared/lib/utils/cn'
 import { MotionContainer } from '@/shared/ui/components/MotionContainer'
+import { getVoiceDefinition } from '../lib/voiceDefinitions' // Use local enriched definitions
 
 /**
  * Panel displaying the Internal Parliament (18 voices in 6 groups)
  * Uses the canonical voice system from parliament.ts
  */
-export const PsychePanel: React.FC<{ className?: string }> = ({ className }) => {
-    const { getVoicesByGroup, getVoiceLevel } = usePsyche()
+export const ParliamentPanel: React.FC<{ className?: string }> = ({ className }) => {
+    const { getVoicesByGroup, getVoiceLevel } = useParliament()
 
     return (
         <div className={cn('space-y-6', className)}>
@@ -30,6 +31,7 @@ export const PsychePanel: React.FC<{ className?: string }> = ({ className }) => 
                     <div className="grid grid-cols-1 gap-2">
                         {getVoicesByGroup(groupId as AttributeGroup).map((voice) => {
                             const level = getVoiceLevel(voice.id)
+                            const enrichedVoice = getVoiceDefinition(voice.id) // Get icon from lib
                             return (
                                 <div
                                     key={voice.id}
@@ -37,7 +39,11 @@ export const PsychePanel: React.FC<{ className?: string }> = ({ className }) => 
                                     title={voice.description}
                                 >
                                     <div className="flex items-center gap-2">
-                                        <span className="text-lg">{voice.icon}</span>
+                                        <span className="text-lg">
+                                            {enrichedVoice?.icon ? (
+                                                <img src={enrichedVoice.icon} alt={voice.nameRu} className="w-6 h-6 rounded-full object-cover" />
+                                            ) : voice.icon}
+                                        </span>
                                         <div className="flex flex-col">
                                             <span className="text-sm font-medium text-[color:var(--color-text)] group-hover:text-[color:var(--color-primary)] transition-colors">
                                                 {voice.nameRu}

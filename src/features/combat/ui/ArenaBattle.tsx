@@ -538,7 +538,7 @@ export function ArenaBattle({ onBattleEnd }: ArenaBattleProps) {
                                     )}>
                                         {/* Mini sprite or icon */}
                                         <span className="flex items-center justify-center h-full text-[10px] font-bold">
-                                            {actor.name.substring(0, 2)}
+                                            {(actorId === 'player' ? 'OP' : (actor as any).name).substring(0, 2)}
                                         </span>
                                     </div>
                                 </div>

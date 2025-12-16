@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { VisualNovelAdvice, VisualNovelChoiceView, VisualNovelLine } from '@/shared/types/visualNovel'
 import { filterAvailableAdvices } from '../lib/consultationUtils'
-import { getVoiceDefinition } from '../lib/voiceDefinitions'
+import { getVoiceDefinition } from '@/entities/parliament/lib/voiceDefinitions'
 
 export interface ConsultationModeState {
   isConsultationMode: boolean

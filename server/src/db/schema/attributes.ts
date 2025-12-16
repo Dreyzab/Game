@@ -1,6 +1,6 @@
 import { pgTable, text, integer, uuid } from 'drizzle-orm/pg-core';
 
-// 24 Voices (Attributes)
+// 18 Voices (Attributes)
 export const voiceAttributes = pgTable('voice_attributes', {
     id: uuid('id').defaultRandom().primaryKey(),
     playerId: integer('player_id').notNull(), // Matching players.id type (integer)

@@ -22,6 +22,16 @@ import {
 } from './helpers'
 import type { InventoryFilter } from './selectors'
 
+// Module imports
+import { moveItemWithinGrid } from './modules/inventoryGrid'
+import { equipItem } from './modules/inventoryEquipment'
+import {
+  addItemToContainer,
+  removeItemFromContainer,
+  getAllContainers
+} from './modules/inventoryContainers'
+import { setQuickSlot } from './modules/inventoryQuickSlots'
+
 // Client-side types matching /inventory API response
 type InventoryGetResponse = {
   items: ItemState[]
@@ -162,13 +172,13 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
           const containerItems = Object.values(items).filter(
             (i) => i.containerId === item.instanceId
           )
-          
+
           containers[item.instanceId] = {
             id: item.instanceId,
             ownerId: item.ownerId || 'player',
-            kind: slotId === 'backpack' ? 'backpack' : 
-                  slotId === 'rig' ? 'rig' : 
-                  slotId === 'helmet' ? 'pocket' : 'equipment_storage',
+            kind: slotId === 'backpack' ? 'backpack' :
+              slotId === 'rig' ? 'rig' :
+                slotId === 'helmet' ? 'pocket' : 'equipment_storage',
             name: item.stats.containerConfig.name,
             width: item.stats.containerConfig.width,
             height: item.stats.containerConfig.height,
@@ -219,115 +229,31 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
         selectedItemId: nextItem.id,
       }
     }),
+
   equipItem: (itemId, slotId) =>
     set((state) => {
-      if (!(slotId in state.equipment)) return state
-      let item = itemId ? state.items[itemId] ?? null : null
-      
-      // Автоматически создаём containerConfig для предметов, которые должны иметь карманчики
-      if (item && !item.stats.containerConfig) {
-        let containerConfig: { width: number; height: number; name: string } | undefined
-        
-        switch (slotId) {
-          case 'helmet':
-            containerConfig = { width: 1, height: 1, name: 'Карман шлема' }
-            break
-          case 'rig':
-            containerConfig = { width: 4, height: 2, name: 'Карманы разгрузки' }
-            break
-          case 'backpack':
-            containerConfig = { width: 4, height: 4, name: 'Рюкзак' }
-            break
-          case 'clothing_bottom':
-            // Ремень может быть частью одежды снизу
-            if (item.kind === 'clothing' || item.templateId?.includes('belt')) {
-              containerConfig = { width: 4, height: 1, name: 'Карманы ремня' }
-            }
-            break
-        }
-        
-        if (containerConfig) {
-          item = {
-            ...item,
-            stats: {
-              ...item.stats,
-              containerConfig,
-            },
-          }
-          // Обновляем item в state
-          const updatedItems = { ...state.items, [item.id]: item }
-          state = { ...state, items: updatedItems }
-        }
-      }
-      
-      const equipment: EquipmentSlots = {
-        ...state.equipment,
-        [slotId]: item,
-      }
-
-      // Обновляем контейнеры при экипировке
-      const containers = { ...state.containers }
-      if (item && item.stats.containerConfig) {
-        containers[item.instanceId] = {
-          id: item.instanceId,
-          ownerId: item.ownerId || 'player',
-          kind: slotId === 'backpack' ? 'backpack' : 
-                slotId === 'rig' ? 'rig' : 
-                slotId === 'helmet' ? 'pocket' : 'equipment_storage',
-          name: item.stats.containerConfig.name,
-          width: item.stats.containerConfig.width,
-          height: item.stats.containerConfig.height,
-          items: [],
-        }
-      } else if (!item) {
-        // Удаляем контейнер при снятии предмета
-        const previousItem = state.equipment[slotId as keyof EquipmentSlots]
-        if (previousItem && !Array.isArray(previousItem) && previousItem.stats.containerConfig) {
-          delete containers[previousItem.instanceId]
-        }
-      }
-
+      const result = equipItem(state, itemId, slotId)
       return {
-        items: state.items,
-        equipment,
-        containers,
-        ...deriveState(state.items, equipment, state.masteries),
+        ...result,
+        ...deriveState(result.items, result.equipment, state.masteries)
       }
     }),
+
   setQuickSlot: (index, itemId) =>
     set((state) => {
-      if (index < 0 || index >= state.equipment.quick.length) return state
-      const nextQuick = [...state.equipment.quick]
-      nextQuick[index] = itemId ? state.items[itemId] ?? null : null
-      const equipment = { ...state.equipment, quick: nextQuick }
+      const equipment = setQuickSlot(state.items, state.equipment, index, itemId)
       return {
         equipment,
         ...deriveState(state.items, equipment, state.masteries),
       }
     }),
+
   moveItemWithinGrid: (itemId, position) =>
     set((state) => {
-      const item = state.items[itemId]
-      if (!item) return state
-      const currentPosition = item.gridPosition
-      const conflictingEntry = Object.values(state.items).find(
-        (entry) =>
-          entry.id !== itemId &&
-          entry.gridPosition?.x === position.x &&
-          entry.gridPosition?.y === position.y
-      )
-      const nextItems: Record<string, ItemState> = {
-        ...state.items,
-        [itemId]: { ...item, gridPosition: position },
-      }
-      if (conflictingEntry) {
-        nextItems[conflictingEntry.id] = {
-          ...conflictingEntry,
-          gridPosition: currentPosition ?? undefined,
-        }
-      }
-      return { items: nextItems }
+      const items = moveItemWithinGrid(state.items, itemId, position)
+      return { items }
     }),
+
   setQuestProtectedItems: (ids) =>
     set((state) => {
       const next: Record<string, true> = {}
@@ -339,80 +265,26 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
       })
       return { questProtectedItemIds: next }
     }),
+
   isQuestItem: (itemId) => Boolean(get().questProtectedItemIds[itemId]),
   setSearchQuery: (query) => set({ searchQuery: query }),
   setActiveFilter: (filter) => set({ activeFilter: filter }),
   selectItem: (itemId) => set({ selectedItemId: itemId }),
+
   addItemToContainer: (containerId, itemId) =>
     set((state) => {
-      const container = state.containers[containerId]
-      const item = state.items[itemId]
-      if (!container || !item) return state
-      if (container.items.some((entry) => entry.id === itemId)) {
-        return state
-      }
-      const updatedContainer: InventoryContainer = {
-        ...container,
-        items: [...container.items, item],
-      }
-      return {
-        containers: { ...state.containers, [containerId]: updatedContainer },
-      }
+      const containers = addItemToContainer(state.containers, state.items, containerId, itemId)
+      return { containers }
     }),
+
   removeItemFromContainer: (containerId, itemId) =>
     set((state) => {
-      const container = state.containers[containerId]
-      if (!container) return state
-      const updatedContainer: InventoryContainer = {
-        ...container,
-        items: container.items.filter((entry) => entry.id !== itemId),
-      }
-      return {
-        containers: { ...state.containers, [containerId]: updatedContainer },
-      }
+      const containers = removeItemFromContainer(state.containers, containerId, itemId)
+      return { containers }
     }),
+
   getContainers: () => {
     const state = get()
-    const containers: InventoryContainer[] = []
-    
-    // Добавляем контейнеры из экипированных предметов
-    Object.values(state.equipment).forEach((equipped) => {
-      if (equipped && !Array.isArray(equipped) && equipped.stats.containerConfig) {
-        // Находим предметы внутри этого контейнера
-        const containerItems = Object.values(state.items).filter(
-          (item) => item.containerId === equipped.instanceId
-        )
-        
-        const container: InventoryContainer = {
-          id: equipped.instanceId,
-          ownerId: equipped.ownerId || 'player',
-          kind: equipped.equippedSlot === 'backpack' ? 'backpack' : 
-                equipped.equippedSlot === 'rig' ? 'rig' : 
-                equipped.equippedSlot === 'helmet' ? 'pocket' : 'equipment_storage',
-          name: equipped.stats.containerConfig.name,
-          width: equipped.stats.containerConfig.width,
-          height: equipped.stats.containerConfig.height,
-          items: containerItems,
-        }
-        
-        containers.push(container)
-      }
-    })
-    
-    // Добавляем остальные контейнеры (например, карманы)
-    Object.values(state.containers).forEach((container) => {
-      if (!containers.find(c => c.id === container.id)) {
-        // Заполняем предметами
-        const containerItems = Object.values(state.items).filter(
-          (item) => item.containerId === container.id
-        )
-        containers.push({
-          ...container,
-          items: containerItems,
-        })
-      }
-    })
-    
-    return containers
+    return getAllContainers(state.items, state.equipment, state.containers)
   },
 }))
