@@ -1,4 +1,5 @@
-import { pgTable, serial, integer, text, jsonb, bigint, index } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+import { pgTable, serial, integer, text, jsonb, bigint, index, uniqueIndex } from 'drizzle-orm/pg-core';
 import { players } from './players';
 
 export const sceneLogs = pgTable('scene_logs', {
@@ -19,6 +20,9 @@ export const sceneLogs = pgTable('scene_logs', {
     playerIdx: index('scene_logs_player_idx').on(table.playerId),
     userIdx: index('scene_logs_user_idx').on(table.userId),
     sceneIdx: index('scene_logs_scene_idx').on(table.sceneId),
+    sceneCommitUnique: uniqueIndex('scene_logs_scene_commit_unq')
+        .on(table.playerId, table.sceneId)
+        .where(sql`(${table.payload} ->> 'type') = 'scene_commit'`),
 }));
 
 

@@ -1,8 +1,70 @@
 import { Elysia, t } from "elysia";
 import { db } from "../../db";
-import { quests, questProgress, players } from "../../db/schema";
+import { quests, questProgress, players, gameProgress } from "../../db/schema";
 import { eq, and } from "drizzle-orm";
 import { auth } from "../auth";
+import { STARTING_SKILLS } from "../../lib/gameProgress";
+
+const DEFAULT_SCENE_ID = 'prologue_coupe_start';
+
+type AuthUser = { id: string; type: 'clerk' | 'guest' };
+
+async function ensurePlayer(user: AuthUser) {
+    const existing = await db.query.players.findFirst({
+        where: user.type === 'clerk'
+            ? eq(players.userId, user.id)
+            : eq(players.deviceId, user.id)
+    });
+
+    if (existing) {
+        const existingProgress = await db.query.gameProgress.findFirst({
+            where: eq(gameProgress.playerId, existing.id)
+        });
+        if (!existingProgress) {
+            const now = Date.now();
+            await db.insert(gameProgress).values({
+                playerId: existing.id,
+                currentScene: DEFAULT_SCENE_ID,
+                visitedScenes: [],
+                flags: {},
+                skills: STARTING_SKILLS,
+                level: 1,
+                xp: 0,
+                skillPoints: 0,
+                phase: 1,
+                reputation: {},
+                updatedAt: now
+            });
+        }
+
+        return existing;
+    }
+
+    const now = Date.now();
+    const [created] = await db.insert(players).values({
+        userId: user.type === 'clerk' ? user.id : undefined,
+        deviceId: user.type === 'guest' ? user.id : undefined,
+        name: user.type === 'guest' ? `Guest-${user.id.slice(0, 4)}` : 'Wanderer',
+        createdAt: now,
+        updatedAt: now
+    }).returning();
+
+    await db.insert(gameProgress).values({
+        playerId: created.id,
+        currentScene: DEFAULT_SCENE_ID,
+        visitedScenes: [],
+        flags: {},
+        skills: STARTING_SKILLS,
+        level: 1,
+        xp: 0,
+        skillPoints: 0,
+        phase: 1,
+        reputation: {},
+        updatedAt: now
+    });
+
+    return created;
+}
 
 export const questsRoutes = (app: Elysia) =>
     app
@@ -12,12 +74,7 @@ export const questsRoutes = (app: Elysia) =>
                 // GET /quests - Get all quests state (active, available, completed)
                 .get("/", async ({ user }) => {
                     if (!user) return { error: "Unauthorized", status: 401 };
-
-                    const player = await db.query.players.findFirst({
-                        where: user.type === 'clerk' ? eq(players.userId, user.id) : eq(players.deviceId, user.id)
-                    });
-
-                    if (!player) return { active: [], available: [], completed: [] };
+                    const player = await ensurePlayer(user as AuthUser);
 
                     // 1. Fetch Player's Progress
                     const allProgress = await db.query.questProgress.findMany({
@@ -93,10 +150,7 @@ export const questsRoutes = (app: Elysia) =>
                     const { questId } = body;
 
                     // Resolve Player
-                    const player = await db.query.players.findFirst({
-                        where: user.type === 'clerk' ? eq(players.userId, user.id) : eq(players.deviceId, user.id)
-                    });
-                    if (!player) return { error: "Player not found", status: 404 };
+                    const player = await ensurePlayer(user as AuthUser);
 
                     // Check Quest Def
                     const qDef = await db.query.quests.findFirst({ where: eq(quests.id, questId) });
@@ -129,10 +183,7 @@ export const questsRoutes = (app: Elysia) =>
                     if (!user) return { error: "Unauthorized", status: 401 };
                     const { questId, status, progress, currentStep } = body;
 
-                    const player = await db.query.players.findFirst({
-                        where: user.type === 'clerk' ? eq(players.userId, user.id) : eq(players.deviceId, user.id)
-                    });
-                    if (!player) return { error: "Player not found", status: 404 };
+                    const player = await ensurePlayer(user as AuthUser);
 
                     const existing = await db.query.questProgress.findFirst({
                         where: and(eq(questProgress.playerId, player.id), eq(questProgress.questId, questId))

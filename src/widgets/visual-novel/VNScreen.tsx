@@ -87,6 +87,13 @@ export const VNScreen: React.FC<VNScreenProps> = ({
   const [isTextTyping, setIsTextTyping] = useState(false)
   const [forceShowText, setForceShowText] = useState(false)
 
+  const exitConsultation = useCallback(() => {
+    consultation.exitConsultationMode()
+    if (isLineRevealed) {
+      setForceShowText(true)
+    }
+  }, [consultation, isLineRevealed])
+
   useEffect(() => {
     log('🆕 Активная реплика изменена', { lineId: currentLine?.id, sceneId: scene.id })
     setLineRevealed(false)
@@ -181,7 +188,7 @@ export const VNScreen: React.FC<VNScreenProps> = ({
   const handleScreenClick = useCallback(() => {
     // В режиме консультации - выходим из него
     if (consultation.isConsultationMode) {
-      consultation.exitConsultationMode()
+      exitConsultation()
       return
     }
 
@@ -207,6 +214,7 @@ export const VNScreen: React.FC<VNScreenProps> = ({
     }
   }, [
     consultation,
+    exitConsultation,
     isTextTyping,
     visibleChoices.length,
     isSceneCompleted,
@@ -256,7 +264,7 @@ export const VNScreen: React.FC<VNScreenProps> = ({
             {showVoiceTabs ? (
               <div className="flex flex-wrap gap-3">
                 <div
-                  onClick={consultation.exitConsultationMode}
+                  onClick={exitConsultation}
                   className={`min-w-[160px] flex-1 rounded-2xl border px-4 py-3 backdrop-blur cursor-pointer transition-all duration-200 ${!consultation.isConsultationMode
                     ? 'border-white/70 bg-white/15 shadow-lg'
                     : 'border-white/10 bg-white/5 hover:bg-white/10'
@@ -315,7 +323,7 @@ export const VNScreen: React.FC<VNScreenProps> = ({
                 stageDirection={consultation.currentAdvice.stageDirection}
                 disabled={false}
                 isPending={false}
-                onAdvance={consultation.exitConsultationMode}
+                onAdvance={exitConsultation}
                 onRevealComplete={() => { }}
               />
             ) : (

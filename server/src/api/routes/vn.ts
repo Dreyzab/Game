@@ -1,14 +1,107 @@
 import { Elysia, t } from "elysia";
-import { eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db } from "../../db";
 import { players, gameProgress, sceneLogs } from "../../db/schema";
 import { auth } from "../auth";
-import { awardXPAndLevelUp, mergeFlags, mergeReputation, needsSkillsNormalization, normalizeSkills, STARTING_SKILLS } from "../../lib/gameProgress";
+import {
+    awardXPAndLevelUp,
+    mergeFlags,
+    mergeReputation,
+    needsSkillsNormalization,
+    normalizeSkills,
+    STARTING_SKILLS,
+} from "../../lib/gameProgress";
 import { awardItemsToPlayer } from "../../lib/itemAward";
+import { hasItemTemplate } from "../../lib/itemTemplates";
 
 const DEFAULT_SCENE_ID = 'prologue_coupe_start';
 
+const SAFE_ID_RE = /^[a-z0-9_-]+$/i;
+const SAFE_FLAG_RE = /^[a-z0-9_:-]+$/i;
+
+const MAX_FLAGS_PER_COMMIT = 50;
+const MAX_ITEMS_PER_COMMIT = 10;
+const MAX_ITEM_QUANTITY = 50;
+const MAX_XP_DELTA = 500;
+const MAX_REPUTATION_ENTRIES = 20;
+const MAX_REPUTATION_DELTA = 100;
+
 type AuthUser = { id: string; type: 'clerk' | 'guest' };
+
+function clampInt(value: unknown, min: number, max: number): number {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return min;
+    const rounded = Math.trunc(value);
+    return Math.max(min, Math.min(max, rounded));
+}
+
+function isSafeId(value: string): boolean {
+    return value.length > 0 && value.length <= 128 && SAFE_ID_RE.test(value);
+}
+
+function sanitizeStringArray(
+    values: unknown,
+    options: { max: number; pattern?: RegExp; maxLen?: number } = { max: 50 }
+): string[] {
+    if (!Array.isArray(values)) return [];
+
+    const { max, pattern, maxLen = 128 } = options;
+    const out: string[] = [];
+
+    for (const raw of values) {
+        if (out.length >= max) break;
+        if (typeof raw !== 'string') continue;
+        const value = raw.trim();
+        if (!value) continue;
+        if (value.length > maxLen) continue;
+        if (pattern && !pattern.test(value)) continue;
+        out.push(value);
+    }
+
+    return out;
+}
+
+function sanitizeReputation(incoming: unknown): Record<string, number> | undefined {
+    if (!incoming || typeof incoming !== 'object') return undefined;
+
+    const source = incoming as Record<string, unknown>;
+    const entries: [string, number][] = [];
+
+    for (const [rawKey, rawDelta] of Object.entries(source)) {
+        if (entries.length >= MAX_REPUTATION_ENTRIES) break;
+        if (typeof rawKey !== 'string') continue;
+        const key = rawKey.trim();
+        if (!key || key.length > 64) continue;
+        if (!SAFE_FLAG_RE.test(key)) continue;
+
+        const delta = clampInt(rawDelta, -MAX_REPUTATION_DELTA, MAX_REPUTATION_DELTA);
+        if (delta === 0) continue;
+        entries.push([key, delta]);
+    }
+
+    return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+}
+
+function sanitizeItemAwards(incoming: unknown): Array<{ itemId: string; quantity: number }> {
+    if (!Array.isArray(incoming)) return [];
+
+    const awards: Array<{ itemId: string; quantity: number }> = [];
+
+    for (const raw of incoming) {
+        if (awards.length >= MAX_ITEMS_PER_COMMIT) break;
+        if (!raw || typeof raw !== 'object') continue;
+        const itemIdRaw = (raw as any).itemId;
+        const quantityRaw = (raw as any).quantity;
+        if (typeof itemIdRaw !== 'string') continue;
+        const itemId = itemIdRaw.trim();
+        if (!itemId || !isSafeId(itemId)) continue;
+        if (!hasItemTemplate(itemId)) continue;
+
+        const quantity = clampInt(quantityRaw ?? 1, 1, MAX_ITEM_QUANTITY);
+        awards.push({ itemId, quantity });
+    }
+
+    return awards;
+}
 
 async function ensurePlayer(user: AuthUser) {
     const existing = await db.query.players.findFirst({
@@ -120,80 +213,179 @@ export const vnRoutes = (app: Elysia) =>
                     const progress = await ensureProgress(player.id);
                     const now = Date.now();
 
-                    const visited = new Set<string>(progress.visitedScenes ?? []);
-                    visited.add(body.sceneId);
-                    body.payload.visitedScenes?.forEach((s: string) => visited.add(s));
+                    const sceneId = typeof body.sceneId === 'string' ? body.sceneId.trim() : '';
+                    if (!sceneId || !isSafeId(sceneId)) {
+                        return { error: "Invalid sceneId", status: 400 };
+                    }
 
-                    const flags = mergeFlags(progress.flags, body.payload.addFlags, body.payload.removeFlags);
-                    const reputation = mergeReputation((progress as any).reputation, body.payload.reputation);
+                    const addFlags = sanitizeStringArray(body.payload.addFlags, {
+                        max: MAX_FLAGS_PER_COMMIT,
+                        pattern: SAFE_FLAG_RE,
+                        maxLen: 64,
+                    });
+                    const removeFlags = sanitizeStringArray(body.payload.removeFlags, {
+                        max: MAX_FLAGS_PER_COMMIT,
+                        pattern: SAFE_FLAG_RE,
+                        maxLen: 64,
+                    });
 
-                    const xpGain = body.payload.xpDelta ?? 0;
+                    const reputationDelta = sanitizeReputation(body.payload.reputation);
+                    const quests = sanitizeStringArray(body.payload.quests, { max: 50, pattern: SAFE_ID_RE, maxLen: 128 });
+
+                    const xpGain = clampInt(body.payload.xpDelta ?? 0, 0, MAX_XP_DELTA);
                     const xpResult = awardXPAndLevelUp(progress.level, progress.xp, progress.skillPoints, xpGain);
 
-                    const nextPhase = Math.max(progress.phase ?? 1, body.payload.advancePhaseTo ?? progress.phase ?? 1);
+                    const currentPhase = progress.phase ?? 1;
+                    const requestedPhase = body.payload.advancePhaseTo === undefined
+                        ? undefined
+                        : clampInt(body.payload.advancePhaseTo, currentPhase, currentPhase + 1);
+                    const nextPhase = requestedPhase ?? currentPhase;
 
-                    await db.update(gameProgress)
-                        .set({
-                            currentScene: body.sceneId,
-                            visitedScenes: Array.from(visited),
-                            flags,
-                            level: xpResult.level,
-                            xp: xpResult.xp,
-                            skillPoints: xpResult.skillPoints,
-                            phase: nextPhase,
-                            reputation,
-                            updatedAt: now
-                        })
-                        .where(eq(gameProgress.id, progress.id));
+                    const startedAt = typeof body.payload.startedAt === 'number' && Number.isFinite(body.payload.startedAt)
+                        ? body.payload.startedAt
+                        : now;
+                    const finishedAt = typeof body.payload.finishedAt === 'number' && Number.isFinite(body.payload.finishedAt)
+                        ? body.payload.finishedAt
+                        : now;
 
-                    // Выдаём предметы игроку, если есть
+                    const visited = new Set<string>(progress.visitedScenes ?? []);
+                    visited.add(sceneId);
+
+                    const flags = mergeFlags(progress.flags, addFlags, removeFlags);
+                    const reputation = mergeReputation((progress as any).reputation, reputationDelta);
+
+                    const choices = Array.isArray(body.payload.choices)
+                        ? body.payload.choices.slice(0, 200).map((choice) => ({
+                            sceneId: typeof (choice as any)?.sceneId === 'string' ? (choice as any).sceneId : sceneId,
+                            lineId: typeof (choice as any)?.lineId === 'string' ? (choice as any).lineId : undefined,
+                            choiceId: typeof (choice as any)?.choiceId === 'string' ? (choice as any).choiceId : 'unknown',
+                            effects: (choice as any)?.effects,
+                        }))
+                        : [];
+
+                    const itemAwards = sanitizeItemAwards(body.payload.items);
                     const awardedItems: Array<{ itemId: string; quantity: number; dbId?: string }> = [];
-                    if (body.payload.items && body.payload.items.length > 0) {
-                        const itemAwards = body.payload.items.map((item) => ({
-                            itemId: item.itemId,
-                            quantity: item.quantity ?? 1,
-                        }));
-                        
-                        const results = await awardItemsToPlayer(player.id, itemAwards);
-                        
-                        for (const result of results) {
-                            if (result.success) {
-                                awardedItems.push({
-                                    itemId: result.itemId,
-                                    quantity: result.quantity,
-                                    dbId: result.dbId,
-                                });
-                            } else {
-                                console.warn(`[vn/commit] Failed to award item: ${result.itemId}`, result.error);
+                    let duplicate = false;
+
+                    const progressPatch = {
+                        currentScene: sceneId,
+                        visitedScenes: Array.from(visited),
+                        flags,
+                        level: xpResult.level,
+                        xp: xpResult.xp,
+                        skillPoints: xpResult.skillPoints,
+                        phase: nextPhase,
+                        reputation,
+                        updatedAt: now,
+                    };
+
+                    try {
+                        await db.transaction(async (tx) => {
+                            // Idempotency: log insert is the "lock". If it already exists, do nothing.
+                            const [logRow] = await tx.insert(sceneLogs).values({
+                                playerId: player.id,
+                                userId: user.type === 'clerk' ? user.id : undefined,
+                                deviceId: user.type === 'guest' ? user.id : undefined,
+                                sceneId,
+                                choices,
+                                payload: {
+                                    type: 'scene_commit',
+                                    addFlags,
+                                    removeFlags,
+                                    xpDelta: xpGain,
+                                    reputation: reputationDelta,
+                                    quests,
+                                    items: itemAwards,
+                                    advancePhaseTo: nextPhase,
+                                },
+                                startedAt,
+                                finishedAt,
+                                createdAt: now
+                            }).onConflictDoNothing().returning({ id: sceneLogs.id });
+
+                            if (!logRow) {
+                                duplicate = true;
+                                return;
                             }
+
+                            if (itemAwards.length > 0) {
+                                const results = await awardItemsToPlayer(player.id, itemAwards, tx);
+                                const failed = results.filter((result) => !result.success);
+
+                                if (failed.length > 0) {
+                                    throw new Error(
+                                        `Failed to award items: ${failed.map((result) => result.itemId).join(', ')}`
+                                    );
+                                }
+
+                                results.forEach((result) => {
+                                    if (!result.success) return;
+                                    awardedItems.push({
+                                        itemId: result.itemId,
+                                        quantity: result.quantity,
+                                        dbId: result.dbId,
+                                    });
+                                });
+
+                                await tx.update(sceneLogs)
+                                    .set({
+                                        payload: {
+                                            type: 'scene_commit',
+                                            addFlags,
+                                            removeFlags,
+                                            xpDelta: xpGain,
+                                            reputation: reputationDelta,
+                                            quests,
+                                            items: itemAwards,
+                                            advancePhaseTo: nextPhase,
+                                            awardedItems,
+                                        },
+                                    })
+                                    .where(eq(sceneLogs.id, logRow.id));
+                            }
+
+                            await tx.update(gameProgress)
+                                .set(progressPatch)
+                                .where(eq(gameProgress.id, progress.id));
+                        });
+                    } catch (error) {
+                        console.error('[vn/commit] Transaction failed', error);
+                        return { error: "Failed to commit progress", status: 500 };
+                    }
+
+                    if (duplicate) {
+                        const existing = await db.query.sceneLogs.findFirst({
+                            where: and(
+                                eq(sceneLogs.playerId, player.id),
+                                eq(sceneLogs.sceneId, sceneId),
+                                sql`(${sceneLogs.payload} ->> 'type') = 'scene_commit'`
+                            )
+                        });
+                        const fromLog = (existing?.payload as any)?.awardedItems;
+                        if (Array.isArray(fromLog)) {
+                            fromLog.slice(0, MAX_ITEMS_PER_COMMIT).forEach((entry: any) => {
+                                if (!entry || typeof entry !== 'object') return;
+                                if (typeof entry.itemId !== 'string') return;
+                                const itemId = entry.itemId.trim();
+                                if (!itemId) return;
+                                const quantity = clampInt(entry.quantity, 1, MAX_ITEM_QUANTITY);
+                                const dbId = typeof entry.dbId === 'string' ? entry.dbId : undefined;
+                                awardedItems.push({ itemId, quantity, dbId });
+                            });
                         }
                     }
 
-                    await db.insert(sceneLogs).values({
-                        playerId: player.id,
-                        userId: user.type === 'clerk' ? user.id : undefined,
-                        deviceId: user.type === 'guest' ? user.id : undefined,
-                        sceneId: body.sceneId,
-                        choices: body.payload.choices ?? [],
-                        payload: body.payload,
-                        startedAt: body.payload.startedAt ?? now,
-                        finishedAt: body.payload.finishedAt ?? now,
-                        createdAt: now
-                    });
+                    const latestProgress = await ensureProgress(player.id);
 
                     return {
                         success: true,
+                        duplicate: duplicate || undefined,
                         progress: {
-                            ...progress,
-                            currentScene: body.sceneId,
-                            visitedScenes: Array.from(visited),
-                            flags,
-                            level: xpResult.level,
-                            xp: xpResult.xp,
-                            skillPoints: xpResult.skillPoints,
-                            phase: nextPhase,
-                            reputation,
-                            updatedAt: now
+                            ...latestProgress,
+                            visitedScenes: latestProgress.visitedScenes ?? [],
+                            flags: latestProgress.flags ?? {},
+                            reputation: (latestProgress as any).reputation ?? {},
+                            skills: latestProgress.skills ?? {},
                         },
                         awardedItems,
                     };

@@ -7,6 +7,11 @@ import { items } from "../db/schema";
 import { eq, and } from "drizzle-orm";
 import { getItemTemplate, hasItemTemplate } from "./itemTemplates";
 
+type Db = typeof db;
+type TransactionCallback = Parameters<Db['transaction']>[0];
+type Tx = Parameters<TransactionCallback>[0];
+type DbClient = Db | Tx;
+
 export interface ItemAward {
   itemId: string; // templateId
   quantity?: number;
@@ -28,7 +33,8 @@ export interface AwardResult {
  */
 export async function awardItemsToPlayer(
   playerId: number,
-  awards: ItemAward[]
+  awards: ItemAward[],
+  client: DbClient = db
 ): Promise<AwardResult[]> {
   const results: AwardResult[] = [];
 
@@ -56,7 +62,7 @@ export async function awardItemsToPlayer(
 
       if (isStackable) {
         // Ищем существующий предмет того же шаблона без слота и контейнера
-        const existing = await db.query.items.findFirst({
+        const existing = await client.query.items.findFirst({
           where: and(
             eq(items.ownerId, playerId),
             eq(items.templateId, templateId),
@@ -68,7 +74,7 @@ export async function awardItemsToPlayer(
         // Фильтруем только свободные предметы (без slot и containerId)
         if (existing && !existing.slot && !existing.containerId) {
           // Увеличиваем количество
-          await db.update(items)
+          await client.update(items)
             .set({
               quantity: (existing.quantity ?? 1) + quantity,
             })
@@ -88,7 +94,7 @@ export async function awardItemsToPlayer(
       const instanceId = `${templateId}_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
       const now = Date.now();
 
-      const [created] = await db.insert(items).values({
+      const [created] = await client.insert(items).values({
         ownerId: playerId,
         templateId: template.id,
         instanceId,
@@ -142,7 +148,8 @@ export async function awardItemsToPlayer(
  */
 export async function removeItemsFromPlayer(
   playerId: number,
-  itemIds: string[]
+  itemIds: string[],
+  client: DbClient = db
 ): Promise<{ removed: string[]; failed: string[] }> {
   const removed: string[] = [];
   const failed: string[] = [];
@@ -150,7 +157,7 @@ export async function removeItemsFromPlayer(
   for (const itemId of itemIds) {
     try {
       // Проверяем, что предмет принадлежит игроку и не экипирован
-      const item = await db.query.items.findFirst({
+      const item = await client.query.items.findFirst({
         where: and(
           eq(items.id, itemId),
           eq(items.ownerId, playerId)
@@ -170,7 +177,7 @@ export async function removeItemsFromPlayer(
       }
 
       // Удаляем предмет
-      await db.delete(items).where(eq(items.id, itemId));
+      await client.delete(items).where(eq(items.id, itemId));
       removed.push(itemId);
 
     } catch (error) {

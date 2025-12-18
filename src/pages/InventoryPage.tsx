@@ -1,5 +1,5 @@
 import React from 'react'
-import { ModernInventoryPage } from '@/features/inventory'
+import { TrinityInventoryPage } from '@/features/trinity-protocol-inventory'
 import { ErrorBoundary } from '@/shared/ui/ErrorBoundary'
 
 const InventoryPage: React.FC = () => {
@@ -10,7 +10,7 @@ const InventoryPage: React.FC = () => {
         console.error('📋 [InventoryPage] Stack:', errorInfo.componentStack)
       }}
     >
-      <ModernInventoryPage />
+      <TrinityInventoryPage />
     </ErrorBoundary>
   )
 }

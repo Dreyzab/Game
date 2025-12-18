@@ -10,6 +10,9 @@
 @import "./shared/ui/styles/components.css";
 @import "./shared/ui/styles/utilities.css";
 
+/* External fonts */
+@import url('https://fonts.googleapis.com/css2?family=Special+Elite&family=JetBrains+Mono:wght@400;700&family=Rajdhani:wght@400;600;700&display=swap');
+
 /* Mapbox custom styles */
 .mapboxgl-map {
   width: 100%;
@@ -70,4 +73,259 @@
   display: block !important;
   border-top-color: rgba(31, 41, 55, 0.95) !important;
   border-bottom-color: rgba(31, 41, 55, 0.95) !important;
+}
+
+/* Dreyzab Combat Simulator (page-scoped) */
+.dreyzab-battle {
+  font-family: 'Special Elite', cursive;
+  background-color: #000;
+  color: #d1d1c1;
+}
+
+.dreyzab-battle.arena-bg {
+  background:
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.7)),
+    url('https://images.unsplash.com/photo-1551009175-15bdf9dcb580?auto=format&fit=crop&q=80&w=2000');
+  background-size: cover;
+  background-position: center;
+}
+
+.dreyzab-battle .card-fan {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  perspective: 1000px;
+}
+
+.dreyzab-battle .card-fan > * {
+  margin: 0 -10px;
+  transition: transform 0.2s, margin 0.2s;
+  z-index: 1;
+}
+
+.dreyzab-battle .card-fan > *:hover {
+  transform: translateY(-20px) scale(1.1) !important;
+  margin: 0 5px;
+  z-index: 10;
+}
+
+.dreyzab-battle .custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.dreyzab-battle .custom-scrollbar::-webkit-scrollbar-track {
+  background: #1a1a15;
+}
+
+.dreyzab-battle .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #444;
+}
+
+.dreyzab-battle .no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.dreyzab-battle .no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes dreyzab-glitch {
+  0% {
+    transform: translate(0);
+  }
+  20% {
+    transform: translate(-2px, 2px);
+  }
+  40% {
+    transform: translate(-2px, -2px);
+  }
+  60% {
+    transform: translate(2px, 2px);
+  }
+  80% {
+    transform: translate(2px, -2px);
+  }
+  100% {
+    transform: translate(0);
+  }
+}
+
+.dreyzab-battle .glitch-text {
+  animation: dreyzab-glitch 0.2s infinite;
+  color: #ff3333;
+}
+
+/* Trinity Protocol Inventory (page-scoped) */
+:root {
+  --trinity-bg-rgb: 10 11 16;
+  --trinity-panel-rgb: 17 19 24;
+  --trinity-border-rgb: 45 55 72;
+  --trinity-accent-rgb: 14 165 233;
+  --trinity-warning-rgb: 245 158 11;
+  --trinity-danger-rgb: 239 68 68;
+  --trinity-success-rgb: 16 185 129;
+  --rarity-rare-rgb: 59 130 246;
+  --rarity-epic-rgb: 139 92 246;
+  --rarity-legendary-rgb: 234 179 8;
+}
+
+.trinity-inventory {
+  font-family: 'Rajdhani', sans-serif;
+  background-color: #050505;
+  color: #e2e8f0;
+  overflow: hidden;
+  touch-action: none;
+}
+
+.trinity-inventory ::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.trinity-inventory ::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+
+.trinity-inventory ::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 3px;
+}
+
+.trinity-inventory ::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+@media screen and (orientation: portrait) {
+  .trinity-inventory .landscape-warning {
+    display: flex !important;
+  }
+}
+
+@media screen and (orientation: landscape) {
+  .trinity-inventory .landscape-warning {
+    display: none !important;
+  }
+}
+
+.bg-trinity-bg {
+  background-color: rgb(var(--trinity-bg-rgb));
+}
+
+.bg-trinity-panel {
+  background-color: rgb(var(--trinity-panel-rgb));
+}
+
+.bg-trinity-accent {
+  background-color: rgb(var(--trinity-accent-rgb));
+}
+
+.bg-trinity-warning {
+  background-color: rgb(var(--trinity-warning-rgb));
+}
+
+.bg-trinity-danger {
+  background-color: rgb(var(--trinity-danger-rgb));
+}
+
+.bg-trinity-success {
+  background-color: rgb(var(--trinity-success-rgb));
+}
+
+.bg-trinity-bg\/30 {
+  background-color: rgb(var(--trinity-bg-rgb) / 0.3);
+}
+
+.bg-trinity-bg\/95 {
+  background-color: rgb(var(--trinity-bg-rgb) / 0.95);
+}
+
+.bg-trinity-panel\/50 {
+  background-color: rgb(var(--trinity-panel-rgb) / 0.5);
+}
+
+.bg-trinity-accent\/10 {
+  background-color: rgb(var(--trinity-accent-rgb) / 0.1);
+}
+
+.bg-trinity-danger\/10 {
+  background-color: rgb(var(--trinity-danger-rgb) / 0.1);
+}
+
+.bg-trinity-success\/5 {
+  background-color: rgb(var(--trinity-success-rgb) / 0.05);
+}
+
+.text-trinity-accent {
+  color: rgb(var(--trinity-accent-rgb));
+}
+
+.text-trinity-warning {
+  color: rgb(var(--trinity-warning-rgb));
+}
+
+.text-trinity-danger {
+  color: rgb(var(--trinity-danger-rgb));
+}
+
+.text-trinity-success {
+  color: rgb(var(--trinity-success-rgb));
+}
+
+.border-trinity-border {
+  border-color: rgb(var(--trinity-border-rgb));
+}
+
+.border-trinity-border\/20 {
+  border-color: rgb(var(--trinity-border-rgb) / 0.2);
+}
+
+.border-trinity-border\/30 {
+  border-color: rgb(var(--trinity-border-rgb) / 0.3);
+}
+
+.border-trinity-border\/50 {
+  border-color: rgb(var(--trinity-border-rgb) / 0.5);
+}
+
+.border-trinity-accent {
+  border-color: rgb(var(--trinity-accent-rgb));
+}
+
+.border-trinity-accent\/40 {
+  border-color: rgb(var(--trinity-accent-rgb) / 0.4);
+}
+
+.border-trinity-success {
+  border-color: rgb(var(--trinity-success-rgb));
+}
+
+.border-trinity-success\/30 {
+  border-color: rgb(var(--trinity-success-rgb) / 0.3);
+}
+
+.border-trinity-danger {
+  border-color: rgb(var(--trinity-danger-rgb));
+}
+
+.ring-trinity-warning {
+  --tw-ring-color: rgb(var(--trinity-warning-rgb));
+}
+
+.border-rarity-rare {
+  border-color: rgb(var(--rarity-rare-rgb));
+}
+
+.border-rarity-epic {
+  border-color: rgb(var(--rarity-epic-rgb));
+}
+
+.border-rarity-legendary {
+  border-color: rgb(var(--rarity-legendary-rgb));
+}
+
+.bg-grid-pattern {
+  background-image: linear-gradient(to right, #1e293b 1px, transparent 1px),
+    linear-gradient(to bottom, #1e293b 1px, transparent 1px);
 }

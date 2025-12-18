@@ -46,7 +46,7 @@ export default defineConfig([
       '@typescript-eslint/no-explicit-any': 'off',
       'react-refresh/only-export-components': 'warn',
       'boundaries/element-types': [
-        'warn',
+        'error',
         {
           default: 'disallow',
           rules: [
@@ -61,7 +61,7 @@ export default defineConfig([
         },
       ],
       'boundaries/entry-point': [
-        'warn',
+        'error',
         {
           default: 'allow',
           rules: [
