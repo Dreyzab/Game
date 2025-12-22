@@ -16,7 +16,7 @@ export type { VoiceGroup, VoiceId }
 /**
  * Визуальный эффект для инъекции
  */
-export type InjectionEffect = 
+export type InjectionEffect =
   | 'none'          // Без эффекта
   | 'glitch'        // Глитч-эффект (параноидный)
   | 'pulse'         // Пульсация (телесный)
@@ -32,12 +32,12 @@ export type InjectionEffect =
  */
 export interface PrivateInjection {
   id: string
-  
+
   // Идентификация голоса
   voice: VoiceId                    // ID голоса: logic, empathy, perception, etc.
   voiceGroup: VoiceGroup            // Группа голоса для стилизации
   voiceName?: string                // Отображаемое имя: "ЛОГИКА", "ЭМПАТИЯ"
-  
+
   // Условия активации
   threshold: number                 // Порог активации (0-100)
   maxThreshold?: number             // Максимальный порог (если есть)
@@ -45,14 +45,14 @@ export interface PrivateInjection {
   excludedFlags?: string[]          // Исключающие флаги
   requiredFlag?: string             // Legacy alias (single-flag form)
   excludedFlag?: string             // Legacy alias (single-flag form)
-  
+
   // Контент
   text: string                      // Текст внутренней мысли
-  
+
   // Визуализация
   effect?: InjectionEffect          // Визуальный эффект
   priority: number                  // Приоритет при конфликте (выше = важнее)
-  
+
   // Побочные эффекты от просмотра
   onView?: {
     addFlags?: string[]             // Добавить флаги после просмотра
@@ -92,16 +92,16 @@ export interface SharedContent {
  */
 export interface PolyphonicDialogue {
   id: string
-  
+
   // Shared Reality — видно всем
   sharedContent: SharedContent
-  
+
   // Private Reality — зависит от навыков игрока
   privateInjections: PrivateInjection[]
-  
+
   // Варианты ответа
   options?: PolyphonicChoice[]
-  
+
   // Переход
   nextDialogue?: string
   nextScene?: string
@@ -116,11 +116,11 @@ export interface PolyphonicDialogue {
 export interface PolyphonicChoice {
   id: string
   text: string
-  
+
   // Навигация
   nextDialogue?: string
   nextScene?: string
-  
+
   // Требования
   requiredStat?: {
     stat: VoiceId
@@ -128,10 +128,10 @@ export interface PolyphonicChoice {
   }
   requiredFlag?: string
   excludedFlag?: string
-  
+
   // Эффекты
   effects?: SceneChoiceEffects
-  
+
   // Презентация
   presentation?: {
     color?: string
@@ -148,19 +148,19 @@ export interface PolyphonicScene {
   id: string
   chapterId: string                 // chapter3, chapter4
   questId?: string                  // Привязка к квесту
-  
+
   // Настройки сцены
   background: string
   music?: string
   characters: SceneCharacter[]
-  
+
   // Полифонические диалоги
   dialogues: PolyphonicDialogue[]
   entryDialogueId: string           // Начальный диалог
-  
+
   // Простые советы (совместимость со старой системой)
   advices?: SceneAdvice[]
-  
+
   // Метаданные
   isActive?: boolean
 }
@@ -178,7 +178,7 @@ export interface Scene {
   choices?: SceneChoice[]
   advices?: SceneAdvice[]
   nextScene?: string
-  
+
   // Новое: поддержка полифонического режима
   polyphonicDialogues?: PolyphonicDialogue[]
   entryDialogueId?: string
@@ -213,6 +213,10 @@ export interface SceneDialogue {
   text: string
   characterId?: string
   emotion?: SceneEmotion
+  condition?: {
+    flag?: string
+    notFlag?: string
+  }
 }
 
 export interface SceneChoiceFlagEffect {

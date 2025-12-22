@@ -11,9 +11,10 @@ import {
     type DragStartEvent,
 } from '@dnd-kit/core'
 import { Backpack, Trophy, X, Terminal, Hourglass, RefreshCw, SquareTerminal } from 'lucide-react'
-import { ENEMY_TEMPLATES, INITIAL_PLAYER_HAND } from '../model/constants'
+import { NPC_CARDS } from '../model/constants'
 import type { Achievement, BattleSession, Combatant, CombatCard } from '../model/types'
 import { Side, CardType } from '../model/types'
+import { SCENARIOS, type ScenarioId } from '../model/scenarios'
 import RankLane from './components/RankLane'
 import type { FloatingTextEvent } from './components/FloatingText'
 import { sortTurnQueue, canPlayCard } from '../model/utils'
@@ -26,6 +27,7 @@ type DreyzabBattleResult = 'victory' | 'defeat'
 
 type DreyzabBattleProps = {
     onBattleEnd?: (result: DreyzabBattleResult) => void
+    scenarioId?: ScenarioId
 }
 
 type BattleDropZoneProps = {
@@ -117,118 +119,19 @@ const writeAchievements = (value: Achievement[]) => {
     localStorage.setItem(ACHIEVEMENTS_STORAGE_KEY, JSON.stringify(value))
 }
 
-const createInitialSession = (): { session: BattleSession; defaultTargetId: string | null } => {
-    const players: Combatant[] = [
-        {
-            id: 'p1',
-            name: 'Vanguard',
-            side: Side.PLAYER,
-            rank: 1,
-            resources: {
-                hp: 120, maxHp: 120,
-                ap: 3, maxAp: 3,
-                mp: 20, maxMp: 20,
-                wp: 20, maxWp: 20,
-                pp: 0, maxPp: 100
-            },
-            bonusAp: 0,
-            initiative: 0,
-            armor: 8,
-            isDead: false,
-            effects: [],
-            weaponHeat: 0,
-            isJammed: false,
-            ammo: 10,
-        },
-        {
-            id: 'p2',
-            name: 'Operator',
-            side: Side.PLAYER,
-            rank: 2,
-            resources: {
-                hp: 100, maxHp: 100,
-                ap: 3, maxAp: 3,
-                mp: 30, maxMp: 30,
-                wp: 20, maxWp: 20,
-                pp: 0, maxPp: 100
-            },
-            bonusAp: 0,
-            initiative: 0,
-            armor: 5,
-            isDead: false,
-            effects: [],
-            weaponHeat: 0,
-            isJammed: false,
-            ammo: 30,
-        },
-        {
-            id: 'p3',
-            name: 'Support',
-            side: Side.PLAYER,
-            rank: 3,
-            resources: {
-                hp: 80, maxHp: 80,
-                ap: 3, maxAp: 3,
-                mp: 20, maxMp: 20,
-                wp: 30, maxWp: 30,
-                pp: 0, maxPp: 100
-            },
-            bonusAp: 0,
-            initiative: 0,
-            armor: 3,
-            isDead: false,
-            effects: [],
-            weaponHeat: 0,
-            isJammed: false,
-            ammo: 15,
-        },
-    ]
-
-    const enemies: Combatant[] = ENEMY_TEMPLATES.map((t, idx) => ({
-        id: `e${idx}`,
-        name: t.name,
-        side: Side.ENEMY,
-        rank: t.rank,
-        resources: {
-            hp: t.hp, maxHp: t.hp,
-            ap: 1, maxAp: 1,
-            mp: 10, maxMp: 10,
-            wp: 10, maxWp: 10,
-            pp: 0, maxPp: 100
-        },
-        bonusAp: 0,
-        initiative: 0,
-        armor: t.armor,
-        isDead: false,
-        effects: [],
-        weaponHeat: 0,
-        isJammed: false,
-        ammo: 10,
-    }))
-
-    const turnQueue = sortTurnQueue(players, enemies)
+const createInitialSession = (scenarioId: ScenarioId = 'default'): { session: BattleSession; defaultTargetId: string | null } => {
+    const scenarioFactory = SCENARIOS[scenarioId] ?? SCENARIOS['default']
+    const session = scenarioFactory()
 
     return {
-        session: {
-            turnCount: 1,
-            phase: 'PLAYER_TURN',
-            logs: ['Units deployed.', 'Tactical link established.'],
-            players,
-            enemies,
-            playerHand: [...INITIAL_PLAYER_HAND],
-            stats: { damageTaken: 0, attacksInOneTurn: 0, turnCount: 1 },
-            activeUnitId: turnQueue[0] ?? null,
-            turnQueue,
-            teamSP: 50, // Initial testing value
-            maxTeamSP: 100,
-        },
-        defaultTargetId: enemies[0]?.id ?? null,
+        session,
+        defaultTargetId: session.enemies[0]?.id ?? null,
     }
 }
 
 // Battle component
-export default function DreyzabBattle({ onBattleEnd }: DreyzabBattleProps) {
-    const [initial] = useState(() => createInitialSession())
+export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default' }: DreyzabBattleProps) {
+    const [initial] = useState(() => createInitialSession(scenarioId))
     const [battle, setBattle] = useState<BattleSession>(initial.session)
     const [selectedTargetId, setSelectedTargetId] = useState<string | null>(initial.defaultTargetId)
     const [achievements, setAchievements] = useState<Achievement[]>(() => readAchievements())
@@ -242,6 +145,7 @@ export default function DreyzabBattle({ onBattleEnd }: DreyzabBattleProps) {
     const enemyActionTimerRef = useRef<number | null>(null)
     const autoAdvanceTimerRef = useRef<number | null>(null)
     const reportedResultRef = useRef<DreyzabBattleResult | null>(null)
+    const scriptedEventTriggeredRef = useRef(false)
 
     const sensors = useSensors(
         useSensor(MouseSensor, {
@@ -262,6 +166,66 @@ export default function DreyzabBattle({ onBattleEnd }: DreyzabBattleProps) {
             setCombatEvents((prev) => prev.filter((e) => e.id !== id))
         }, 2000)
     }, [])
+
+    useEffect(() => {
+        if (scenarioId !== 'boss_train_prologue') return
+        if (scriptedEventTriggeredRef.current) return
+
+        if (battle.turnCount >= 2 && battle.phase === 'ENEMY_TURN') {
+            const condIdx = battle.players.findIndex(p => p.id === 'npc_cond' && !p.isDead)
+            if (condIdx >= 0) {
+                scriptedEventTriggeredRef.current = true
+
+                setTimeout(() => {
+                    setBattle(prev => {
+                        const newLogs = [...prev.logs, "!!! ЭКЗЕКУТОР РАЗРЫВАЕТ ПРОВОДНИКА !!!", "Бруно: «Лови подарочек, тварь!»"]
+
+                        const players = [...prev.players]
+                        // Kill conductor
+                        const cond = players[condIdx]
+                        players[condIdx] = { ...cond, isDead: true, resources: { ...cond.resources, hp: 0 } }
+
+                        // Create Bruno
+                        const bruno: Combatant = {
+                            id: 'npc_bruno',
+                            name: 'Бруно Вебер',
+                            side: Side.PLAYER,
+                            rank: cond.rank, // Talked Conductor's place
+                            resources: { hp: 100, maxHp: 100, ap: 3, maxAp: 3, mp: 0, maxMp: 0, wp: 50, maxWp: 50, pp: 0, maxPp: 100 },
+                            bonusAp: 0, initiative: 15, armor: 4, isDead: false,
+                            effects: [], weaponHeat: 0, isJammed: false, ammo: 5,
+                        }
+
+                        // Determine new set of players (keep dead conductor for log/visual or remove?)
+                        // If we remove him, rank management is easier. 
+                        // Let's replace him in array but mark dead, and push Bruno.
+                        // Actually, let's swap him out active duty to avoid clutter or stacking.
+                        // But seeing the body is cool using `isDead`.
+                        // Problem: 2 units on same rank?
+                        // Hack: Move Bruno to Rank 1 and shift others? No.
+                        // Let's just push Bruno. `sortTurnQueue` handles order.
+
+                        // Add Bruno cards
+                        const brunoCards = NPC_CARDS.filter(c => c.id.startsWith('bruno'))
+                        const newHand = [...prev.playerHand, ...brunoCards]
+
+                        // Ensure turn queue is updated
+                        const newPlayers = [...players, bruno]
+                        const newQueue = sortTurnQueue(newPlayers, prev.enemies)
+
+                        return {
+                            ...prev,
+                            players: newPlayers,
+                            turnQueue: newQueue,
+                            playerHand: newHand,
+                            logs: newLogs
+                        }
+                    })
+                    addCombatEvent('npc_cond', 'FATAL', 'damage')
+                }, 1500)
+            }
+        }
+    }, [battle.turnCount, battle.phase, battle.players, scenarioId, addCombatEvent])
 
     useEffect(() => {
         battleRef.current = battle
@@ -739,311 +703,311 @@ export default function DreyzabBattle({ onBattleEnd }: DreyzabBattleProps) {
                 className="dreyzab-battle h-screen w-full flex flex-col arena-bg relative overflow-hidden text-xs md:text-sm select-none"
             >
 
-            {/* Turn Order Display (Original Style) */}
-            <div className="absolute top-0 left-0 right-0 z-40 pointer-events-none flex flex-col items-center">
-                <div className="flex items-start gap-1 p-1 bg-black/60 backdrop-blur-md border-x border-b border-white/10 rounded-b-2xl shadow-2xl pointer-events-auto overflow-x-auto max-w-[calc(100%-120px)] no-scrollbar">
-                    {battle.turnQueue.map((id) => {
-                        const unit = [...battle.players, ...battle.enemies].find((u) => u.id === id)
-                        if (!unit || unit.isDead) return null
-                        const isActive = battle.activeUnitId === id
-                        const isPlayer = unit.side === Side.PLAYER
-                        return (
-                            <div key={id} className={`flex flex-col transition-all duration-300 ${isActive ? 'scale-105' : 'opacity-40 grayscale scale-90'}`}>
-                                <div className={`relative w-9 h-9 md:w-14 md:h-14 bg-zinc-950 border-2 overflow-hidden rounded-lg shadow-xl ${isActive ? (isPlayer ? 'border-blue-500 ring-1 ring-blue-500/30' : 'border-red-600 ring-1 ring-red-600/30') : 'border-zinc-800'}`}>
-                                    <img
-                                        src={
-                                            isPlayer
-                                                ? `https://api.dicebear.com/7.x/avataaars/svg?seed=operator${unit.id}&backgroundColor=transparent&style=straight`
-                                                : `https://api.dicebear.com/7.x/bottts/svg?seed=enemy${unit.id}&backgroundColor=transparent`
-                                        }
-                                        className="w-full h-full object-cover"
-                                        alt="portrait"
+                {/* Turn Order Display (Original Style) */}
+                <div className="absolute top-0 left-0 right-0 z-40 pointer-events-none flex flex-col items-center">
+                    <div className="flex items-start gap-1 p-1 bg-black/60 backdrop-blur-md border-x border-b border-white/10 rounded-b-2xl shadow-2xl pointer-events-auto overflow-x-auto max-w-[calc(100%-120px)] no-scrollbar">
+                        {battle.turnQueue.map((id) => {
+                            const unit = [...battle.players, ...battle.enemies].find((u) => u.id === id)
+                            if (!unit || unit.isDead) return null
+                            const isActive = battle.activeUnitId === id
+                            const isPlayer = unit.side === Side.PLAYER
+                            return (
+                                <div key={id} className={`flex flex-col transition-all duration-300 ${isActive ? 'scale-105' : 'opacity-40 grayscale scale-90'}`}>
+                                    <div className={`relative w-9 h-9 md:w-14 md:h-14 bg-zinc-950 border-2 overflow-hidden rounded-lg shadow-xl ${isActive ? (isPlayer ? 'border-blue-500 ring-1 ring-blue-500/30' : 'border-red-600 ring-1 ring-red-600/30') : 'border-zinc-800'}`}>
+                                        <img
+                                            src={
+                                                isPlayer
+                                                    ? `https://api.dicebear.com/7.x/avataaars/svg?seed=operator${unit.id}&backgroundColor=transparent&style=straight`
+                                                    : `https://api.dicebear.com/7.x/bottts/svg?seed=enemy${unit.id}&backgroundColor=transparent`
+                                            }
+                                            className="w-full h-full object-cover"
+                                            alt="portrait"
+                                        />
+                                        <div className="absolute bottom-0 left-0 right-0 h-0.5 md:h-1 bg-zinc-900">
+                                            <div className={`h-full ${isPlayer ? 'bg-blue-500' : 'bg-red-600'}`} style={{ width: `${(unit.resources.hp / unit.resources.maxHp) * 100}%` }} />
+                                        </div>
+                                    </div>
+                                </div>
+                            )
+                        })}
+                    </div>
+                </div>
+
+                {/* Top HUD Controls */}
+                <div className="relative z-50 pt-2 px-4 flex justify-between items-start pointer-events-none">
+                    <div className="flex items-center gap-2 pointer-events-auto mt-2">
+                        <button
+                            onClick={() => setShowEquipment(true)}
+                            className="p-2 bg-black/40 backdrop-blur-md border border-white/10 text-zinc-400 rounded-full hover:text-blue-400 transition-colors shadow-xl"
+                            title="Equipment"
+                            type="button"
+                        >
+                            <Backpack size={16} />
+                        </button>
+                        <div className="bg-black/40 backdrop-blur-md border border-white/10 rounded-lg px-2 py-1 flex items-center gap-2 shadow-xl">
+                            <span className="text-[8px] text-zinc-400 font-black uppercase tracking-widest">Round</span>
+                            <span className="text-amber-500 font-mono font-black text-xs">{battle.turnCount}</span>
+                        </div>
+                    </div>
+
+                    <div className="flex gap-2 pointer-events-auto mt-2">
+                        <button
+                            onClick={() => setShowAchievements(true)}
+                            className="p-2 bg-black/40 backdrop-blur-md border border-white/10 text-zinc-400 rounded-full hover:text-amber-500 transition-colors shadow-xl"
+                            type="button"
+                        >
+                            <Trophy size={16} />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Battlefield */}
+                <div className="flex-1 relative flex overflow-hidden pt-12 pb-28 md:pb-36">
+
+                    {/* Player Lanes */}
+                    <div className="flex-1 grid grid-cols-4 h-full">
+                        {[4, 3, 2, 1].map((rank) => {
+                            const player = battle.players.find((p) => p.rank === rank && !p.isDead)
+                            const isValidDrop = validPlayerRankDrops.has(rank)
+                            return (
+                                <BattleDropZone
+                                    key={`p-rank-${rank}`}
+                                    id={`player-rank-${rank}`}
+                                    data={{ type: 'player-rank', rank }}
+                                    disabled={!activeDraggedCard || !isValidDrop}
+                                    isActive={!!activeDraggedCard}
+                                    isValid={isValidDrop}
+                                    highlightClassName={dragHighlightClassName}
+                                >
+                                    <RankLane
+                                        combatant={player}
+                                        isActive={activePlayer?.id === player?.id}
+                                        events={combatEvents.filter((e) => e.unitId === player?.id)}
                                     />
-                                    <div className="absolute bottom-0 left-0 right-0 h-0.5 md:h-1 bg-zinc-900">
-                                        <div className={`h-full ${isPlayer ? 'bg-blue-500' : 'bg-red-600'}`} style={{ width: `${(unit.resources.hp / unit.resources.maxHp) * 100}%` }} />
-                                    </div>
-                                </div>
-                            </div>
-                        )
-                    })}
-                </div>
-            </div>
+                                </BattleDropZone>
+                            )
+                        })}
+                    </div>
 
-            {/* Top HUD Controls */}
-            <div className="relative z-50 pt-2 px-4 flex justify-between items-start pointer-events-none">
-                <div className="flex items-center gap-2 pointer-events-auto mt-2">
-                    <button
-                        onClick={() => setShowEquipment(true)}
-                        className="p-2 bg-black/40 backdrop-blur-md border border-white/10 text-zinc-400 rounded-full hover:text-blue-400 transition-colors shadow-xl"
-                        title="Equipment"
-                        type="button"
-                    >
-                        <Backpack size={16} />
-                    </button>
-                    <div className="bg-black/40 backdrop-blur-md border border-white/10 rounded-lg px-2 py-1 flex items-center gap-2 shadow-xl">
-                        <span className="text-[8px] text-zinc-400 font-black uppercase tracking-widest">Round</span>
-                        <span className="text-amber-500 font-mono font-black text-xs">{battle.turnCount}</span>
+                    <div className="w-0 md:w-16 h-full shrink-0 relative">
+                    </div>
+
+                    {/* Enemy Lanes */}
+                    <div className="flex-1 grid grid-cols-4 h-full">
+                        {[1, 2, 3, 4].map((rank) => {
+                            const enemyInRank = battle.enemies.find((e) => e.rank === rank && !e.isDead)
+                            const isValidDrop = enemyInRank ? validEnemyDropIds.has(enemyInRank.id) : false
+                            return (
+                                <BattleDropZone
+                                    key={`e-rank-${rank}`}
+                                    id={`enemy-rank-${rank}`}
+                                    data={{ type: 'enemy', enemyId: enemyInRank?.id ?? null }}
+                                    disabled={!activeDraggedCard || !isValidDrop}
+                                    isActive={!!activeDraggedCard}
+                                    isValid={isValidDrop}
+                                    highlightClassName={dragHighlightClassName}
+                                >
+                                    <RankLane
+                                        combatant={enemyInRank}
+                                        isTargeted={selectedTargetId === enemyInRank?.id}
+                                        isActive={battle.activeUnitId === enemyInRank?.id}
+                                        onTarget={() => {
+                                            if (enemyInRank) setSelectedTargetId(enemyInRank.id)
+                                        }}
+                                        events={combatEvents.filter((e) => e.unitId === enemyInRank?.id)}
+                                    />
+                                </BattleDropZone>
+                            )
+                        })}
+                    </div>
+
+                    {/* Combat Log Panel */}
+                    <div className="hidden lg:flex absolute bottom-4 left-4 w-64 h-40 bg-black/60 backdrop-blur-md border border-zinc-800 p-2 z-30 flex-col rounded-xl overflow-hidden shadow-2xl">
+                        <div className="flex items-center gap-1 text-[8px] text-zinc-500 mb-1 border-b border-zinc-800 font-bold uppercase pb-1">
+                            <Terminal size={10} /> Logic_Stream
+                        </div>
+                        <div className="flex-1 overflow-y-auto custom-scrollbar font-mono text-[10px] text-zinc-400 space-y-1">
+                            {battle.logs.slice().reverse().map((log, i) => (
+                                <div
+                                    key={`${battle.turnCount}-${i}`}
+                                    className={log.includes('strike') || log.includes('DMG') ? 'text-red-400' : 'text-zinc-400'}
+                                >
+                                    &gt; {log}
+                                </div>
+                            ))}
+                            <div ref={logEndRef} />
+                        </div>
                     </div>
                 </div>
 
-                <div className="flex gap-2 pointer-events-auto mt-2">
-                    <button
-                        onClick={() => setShowAchievements(true)}
-                        className="p-2 bg-black/40 backdrop-blur-md border border-white/10 text-zinc-400 rounded-full hover:text-amber-500 transition-colors shadow-xl"
-                        type="button"
-                    >
-                        <Trophy size={16} />
-                    </button>
-                </div>
-            </div>
+                {/* Bottom Interface: Floating & Transparent (Original Style) */}
+                <div className="absolute bottom-0 left-0 right-0 p-2 md:p-4 z-50 flex items-end gap-1 md:gap-4 pointer-events-none">
+                    {/* Left Side: Status & Portrait Cluster */}
+                    <div className="flex flex-col items-start gap-1 pointer-events-auto">
+                        <div className="flex items-center gap-1.5 p-1 bg-black/60 backdrop-blur-lg border border-white/10 rounded-xl shadow-2xl">
+                            {activePlayer ? (
+                                <>
+                                    {/* Portrait & Action Cluster */}
+                                    <div className="flex flex-col items-center gap-1">
+                                        <div className="relative">
+                                            <div className="w-12 h-12 md:w-16 md:h-16 bg-zinc-950/80 border border-white/20 rounded-lg overflow-hidden flex items-center justify-center grayscale opacity-90 shadow-inner">
+                                                <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${activePlayer.id}`} alt="avatar" />
+                                            </div>
+                                            {/* AP Dots on the portrait corner */}
+                                            <div className="absolute -top-1.5 -right-1.5 flex flex-wrap-reverse gap-0.5 justify-end max-w-[30px] z-10">
+                                                {Array.from({ length: Math.min(activePlayer.resources.ap, activePlayer.resources.maxAp) }).map((_, i) => (
+                                                    <div key={`std-${i}`} className="w-2.5 h-2.5 bg-blue-500 rounded-full border border-blue-200 shadow-[0_0_8px_rgba(59,130,246,0.8)]"></div>
+                                                ))}
+                                                {Array.from({ length: Math.max(0, activePlayer.resources.ap - activePlayer.resources.maxAp) }).map((_, i) => (
+                                                    <div key={`bonus-${i}`} className="w-2.5 h-2.5 bg-amber-500 rounded-full border border-amber-200 shadow-[0_0_8px_rgba(245,158,11,0.8)]"></div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        {/* End Turn (Hourglass) */}
+                                        <button
+                                            onClick={advanceTurn}
+                                            className="w-full py-1.5 flex items-center justify-center bg-zinc-900/80 border border-white/10 hover:border-red-500 hover:bg-red-950/40 text-zinc-400 rounded-lg transition-all shadow-lg group"
+                                            title="End Turn"
+                                            type="button"
+                                        >
+                                            <Hourglass size={14} className="group-hover:animate-spin" />
+                                        </button>
+                                    </div>
 
-            {/* Battlefield */}
-            <div className="flex-1 relative flex overflow-hidden pt-12 pb-28 md:pb-36">
+                                    {/* Vertical Indicators */}
+                                    <div className="flex flex-col gap-2 scale-90 md:scale-100 origin-left">
+                                        <GaugeUI value={activePlayer.resources.hp} max={activePlayer.resources.maxHp} label="HP" color="#ef4444" />
+                                        <GaugeUI value={activePlayer.resources.wp} max={activePlayer.resources.maxWp} label="WP" color="#3b82f6" />
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="p-4"><RefreshCw className="animate-spin text-zinc-600" size={24} /></div>
+                            )}
+                        </div>
+                    </div>
 
-                {/* Player Lanes */}
-                <div className="flex-1 grid grid-cols-4 h-full">
-                    {[4, 3, 2, 1].map((rank) => {
-                        const player = battle.players.find((p) => p.rank === rank && !p.isDead)
-                        const isValidDrop = validPlayerRankDrops.has(rank)
-                        return (
-                            <BattleDropZone
-                                key={`p-rank-${rank}`}
-                                id={`player-rank-${rank}`}
-                                data={{ type: 'player-rank', rank }}
-                                disabled={!activeDraggedCard || !isValidDrop}
-                                isActive={!!activeDraggedCard}
-                                isValid={isValidDrop}
-                                highlightClassName={dragHighlightClassName}
-                            >
-                                <RankLane
-                                    combatant={player}
-                                    isActive={activePlayer?.id === player?.id}
-                                    events={combatEvents.filter((e) => e.unitId === player?.id)}
-                                />
-                            </BattleDropZone>
-                        )
-                    })}
-                </div>
-
-                <div className="w-0 md:w-16 h-full shrink-0 relative">
-                </div>
-
-                {/* Enemy Lanes */}
-                <div className="flex-1 grid grid-cols-4 h-full">
-                    {[1, 2, 3, 4].map((rank) => {
-                        const enemyInRank = battle.enemies.find((e) => e.rank === rank && !e.isDead)
-                        const isValidDrop = enemyInRank ? validEnemyDropIds.has(enemyInRank.id) : false
-                        return (
-                            <BattleDropZone
-                                key={`e-rank-${rank}`}
-                                id={`enemy-rank-${rank}`}
-                                data={{ type: 'enemy', enemyId: enemyInRank?.id ?? null }}
-                                disabled={!activeDraggedCard || !isValidDrop}
-                                isActive={!!activeDraggedCard}
-                                isValid={isValidDrop}
-                                highlightClassName={dragHighlightClassName}
-                            >
-                                <RankLane
-                                    combatant={enemyInRank}
-                                    isTargeted={selectedTargetId === enemyInRank?.id}
-                                    isActive={battle.activeUnitId === enemyInRank?.id}
-                                    onTarget={() => {
-                                        if (enemyInRank) setSelectedTargetId(enemyInRank.id)
+                    {/* Center: Cards (Original Floating Style) */}
+                    <div className="flex-1 h-32 md:h-40 flex items-end justify-center pointer-events-none mb-4">
+                        <div
+                            className="flex items-center justify-center card-fan pointer-events-auto py-32 -my-32"
+                            onTouchStart={handleTouchScrub}
+                            onTouchMove={handleTouchScrub}
+                            onTouchEnd={handleTouchEnd}
+                        >
+                            {activePlayer && battle.playerHand.map((card, i) => (
+                                <DraggableCombatCard
+                                    key={card.id}
+                                    card={card}
+                                    disabled={!canPlayCard({ session: battle, card })}
+                                    onClick={() => playCard(card)}
+                                    style={{
+                                        transform: `rotate(${(i - (battle.playerHand.length - 1) / 2) * 5}deg) scale(1.0) translateY(${Math.abs(i - (battle.playerHand.length - 1) / 2) * 2}px)`,
+                                        margin: '0 -10px'
                                     }}
-                                    events={combatEvents.filter((e) => e.unitId === enemyInRank?.id)}
+                                    className="cursor-grab active:cursor-grabbing hover:z-100 transition-all duration-300 hover:-translate-y-12 md:hover:-translate-y-16"
                                 />
-                            </BattleDropZone>
-                        )
-                    })}
-                </div>
-
-                {/* Combat Log Panel */}
-                <div className="hidden lg:flex absolute bottom-4 left-4 w-64 h-40 bg-black/60 backdrop-blur-md border border-zinc-800 p-2 z-30 flex-col rounded-xl overflow-hidden shadow-2xl">
-                    <div className="flex items-center gap-1 text-[8px] text-zinc-500 mb-1 border-b border-zinc-800 font-bold uppercase pb-1">
-                        <Terminal size={10} /> Logic_Stream
+                            ))}
+                        </div>
                     </div>
-                    <div className="flex-1 overflow-y-auto custom-scrollbar font-mono text-[10px] text-zinc-400 space-y-1">
-                        {battle.logs.slice().reverse().map((log, i) => (
-                            <div
-                                key={`${battle.turnCount}-${i}`}
-                                className={log.includes('strike') || log.includes('DMG') ? 'text-red-400' : 'text-zinc-400'}
-                            >
-                                &gt; {log}
+
+                    {/* Right Side: Small Target Icon (Unobtrusive) */}
+                    <div className="shrink-0 mb-4 mr-2 pointer-events-auto">
+                        {selectedTargetId ? (
+                            <div className="flex flex-col items-center p-1.5 bg-black/40 backdrop-blur border border-white/10 rounded-xl shadow-2xl">
+                                <div className="w-8 h-8 md:w-12 md:h-12 bg-red-950/20 border border-red-500/30 rounded-lg overflow-hidden grayscale">
+                                    <img src={`https://api.dicebear.com/7.x/bottts/svg?seed=${selectedTargetId}`} alt="target" />
+                                </div>
+                                <span className="text-[6px] md:text-[8px] text-zinc-500 mt-1 uppercase font-black">
+                                    {battle.enemies.find(e => e.id === selectedTargetId)?.name.split(' ')[0]}
+                                </span>
                             </div>
-                        ))}
-                        <div ref={logEndRef} />
-                    </div>
-                </div>
-            </div>
-
-            {/* Bottom Interface: Floating & Transparent (Original Style) */}
-            <div className="absolute bottom-0 left-0 right-0 p-2 md:p-4 z-50 flex items-end gap-1 md:gap-4 pointer-events-none">
-                {/* Left Side: Status & Portrait Cluster */}
-                <div className="flex flex-col items-start gap-1 pointer-events-auto">
-                    <div className="flex items-center gap-1.5 p-1 bg-black/60 backdrop-blur-lg border border-white/10 rounded-xl shadow-2xl">
-                        {activePlayer ? (
-                            <>
-                                {/* Portrait & Action Cluster */}
-                                <div className="flex flex-col items-center gap-1">
-                                    <div className="relative">
-                                        <div className="w-12 h-12 md:w-16 md:h-16 bg-zinc-950/80 border border-white/20 rounded-lg overflow-hidden flex items-center justify-center grayscale opacity-90 shadow-inner">
-                                            <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${activePlayer.id}`} alt="avatar" />
-                                        </div>
-                                        {/* AP Dots on the portrait corner */}
-                                        <div className="absolute -top-1.5 -right-1.5 flex flex-wrap-reverse gap-0.5 justify-end max-w-[30px] z-10">
-                                            {Array.from({ length: Math.min(activePlayer.resources.ap, activePlayer.resources.maxAp) }).map((_, i) => (
-                                                <div key={`std-${i}`} className="w-2.5 h-2.5 bg-blue-500 rounded-full border border-blue-200 shadow-[0_0_8px_rgba(59,130,246,0.8)]"></div>
-                                            ))}
-                                            {Array.from({ length: Math.max(0, activePlayer.resources.ap - activePlayer.resources.maxAp) }).map((_, i) => (
-                                                <div key={`bonus-${i}`} className="w-2.5 h-2.5 bg-amber-500 rounded-full border border-amber-200 shadow-[0_0_8px_rgba(245,158,11,0.8)]"></div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                    {/* End Turn (Hourglass) */}
-                                    <button
-                                        onClick={advanceTurn}
-                                        className="w-full py-1.5 flex items-center justify-center bg-zinc-900/80 border border-white/10 hover:border-red-500 hover:bg-red-950/40 text-zinc-400 rounded-lg transition-all shadow-lg group"
-                                        title="End Turn"
-                                        type="button"
-                                    >
-                                        <Hourglass size={14} className="group-hover:animate-spin" />
-                                    </button>
-                                </div>
-
-                                {/* Vertical Indicators */}
-                                <div className="flex flex-col gap-2 scale-90 md:scale-100 origin-left">
-                                    <GaugeUI value={activePlayer.resources.hp} max={activePlayer.resources.maxHp} label="HP" color="#ef4444" />
-                                    <GaugeUI value={activePlayer.resources.wp} max={activePlayer.resources.maxWp} label="WP" color="#3b82f6" />
-                                </div>
-                            </>
                         ) : (
-                            <div className="p-4"><RefreshCw className="animate-spin text-zinc-600" size={24} /></div>
+                            <div className="p-2 bg-black/40 backdrop-blur border border-white/10 rounded-xl">
+                                <SquareTerminal className="text-zinc-600" size={16} />
+                            </div>
                         )}
                     </div>
                 </div>
 
-                {/* Center: Cards (Original Floating Style) */}
-                <div className="flex-1 h-32 md:h-40 flex items-end justify-center pointer-events-none mb-4">
-                    <div
-                        className="flex items-center justify-center card-fan pointer-events-auto py-32 -my-32"
-                        onTouchStart={handleTouchScrub}
-                        onTouchMove={handleTouchScrub}
-                        onTouchEnd={handleTouchEnd}
-                    >
-                        {activePlayer && battle.playerHand.map((card, i) => (
-                            <DraggableCombatCard
-                                key={card.id}
-                                card={card}
-                                disabled={!canPlayCard({ session: battle, card })}
-                                onClick={() => playCard(card)}
-                                style={{
-                                    transform: `rotate(${(i - (battle.playerHand.length - 1) / 2) * 5}deg) scale(1.0) translateY(${Math.abs(i - (battle.playerHand.length - 1) / 2) * 2}px)`,
-                                    margin: '0 -10px'
-                                }}
-                                className="cursor-grab active:cursor-grabbing hover:z-100 transition-all duration-300 hover:-translate-y-12 md:hover:-translate-y-16"
-                            />
-                        ))}
-                    </div>
-                </div>
+                {showEquipment && (
+                    <BattleEquipmentOverlay
+                        onClose={() => setShowEquipment(false)}
+                        title={activePlayer?.name}
+                    />
+                )}
 
-                {/* Right Side: Small Target Icon (Unobtrusive) */}
-                <div className="shrink-0 mb-4 mr-2 pointer-events-auto">
-                    {selectedTargetId ? (
-                        <div className="flex flex-col items-center p-1.5 bg-black/40 backdrop-blur border border-white/10 rounded-xl shadow-2xl">
-                            <div className="w-8 h-8 md:w-12 md:h-12 bg-red-950/20 border border-red-500/30 rounded-lg overflow-hidden grayscale">
-                                <img src={`https://api.dicebear.com/7.x/bottts/svg?seed=${selectedTargetId}`} alt="target" />
-                            </div>
-                            <span className="text-[6px] md:text-[8px] text-zinc-500 mt-1 uppercase font-black">
-                                {battle.enemies.find(e => e.id === selectedTargetId)?.name.split(' ')[0]}
-                            </span>
-                        </div>
-                    ) : (
-                        <div className="p-2 bg-black/40 backdrop-blur border border-white/10 rounded-xl">
-                            <SquareTerminal className="text-zinc-600" size={16} />
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            {showEquipment && (
-                <BattleEquipmentOverlay
-                    onClose={() => setShowEquipment(false)}
-                    title={activePlayer?.name}
-                />
-            )}
-
-            {showAchievements && (
-                <div className="fixed inset-0 bg-black/95 z-110 flex items-center justify-center p-4 backdrop-blur-sm">
-                    <div className="bg-[#1a1a15] border-2 border-zinc-800 w-full max-w-xl rounded-2xl flex flex-col max-h-[80vh] shadow-2xl overflow-hidden">
-                        <div className="p-4 border-b border-zinc-800 flex justify-between items-center bg-black/40">
-                            <h2 className="text-xl font-black uppercase tracking-tighter flex items-center gap-2">
-                                <Trophy className="text-amber-500" /> Archives
-                            </h2>
-                            <button
-                                onClick={() => setShowAchievements(false)}
-                                className="p-1 bg-zinc-900 rounded-lg text-zinc-500"
-                                type="button"
-                            >
-                                <X size={20} />
-                            </button>
-                        </div>
-                        <div className="p-4 overflow-y-auto grid grid-cols-1 gap-2 custom-scrollbar">
-                            {achievements.map((a) => (
-                                <div
-                                    key={a.id}
-                                    className={[
-                                        'p-3 border rounded-xl flex gap-4',
-                                        a.unlocked
-                                            ? 'bg-amber-950/20 border-amber-900/50'
-                                            : 'bg-zinc-950 border-zinc-900 opacity-40',
-                                    ].join(' ')}
+                {showAchievements && (
+                    <div className="fixed inset-0 bg-black/95 z-110 flex items-center justify-center p-4 backdrop-blur-sm">
+                        <div className="bg-[#1a1a15] border-2 border-zinc-800 w-full max-w-xl rounded-2xl flex flex-col max-h-[80vh] shadow-2xl overflow-hidden">
+                            <div className="p-4 border-b border-zinc-800 flex justify-between items-center bg-black/40">
+                                <h2 className="text-xl font-black uppercase tracking-tighter flex items-center gap-2">
+                                    <Trophy className="text-amber-500" /> Archives
+                                </h2>
+                                <button
+                                    onClick={() => setShowAchievements(false)}
+                                    className="p-1 bg-zinc-900 rounded-lg text-zinc-500"
+                                    type="button"
                                 >
-                                    <span className="text-3xl">{a.icon}</span>
-                                    <div>
-                                        <div className="font-bold text-sm text-white">{a.title}</div>
-                                        <div className="text-[10px] text-zinc-500 italic">{a.description}</div>
+                                    <X size={20} />
+                                </button>
+                            </div>
+                            <div className="p-4 overflow-y-auto grid grid-cols-1 gap-2 custom-scrollbar">
+                                {achievements.map((a) => (
+                                    <div
+                                        key={a.id}
+                                        className={[
+                                            'p-3 border rounded-xl flex gap-4',
+                                            a.unlocked
+                                                ? 'bg-amber-950/20 border-amber-900/50'
+                                                : 'bg-zinc-950 border-zinc-900 opacity-40',
+                                        ].join(' ')}
+                                    >
+                                        <span className="text-3xl">{a.icon}</span>
+                                        <div>
+                                            <div className="font-bold text-sm text-white">{a.title}</div>
+                                            <div className="text-[10px] text-zinc-500 italic">{a.description}</div>
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )}
 
-            {battle.phase === 'VICTORY' && (
-                <div className="fixed inset-0 bg-green-950/80 backdrop-blur-xl z-120 flex flex-col items-center justify-center p-8">
-                    <div className="text-5xl md:text-9xl font-black text-green-500 uppercase tracking-tighter drop-shadow-2xl">
-                        Victory
+                {battle.phase === 'VICTORY' && (
+                    <div className="fixed inset-0 bg-green-950/80 backdrop-blur-xl z-120 flex flex-col items-center justify-center p-8">
+                        <div className="text-5xl md:text-9xl font-black text-green-500 uppercase tracking-tighter drop-shadow-2xl">
+                            Victory
+                        </div>
+                        <button
+                            onClick={resetBattle}
+                            className="mt-8 px-8 py-3 bg-black border-2 border-green-600 text-green-500 font-black rounded-full hover:bg-green-600 hover:text-black transition-all"
+                            type="button"
+                        >
+                            RE-DEPLOY
+                        </button>
                     </div>
-                    <button
-                        onClick={resetBattle}
-                        className="mt-8 px-8 py-3 bg-black border-2 border-green-600 text-green-500 font-black rounded-full hover:bg-green-600 hover:text-black transition-all"
-                        type="button"
-                    >
-                        RE-DEPLOY
-                    </button>
-                </div>
-            )}
+                )}
 
-            {battle.phase === 'DEFEAT' && (
-                <div className="fixed inset-0 bg-red-950/80 backdrop-blur-xl z-120 flex flex-col items-center justify-center p-8">
-                    <div className="text-5xl md:text-9xl font-black text-red-600 uppercase tracking-tighter glitch-text">
-                        Lost
+                {battle.phase === 'DEFEAT' && (
+                    <div className="fixed inset-0 bg-red-950/80 backdrop-blur-xl z-120 flex flex-col items-center justify-center p-8">
+                        <div className="text-5xl md:text-9xl font-black text-red-600 uppercase tracking-tighter glitch-text">
+                            Lost
+                        </div>
+                        <button
+                            onClick={resetBattle}
+                            className="mt-8 px-8 py-3 bg-black border-2 border-red-600 text-red-500 font-black rounded-full hover:bg-red-600 hover:text-black transition-all"
+                            type="button"
+                        >
+                            RESTORE LINK
+                        </button>
                     </div>
-                    <button
-                        onClick={resetBattle}
-                        className="mt-8 px-8 py-3 bg-black border-2 border-red-600 text-red-500 font-black rounded-full hover:bg-red-600 hover:text-black transition-all"
-                        type="button"
-                    >
-                        RESTORE LINK
-                    </button>
-                </div>
-            )}
+                )}
             </div>
 
             <DragOverlay>
                 {activeDraggedCard ? (
-                    <CombatCardUI card={activeDraggedCard} onClick={() => {}} className="cursor-grabbing" />
+                    <CombatCardUI card={activeDraggedCard} onClick={() => { }} className="cursor-grabbing" />
                 ) : null}
             </DragOverlay>
         </DndContext>

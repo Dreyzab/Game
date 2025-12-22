@@ -1338,17 +1338,26 @@ export declare const app: Elysia<"", {
                         room?: undefined;
                     } | {
                         room: {
-                            players: {
-                                id: string;
-                                role: ("body" | "scout" | "mind" | "social" | "assault" | "support") | undefined;
-                                ready: boolean;
-                            }[];
-                            quest: import("./lib/roomStore").CoopQuestState | null;
                             code: string;
-                            hostId: string;
-                            status: "lobby" | "in_progress" | "finished";
-                            updatedAt: number;
-                        };
+                            status: string | null;
+                            hostId: number;
+                            sceneId: string | null;
+                            questNode: import("./shared/types/coop").CoopQuestNode;
+                            participants: {
+                                id: number;
+                                name: string;
+                                role: string | null;
+                                ready: boolean | null;
+                            }[];
+                            votes: {
+                                id: number;
+                                createdAt: number;
+                                sessionId: number;
+                                sceneId: string;
+                                choiceId: string;
+                                voterId: number;
+                            }[];
+                        } | null;
                         error?: undefined;
                         status?: undefined;
                     };
@@ -1383,16 +1392,25 @@ export declare const app: Elysia<"", {
                             room?: undefined;
                         } | {
                             room: {
-                                players: {
-                                    id: string;
-                                    role: ("body" | "scout" | "mind" | "social" | "assault" | "support") | undefined;
-                                    ready: boolean;
-                                }[];
-                                quest: import("./lib/roomStore").CoopQuestState | null;
                                 code: string;
-                                hostId: string;
-                                status: "lobby" | "in_progress" | "finished";
-                                updatedAt: number;
+                                status: string | null;
+                                hostId: number;
+                                sceneId: string | null;
+                                questNode: import("./shared/types/coop").CoopQuestNode;
+                                participants: {
+                                    id: number;
+                                    name: string;
+                                    role: string | null;
+                                    ready: boolean | null;
+                                }[];
+                                votes: {
+                                    id: number;
+                                    createdAt: number;
+                                    sessionId: number;
+                                    sceneId: string;
+                                    choiceId: string;
+                                    voterId: number;
+                                }[];
                             };
                             error?: undefined;
                             status?: undefined;
@@ -1427,24 +1445,33 @@ export declare const app: Elysia<"", {
                         headers: unknown;
                         response: {
                             200: {
-                                error: string;
-                                status: number;
-                                room?: undefined;
-                            } | {
                                 room: {
-                                    players: {
-                                        id: string;
-                                        role: ("body" | "scout" | "mind" | "social" | "assault" | "support") | undefined;
-                                        ready: boolean;
-                                    }[];
-                                    quest: import("./lib/roomStore").CoopQuestState | null;
                                     code: string;
-                                    hostId: string;
-                                    status: "lobby" | "in_progress" | "finished";
-                                    updatedAt: number;
-                                };
+                                    status: string | null;
+                                    hostId: number;
+                                    sceneId: string | null;
+                                    questNode: import("./shared/types/coop").CoopQuestNode;
+                                    participants: {
+                                        id: number;
+                                        name: string;
+                                        role: string | null;
+                                        ready: boolean | null;
+                                    }[];
+                                    votes: {
+                                        id: number;
+                                        createdAt: number;
+                                        sessionId: number;
+                                        sceneId: string;
+                                        choiceId: string;
+                                        voterId: number;
+                                    }[];
+                                } | null;
                                 error?: undefined;
                                 status?: undefined;
+                            } | {
+                                error: any;
+                                status: number;
+                                room?: undefined;
                             };
                             422: {
                                 type: "validation";
@@ -1477,32 +1504,31 @@ export declare const app: Elysia<"", {
                             200: {
                                 error: string;
                                 status: number;
-                                ok?: undefined;
-                                removed?: undefined;
-                                room?: undefined;
-                            } | {
-                                ok: boolean;
-                                removed: boolean;
-                                error?: undefined;
-                                status?: undefined;
                                 room?: undefined;
                             } | {
                                 room: {
-                                    players: {
-                                        id: string;
-                                        role: ("body" | "scout" | "mind" | "social" | "assault" | "support") | undefined;
-                                        ready: boolean;
-                                    }[];
-                                    quest: import("./lib/roomStore").CoopQuestState | null;
                                     code: string;
-                                    hostId: string;
-                                    status: "lobby" | "in_progress" | "finished";
-                                    updatedAt: number;
-                                };
+                                    status: string | null;
+                                    hostId: number;
+                                    sceneId: string | null;
+                                    questNode: import("./shared/types/coop").CoopQuestNode;
+                                    participants: {
+                                        id: number;
+                                        name: string;
+                                        role: string | null;
+                                        ready: boolean | null;
+                                    }[];
+                                    votes: {
+                                        id: number;
+                                        createdAt: number;
+                                        sessionId: number;
+                                        sceneId: string;
+                                        choiceId: string;
+                                        voterId: number;
+                                    }[];
+                                } | null;
                                 error?: undefined;
                                 status?: undefined;
-                                ok?: undefined;
-                                removed?: undefined;
                             };
                             422: {
                                 type: "validation";
@@ -1540,17 +1566,26 @@ export declare const app: Elysia<"", {
                                 room?: undefined;
                             } | {
                                 room: {
-                                    players: {
-                                        id: string;
-                                        role: ("body" | "scout" | "mind" | "social" | "assault" | "support") | undefined;
-                                        ready: boolean;
-                                    }[];
-                                    quest: import("./lib/roomStore").CoopQuestState | null;
                                     code: string;
-                                    hostId: string;
-                                    status: "lobby" | "in_progress" | "finished";
-                                    updatedAt: number;
-                                };
+                                    status: string | null;
+                                    hostId: number;
+                                    sceneId: string | null;
+                                    questNode: import("./shared/types/coop").CoopQuestNode;
+                                    participants: {
+                                        id: number;
+                                        name: string;
+                                        role: string | null;
+                                        ready: boolean | null;
+                                    }[];
+                                    votes: {
+                                        id: number;
+                                        createdAt: number;
+                                        sessionId: number;
+                                        sceneId: string;
+                                        choiceId: string;
+                                        voterId: number;
+                                    }[];
+                                } | null;
                                 error?: undefined;
                                 status?: undefined;
                             };
@@ -1583,63 +1618,33 @@ export declare const app: Elysia<"", {
                         headers: unknown;
                         response: {
                             200: {
-                                error: string;
+                                room: {
+                                    code: string;
+                                    status: string | null;
+                                    hostId: number;
+                                    sceneId: string | null;
+                                    questNode: import("./shared/types/coop").CoopQuestNode;
+                                    participants: {
+                                        id: number;
+                                        name: string;
+                                        role: string | null;
+                                        ready: boolean | null;
+                                    }[];
+                                    votes: {
+                                        id: number;
+                                        createdAt: number;
+                                        sessionId: number;
+                                        sceneId: string;
+                                        choiceId: string;
+                                        voterId: number;
+                                    }[];
+                                } | null;
+                                error?: undefined;
+                                status?: undefined;
+                            } | {
+                                error: any;
                                 status: number;
                                 room?: undefined;
-                            } | {
-                                room: {
-                                    players: {
-                                        id: string;
-                                        role: ("body" | "scout" | "mind" | "social" | "assault" | "support") | undefined;
-                                        ready: boolean;
-                                    }[];
-                                    quest: import("./lib/roomStore").CoopQuestState | null;
-                                    code: string;
-                                    hostId: string;
-                                    status: "lobby" | "in_progress" | "finished";
-                                    updatedAt: number;
-                                };
-                                error?: undefined;
-                                status?: undefined;
-                            };
-                            422: {
-                                type: "validation";
-                                on: string;
-                                summary?: string;
-                                message?: string;
-                                found?: unknown;
-                                property?: string;
-                                expected?: string;
-                            };
-                        };
-                    };
-                };
-            };
-        };
-    };
-} & {
-    coop: {
-        rooms: {
-            ":code": {
-                quest: {
-                    get: {
-                        body: unknown;
-                        params: {
-                            code: string;
-                        } & {};
-                        query: unknown;
-                        headers: unknown;
-                        response: {
-                            200: {
-                                error: string;
-                                status: number;
-                                quest?: undefined;
-                                node?: undefined;
-                            } | {
-                                quest: import("./lib/roomStore").CoopQuestState;
-                                node: import("./lib/roomStore").CoopQuestNode;
-                                error?: undefined;
-                                status?: undefined;
                             };
                             422: {
                                 type: "validation";
@@ -1672,14 +1677,91 @@ export declare const app: Elysia<"", {
                         headers: unknown;
                         response: {
                             200: {
+                                room: {
+                                    code: string;
+                                    status: string | null;
+                                    hostId: number;
+                                    sceneId: string | null;
+                                    questNode: import("./shared/types/coop").CoopQuestNode;
+                                    participants: {
+                                        id: number;
+                                        name: string;
+                                        role: string | null;
+                                        ready: boolean | null;
+                                    }[];
+                                    votes: {
+                                        id: number;
+                                        createdAt: number;
+                                        sessionId: number;
+                                        sceneId: string;
+                                        choiceId: string;
+                                        voterId: number;
+                                    }[];
+                                } | null;
+                                error?: undefined;
+                                status?: undefined;
+                            } | {
+                                error: any;
+                                status: number;
+                                room?: undefined;
+                            };
+                            422: {
+                                type: "validation";
+                                on: string;
+                                summary?: string;
+                                message?: string;
+                                found?: unknown;
+                                property?: string;
+                                expected?: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+    };
+} & {
+    coop: {
+        rooms: {
+            ":code": {
+                force: {
+                    post: {
+                        body: {
+                            nodeId: string;
+                        };
+                        params: {
+                            code: string;
+                        } & {};
+                        query: unknown;
+                        headers: unknown;
+                        response: {
+                            200: {
                                 error: string;
                                 status: number;
-                                quest?: undefined;
-                                node?: undefined;
+                                room?: undefined;
                             } | {
-                                quest: import("./lib/roomStore").CoopQuestState;
-                                node: import("./lib/roomStore").CoopQuestNode;
-                                error: string | undefined;
+                                room: {
+                                    code: string;
+                                    status: string | null;
+                                    hostId: number;
+                                    sceneId: string | null;
+                                    questNode: import("./shared/types/coop").CoopQuestNode;
+                                    participants: {
+                                        id: number;
+                                        name: string;
+                                        role: string | null;
+                                        ready: boolean | null;
+                                    }[];
+                                    votes: {
+                                        id: number;
+                                        createdAt: number;
+                                        sessionId: number;
+                                        sceneId: string;
+                                        choiceId: string;
+                                        voterId: number;
+                                    }[];
+                                } | null;
+                                error?: undefined;
                                 status?: undefined;
                             };
                             422: {

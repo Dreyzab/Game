@@ -176,20 +176,36 @@ export function useVisualNovelViewModel(
     [log]
   )
 
+  const isLineValid = useCallback(
+    (line: VisualNovelLine) => {
+      if (!line.condition) return true
+      if (line.condition.flag && !flags.has(line.condition.flag)) return false
+      if (line.condition.notFlag && flags.has(line.condition.notFlag)) return false
+      return true
+    },
+    [flags]
+  )
+
   const getNextSequentialLine = useCallback(
     (line: VisualNovelLine | null): VisualNovelLine | null => {
       if (!line) return null
       const index = scene.lines.findIndex((entry) => entry.id === line.id)
-      if (index >= 0 && index + 1 < scene.lines.length) {
-        log('[VN] Next sequential line', {
-          fromLineId: line.id,
-          toLineId: scene.lines[index + 1].id,
-        })
-        return scene.lines[index + 1]
+      if (index < 0) return null
+
+      for (let i = index + 1; i < scene.lines.length; i++) {
+        const candidate = scene.lines[i]
+        if (isLineValid(candidate)) {
+          log('[VN] Next sequential line', {
+            fromLineId: line.id,
+            toLineId: candidate.id,
+            skipped: i - index - 1,
+          })
+          return candidate
+        }
       }
       return null
     },
-    [log, scene.lines]
+    [log, scene.lines, isLineValid]
   )
 
   const goToScene = useCallback(
@@ -207,13 +223,19 @@ export function useVisualNovelViewModel(
   const advanceToLine = useCallback(
     (targetLineId?: string | null, choiceId?: string) => {
       if (targetLineId) {
-        const targetLine = getLineById(scene, targetLineId)
+        let targetLine = getLineById(scene, targetLineId)
+
+        // If explicit line is invalid, try to find next valid
+        if (targetLine && !isLineValid(targetLine)) {
+          targetLine = getNextSequentialLine(targetLine)
+        }
+
         if (targetLine) {
-          log('[VN] advanceToLine explicit', { targetLineId, fromChoice: choiceId })
+          log('[VN] advanceToLine explicit', { targetLineId: targetLine.id, fromChoice: choiceId })
           setLineId(targetLine.id)
           recordHistory(targetLine, choiceId)
         } else {
-          log('[VN] advanceToLine: target line not found', { targetLineId })
+          log('[VN] advanceToLine: target line not found or filtered', { targetLineId })
           setSceneCompleted(true)
         }
         return
@@ -243,7 +265,7 @@ export function useVisualNovelViewModel(
         setSceneCompleted(true)
       }
     },
-    [currentLine, getNextSequentialLine, goToScene, log, recordHistory, scene]
+    [currentLine, getNextSequentialLine, goToScene, isLineValid, log, recordHistory, scene]
   )
 
   const hasActiveChoices = useMemo(

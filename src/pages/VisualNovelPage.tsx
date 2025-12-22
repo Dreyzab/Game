@@ -170,6 +170,7 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
           buildUrl(Routes.TUTORIAL_BATTLE, {
             returnScene: pickSceneId(data.returnScene) ?? 'combat_tutorial_victory',
             defeatScene: pickSceneId(data.defeatScene) ?? 'combat_tutorial_defeat',
+            scenarioId: pickSceneId(data.enemyKey),
           })
         )
       }

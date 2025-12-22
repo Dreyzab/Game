@@ -2,372 +2,645 @@ import type { Scene } from '../../model/types'
 
 const TRAIN_CIGAR_BACKGROUND = '/images/trainCigar.png'
 const TRAIN_CARDS_BACKGROUND = '/images/trainCards.png'
-const STATION_BACKGROUND = '/images/backgrounds/station.png'
-const STATION_CHECK_BACKGROUND = '/images/backgrounds/station_check.png'
+const COUPE_BACKGROUND = '/images/trainCigar.png' // Placeholder for coupes
+const TAMBOUR_BACKGROUND = '/images/trainCigar.png'
+const CORRIDOR_BACKGROUND = '/images/trainCigar.png' // Placeholder
 
 /**
- * Пролог: начало в тамбуре поезда, столкновение с тварью и прибытие.
+ * Cinematic Prologue: Coupe interaction -> Tambour choices -> Creature Attack -> Tutorials
  */
 export const scenarios: Record<string, Scene> = {
-  // --- НАЧАЛО: ПРОБУЖДЕНИЕ ---
-  prologue_awakening: {
-    id: 'prologue_awakening',
-    background: TRAIN_CIGAR_BACKGROUND,
-    characters: [],
+  // ============================================================================
+  // STAGE 1: THE COUPE (Человек чего-то хочет)
+  // ============================================================================
+
+  prologue_coupe_intro: {
+    id: 'prologue_coupe_intro',
+    background: COUPE_BACKGROUND,
+    music: 'train_ambience',
+    characters: [
+      { id: 'bruno', name: 'Бруно Вебер', position: 'left', emotion: { primary: 'nervous' } },
+      { id: 'lena', name: 'Лена Рихтер', position: 'right', emotion: { primary: 'tired' } },
+      { id: 'adele', name: 'Адель', position: 'center', emotion: { primary: 'calm' } },
+      { id: 'otto', name: 'Отто Кляйн', position: 'left', emotion: { primary: 'grim' } },
+    ],
     dialogue: [
       {
         speaker: 'Рассказчик',
-        text: 'Ты приходишь в себя от резкого толчка. Ритмичный стук колёс отдаётся в висках, а холодный воздух из щелей тамбура обжигает лицо.',
+        text: 'Мерный, убаюкивающий стук колёс. Дребезжание ложки в пустом стакане. Тесное купе пропахло табаком и усталостью.',
       },
       {
         speaker: 'Рассказчик',
-        text: 'Тамбур старого состава пахнет перегретым железом, мазутом и застарелым табаком. Жёлтый свет моргает, едва разгоняя тьму за окном.',
+        text: 'На столике — порезанное яблоко, роскошь в этих краях, и замусоленная колода карт. Четверо попутчиков, спаянных дорогой. Не друзья, но и не чужие.',
       },
     ],
     choices: [
       {
-        id: 'prologue_to_reflection',
-        text: 'Попытаться вспомнить, как ты здесь оказался.',
-        nextScene: 'prologue_reflection_1',
+        id: 'prologue_coupe_look_bruno',
+        text: 'Посмотреть на Бруно.',
+        nextScene: 'prologue_coupe_bruno',
       },
     ],
   },
 
-  prologue_reflection_1: {
-    id: 'prologue_reflection_1',
-    background: TRAIN_CIGAR_BACKGROUND,
-    characters: [],
+  prologue_coupe_bruno: {
+    id: 'prologue_coupe_bruno',
+    background: COUPE_BACKGROUND,
+    characters: [{ id: 'bruno', name: 'Бруно Вебер', position: 'left' }],
     dialogue: [
       {
-        speaker: 'Рассказчик',
-        text: 'В памяти всплывают обрывки: шум толпы на перроне, чьи-то крики в темноте и холодный блеск стали. Но всё это кажется далёким, словно из другой жизни.',
+        speaker: 'Бруно Вебер',
+        text: 'Подъезжаем. Я узнаю этот дым. Промышленный Север, Зона Гамма. Там воздух на вкус как жженая резина... Хех, пахнет домом.',
       },
       {
-        speaker: 'Рассказчик',
-        text: 'Ты здесь. В поезде, идущем к Фрайбургу. И это единственное, что сейчас имеет значение.',
+        speaker: 'Бруно Вебер',
+        text: 'Надеюсь, старина Дитер не забыл меня встретить. Он писал, что устроился у Артисанов. "Приезжай, — говорит, — Бруно, тут есть работа для тех, кто отличает детонатор от суппозитория".',
       },
     ],
     choices: [
       {
-        id: 'prologue_to_hand_choice',
-        text: 'Взглянуть на свои руки.',
-        nextScene: 'prologue_hand_choice',
+        id: 'prologue_coupe_bruno_next',
+        text: 'Слушать Лену.',
+        nextScene: 'prologue_coupe_lena',
       },
     ],
   },
 
-  // --- ВЫБОР ЗАНЯТИЯ ---
-  prologue_hand_choice: {
-    id: 'prologue_hand_choice',
-    background: TRAIN_CIGAR_BACKGROUND,
-    characters: [],
+  prologue_coupe_lena: {
+    id: 'prologue_coupe_lena',
+    background: COUPE_BACKGROUND,
+    characters: [{ id: 'lena', name: 'Лена Рихтер', position: 'right' }],
     dialogue: [
       {
-        speaker: 'Рассказчик',
-        text: 'Нужно чем-то занять руки, чтобы унять дрожь и скоротать время до прибытия.',
+        speaker: 'Лена Рихтер',
+        text: 'Работу ты найдешь, Бруно. А вот найдешь ли ты горячую воду?',
+      },
+      {
+        speaker: 'Лена Рихтер',
+        text: 'Я сейчас душу бы продала не за работу, а за ванну. Настоящую, фаянсовую ванну. Полную кипятка. Чтобы смыть с себя эту... "Красную зону".',
+      },
+      {
+        speaker: 'Лена Рихтер',
+        text: 'Если в этом хваленом Фрайбурге есть ванна и кусок мыла, который пахнет лавандой, а не хлоркой — я остаюсь.',
       },
     ],
     choices: [
+      {
+        id: 'prologue_coupe_lena_next',
+        text: 'Взглянуть на Адель.',
+        nextScene: 'prologue_coupe_adele',
+      },
+    ],
+  },
+
+  prologue_coupe_adele: {
+    id: 'prologue_coupe_adele',
+    background: COUPE_BACKGROUND,
+    characters: [{ id: 'adele', name: 'Адель', position: 'center' }],
+    dialogue: [
+      {
+        speaker: 'Адель',
+        text: 'Мелко плаваешь, док. Ванна — это гигиена. А жить надо ради удовольствия.',
+      },
+      {
+        speaker: 'Адель',
+        text: 'Я слышала, Мэр Фокс держит настоящих поваров. Настоящий стейк. С кровью. И бокал красного.',
+      },
+      {
+        speaker: 'Адель',
+        text: 'Говорят, на "Теневом рынке" за кредиты можно купить даже свежие овощи. Вот это — цель. А помыться можно и в Рейне.',
+      },
+    ],
+    choices: [
+      {
+        id: 'prologue_coupe_adele_next',
+        text: 'Посмотреть на Отто.',
+        nextScene: 'prologue_coupe_otto',
+      },
+    ],
+  },
+
+  prologue_coupe_otto: {
+    id: 'prologue_coupe_otto',
+    background: COUPE_BACKGROUND,
+    characters: [{ id: 'otto', name: 'Отто Кляйн', position: 'left' }],
+    dialogue: [
+      {
+        speaker: 'Отто Кляйн',
+        text: 'Стейки, ванны... Вы как дети, честное слово.',
+      },
+      {
+        speaker: 'Отто Кляйн',
+        text: 'В Фрайбурге есть FJR, есть ОРДНУНГ, и есть комендантский час. Всё, что мне нужно — это кабак, где не разбавляют шнапс.',
+      },
+      {
+        speaker: 'Отто Кляйн',
+        text: 'Я хочу выпить. Так, чтобы внутри всё выжгло. Чтобы этот гул в голове заткнулся хотя бы на пару часов. А потом пойду в вербовочный пункт. "Железная леди" платит тем, кто умеет держать строй.',
+      },
+    ],
+    choices: [
+      {
+        id: 'prologue_coupe_finish',
+        text: 'Встать и выйти.',
+        nextScene: 'prologue_coupe_exit',
+      },
+    ],
+  },
+
+  prologue_coupe_exit: {
+    id: 'prologue_coupe_exit',
+    background: COUPE_BACKGROUND,
+    characters: [{ id: 'bruno', name: 'Бруно Вебер', position: 'left' }],
+    dialogue: [
+      {
+        speaker: 'Бруно Вебер',
+        text: 'Ну, каждому своё. Главное — мы почти доехали. Дальше — проще. Ладно, пойду спрошу у контролёра почему мы еле плетёмся.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Бруно выходит из купе. Тебе тоже становится тесно. Хочется уединиться, подумать.',
+      },
+    ],
+    choices: [
+      {
+        id: 'prologue_go_to_tambour',
+        text: 'Выйти в тамбур.',
+        nextScene: 'prologue_tambour_arrival',
+      },
+    ],
+  },
+
+  // ============================================================================
+  // STAGE 2: THE TAMBOUR (Выбор пути)
+  // ============================================================================
+
+  prologue_tambour_arrival: {
+    id: 'prologue_tambour_arrival',
+    background: TAMBOUR_BACKGROUND,
+    characters: [],
+    dialogue: [
+      {
+        speaker: 'Внутренний голос',
+        text: '«Пора. Ганс сказал, связной будет на платформе. Но сначала — успокоить нервы.»',
+      },
+    ],
+    choices: [
+      {
+        id: 'prologue_choice_cards',
+        text: 'Достать потрёпанную колоду карт (Психика / Азарт).',
+        nextScene: 'prologue_tambour_cards',
+        effects: { addFlags: ['prologue_cards'] },
+      },
       {
         id: 'prologue_choice_knife',
-        text: 'Достать складной нож и начать играть с ним.',
-        nextScene: 'prologue_train_knife',
-        effects: { addFlags: ['prologue_had_knife'] },
+        text: 'Вытащить армейский нож (Сила / Бой).',
+        nextScene: 'prologue_tambour_knife',
+        effects: { addFlags: ['prologue_knife'] },
       },
       {
         id: 'prologue_choice_smoke',
-        text: 'Вытащить измятую пачку и прикурить.',
-        nextScene: 'prologue_train_smoke',
-        effects: { addFlags: ['prologue_smoked'] },
-      },
-      {
-        id: 'prologue_choice_cards',
-        text: 'Вытянуть из рукава колоду карт.',
-        nextScene: 'prologue_train_cards',
-        effects: { addFlags: ['prologue_cards'] },
+        text: 'Прикурить последнюю сигарету (Улица / Осторожность).',
+        nextScene: 'prologue_tambour_smoke',
+        effects: { addFlags: ['prologue_smoke'] },
       },
     ],
   },
 
-  // --- ПУТЬ: НОЖ ---
-  prologue_train_knife: {
-    id: 'prologue_train_knife',
-    background: TRAIN_CIGAR_BACKGROUND,
+  // --- PATH: KNIFE ---
+  prologue_tambour_knife: {
+    id: 'prologue_tambour_knife',
+    background: TAMBOUR_BACKGROUND,
     characters: [],
     dialogue: [
       {
         speaker: 'Рассказчик',
-        text: 'Лезвие привычно ложится в ладонь. Ты подбрасываешь его, ловишь на лету, крутишь между пальцами. Сталь холодит кожу, успокаивая.',
+        text: 'Тяжелая рукоять привычно ложится в ладонь. Ты балансируешь нож, наслаждаясь идеальным равновесием стали.',
       },
       {
         speaker: 'Рассказчик',
-        text: 'Финты становятся всё быстрее. Внезапно в отражении мутного стекла ты замечаешь движение.',
+        text: 'Вдруг по потолку начинает что-то вибрировать и скрести. Скрежет металла о хитин.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Окно тамбура разлетается вдребезги! Жуткие конечности, фасеточные глаза, нос, готовый выстрелить ядом!',
       },
     ],
     choices: [
       {
-        id: 'prologue_knife_to_encounter',
-        text: 'Присмотреться к окну.',
-        nextScene: 'prologue_knife_encounter',
+        id: 'prologue_knife_reaction',
+        text: 'Метнуть нож прямо в глаз твари!',
+        nextScene: 'prologue_tambour_knife_fight',
       },
     ],
   },
 
-  prologue_knife_encounter: {
-    id: 'prologue_knife_encounter',
-    background: TRAIN_CIGAR_BACKGROUND,
+  prologue_tambour_knife_fight: {
+    id: 'prologue_tambour_knife_fight',
+    background: TAMBOUR_BACKGROUND,
     characters: [],
     dialogue: [
       {
         speaker: 'Рассказчик',
-        text: 'Тварь прыгает на стекло снаружи. Грохот разбитого окна оглушает. Существо упирается лапами в раму, его жвалы раздвигаются, готовясь выпустить порцию яда прямо в тебя.',
+        text: 'Лезвие входит точно в цель. Тварь визжит! Ты добиваешь её мощным ударом ноги, отправляя в полёт прочь из поезда.',
       },
     ],
     choices: [
       {
-        id: 'prologue_knife_throw',
-        text: 'Метнуть нож в тварь.',
-        nextScene: 'prologue_train_announcement',
-        effects: { addFlags: ['prologue_monster_scared'] },
-      },
-      {
-        id: 'prologue_knife_dodge',
-        text: 'Увернуться в сторону.',
-        nextScene: 'prologue_train_announcement',
-      },
-      {
-        id: 'prologue_knife_run',
-        text: 'Броситься бежать в вагон.',
-        nextScene: 'prologue_train_announcement',
-      },
-    ],
+        id: 'prologue_knife_post_fight',
+        text: 'Отдышаться.',
+        nextScene: 'prologue_conductor_enter',
+        effects: { addFlags: ['prologue_monster_killed_solo'] }
+      }
+    ]
   },
 
-  // --- ПУТЬ: КАРТЫ ---
-  prologue_train_cards: {
-    id: 'prologue_train_cards',
+  // --- PATH: CARDS ---
+  prologue_tambour_cards: {
+    id: 'prologue_tambour_cards',
     background: TRAIN_CARDS_BACKGROUND,
     characters: [],
     dialogue: [
       {
         speaker: 'Рассказчик',
-        text: 'Карты скользят между пальцами с сухим шелестом. Ты тасуешь колоду, делаешь веер, чувствуя привычный вес бумаги.',
+        text: 'Карты мелькают в руках. Ты показываешь невидимой публике трюк с исчезновением Туза.',
       },
       {
         speaker: 'Рассказчик',
-        text: 'Это успокаивает. Но внезапно ритм колёс прерывается ударом снаружи.',
+        text: 'Вдруг по потолку начинает что-то вибрировать. Стекло тамбура взрывается осколками!',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Чудовище врывается внутрь, готовясь к атаке.',
       },
     ],
     choices: [
       {
-        id: 'prologue_cards_to_encounter',
-        text: 'Оглянуться.',
-        nextScene: 'prologue_cards_encounter',
+        id: 'prologue_cards_reaction',
+        text: 'Фокус "Исчезающий свет" (Фонарик из рукава).',
+        nextScene: 'prologue_tambour_cards_fight',
       },
     ],
   },
 
-  prologue_cards_encounter: {
-    id: 'prologue_cards_encounter',
-    background: TRAIN_CARDS_BACKGROUND,
+  prologue_tambour_cards_fight: {
+    id: 'prologue_tambour_cards_fight',
+    background: TAMBOUR_BACKGROUND,
     characters: [],
     dialogue: [
       {
         speaker: 'Рассказчик',
-        text: 'Окно разлетается вдребезги. Уродливая голова монстра просовывается внутрь, оскаливая клыки.',
+        text: 'Резкое движение — и в руке вспыхивает фонарь. Луч бьёт прямо в чувствительные глаза твари. Дезориентация мгновенная!',
       },
-    ],
-    choices: [
-      {
-        id: 'prologue_cards_throw',
-        text: 'Бросить колоду в морду твари.',
-        nextScene: 'prologue_cards_fight_flashlight',
-      },
-      {
-        id: 'prologue_cards_flashlight',
-        text: 'Ловко выхватить фонарик из рукава.',
-        nextScene: 'prologue_cards_fight_flashlight',
-      },
-    ],
-  },
-
-  prologue_cards_fight_flashlight: {
-    id: 'prologue_cards_fight_flashlight',
-    background: TRAIN_CARDS_BACKGROUND,
-    characters: [],
-    dialogue: [
       {
         speaker: 'Рассказчик',
-        text: 'Ослепительный луч света бьёт в фасеточные глаза монстра. Тварь истошно визжит, зажмуриваясь и теряя ориентацию.',
-      },
+        text: 'Ты используешь момент и выпинываешь ослепленного монстра наружу.',
+      }
     ],
     choices: [
       {
-        id: 'prologue_cards_kick',
-        text: 'Вытолкнуть тварь ногой в разбитое окно.',
-        nextScene: 'prologue_train_announcement',
-        effects: { addFlags: ['prologue_monster_defeated'] },
-      },
-    ],
+        id: 'prologue_cards_post_fight',
+        text: 'Спрятать фонарик.',
+        nextScene: 'prologue_conductor_enter',
+        effects: { addFlags: ['prologue_monster_blinded'] }
+      }
+    ]
   },
 
-  // --- ПУТЬ: КОРЕШ (КУРЕНИЕ) ---
-  prologue_train_smoke: {
-    id: 'prologue_train_smoke',
+  // --- PATH: SMOKE ---
+  prologue_tambour_smoke: {
+    id: 'prologue_tambour_smoke',
     background: TRAIN_CIGAR_BACKGROUND,
     characters: [],
     dialogue: [
       {
         speaker: 'Рассказчик',
-        text: 'Щёлк — и крошечное пламя вырывает из темноты пальцы. Дым ложится на язык горечью и привычкой.',
+        text: 'Дым медленно поднимается к потолку. Ты внимательно следишь за тенями за окном.',
       },
       {
         speaker: 'Рассказчик',
-        text: 'Ты смотришь на тлеющий огонек, когда чья-то тень перекрывает тусклый свет тамбура.',
+        text: 'Твоё чутьё вопит об опасности за секунду до удара. Стекло лопается!',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Существо раздувает ноздри, готовясь плюнуть кислотой!',
       },
     ],
     choices: [
       {
-        id: 'prologue_smoke_to_encounter',
-        text: 'Посмотреть в окно.',
-        nextScene: 'prologue_smoke_encounter',
+        id: 'prologue_smoke_reaction',
+        text: 'Бросить сигарету, сбивая прицел!',
+        nextScene: 'prologue_tambour_smoke_fight',
       },
     ],
   },
 
-  prologue_smoke_encounter: {
-    id: 'prologue_smoke_encounter',
+  prologue_tambour_smoke_fight: {
+    id: 'prologue_tambour_smoke_fight',
     background: TRAIN_CIGAR_BACKGROUND,
-    characters: [],
+    characters: [{ id: 'conductor', name: 'Проводник', position: 'right' }],
     dialogue: [
       {
+        speaker: 'Герой',
+        text: 'ФОНАРЬ!',
+      },
+      {
         speaker: 'Рассказчик',
-        text: 'Стекло лопается под напором когтистой лапы. Тварь вваливается наполовину внутрь, шипя и разевая пасть.',
+        text: 'Тлеющий бычок летит в морду твари. В ту же секунду дверь распахивается — Проводник с мощным прожектором заливает тамбур светом.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Монстр, ослепленный и сбитый с толку, получает удар прикладом и вылетает в ночь.',
+      }
+    ],
+    choices: [
+      {
+        id: 'prologue_smoke_post_fight',
+        text: 'Кивнуть проводнику.',
+        nextScene: 'prologue_conductor_dialogue_plan',
+        effects: { addFlags: ['prologue_conductor_saved'] }
+      }
+    ]
+  },
+
+
+  // ============================================================================
+  // STAGE 3: ESCORT & CRISIS
+  // ============================================================================
+
+  prologue_conductor_enter: {
+    id: 'prologue_conductor_enter',
+    background: TAMBOUR_BACKGROUND,
+    characters: [{ id: 'conductor', name: 'Проводник', position: 'center' }],
+    dialogue: [
+      {
+        speaker: 'Проводник',
+        text: 'Неплохая реакция, парень! Но это только разведчик. Они сейчас везде полезут.',
       },
     ],
     choices: [
       {
-        id: 'prologue_smoke_burn',
-        text: 'Ткнуть горящей сигаретой в глаз твари.',
-        nextScene: 'prologue_train_announcement',
-      },
-      {
-        id: 'prologue_smoke_dodge',
-        text: 'Отпрыгнуть назад.',
-        nextScene: 'prologue_train_announcement',
-      },
-      {
-        id: 'prologue_smoke_run',
-        text: 'Бежать в глубь вагона.',
-        nextScene: 'prologue_train_announcement',
-      },
-    ],
+        id: 'prologue_conductor_enter_next',
+        text: 'Что делаем?',
+        nextScene: 'prologue_conductor_dialogue_plan'
+      }
+    ]
   },
 
-  // --- ФИНАЛ СТОЛКНОВЕНИЯ И ПРИБЫТИЕ ---
-  prologue_train_announcement: {
-    id: 'prologue_train_announcement',
-    background: TRAIN_CIGAR_BACKGROUND,
+  prologue_conductor_dialogue_plan: {
+    id: 'prologue_conductor_dialogue_plan',
+    background: TAMBOUR_BACKGROUND,
+    characters: [{ id: 'conductor', name: 'Проводник', position: 'center' }],
+    dialogue: [
+      {
+        speaker: 'Проводник',
+        text: 'Надо двигаться к голове поезда. Собираем всех живых в безопасных вагонах.',
+      },
+      {
+        speaker: 'Проводник',
+        text: 'И главное — не стрелять без нужды. Шум их только злит и сзывает стаю.',
+      },
+      {
+        speaker: 'Проводник',
+        text: 'Если в вагоне тихо — значит там или порядок, или уже кладбище. Пошли.',
+      }
+    ],
+    choices: [
+      {
+        id: 'prologue_move_to_next_car',
+        text: 'Идти в следующий вагон.',
+        nextScene: 'prologue_next_car_noise',
+      }
+    ]
+  },
+
+  prologue_next_car_noise: {
+    id: 'prologue_next_car_noise',
+    background: CORRIDOR_BACKGROUND,
     characters: [],
     dialogue: [
       {
         speaker: 'Рассказчик',
-        text: 'Тварь с воем исчезает в ночной темноте. Ты остаёшься один в разгромленном тамбуре, судорожно вдыхая холодный воздух.',
+        text: 'Из следующего вагона доносится грохот. Крик, звон стекла.',
+      },
+    ],
+    choices: [
+      {
+        id: 'prologue_open_door_noise',
+        text: 'Выбить дверь!',
+        nextScene: 'prologue_find_lena',
+      }
+    ]
+  },
+
+  prologue_find_lena: {
+    id: 'prologue_find_lena',
+    background: COUPE_BACKGROUND,
+    characters: [{ id: 'lena', name: 'Лена Рихтер', position: 'center' }],
+    dialogue: [
+      {
+        speaker: 'Рассказчик',
+        text: 'Внутри хаос. Пассажиры забились в углы. Посреди вагона Лена Рихтер "колдует" над раненым. В её руке блестит хирургический зажим... или стилет?',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Окно разбито. В проёмах появляются новые твари. Мелкие, быстрые.',
+      },
+    ],
+    choices: [
+      {
+        id: 'prologue_start_tutorial_1',
+        text: 'К бою! (Учебный бой)',
+        effects: {
+          immediate: [{
+            type: 'start_tutorial_battle',
+            data: {
+              returnScene: 'prologue_after_tutorial_1', // Победа
+              defeatScene: 'prologue_defeat'            // Поражение (опционально)
+            }
+          }]
+        }
+      }
+    ]
+  },
+
+  // ============================================================================
+  // STAGE 4: BOSS AMBUSH & BRUNO
+  // ============================================================================
+
+  prologue_after_tutorial_1: {
+    id: 'prologue_after_tutorial_1',
+    background: COUPE_BACKGROUND,
+    characters: [{ id: 'lena', name: 'Лена Рихтер', position: 'right' }],
+    dialogue: [
+      {
+        speaker: 'Лена Рихтер',
+        text: 'Чисто... пока что. Спасибо за помощь.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Лена быстро перевязывает тебе царапину. Её движения точные, профессиональные.',
+      },
+      {
+        speaker: 'Отто Кляйн',
+        text: 'Сзади — чисто! Но их там тьма!',
+      }
+    ],
+    choices: [
+      {
+        id: 'prologue_otto_entrance',
+        text: 'Обернуться.',
+        nextScene: 'prologue_otto_warning',
+      }
+    ]
+  },
+
+  prologue_otto_warning: {
+    id: 'prologue_otto_warning',
+    background: COUPE_BACKGROUND,
+    characters: [{ id: 'otto', name: 'Отто Кляйн', position: 'left' }],
+    dialogue: [
+      {
+        speaker: 'Отто Кляйн',
+        text: 'С хвоста прёт орда! Надо уходить, быстро!',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'В этот момент стену вагона сотрясает чудовищный удар. Из соседнего тамбура выламывая дверь, вваливается Тварь.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Она огромная. Хитин блестит как броня танка. Это не разведчик. Это Палач.',
+      }
+    ],
+    choices: [
+      {
+        id: 'prologue_boss_reaction',
+        text: 'Приготовиться к смерти...',
+        nextScene: 'prologue_bruno_boom',
+      }
+    ]
+  },
+
+  prologue_bruno_boom: {
+    id: 'prologue_bruno_boom',
+    background: COUPE_BACKGROUND,
+    characters: [{ id: 'bruno', name: 'Бруно Вебер', position: 'center' }],
+    dialogue: [
+      {
+        speaker: 'Бруно Вебер',
+        text: 'Эй, урод! Лови "привет" из Зоны Гамма!',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Бруно швыряет связку самодельных трубок под ноги монстра. ВЗРЫВ! Вагон наполняется едким дымом.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Тварь ревёт. Ей оторвало часть щупалец, броня треснула, но она всё ещё жива. И она в ярости.',
+      }
+    ],
+    choices: [
+      {
+        id: 'prologue_start_tutorial_boss',
+        text: 'Добить её! (Бой с боссом)',
+        effects: {
+          immediate: [{
+            type: 'start_tutorial_battle',
+            data: {
+              returnScene: 'prologue_fjr_storming', // Изменено: переход к сцене с FJR
+              defeatScene: 'prologue_defeat',
+              enemyKey: 'boss_train_prologue'
+            }
+          }]
+        }
+      }
+    ]
+  },
+
+  // ============================================================================
+  // STAGE 5: FJR DEPLOYMENT & INSPECTION
+  // ============================================================================
+
+  prologue_fjr_storming: {
+    id: 'prologue_fjr_storming',
+    background: TAMBOUR_BACKGROUND,
+    characters: [],
+    dialogue: [
+      {
+        speaker: 'Рассказчик',
+        text: 'Монстр повержен. Его туша еще бьется в конвульсиях, когда вагон содрогается от резкого торможения.',
       },
       {
         speaker: 'Голос из динамика',
-        text: '«Следующая остановка — Фрайбург. Пассажирам просьба подготовить документы для проверки».',
+        text: '«Фрайбург-Центральный. Конечная. Всем оставаться на местах! Работает FJR!»',
       },
       {
         speaker: 'Рассказчик',
-        text: 'Поезд сбрасывает скорость. Снаружи меркнет пейзаж и появляется город — аккуратный, настороженный.',
+        text: 'Двери тамбура вылетают с грохотом. В вагон врываются фигуры в тяжелой броне и с автоматическими винтовками. Свет тактических фонарей ослепляет.',
+      },
+      {
+        speaker: 'Спецназ FJR',
+        text: 'ОРУЖИЕ НА ПОЛ! РУКИ ЗА ГОЛОВУ! ДВИЖЕНИЕ — СТРЕЛЬБА НА ПОРАЖЕНИЕ!',
       },
     ],
     choices: [
       {
-        id: 'prologue_step_out',
-        text: 'Сойти на платформу.',
-        nextScene: 'prologue_station_arrival',
+        id: 'prologue_fjr_surrender',
+        text: 'Поднять руки.',
+        nextScene: 'prologue_fjr_inspection',
       },
     ],
   },
 
-  prologue_station_arrival: {
-    id: 'prologue_station_arrival',
-    background: STATION_BACKGROUND,
-    characters: [],
+  prologue_fjr_inspection: {
+    id: 'prologue_fjr_inspection',
+    background: TAMBOUR_BACKGROUND, // Или другой фон, если есть
+    characters: [
+      { id: 'fjr_commander', name: 'Командир FJR', position: 'center' }
+    ],
     dialogue: [
       {
-        speaker: 'Рассказчик',
-        text: 'Холодный воздух ударяет в лицо. Вдоль платформы — фигуры в защитных масках, ровные линии оцепления и взгляд, который измеряет тебя быстрее паспорта.',
+        speaker: 'Командир FJR',
+        text: 'Чисто. Био-угроза устранена. (Смотрит на труп монстра, потом на вас) Выжившие? В этом поезде? Вам дьявольски повезло.',
+      },
+      {
+        speaker: 'Командир FJR',
+        text: 'Медики — осмотреть раненых. Остальные — на выход, живо! Регистрация беженцев в Ратуше. Не толпиться!',
       },
       {
         speaker: 'Рассказчик',
-        text: 'Фрайбург выглядит живым — но живым по правилам. Здесь всё начинается с регистрации.',
+        text: 'Вас грубо, но эффективно выталкивают на перрон. Свежий, холодный воздух Фрайбурга ударяет в лицо.',
       },
     ],
     choices: [
       {
-        id: 'prologue_go_to_control',
-        text: 'Подойти к проверке.',
-        nextScene: 'prologue_station_control',
-      },
-    ],
-  },
-
-  prologue_station_control: {
-    id: 'prologue_station_control',
-    background: STATION_CHECK_BACKGROUND,
-    characters: [],
-    dialogue: [
-      {
-        speaker: 'Контролёр',
-        text: 'Билет. Документы. И… имя — для реестра.',
-      },
-      {
-        speaker: 'Контролёр',
-        text: 'Не в списках. Значит, новоприбывший. Такое у нас оформляется быстро — если не спорить.',
-      },
-    ],
-    choices: [
-      {
-        id: 'prologue_name_self',
-        text: 'Назвать имя.',
-        nextScene: 'prologue_station_control_after_name',
+        id: 'prologue_to_registration',
+        text: 'Идти к Ратуше.',
         effects: {
-          immediate: [{ type: 'prompt_nickname' }],
+          addFlags: ['arrived_at_freiburg', 'prologue_complete', 'survived_train_crash'],
+          immediate: [{ type: 'open_map' }], // Переход на карту, где игрок должен будет пойти в Ратушу (или авто-запуск сцены)
         },
       },
     ],
   },
 
-  prologue_station_control_after_name: {
-    id: 'prologue_station_control_after_name',
-    background: STATION_CHECK_BACKGROUND,
+  prologue_defeat: {
+    id: 'prologue_defeat',
+    background: TAMBOUR_BACKGROUND,
     characters: [],
     dialogue: [
       {
-        speaker: 'Контролёр',
-        text: 'Хорошо. Слушай внимательно: мэрия, Ратушная площадь. Там первичная регистрация и анкета.',
-      },
-      {
-        speaker: 'Контролёр',
-        text: 'Пока не зарегистрируешься — городские QR для тебя пустые. И у патруля будет слишком много вопросов.',
-      },
-      {
         speaker: 'Рассказчик',
-        text: 'Он делает короткий жест в сторону центра — как будто указывает не улицу, а направление твоей новой жизни.',
-      },
+        text: 'Тьма смыкается. Твой путь заканчивается здесь, в грязном тамбуре поезда, так и не доехавшего до мечты.',
+      }
     ],
     choices: [
       {
-        id: 'prologue_to_townhall',
-        text: 'Идти в мэрию на регистрацию.',
-        effects: {
-          addFlags: ['arrived_at_freiburg', 'prologue_complete'],
-          immediate: [{ type: 'open_map' }],
-        },
-      },
-    ],
-  },
+        id: 'try_again',
+        text: 'Попробовать снова',
+        nextScene: 'prologue_awakening' // Или рестарт боя
+      }
+    ]
+  }
+
 }

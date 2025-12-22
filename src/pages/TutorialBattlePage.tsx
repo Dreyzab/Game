@@ -9,6 +9,7 @@ export default function TutorialBattlePage() {
 
   const returnScene = searchParams.get('returnScene') || 'combat_tutorial_victory'
   const defeatScene = searchParams.get('defeatScene') || 'combat_tutorial_defeat'
+  const scenarioId = searchParams.get('scenarioId') || 'default'
 
   const handleComplete = useCallback(
     (result: 'victory' | 'defeat') => {
@@ -31,7 +32,7 @@ export default function TutorialBattlePage() {
       >
         Skip
       </button>
-      <DreyzabBattle onBattleEnd={handleComplete} />
+      <DreyzabBattle onBattleEnd={handleComplete} scenarioId={scenarioId as any} />
     </div>
   )
 }

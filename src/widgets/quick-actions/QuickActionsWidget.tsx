@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { SignInButton, useClerk, useAuth, useUser } from '@clerk/clerk-react'
 import { useNavigate } from 'react-router-dom'
-import { BookOpen, FileText, Map, Package, QrCode, RefreshCw, Settings, User, UserPlus } from 'lucide-react'
+import { BookOpen, FileText, Map, Package, QrCode, RefreshCw, Settings, User, UserPlus, Users } from 'lucide-react'
 import { MotionContainer } from '@/shared/ui/components/MotionContainer'
 import { Routes } from '@/shared/lib/utils/navigation'
 import { cn } from '@/shared/lib/utils/cn'
@@ -126,6 +126,7 @@ export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({ classNam
     { id: 'inv', icon: <Package className="w-4 h-4" />, label: 'Инвентарь', route: Routes.INVENTORY },
     { id: 'quests', icon: <FileText className="w-4 h-4" />, label: 'Квесты', route: Routes.QUESTS },
     { id: 'vn', icon: <BookOpen className="w-4 h-4" />, label: 'VN', route: Routes.VISUAL_NOVEL },
+    { id: 'coop', icon: <Users className="w-4 h-4" />, label: 'CO-OP', route: Routes.COOP },
     { id: 'qr', icon: <QrCode className="w-4 h-4" />, label: 'QR Scan', route: Routes.QR_SCANNER },
     { id: 'settings', icon: <Settings className="w-4 h-4" />, label: 'Настройки', route: Routes.SETTINGS },
   ]
@@ -334,7 +335,6 @@ export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({ classNam
     </MotionContainer>
   )
 }
-
 
 
 

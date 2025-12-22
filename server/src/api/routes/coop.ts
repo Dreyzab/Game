@@ -1,36 +1,25 @@
 import { Elysia, t } from "elysia";
 import { auth } from "../auth";
-import type { CoopRoom } from "../../lib/roomStore";
-import {
-    getCoopRoom,
-    createCoopRoom,
-    joinCoopRoom,
-    leaveCoopRoom,
-    setCoopReady,
-    startCoop,
-    getCoopQuest,
-    applyCoopQuestChoice,
-    COOP_QUEST_NODES,
-} from "../../lib/roomStore";
+import { coopService } from "../../services/coopService";
+import { db } from "../../db";
+import { players } from "../../db/schema";
+import { eq } from "drizzle-orm";
+import type { CoopRoleId } from "../../shared/types/coop";
 
-type AuthedUser = { id: string; type: 'clerk' | 'guest' };
-
-// Helper to coerce incoming role strings into known room roles
-function normalizeRole(role?: string) {
-    if (!role) return undefined;
-    if (role === 'body' || role === 'mind' || role === 'social') return role;
-    return undefined;
+// Helper to get internal player ID from auth user
+async function getPlayerId(userId: string): Promise<number | null> {
+    const player = await db.query.players.findFirst({
+        where: eq(players.userId, userId),
+        columns: { id: true }
+    });
+    return player?.id ?? null;
 }
 
-const serializeRoom = (room: CoopRoom) => ({
-    ...room,
-    players: room.players.map((p) => ({
-        id: p.id,
-        role: p.role,
-        ready: p.ready,
-    })),
-    quest: room.quest ?? null,
-});
+function normalizeRole(role?: string): CoopRoleId | undefined {
+    if (!role) return undefined;
+    if (['valkyrie', 'vorschlag', 'ghost', 'shustrya'].includes(role)) return role as CoopRoleId;
+    return undefined;
+}
 
 export const coopRoutes = (app: Elysia) =>
     app
@@ -39,8 +28,11 @@ export const coopRoutes = (app: Elysia) =>
             app
                 .post("/rooms", async ({ user, body }) => {
                     if (!user) return { error: "Unauthorized", status: 401 };
-                    const room = createCoopRoom((user as AuthedUser).id, normalizeRole(body.role));
-                    return { room: serializeRoom(room) };
+                    const playerId = await getPlayerId((user as any).id);
+                    if (!playerId) return { error: "Player profile not found", status: 404 };
+
+                    const room = await coopService.createRoom(playerId, normalizeRole(body.role));
+                    return { room };
                 }, {
                     body: t.Object({
                         role: t.Optional(t.String())
@@ -48,16 +40,22 @@ export const coopRoutes = (app: Elysia) =>
                 })
 
                 .get("/rooms/:code", async ({ params }) => {
-                    const room = getCoopRoom(params.code);
+                    const room = await coopService.getRoomState(params.code);
                     if (!room) return { error: "Room not found", status: 404 };
-                    return { room: serializeRoom(room) };
+                    return { room };
                 })
 
                 .post("/rooms/:code/join", async ({ user, params, body }) => {
                     if (!user) return { error: "Unauthorized", status: 401 };
-                    const room = joinCoopRoom(params.code, (user as AuthedUser).id, normalizeRole(body.role));
-                    if (!room) return { error: "Room not found", status: 404 };
-                    return { room: serializeRoom(room) };
+                    const playerId = await getPlayerId((user as any).id);
+                    if (!playerId) return { error: "Player profile not found", status: 404 };
+
+                    try {
+                        const room = await coopService.joinRoom(params.code, playerId, normalizeRole(body.role));
+                        return { room };
+                    } catch (e: any) {
+                        return { error: e.message, status: 400 };
+                    }
                 }, {
                     body: t.Object({
                         role: t.Optional(t.String())
@@ -66,61 +64,61 @@ export const coopRoutes = (app: Elysia) =>
 
                 .post("/rooms/:code/leave", async ({ user, params }) => {
                     if (!user) return { error: "Unauthorized", status: 401 };
-                    const room = leaveCoopRoom(params.code, (user as AuthedUser).id);
-                    if (!room) return { ok: true, removed: true };
-                    return { room: serializeRoom(room) };
+                    const playerId = await getPlayerId((user as any).id);
+                    if (!playerId) return { error: "Player profile not found", status: 404 };
+
+                    const room = await coopService.leaveRoom(params.code, playerId);
+                    return { room };
                 })
 
                 .post("/rooms/:code/ready", async ({ user, params, body }) => {
                     if (!user) return { error: "Unauthorized", status: 401 };
-                    const room = setCoopReady(params.code, (user as AuthedUser).id, body.ready);
-                    if (!room) return { error: "Room not found", status: 404 };
-                    return { room: serializeRoom(room) };
+                    const playerId = await getPlayerId((user as any).id);
+                    if (!playerId) return { error: "Player profile not found", status: 404 };
+
+                    const room = await coopService.setReady(params.code, playerId, body.ready);
+                    return { room };
                 }, {
                     body: t.Object({ ready: t.Boolean() })
                 })
 
                 .post("/rooms/:code/start", async ({ user, params }) => {
                     if (!user) return { error: "Unauthorized", status: 401 };
-                    const room = startCoop(params.code, (user as AuthedUser).id);
-                    if (!room) return { error: "Room not found", status: 404 };
-                    return { room: serializeRoom(room) };
+                    const playerId = await getPlayerId((user as any).id);
+                    if (!playerId) return { error: "Player profile not found", status: 404 };
+
+                    try {
+                        const room = await coopService.startSession(params.code, playerId);
+                        return { room };
+                    } catch (e: any) {
+                        return { error: e.message, status: 400 };
+                    }
                 })
 
-                // GET /coop/rooms/:code/quest - current cooperative quest state for the room
-                .get("/rooms/:code/quest", async ({ user, params }) => {
-                    if (!user) return { error: "Unauthorized", status: 401 };
-                    const room = getCoopRoom(params.code);
-                    if (!room) return { error: "Room not found", status: 404 };
-                    const quest = getCoopQuest(params.code);
-                    if (!quest) return { error: "Quest not initialized", status: 404 };
-                    const node = COOP_QUEST_NODES[quest.nodeId];
-                    return { quest, node };
-                })
-
-                // POST /coop/rooms/:code/quest - apply a quest choice for the current node
                 .post("/rooms/:code/quest", async ({ user, params, body }) => {
                     if (!user) return { error: "Unauthorized", status: 401 };
-                    const result = applyCoopQuestChoice(params.code, (user as AuthedUser).id, body.choiceId);
-                    if (!result.quest && result.error) {
-                        return { error: result.error, status: 400 };
+                    const playerId = await getPlayerId((user as any).id);
+                    if (!playerId) return { error: "Player profile not found", status: 404 };
+
+                    try {
+                        const room = await coopService.castVote(params.code, playerId, body.choiceId);
+                        return { room };
+                    } catch (e: any) {
+                        return { error: e.message, status: 400 };
                     }
-                    if (!result.quest) {
-                        return { error: "Quest not found", status: 404 };
-                    }
-                    const node = COOP_QUEST_NODES[result.quest.nodeId];
-                    return { quest: result.quest, node, error: result.error };
                 }, {
                     body: t.Object({
                         choiceId: t.String(),
                     })
                 })
+
+                // Debug tool
+                .post("/rooms/:code/force", async ({ user, params, body }) => {
+                    if (!user) return { error: "Unauthorized", status: 401 };
+                    // Check admin permissions if needed
+                    const room = await coopService.forceScene(params.code, body.nodeId);
+                    return { room };
+                }, {
+                    body: t.Object({ nodeId: t.String() })
+                })
         );
-
-
-
-
-
-
-
-

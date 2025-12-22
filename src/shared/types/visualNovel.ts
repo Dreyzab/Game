@@ -77,6 +77,10 @@ export interface VisualNovelLine {
   autoAdvance?: boolean
   choices?: VisualNovelChoice[]
   characterAdvices?: VisualNovelAdvice[]
+  condition?: {
+    flag?: string
+    notFlag?: string
+  }
   transition?: {
     nextSceneId?: string
     label?: string

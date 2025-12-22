@@ -82,6 +82,12 @@ export const onboardingScenes: Record<string, Scene> = {
       {
         speaker: 'Старуха-регистратор',
         characterId: 'old_registrar',
+        text: 'Слышала про инцидент с поездом. Говорят, там было жарко. То, что ты стоишь здесь на своих двоих — уже хорошая рекомендация.',
+        condition: { flag: 'survived_train_crash' }
+      },
+      {
+        speaker: 'Старуха-регистратор',
+        characterId: 'old_registrar',
         text: 'Перед реестром — короткая анкета. Не из любопытства: по ответам видно, на что ты опираешься и куда тебе лучше не лезть.',
       },
     ],

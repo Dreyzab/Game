@@ -59,6 +59,79 @@ export const INITIAL_PLAYER_HAND: CombatCard[] = [
     },
 ]
 
+export const NPC_CARDS: CombatCard[] = [
+    // Conductor
+    {
+        id: 'cond_pistol',
+        name: 'Service Pistol',
+        type: CardType.ATTACK,
+        apCost: 1,
+        staminaCost: 15,
+        damage: 15,
+        optimalRange: [2, 3],
+        description: 'Reliable service weapon.',
+        jamChance: 0.05,
+    },
+    {
+        id: 'cond_flashlight',
+        name: 'High-Beam Flashlight',
+        type: CardType.ATTACK,
+        apCost: 1,
+        staminaCost: 10,
+        damage: 2,
+        optimalRange: [1, 2],
+        description: 'Blinds target. Low damage.',
+        jamChance: 0,
+    },
+    // Lena
+    {
+        id: 'lena_scalpel',
+        name: 'Surgical Scalpel',
+        type: CardType.ATTACK,
+        apCost: 1,
+        staminaCost: 10,
+        damage: 8,
+        optimalRange: [1],
+        description: 'Precise cut. Ignores 1 Armor.',
+        jamChance: 0,
+    },
+    {
+        id: 'lena_medkit',
+        name: 'Field Medkit',
+        type: CardType.VOICE,
+        apCost: 2,
+        staminaCost: 20,
+        damage: 0,
+        optimalRange: [],
+        description: 'Heal ally for 20 HP.',
+        jamChance: 0,
+    },
+    // Otto
+    {
+        id: 'otto_knife',
+        name: 'Trench Knife',
+        type: CardType.ATTACK,
+        apCost: 1,
+        staminaCost: 15,
+        damage: 18,
+        optimalRange: [1],
+        description: 'Brutal close quarters weapon.',
+        jamChance: 0,
+    },
+    // Bruno
+    {
+        id: 'bruno_bomb',
+        name: 'Pipe Bomb',
+        type: CardType.ATTACK,
+        apCost: 2,
+        staminaCost: 25,
+        damage: 35,
+        optimalRange: [2, 3, 4],
+        description: 'Improvised explosive. High damage area effect.',
+        jamChance: 0.1,
+    }
+]
+
 export const ENEMY_TEMPLATES = [
     {
         name: 'Mutant Marauder',

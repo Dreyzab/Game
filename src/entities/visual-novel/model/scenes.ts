@@ -14,7 +14,7 @@ import type {
   VisualNovelMood,
 } from '@/shared/types/visualNovel'
 
-export const DEFAULT_VN_SCENE_ID = 'prologue_awakening'
+export const DEFAULT_VN_SCENE_ID = 'prologue_coupe_intro'
 
 const BASE_LOCATION = 'Фрайбург — Пролог'
 const DEFAULT_AMBIENT = 'rgba(2, 6, 23, 0.78)'
@@ -118,6 +118,7 @@ function convertScene(scene: Scene): VisualNovelSceneDefinition {
       text: entry.text,
       speakerId: resolveSpeakerId(entry.speaker, entry.characterId, lineIndex),
       mood: normalizeMood(entry.emotion?.primary),
+      condition: entry.condition,
       nextLineId,
     }
   })

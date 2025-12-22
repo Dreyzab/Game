@@ -10,34 +10,44 @@ type CoopBattleScreenProps = {
   roomCode: string
 }
 
-// Экран совместного квеста (LCSD): обёртка над серверной машиной состояний.
 export const CoopBattleScreen: React.FC<CoopBattleScreenProps> = ({ roomCode }) => {
   const { getToken } = useAuth()
   const queryClient = useQueryClient()
 
-  const questQuery = useQuery({
-    queryKey: ['coop-quest', roomCode],
+  const roomQuery = useQuery({
+    queryKey: ['coop-room', roomCode],
     enabled: Boolean(roomCode),
-    refetchInterval: 3000,
+    refetchInterval: 2000,
     queryFn: async () => {
       const token = await getToken()
-      const client = authenticatedClient(token || undefined)
-      const { data, error } = await client.coop.rooms({ code: roomCode }).quest.get()
+      const client = authenticatedClient(token ?? undefined)
+
+      // @ts-ignore - dynamic route typing in Eden
+      const { data, error } = await client.coop.rooms[roomCode].get()
       if (error) throw error
-      return data
+
+      const payload = data as any
+      if (typeof payload?.error === 'string' && payload.error) throw new Error(payload.error)
+
+      return payload.room as any
     },
   })
 
   const chooseMutation = useMutation({
     mutationFn: async (choiceId: string) => {
       const token = await getToken()
-      const client = authenticatedClient(token || undefined)
-      const { data, error } = await client.coop.rooms({ code: roomCode }).quest.post({ choiceId })
+      const client = authenticatedClient(token ?? undefined)
+
+      // @ts-ignore - dynamic route typing in Eden
+      const { data, error } = await client.coop.rooms[roomCode].quest.post({ choiceId })
       if (error) throw error
-      return data
+
+      const payload = data as any
+      if (typeof payload?.error === 'string' && payload.error) throw new Error(payload.error)
+
+      return payload.room as any
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['coop-quest', roomCode] })
       queryClient.invalidateQueries({ queryKey: ['coop-room', roomCode] })
     },
   })
@@ -50,34 +60,36 @@ export const CoopBattleScreen: React.FC<CoopBattleScreenProps> = ({ roomCode }) 
     [chooseMutation]
   )
 
-  if (questQuery.isLoading) {
+  if (roomQuery.isLoading) {
     return (
       <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center p-6">
         <div className="max-w-xl text-center space-y-3">
-          <Heading level={3}>Загрузка совместного квеста…</Heading>
+          <Heading level={3}>Loading...</Heading>
           <Text variant="muted" size="sm">
-            Синхронизация состояния комнаты {roomCode}.
+            Room: {roomCode}
           </Text>
         </div>
       </div>
     )
   }
 
-  if (questQuery.isError || !questQuery.data?.quest || !questQuery.data?.node) {
+  const room = roomQuery.data as any | undefined
+  const node = room?.questNode as any | undefined
+
+  if (roomQuery.isError || !room || !node) {
     return (
       <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center p-6">
         <div className="max-w-xl text-center space-y-3">
-          <Heading level={3}>Ошибка совместного квеста</Heading>
+          <Heading level={3}>Failed to load</Heading>
           <Text variant="muted" size="sm">
-            {(questQuery.error as Error)?.message ?? 'Не удалось загрузить состояние квеста.'}
+            {(roomQuery.error as Error)?.message ?? 'Unknown error'}
           </Text>
         </div>
       </div>
     )
   }
 
-  const { quest, node } = questQuery.data as { quest: any; node: any }
-  const isFinished = Boolean(quest.finishedAt) || node.id === 'quest_complete'
+  const isFinished = room.status === 'finished'
 
   return (
     <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center p-6">
@@ -85,7 +97,7 @@ export const CoopBattleScreen: React.FC<CoopBattleScreenProps> = ({ roomCode }) 
         <div className="space-y-2 text-center">
           <Heading level={2}>{node.title}</Heading>
           <Text variant="muted" size="sm">
-            Комната: {roomCode}. Узел: {node.id}
+            Room: {roomCode}. Scene: {room.sceneId ?? node.id}
           </Text>
         </div>
 
@@ -95,16 +107,12 @@ export const CoopBattleScreen: React.FC<CoopBattleScreenProps> = ({ roomCode }) 
 
         {isFinished ? (
           <div className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-4 text-center space-y-2">
-            <Heading level={4}>Сцена совместного квеста завершена</Heading>
-            <Text variant="muted" size="sm">
-              Големы остановлены, дворфы рядом, а два амулета продолжают мерцать. Дальнейшее продолжится в основной
-              сюжетной линии.
-            </Text>
+            <Heading level={4}>Quest finished</Heading>
           </div>
         ) : (
           <div className="space-y-3">
             <Heading level={4} className="text-center">
-              Выбор действия
+              Choose:
             </Heading>
             <div className="grid gap-3">
               {node.choices?.map((choice: any) => (
@@ -116,14 +124,11 @@ export const CoopBattleScreen: React.FC<CoopBattleScreenProps> = ({ roomCode }) 
                   onClick={() => handleChoice(choice.id)}
                 >
                   {choice.text}
-                  {choice.requiredRole && (
-                    <span className="ml-2 text-xs text-white/60">({choice.requiredRole.toUpperCase()})</span>
-                  )}
                 </Button>
               ))}
               {(!node.choices || node.choices.length === 0) && (
                 <Text variant="muted" size="sm" className="text-center">
-                  Доступных действий больше нет. Дождитесь перехода в следующую сцену.
+                  No choices.
                 </Text>
               )}
             </div>

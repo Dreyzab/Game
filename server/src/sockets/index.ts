@@ -1,5 +1,6 @@
 import { Elysia, t } from "elysia";
 import { auth } from "../api/auth";
+import { eventBus } from "../lib/bus";
 
 // Simple in-memory room manager
 // In prod, this should sync with Redis for horizontal scaling
@@ -14,9 +15,7 @@ export const wsRoutes = (app: Elysia) =>
                 payload: t.Any()
             }),
             open(ws) {
-                console.log("WS Connected", ws.id);
-                // We can attach user info from ws.data (derived from auth)
-                // const user = ws.data.user;
+                // console.log("WS Connected", ws.id);
             },
             message(ws, message) {
                 const { type, payload } = message;
@@ -24,23 +23,22 @@ export const wsRoutes = (app: Elysia) =>
                 if (type === "join_room") {
                     const roomId = payload.roomId;
                     ws.subscribe(roomId);
-                    console.log(`Socket ${ws.id} joined room ${roomId}`);
+                    // console.log(`Socket ${ws.id} joined room ${roomId}`);
                     ws.publish(roomId, { type: "player_joined", sender: ws.id });
                 }
 
-                if (type === "move") {
-                    // Broadcast move to room
-                    // Expect payload: { roomId: "...", x: 10, y: 20 }
-                    const { roomId, ...data } = payload;
-                    ws.publish(roomId, { type: "player_moved", sender: ws.id, data });
-                }
-
-                if (type === "chat") {
-                    const { roomId, text } = payload;
-                    ws.publish(roomId, { type: "chat_message", sender: ws.id, text });
+                if (type === "coop_join") {
+                    const { code } = payload;
+                    ws.subscribe(`coop:${code}`);
+                    // console.log(`Socket ${ws.id} subscribed to coop:${code}`);
                 }
             },
-            close(ws) {
-                console.log("WS Closed", ws.id);
-            }
+        })
+        .onStart(() => {
+            eventBus.on('coop_update', ({ roomId, data }) => {
+                app.server?.publish(`coop:${roomId}`, JSON.stringify({
+                    type: 'coop_update',
+                    data
+                }));
+            });
         });
