@@ -1,13 +1,20 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { DialogueBox, ChoicePanel, CharacterGroup } from '@/entities/visual-novel/ui'
+import { AnimatePresence } from 'framer-motion'
+import {
+  CharacterGroup,
+  CharacterSprites,
+  ChoicePanel,
+  DialogueBox,
+  VFXOverlay,
+} from '@/entities/visual-novel/ui'
+import { cn } from '@/shared/lib/utils/cn'
 import type {
   VisualNovelChoiceView,
   VisualNovelLine,
   VisualNovelSceneDefinition,
 } from '@/shared/types/visualNovel'
-import { Button } from '@/shared/ui/components/Button'
-import { useConsultationMode, getVoiceDefinition } from '@/features/visual-novel/consultation'
+import type { VoiceId } from '@/shared/types/parliament'
+import { getVoiceDefinition, useConsultationMode } from '@/features/visual-novel/consultation'
 
 export interface VNScreenProps {
   scene: VisualNovelSceneDefinition
@@ -45,36 +52,34 @@ export const VNScreen: React.FC<VNScreenProps> = ({
   onAdviceViewed,
   isCommitting = false,
 }) => {
-  const log = useCallback((...args: unknown[]) => {
-    console.log('🖼️ [VN Screen]', ...args)
-  }, [])
-  const speaker = useMemo(
-    () => scene.characters.find((character) => character.id === currentLine?.speakerId),
-    [currentLine?.speakerId, scene.characters]
-  )
+  const speaker = useMemo(() => {
+    if (!currentLine?.speakerId) return undefined
+    return (
+      scene.characters.find((character) => character.id === currentLine.speakerId) ??
+      scene.characters[0]
+    )
+  }, [currentLine?.speakerId, scene.characters])
 
   const backgroundImage = currentLine?.backgroundOverride ?? scene.background
   const [isLineRevealed, setLineRevealed] = useState(false)
   const [isWaitingForAdvance, setWaitingForAdvance] = useState(false)
+  const [forceShowText, setForceShowText] = useState(false)
   const autoAdvanceTimeoutRef = useRef<number | null>(null)
 
-  // Система консультаций с внутренними голосами
   const consultation = useConsultationMode({
     currentLine,
     choices,
-    skills,
+    skills: skills as Partial<Record<VoiceId, number>>,
     flags,
-    onAdviceViewed,
+    onAdviceViewed: onAdviceViewed as any,
     sceneId: scene.id,
   })
 
-  // Получаем определение активного голоса
   const activeVoice = useMemo(
     () => (consultation.activeVoiceId ? getVoiceDefinition(consultation.activeVoiceId) : null),
     [consultation.activeVoiceId]
   )
 
-  // Выборы видны только если: 1) реплика раскрыта, 2) не в режиме консультации, 3) нет pending
   const visibleChoices = useMemo(
     () => (isLineRevealed && !isPending && !consultation.isConsultationMode ? choices : []),
     [choices, isLineRevealed, isPending, consultation.isConsultationMode]
@@ -82,10 +87,11 @@ export const VNScreen: React.FC<VNScreenProps> = ({
 
   const showVoiceTabs =
     isLineRevealed && choices.length > 0 && consultation.availableVoiceIds.length > 0
-  const hasCharacterCards = scene.characters.length > 0
 
-  const [isTextTyping, setIsTextTyping] = useState(false)
-  const [forceShowText, setForceShowText] = useState(false)
+  const spritesActiveSpeakerId = useMemo(() => {
+    if (consultation.isConsultationMode) return null
+    return currentLine?.speakerId ?? null
+  }, [consultation.isConsultationMode, currentLine?.speakerId])
 
   const exitConsultation = useCallback(() => {
     consultation.exitConsultationMode()
@@ -95,13 +101,11 @@ export const VNScreen: React.FC<VNScreenProps> = ({
   }, [consultation, isLineRevealed])
 
   useEffect(() => {
-    log('🆕 Активная реплика изменена', { lineId: currentLine?.id, sceneId: scene.id })
     setLineRevealed(false)
     setWaitingForAdvance(false)
     setForceShowText(false)
-  }, [currentLine?.id, log, scene.id])
+  }, [currentLine?.id, scene.id])
 
-  // Очищаем таймер при размонтировании компонента
   useEffect(() => {
     return () => {
       if (autoAdvanceTimeoutRef.current !== null) {
@@ -120,26 +124,16 @@ export const VNScreen: React.FC<VNScreenProps> = ({
     const hasNext = Boolean(currentLine?.nextLineId || currentLine?.transition?.nextSceneId)
     if (!hasNext) return
 
-    // Пауза между репликами - 5 секунд
     const PAUSE_BEFORE_ADVANCE = 5000
-    log('⏳ Пауза перед следующей репликой', {
-      lineId: currentLine?.id,
-      nextLineId: currentLine?.nextLineId,
-      nextSceneId: currentLine?.transition?.nextSceneId,
-      delay: PAUSE_BEFORE_ADVANCE,
-    })
-
     setWaitingForAdvance(true)
 
     autoAdvanceTimeoutRef.current = window.setTimeout(() => {
-      log('⏩ Автоматический переход после паузы', { fromLineId: currentLine?.id })
       setWaitingForAdvance(false)
       onAdvance()
       autoAdvanceTimeoutRef.current = null
     }, PAUSE_BEFORE_ADVANCE)
 
     return () => {
-      log('🧹 Отмена паузы', { lineId: currentLine?.id })
       if (autoAdvanceTimeoutRef.current !== null) {
         clearTimeout(autoAdvanceTimeoutRef.current)
         autoAdvanceTimeoutRef.current = null
@@ -154,225 +148,155 @@ export const VNScreen: React.FC<VNScreenProps> = ({
     isLineRevealed,
     isPending,
     isSceneCompleted,
-    log,
     onAdvance,
   ])
 
   const handleChoiceSelect = useCallback(
     (choiceId: string) => {
-      if (!isLineRevealed || isPending || isSceneCompleted) {
-        log('🚫 Выбор заблокирован', {
-          choiceId,
-          isLineRevealed,
-          isPending,
-          isSceneCompleted,
-        })
-        return
-      }
-      log('🟢 Выбор передан во viewModel', { choiceId })
+      if (!isLineRevealed || isPending || isSceneCompleted) return
       onChoice(choiceId)
     },
-    [isLineRevealed, isPending, isSceneCompleted, log, onChoice]
+    [isLineRevealed, isPending, isSceneCompleted, onChoice]
   )
 
   const skipPause = useCallback(() => {
     if (autoAdvanceTimeoutRef.current !== null) {
-      log('⏭️ Пропуск паузы по клику')
       clearTimeout(autoAdvanceTimeoutRef.current)
       autoAdvanceTimeoutRef.current = null
       setWaitingForAdvance(false)
       onAdvance()
     }
-  }, [log, onAdvance])
-
-  const handleScreenClick = useCallback(() => {
-    // В режиме консультации - выходим из него
-    if (consultation.isConsultationMode) {
-      exitConsultation()
-      return
-    }
-
-    // Если текст печатается - ускоряем его
-    if (isTextTyping) {
-      setForceShowText(true)
-      return
-    }
-
-    // Если есть выборы или сцена завершена, не обрабатываем клик
-    if (visibleChoices.length > 0 || isSceneCompleted || isPending) {
-      return
-    }
-    // Если ждём автоматического перехода - пропускаем паузу
-    if (isWaitingForAdvance) {
-      skipPause()
-      return
-    }
-
-    // Если ничего не происходит, но кликнули - пробуем перейти дальше (если текст уже показан)
-    if (isLineRevealed && !isWaitingForAdvance) {
-      onAdvance()
-    }
-  }, [
-    consultation,
-    exitConsultation,
-    isTextTyping,
-    visibleChoices.length,
-    isSceneCompleted,
-    isPending,
-    isWaitingForAdvance,
-    skipPause,
-    isLineRevealed,
-    onAdvance
-  ])
+  }, [onAdvance])
 
   return (
-    <div className="relative min-h-svh w-full overflow-hidden text-white">
-      <motion.div
-        key={backgroundImage}
-        className="absolute inset-0"
-        style={{
-          backgroundImage: `url(${backgroundImage})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-        }}
-        initial={{ opacity: 0.6, scale: 1.05 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.8 }}
-      />
+    <div className="vn-chronicles relative w-screen h-screen overflow-hidden bg-[#020617]">
       <div
-        className="absolute inset-0"
-        style={{
-          background: scene.ambientColor ?? 'rgba(2, 6, 23, 0.78)',
-        }}
+        className="absolute inset-0 bg-cover bg-center transition-all duration-1000 scale-105"
+        style={{ backgroundImage: `url(${backgroundImage})` }}
       />
-      <div
-        className="relative z-10 flex min-h-svh flex-col gap-6 px-4 pb-8 pt-10 md:px-10"
-        onClick={handleScreenClick}
-      >
-        <div className="flex flex-col gap-2">
-          <div className="text-xs uppercase tracking-[0.4em] text-white/60">
+
+      <VFXOverlay />
+
+      <CharacterSprites characters={scene.characters} activeSpeakerId={spritesActiveSpeakerId} />
+
+      <div className="absolute top-0 left-0 w-full z-30 p-6 flex justify-between items-start pointer-events-none">
+        <div className="animate-fade-in">
+          <h1 className="font-cinzel text-xs tracking-[0.5em] text-white/40 uppercase">
             {scene.location}
-          </div>
-          <h1 className="text-2xl font-semibold md:text-3xl">{scene.title}</h1>
-          {scene.description && (
-            <p className="max-w-2xl text-sm text-white/70">{scene.description}</p>
+          </h1>
+          <h2 className="font-playfair text-2xl text-white mt-1">{scene.title}</h2>
+        </div>
+        <div className="flex gap-4 animate-fade-in pointer-events-auto">
+          {isCommitting && (
+            <div className="bg-black/40 border border-white/10 px-4 py-2 rounded-lg backdrop-blur-md">
+              <span className="text-[10px] font-cinzel text-slate-400 block uppercase tracking-widest">
+                Saving
+              </span>
+              <span className="text-white font-bold">...</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="absolute inset-0 flex flex-col justify-end z-40 pb-4">
+        <div className="w-full mb-4">
+          {showVoiceTabs ? (
+            <div className="flex justify-center gap-3 animate-slide-up">
+              <button
+                onClick={exitConsultation}
+                className={cn(
+                  'px-6 py-2 rounded-t-xl border-x border-t font-cinzel text-[10px] tracking-widest transition-all uppercase',
+                  !consultation.isConsultationMode
+                    ? 'bg-blue-500/30 border-blue-400 text-white shadow-[0_-4px_15px_rgba(59,130,246,0.3)]'
+                    : 'bg-blue-500/10 border-blue-500/30 text-blue-300 hover:bg-blue-500/20'
+                )}
+              >
+                Dialogue
+              </button>
+              {consultation.availableVoiceIds.map((voiceId) => {
+                const def = getVoiceDefinition(voiceId)
+                const isActive = consultation.activeVoiceId === voiceId
+                if (!def) return null
+
+                return (
+                  <button
+                    key={voiceId}
+                    onClick={() => consultation.consultVoice(voiceId)}
+                    className={cn(
+                      'px-6 py-2 rounded-t-xl border-x border-t font-cinzel text-[10px] tracking-widest transition-all uppercase',
+                      isActive
+                        ? 'bg-blue-500/30 border-blue-400 text-white shadow-[0_-4px_15px_rgba(59,130,246,0.3)]'
+                        : 'bg-blue-500/10 border-blue-500/30 text-blue-300 hover:bg-blue-500/20'
+                    )}
+                    style={isActive ? { borderColor: def.color } : undefined}
+                  >
+                    Voice: {def.name}
+                  </button>
+                )
+              })}
+            </div>
+          ) : (
+            !isSceneCompleted &&
+            !consultation.isConsultationMode && (
+              <CharacterGroup
+                characters={scene.characters}
+                activeCharacterId={currentLine?.speakerId}
+              />
+            )
           )}
         </div>
 
-        {(showVoiceTabs || hasCharacterCards) && (
-          <div className="flex flex-col gap-4">
-            {showVoiceTabs ? (
-              <div className="flex flex-wrap gap-3">
-                <div
-                  onClick={exitConsultation}
-                  className={`min-w-[160px] flex-1 rounded-2xl border px-4 py-3 backdrop-blur cursor-pointer transition-all duration-200 ${!consultation.isConsultationMode
-                    ? 'border-white/70 bg-white/15 shadow-lg'
-                    : 'border-white/10 bg-white/5 hover:bg-white/10'
-                    }`}
-                >
-                  <p
-                    className="text-xs uppercase tracking-[0.35em] text-white/60"
-                    style={{ color: 'rgb(125, 211, 252)' }}
-                  >
-                    Рассказчик
-                  </p>
-                </div>
+        <AnimatePresence mode="wait">
+          {consultation.isConsultationMode && consultation.currentAdvice && activeVoice ? (
+            <DialogueBox
+              key={`advice-${consultation.activeVoiceId}`}
+              speakerName={activeVoice.name}
+              speakerTitle={`Internal voice (lvl ${skills[consultation.activeVoiceId || ''] ?? 0})`}
+              text={consultation.currentAdvice.text}
+              mood={consultation.currentAdvice.mood}
+              stageDirection={consultation.currentAdvice.stageDirection}
+              disabled={false}
+              isPending={false}
+              onAdvance={exitConsultation}
+              onRevealComplete={() => {}}
+              style={{
+                borderLeft: `4px solid ${activeVoice.color}`,
+                boxShadow: `inset 10px 0 20px -10px ${activeVoice.color}22`,
+              }}
+            />
+          ) : (
+            <DialogueBox
+              key={`dialogue-${currentLine?.id}`}
+              speakerName={speaker?.name}
+              speakerTitle={speaker?.title}
+              text={currentLine?.text}
+              mood={currentLine?.mood}
+              stageDirection={currentLine?.stageDirection}
+              disabled={visibleChoices.length > 0 || isSceneCompleted}
+              isPending={isPending || isWaitingForAdvance}
+              onAdvance={isWaitingForAdvance ? skipPause : onAdvance}
+              onRevealComplete={() => setLineRevealed(true)}
+              forceShow={forceShowText}
+            />
+          )}
+        </AnimatePresence>
 
-                {consultation.availableVoiceIds.map((voiceId) => {
-                  const def = getVoiceDefinition(voiceId)
-                  const isActive = consultation.activeVoiceId === voiceId
-                  if (!def) return null
+        <ChoicePanel choices={visibleChoices} onSelect={handleChoiceSelect} skills={skills} />
 
-                  return (
-                    <div
-                      key={voiceId}
-                      onClick={() => consultation.consultVoice(voiceId)}
-                      className={`min-w-[160px] flex-1 rounded-2xl border px-4 py-3 backdrop-blur cursor-pointer transition-all duration-200 ${isActive
-                        ? 'border-white/70 bg-white/15 shadow-lg'
-                        : 'border-white/10 bg-white/5 hover:bg-white/10'
-                        }`}
-                    >
-                      <p
-                        className="text-xs uppercase tracking-[0.35em] text-white/60"
-                        style={{ color: def.color }}
-                      >
-                        {def.name}
-                      </p>
-                    </div>
-                  )
-                })}
-              </div>
-            ) : (
-              <CharacterGroup characters={scene.characters} activeCharacterId={currentLine?.speakerId} />
-            )}
+        {isSceneCompleted && (
+          <div className="flex justify-center mb-12 animate-fade-in">
+            <button
+              onClick={onExit}
+              disabled={isCommitting}
+              className={cn(
+                'px-10 py-4 bg-white/5 border border-white/20 rounded-xl font-cinzel text-white tracking-[0.3em] transition-all uppercase',
+                isCommitting ? 'opacity-60 cursor-not-allowed' : 'hover:bg-white/10'
+              )}
+            >
+              {isCommitting ? 'Saving...' : 'Save & Exit'}
+            </button>
           </div>
         )}
-
-        <div className="mt-auto flex flex-col gap-4">
-          {/* DialogueBox - показываем совет голоса ИЛИ обычный диалог */}
-          <AnimatePresence mode="wait">
-            {consultation.isConsultationMode && consultation.currentAdvice && activeVoice ? (
-              // Режим консультации - показываем совет голоса
-              <DialogueBox
-                key={`advice-${consultation.activeVoiceId}`}
-                // Скрываем имя, если есть табы (чтобы не дублировать)
-                speakerName={undefined}
-                speakerTitle={`Уровень: ${skills[consultation.activeVoiceId || ''] ?? 0}`}
-                text={consultation.currentAdvice.text}
-                mood={consultation.currentAdvice.mood}
-                stageDirection={consultation.currentAdvice.stageDirection}
-                disabled={false}
-                isPending={false}
-                onAdvance={exitConsultation}
-                onRevealComplete={() => { }}
-              />
-            ) : (
-              // Обычный режим - показываем диалог сцены
-              <DialogueBox
-                key={`dialogue-${currentLine?.id}`}
-                // Скрываем имя, если есть табы и они активны (есть выборы и голоса)
-                speakerName={
-                  (isLineRevealed && choices.length > 0 && consultation.availableVoiceIds.length > 0)
-                    ? undefined
-                    : speaker?.name
-                }
-                speakerTitle={speaker?.title}
-                text={currentLine?.text}
-                mood={currentLine?.mood}
-                stageDirection={currentLine?.stageDirection}
-                disabled={visibleChoices.length > 0 || isSceneCompleted}
-                isPending={isPending || isWaitingForAdvance}
-                onAdvance={isWaitingForAdvance ? skipPause : onAdvance}
-                onRevealComplete={() => setLineRevealed(true)}
-                onTypingStatusChange={setIsTextTyping}
-                forceShow={forceShowText}
-              />
-            )}
-          </AnimatePresence>
-
-          <ChoicePanel choices={visibleChoices} onSelect={handleChoiceSelect} />
-
-          <AnimatePresence>
-            {isSceneCompleted && (
-              <motion.div
-                className="flex w-full items-center justify-between rounded-2xl border border-white/15 bg-black/50 px-4 py-3 backdrop-blur-md"
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 16 }}
-              >
-                <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.3em] text-white/70">
-                    Сцена завершена
-                  </p>
-                  <p className="text-xs text-white/60">Можно вернуться на карту или выбрать другую сцену.</p>
-                </div>
-                <Button size="sm" variant="secondary" onClick={onExit} disabled={isCommitting}>
-                  {isCommitting ? 'Сохранение...' : 'Завершить'}
-                </Button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
       </div>
     </div>
   )

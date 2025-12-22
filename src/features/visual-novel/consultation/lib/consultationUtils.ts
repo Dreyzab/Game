@@ -1,11 +1,12 @@
 import type { VisualNovelAdvice } from '@/shared/types/visualNovel'
+import type { VoiceId } from '@/shared/types/parliament'
 
 /**
  * Фильтрует советы по доступности на основе навыков и флагов игрока
  */
 export function filterAvailableAdvices(
   advices: VisualNovelAdvice[] | undefined,
-  skills: Record<string, number>,
+  skills: Partial<Record<VoiceId, number>>,
   flags: Set<string>
 ): VisualNovelAdvice[] {
   if (!advices || advices.length === 0) {
@@ -48,7 +49,7 @@ export function filterAvailableAdvices(
 /**
  * Получает уровень навыка игрока
  */
-export function getSkillLevel(skills: Record<string, number>, skillId: string): number {
+export function getSkillLevel(skills: Partial<Record<VoiceId, number>>, skillId: VoiceId): number {
   return skills[skillId] ?? 0
 }
 
@@ -57,7 +58,7 @@ export function getSkillLevel(skills: Record<string, number>, skillId: string): 
  */
 export function isAdviceAvailable(
   advice: VisualNovelAdvice,
-  skills: Record<string, number>,
+  skills: Partial<Record<VoiceId, number>>,
   flags: Set<string>
 ): boolean {
   return filterAvailableAdvices([advice], skills, flags).length > 0
@@ -87,9 +88,9 @@ export function groupAdvicesByCategory(
  */
 export function getAvailableVoiceIds(
   advices: VisualNovelAdvice[] | undefined,
-  skills: Record<string, number>,
+  skills: Partial<Record<VoiceId, number>>,
   flags: Set<string>
-): string[] {
+): VoiceId[] {
   const available = filterAvailableAdvices(advices, skills, flags)
   return Array.from(new Set(available.map((advice) => advice.characterId)))
 }

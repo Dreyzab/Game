@@ -1,3 +1,5 @@
+import type { VoiceId } from './parliament'
+
 export type VisualNovelMood = 'neutral' | 'tense' | 'warm' | 'serious' | 'hopeful' | 'grim'
 
 export type VisualNovelAlignment = 'left' | 'right' | 'center'
@@ -17,7 +19,7 @@ export interface VisualNovelChoiceRequirement {
   flags?: string[]
   notFlags?: string[]
   skillCheck?: {
-    skill: string
+    skill: VoiceId
     difficulty: number
     label?: string
   }
@@ -51,7 +53,7 @@ export interface VisualNovelChoice {
 }
 
 export interface VisualNovelAdvice {
-  characterId: string
+  characterId: VoiceId
   text: string
   mood?: VisualNovelMood
   stageDirection?: string

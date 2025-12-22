@@ -1062,6 +1062,42 @@ export const SEED_MAP_POINTS: SeedMapPoint[] = [
     createdAt: Date.now(),
   },
 
+  // Ратушная площадь — регистрация новоприбывших
+  {
+    id: 'rathaus_square',
+    title: 'Ратушная площадь',
+    description:
+      'Площадь перед сердцем старого города и его мэрией. Здесь новоприбывшие проходят первичную регистрацию.',
+    coordinates: { lat: 47.996131438492796, lng: 7.8495038381611835 },
+    type: 'location',
+    phase: 1,
+    isActive: true,
+    qrCode: 'gw3:point:rathaus_square',
+    metadata: {
+      category: 'townhall',
+      faction: 'neutral',
+      qrRequired: true,
+      qrHint: 'QR-код закреплён у входа на Ратушную площадь.',
+      atmosphere:
+        'Площадь перед сердцем старого города. Каменная мэрия XVI–XVII веков со временем стала частью административного квартала.',
+      sceneBindings: [
+        {
+          sceneId: 'onboarding_townhall_registration',
+          triggerType: 'qr',
+          conditions: { notFlags: ['city_registered'] },
+          priority: 100,
+        },
+        {
+          sceneId: 'onboarding_townhall_registration',
+          triggerType: 'click',
+          conditions: { notFlags: ['city_registered'] },
+          priority: 90,
+        },
+      ],
+    },
+    createdAt: Date.now(),
+  },
+
   // Мэр Аурелия Фокс
   {
     id: 'mayor_aurelia_fox',
@@ -1116,4 +1152,3 @@ export function getSeedMapPoints(): SeedMapPoint[] {
   const now = Date.now()
   return SEED_MAP_POINTS.map((p) => ({ ...p, createdAt: now }))
 }
-

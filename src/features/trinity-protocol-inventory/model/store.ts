@@ -60,6 +60,7 @@ const findFirstFitPosition = ({
 }
 
 export const useTrinityInventoryStore = create<Store>((set, get) => ({
+  initialized: false,
   items: {},
   templates: ITEM_TEMPLATES,
   equipment: {
@@ -80,15 +81,26 @@ export const useTrinityInventoryStore = create<Store>((set, get) => ({
   selectedItemId: null,
 
   initialize: () => {
+    if (get().initialized) return
+
+    const primaryWeaponId = generateId()
+    const secondaryWeaponId = generateId()
+    const pocketMedkitId = generateId()
+    const pocketAmmo1Id = generateId()
+    const pocketAmmo2Id = generateId()
+    const pocketLootId = generateId()
+    const armorId = generateId()
+    const backpackId = generateId()
+
     const starterItems: InventoryItem[] = [
-      { instanceId: generateId(), templateId: 'ar-15', x: 0, y: 0, rotation: 0, quantity: 1, containerId: 'stash' },
-      { instanceId: generateId(), templateId: 'pistol', x: 5, y: 0, rotation: 0, quantity: 1, containerId: 'stash' },
-      { instanceId: generateId(), templateId: 'medkit', x: 0, y: 3, rotation: 0, quantity: 1, containerId: 'stash' },
-      { instanceId: generateId(), templateId: 'ammo_box', x: 1, y: 3, rotation: 0, quantity: 60, containerId: 'stash' },
-      { instanceId: generateId(), templateId: 'ammo_box', x: 2, y: 3, rotation: 0, quantity: 60, containerId: 'stash' },
-      { instanceId: generateId(), templateId: 'gold_watch', x: 6, y: 0, rotation: 0, quantity: 1, containerId: 'stash' },
-      { instanceId: generateId(), templateId: 'armor_light', x: 0, y: 5, rotation: 0, quantity: 1, containerId: 'stash' },
-      { instanceId: generateId(), templateId: 'backpack_large', x: 3, y: 5, rotation: 0, quantity: 1, containerId: 'stash' },
+      { instanceId: primaryWeaponId, templateId: 'ar-15', x: -1, y: -1, rotation: 0, quantity: 1, containerId: 'equipped' },
+      { instanceId: secondaryWeaponId, templateId: 'pistol', x: -1, y: -1, rotation: 0, quantity: 1, containerId: 'equipped' },
+      { instanceId: pocketMedkitId, templateId: 'medkit', x: -1, y: -1, rotation: 0, quantity: 1, containerId: 'equipped' },
+      { instanceId: pocketAmmo1Id, templateId: 'ammo_box', x: -1, y: -1, rotation: 0, quantity: 60, containerId: 'equipped' },
+      { instanceId: pocketAmmo2Id, templateId: 'ammo_box', x: -1, y: -1, rotation: 0, quantity: 60, containerId: 'equipped' },
+      { instanceId: pocketLootId, templateId: 'gold_watch', x: -1, y: -1, rotation: 0, quantity: 1, containerId: 'equipped' },
+      { instanceId: armorId, templateId: 'armor_light', x: -1, y: -1, rotation: 0, quantity: 1, containerId: 'equipped' },
+      { instanceId: backpackId, templateId: 'backpack_large', x: -1, y: -1, rotation: 0, quantity: 1, containerId: 'equipped' },
     ]
 
     const items = starterItems.reduce(
@@ -99,7 +111,26 @@ export const useTrinityInventoryStore = create<Store>((set, get) => ({
       {} as Record<string, InventoryItem>
     )
 
-    set({ items })
+    set({
+      items,
+      equipment: {
+        helmet: null,
+        armor: armorId,
+        primary: primaryWeaponId,
+        secondary: secondaryWeaponId,
+        backpack: backpackId,
+        rig: null,
+        pocket1: pocketMedkitId,
+        pocket2: pocketAmmo1Id,
+        pocket3: pocketAmmo2Id,
+        pocket4: pocketLootId,
+      },
+      containers: {
+        stash: { width: INITIAL_STASH_WIDTH, height: INITIAL_STASH_HEIGHT },
+        [backpackId]: { width: 5, height: 5 },
+      },
+      initialized: true,
+    })
   },
 
   selectItem: (instanceId) => set({ selectedItemId: instanceId }),

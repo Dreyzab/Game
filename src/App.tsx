@@ -6,6 +6,7 @@ import { Navbar } from '@/widgets/navbar'
 import MapPage from '@/pages/MapPage'
 import VisualNovelPage from '@/pages/VisualNovelPage'
 import ProloguePage from '@/pages/ProloguePage'
+import CityRegistrationPage from '@/pages/CityRegistrationPage'
 import CharacterPage from '@/pages/CharacterPage'
 import InventoryPage from '@/pages/InventoryPage'
 import SettingsPage from '@/pages/SettingsPage'
@@ -31,9 +32,7 @@ const AppShell = () => {
   return (
     <>
       <Navbar />
-      <div className="pt-16">
-        <Outlet />
-      </div>
+      <Outlet />
     </>
   )
 }
@@ -63,6 +62,7 @@ function App() {
 
       {/* VN routes without navbar */}
       <Route path={RoutePaths.PROLOGUE} element={<ProloguePage />} />
+      <Route path={RoutePaths.REGISTRATION} element={<CityRegistrationPage />} />
       <Route path={`${RoutePaths.VISUAL_NOVEL}/:sceneId?`} element={<VisualNovelPage />} />
 
       {/* Tutorial Battle (no navbar) */}

@@ -31,7 +31,7 @@ export function useMapInteractionFlow(options: MapInteractionFlowOptions = {}) {
 
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const { getToken } = useAuth()
+  const { getToken, isLoaded } = useAuth()
   const { deviceId } = useDeviceId()
   const { progress } = usePlayerProgress()
 
@@ -123,6 +123,38 @@ export function useMapInteractionFlow(options: MapInteractionFlowOptions = {}) {
       if (!qrTargetPoint) return
 
       try {
+        // Onboarding gate: before city registration, QR scans should not execute point/bonus logic.
+        // Prefer a silent UX on the map (close the scanner); for first-time players, start the police scene.
+        if (isLoaded) {
+          try {
+            const vnState = await queryClient.fetchQuery({
+              queryKey: ['vn-state'],
+              queryFn: async () => {
+                const token = await getToken()
+                const client = authenticatedClient(token ?? undefined, deviceId)
+                const { data, error } = await client.vn.state.get()
+                if (error) throw error
+                return data
+              },
+              staleTime: 0,
+            })
+
+            const flags = (vnState as any)?.progress?.flags as Record<string, unknown> | undefined
+            const isRegistered = Boolean(flags?.city_registered)
+            const hasNickname = Boolean(flags?.nickname_set)
+
+            if (!isRegistered) {
+              if (!hasNickname) {
+                navigate(`${Routes.VISUAL_NOVEL}/onboarding_police_intro`)
+                closeQRScanner()
+                return
+              }
+            }
+          } catch {
+            // Ignore onboarding fetch failures and let the server-side QR gate handle it.
+          }
+        }
+
         const token = await getToken()
         const client = authenticatedClient(token ?? undefined, deviceId)
         const { data, error } = await client.map['activate-qr'].post({
@@ -142,9 +174,11 @@ export function useMapInteractionFlow(options: MapInteractionFlowOptions = {}) {
           return
         }
 
-        setInteractionNotice(`Точка активирована: ${qrTargetPoint.title}`)
-
-        await queryClient.invalidateQueries({ queryKey: ['mapPoints'] })
+        const gated = payload.gated === true && payload.kind === 'onboarding'
+        if (!gated) {
+          setInteractionNotice(`Точка активирована: ${qrTargetPoint.title}`)
+          await queryClient.invalidateQueries({ queryKey: ['mapPoints'] })
+        }
 
         const actionsRaw = payload.actions
         const actions: Action[] = Array.isArray(actionsRaw) ? actionsRaw.filter(isAction) : []
@@ -191,7 +225,7 @@ export function useMapInteractionFlow(options: MapInteractionFlowOptions = {}) {
         closeQRScanner()
       }
     },
-    [closeQRScanner, deviceId, enabled, getToken, navigate, qrTargetPoint, queryClient]
+    [closeQRScanner, deviceId, enabled, getToken, isLoaded, navigate, qrTargetPoint, queryClient]
   )
 
   const closeInteraction = useCallback(() => {

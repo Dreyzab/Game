@@ -10,7 +10,7 @@ import { getVoiceDefinition } from '../lib/voiceDefinitions' // Use local enrich
  * Uses the canonical voice system from parliament.ts
  */
 export const ParliamentPanel: React.FC<{ className?: string }> = ({ className }) => {
-    const { getVoicesByGroup, getVoiceLevel } = useParliament()
+    const { getVoicesByGroup, getVoiceLevel, maxResources } = useParliament()
 
     return (
         <div className={cn('space-y-6', className)}>
@@ -19,49 +19,68 @@ export const ParliamentPanel: React.FC<{ className?: string }> = ({ className })
                 <span className="text-xs text-[color:var(--color-text-muted)]">18 ГОЛОСОВ</span>
             </div>
 
-            {Object.entries(ATTRIBUTE_GROUPS).map(([groupId, group]) => (
-                <MotionContainer key={groupId} className="space-y-3" delay={0.1}>
-                    <div className="border-b border-[color:var(--color-border)] pb-1">
-                        <h4 className="text-xs font-bold text-[color:var(--color-text-secondary)] uppercase tracking-widest">
-                            {group.nameRu}
-                        </h4>
-                        <p className="text-[10px] text-[color:var(--color-text-muted)]">{group.description}</p>
-                    </div>
+            {Object.entries(ATTRIBUTE_GROUPS).map(([groupId, group]) => {
+                const resourceMeta = group.resourceMetadata
+                // Use bracket notation to access typed property. Needs type assertion if keys don't match exactly or if MaxResources isn't a Record.
+                // Actually MaxResources has all keys matching: hp, ap, mp, wp, pp, sp.
+                // We needs to map group.resourceMetadata.id to MaxResources key.
+                const resourceValue = maxResources[resourceMeta.id]
 
-                    <div className="grid grid-cols-1 gap-2">
-                        {getVoicesByGroup(groupId as AttributeGroup).map((voice) => {
-                            const level = getVoiceLevel(voice.id)
-                            const enrichedVoice = getVoiceDefinition(voice.id) // Get icon from lib
-                            return (
-                                <div
-                                    key={voice.id}
-                                    className="group flex items-center justify-between p-2 rounded-md bg-[color:var(--color-surface)] hover:bg-[color:var(--color-surface-hover)] transition-colors border border-transparent hover:border-[color:var(--color-border)]"
-                                    title={voice.description}
-                                >
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-lg">
-                                            {enrichedVoice?.icon ? (
-                                                <img src={enrichedVoice.icon} alt={voice.nameRu} className="w-6 h-6 rounded-full object-cover" />
-                                            ) : voice.icon}
-                                        </span>
-                                        <div className="flex flex-col">
-                                            <span className="text-sm font-medium text-[color:var(--color-text)] group-hover:text-[color:var(--color-primary)] transition-colors">
-                                                {voice.nameRu}
+                return (
+                    <MotionContainer key={groupId} className="space-y-3" delay={0.1}>
+                        <div className="border-b border-[color:var(--color-border)] pb-1 flex items-center justify-between">
+                            <div>
+                                <h4 className="text-xs font-bold text-[color:var(--color-text-secondary)] uppercase tracking-widest">
+                                    {group.nameRu}
+                                </h4>
+                                <p className="text-[10px] text-[color:var(--color-text-muted)]">{group.description}</p>
+                            </div>
+
+                            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-[color:var(--color-surface)] border border-[color:var(--color-border)] shadow-sm">
+                                <span className="text-xs font-bold" style={{ color: resourceMeta.color }}>
+                                    {resourceMeta.acronym}
+                                </span>
+                                <span className="text-sm font-bold text-[color:var(--color-text)]">
+                                    {resourceValue}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-2">
+                            {getVoicesByGroup(groupId as AttributeGroup).map((voice) => {
+                                const level = getVoiceLevel(voice.id)
+                                const enrichedVoice = getVoiceDefinition(voice.id) // Get icon from lib
+                                return (
+                                    <div
+                                        key={voice.id}
+                                        className="group flex items-center justify-between p-2 rounded-md bg-[color:var(--color-surface)] hover:bg-[color:var(--color-surface-hover)] transition-colors border border-transparent hover:border-[color:var(--color-border)]"
+                                        title={voice.description}
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-lg">
+                                                {enrichedVoice?.icon ? (
+                                                    <img src={enrichedVoice.icon} alt={voice.nameRu} className="w-6 h-6 rounded-full object-cover" />
+                                                ) : voice.icon}
                                             </span>
-                                            <span className="text-[10px] text-[color:var(--color-text-muted)] uppercase tracking-wide">
-                                                {voice.alias}
-                                            </span>
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-medium text-[color:var(--color-text)] group-hover:text-[color:var(--color-primary)] transition-colors">
+                                                    {voice.nameRu}
+                                                </span>
+                                                <span className="text-[10px] text-[color:var(--color-text-muted)] uppercase tracking-wide">
+                                                    {voice.alias}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center justify-center w-8 h-8 rounded bg-[color:var(--color-background)] border border-[color:var(--color-border)]">
+                                            <span className="text-sm font-bold text-[color:var(--color-primary)]">{level}</span>
                                         </div>
                                     </div>
-                                    <div className="flex items-center justify-center w-8 h-8 rounded bg-[color:var(--color-background)] border border-[color:var(--color-border)]">
-                                        <span className="text-sm font-bold text-[color:var(--color-primary)]">{level}</span>
-                                    </div>
-                                </div>
-                            )
-                        })}
-                    </div>
-                </MotionContainer>
-            ))}
+                                )
+                            })}
+                        </div>
+                    </MotionContainer>
+                )
+            })}
         </div>
     )
 }

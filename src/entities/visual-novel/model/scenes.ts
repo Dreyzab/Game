@@ -1,12 +1,9 @@
-import {
-  scenarios as prologueScenarios,
-  chapter1ArrivalScenes,
-  infoBureauScenes,
-} from '@/entities/visual-novel/scenarios/prolog/scenarioTr-ST'
+import { scenarios as prologueScenarios } from '@/entities/visual-novel/scenarios/prolog/scenarioTr-ST'
 import { chapter1Scenes } from '@/entities/visual-novel/scenarios/chapter1'
 import { allTutorialScenes } from '@/entities/visual-novel/scenarios/tutorial'
 import { TEST_SCENE_WITH_ADVICES } from '@/shared/data/visualNovel/testSceneWithAdvices'
 import type { Scene, SceneCharacter, SceneChoice } from './types'
+import type { VoiceId } from '@/shared/types/parliament'
 import type {
   VisualNovelChoice,
   VisualNovelChoiceEffect,
@@ -17,7 +14,7 @@ import type {
   VisualNovelMood,
 } from '@/shared/types/visualNovel'
 
-export const DEFAULT_VN_SCENE_ID = 'prologue_coupe_start'
+export const DEFAULT_VN_SCENE_ID = 'prologue_awakening'
 
 const BASE_LOCATION = 'Фрайбург — Пролог'
 const DEFAULT_AMBIENT = 'rgba(2, 6, 23, 0.78)'
@@ -26,15 +23,11 @@ const COLOR_PALETTE = ['#7dd3fc', '#f97316', '#facc15', '#f472b6', '#a855f7', '#
 type SceneRecord = Record<string, VisualNovelSceneDefinition>
 
 const convertedPrologue = Object.values(prologueScenarios).map((scene) => convertScene(scene))
-const convertedArrivals = Object.values(chapter1ArrivalScenes).map((scene) => convertScene(scene))
-const convertedInfoBureau = Object.values(infoBureauScenes).map((scene) => convertScene(scene))
 const convertedChapter1 = Object.values(chapter1Scenes).map((scene) => convertScene(scene))
 const convertedTutorial = Object.values(allTutorialScenes).map((scene) => convertScene(scene))
 
 const ALL_SCENES: VisualNovelSceneDefinition[] = [
   ...convertedPrologue,
-  ...convertedArrivals,
-  ...convertedInfoBureau,
   ...convertedChapter1,
   ...convertedTutorial,
   TEST_SCENE_WITH_ADVICES, // Тестовая сцена с системой консультаций
@@ -153,7 +146,7 @@ function convertScene(scene: Scene): VisualNovelSceneDefinition {
   if (scene.advices?.length) {
     const terminalLine = lines[lines.length - 1]
     terminalLine.characterAdvices = scene.advices.map((advice) => ({
-      characterId: advice.characterId,
+      characterId: advice.characterId as VoiceId,
       text: advice.text,
       mood: normalizeMood(advice.mood),
       stageDirection: advice.stageDirection,
@@ -293,7 +286,7 @@ function convertChoice(choice: SceneChoice): VisualNovelChoice {
       ...(skillCheck
         ? {
           skillCheck: {
-            skill: skillCheck.skill,
+            skill: skillCheck.skill as VoiceId,
             difficulty: skillCheck.difficulty,
             label: buildSkillLabel(skillCheck.skill, skillCheck.difficulty),
           },

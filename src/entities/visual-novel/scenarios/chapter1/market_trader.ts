@@ -1,10 +1,10 @@
 import type { Scene } from '../../model/types'
 
 /**
- * Сценарии визуальной новеллы для торговца Элиаса и квеста "Шанс для новичка"
+ * Сценарии визуальной новеллы для торговца Элиаса
+ * Локация: Площадь старой синагоги
  * 
- * Квест: delivery_for_dieter
- * Цель: Забрать ящик с запчастями у Элиаса и доставить Дитеру
+ * Квест: chance_for_a_newbie / delivery_for_dieter
  */
 
 const MARKET_BACKGROUND = '/images/backgrounds/freiburg_market.jpg'
@@ -15,8 +15,8 @@ export const marketTraderScenes: Record<string, Scene> = {
   // ПЕРВАЯ ВСТРЕЧА С ЭЛИАСОМ
   // =====================================
 
-    trader_meeting_dialog: {
-        id: 'trader_meeting_dialog',
+  trader_meeting_dialog: {
+    id: 'trader_meeting_dialog',
     background: MARKET_BACKGROUND,
     characters: [
       {
@@ -30,16 +30,16 @@ export const marketTraderScenes: Record<string, Scene> = {
     dialogue: [
       {
         speaker: 'Рассказчик',
-        text: 'Лавка "Ржавый Якорь" втиснута между двумя более крупными прилавками. Вывеска — ржавый якорь на цепи — скрипит на ветру.',
+        text: 'Площадь старой синагоги — одно из немногих мест, где старый мир всё ещё кажется живым, пусть и в виде руин. Лавка "Ржавый Якорь" Элиаса примостилась прямо у входа в один из уцелевших кварталов.',
       },
       {
         speaker: 'ВОСПРИЯТИЕ',
-        text: '[ПАРАМЕТР: ПСИХЕ/ВОСПРИЯТИЕ (Успех)] Хаос на прилавке — обманчив. Каждый предмет лежит так, чтобы хозяин мог схватить его не глядя.',
+        text: '[ПАРАМЕТР: ПСИХЕ/ВОСПРИЯТИЕ (Успех)] Элиас выбрал стратегическое место. Весь поток людей с вокзала в центр проходит мимо него.',
         emotion: { primary: 'neutral', intensity: 70 },
       },
       {
         speaker: 'Рассказчик',
-        text: 'За прилавком дремлет тучный мужчина в засаленном фартуке. Его глаза закрыты, но вы не сомневаетесь, что он слышит каждый ваш шаг.',
+        text: 'Сам торговец, тучный мужчина с цепким взглядом, сидит на высоком табурете, лениво обмахиваясь пожелтевшей газетой.',
       },
       {
         speaker: 'Элиас',
@@ -91,18 +91,18 @@ export const marketTraderScenes: Record<string, Scene> = {
   trader_hans_mention: {
     id: 'trader_hans_mention',
     background: MARKET_BACKGROUND,
-        characters: [
-            {
-                id: 'elias',
-                name: 'Элиас',
-                position: 'center',
+    characters: [
+      {
+        id: 'elias',
+        name: 'Элиас',
+        position: 'center',
         sprite: ELIAS_SPRITE,
         emotion: { primary: 'surprised', intensity: 65 },
       },
-        ],
-        dialogue: [
-            {
-                speaker: 'Рассказчик',
+    ],
+    dialogue: [
+      {
+        speaker: 'Рассказчик',
         text: 'Элиас открывает один глаз. Потом второй. Его взгляд становится острым, оценивающим.',
       },
       {
@@ -119,14 +119,20 @@ export const marketTraderScenes: Record<string, Scene> = {
       {
         speaker: 'Элиас',
         characterId: 'elias',
-        text: 'Ладно. Ящик с конденсаторами, верно? Он под прилавком уже неделю пылится. Дитер всё никак курьера не пришлёт.',
+        text: 'Ладно. Ящик с конденсаторами, верно? Ганс сказал, что пришлёт кого-то толкового. (Он делает паузу, оглядывая вас) Слушай, парень. Ты здесь первый день, так что слушай внимательно.',
         emotion: { primary: 'neutral', intensity: 60 },
       },
       {
         speaker: 'Элиас',
         characterId: 'elias',
-        text: 'Но сначала... (Наклоняется вперёд) Расскажи-ка мне, парень. Зачем ты вообще во Фрайбург приехал?',
+        text: 'Фрайбург — это не просто город, это болото. FJR контролируют стены, Артисаны — инструменты, а "Синтез"... ну, они контролируют то, что осталось от мозгов. Хочешь выжить — найди себе место побыстрее.',
         emotion: { primary: 'determined', intensity: 70 },
+      },
+      {
+        speaker: 'Элиас',
+        characterId: 'elias',
+        text: 'Кстати, если ищешь безопасный ночлег, ступай к Староверам в Собор. Отец Иоанн — мужик со странностями, но своих не бросает. У них там спокойнее всего.',
+        emotion: { primary: 'neutral', intensity: 65 },
       },
     ],
     choices: [
@@ -181,18 +187,54 @@ export const marketTraderScenes: Record<string, Scene> = {
         text: 'Курьер, значит. Посылка. Не спрашивай, не болтай. Понимаю. Такие, как ты, здесь нужны.',
         emotion: { primary: 'neutral', intensity: 65 },
       },
+    ],
+    nextScene: 'elias_trade_entry',
+  },
+
+  elias_trade_entry: {
+    id: 'elias_trade_entry',
+    background: MARKET_BACKGROUND,
+    characters: [
       {
-        speaker: 'Рассказчик',
-        text: 'Он лезет под прилавок и вытаскивает тяжёлый деревянный ящик, обитый металлическими уголками.',
-            },
-            {
-                speaker: 'Элиас',
-        characterId: 'elias',
-        text: 'Вот твой груз. Дитера найдёшь в Промзоне, мастерская "Опора". Скажи ему, что я жду оплату за хранение. И ещё...',
-        emotion: { primary: 'determined', intensity: 70 },
+        id: 'elias',
+        name: 'Элиас',
+        position: 'center',
+        sprite: ELIAS_SPRITE,
+        emotion: { primary: 'neutral', intensity: 60 },
       },
     ],
-    nextScene: 'trader_advice',
+    dialogue: [
+      {
+        speaker: 'Элиас',
+        characterId: 'elias',
+        text: 'Вот ящик. Дитера найдёшь в Промзоне, мастерская "Опора". Но прежде чем уйдёшь... может, тебе нужно чего в дорогу? У меня лучший товар на этой площади.',
+        emotion: { primary: 'neutral', intensity: 60 },
+      },
+    ],
+    choices: [
+      {
+        id: 'open_trade',
+        text: 'Посмотреть товары.',
+        nextScene: 'elias_shop_menu',
+        effects: {
+          immediate: [
+            { type: 'item', data: { itemId: 'dieter_parts_crate', amount: 1 } },
+          ],
+          flags: [{ key: 'has_dieter_parts', value: true }],
+        },
+      },
+      {
+        id: 'just_take_crate',
+        text: 'Забрать ящик и идти к Дитеру.',
+        nextScene: 'trader_departure',
+        effects: {
+          immediate: [
+            { type: 'item', data: { itemId: 'dieter_parts_crate', amount: 1 } },
+          ],
+          flags: [{ key: 'has_dieter_parts', value: true }],
+        },
+      },
+    ],
   },
 
   trader_deflect_response: {
@@ -222,25 +264,25 @@ export const marketTraderScenes: Record<string, Scene> = {
       {
         speaker: 'Рассказчик',
         text: 'Элиас молча достаёт ящик и с грохотом ставит его на прилавок.',
-            },
-            {
-                speaker: 'Элиас',
+      },
+      {
+        speaker: 'Элиас',
         characterId: 'elias',
         text: 'Забирай. Дитер в Промзоне. Мастерская "Опора". И скажи ему, что следующий раз пусть шлёт кого-то повежливее.',
         emotion: { primary: 'neutral', intensity: 55 },
       },
-        ],
-        choices: [
-            {
+    ],
+    choices: [
+      {
         id: 'take_and_leave',
         text: 'Забрать ящик и уйти.',
         nextScene: 'trader_departure_cold',
-                effects: {
-                    immediate: [
+        effects: {
+          immediate: [
             { type: 'item', data: { itemId: 'dieter_parts_crate', amount: 1 } },
             { type: 'reputation', data: { faction: 'traders', delta: -5 } },
-                    ],
-                    flags: [{ key: 'has_dieter_parts', value: true }],
+          ],
+          flags: [{ key: 'has_dieter_parts', value: true }],
         },
       },
       {

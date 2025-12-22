@@ -18,9 +18,33 @@ const CombatantSprite = ({ combatant, isTargeted, onClick }: Props) => {
             ].join(' ')}
         >
             {isTargeted && !combatant.isDead && (
-                <div className="absolute -top-6 md:-top-10 animate-pulse">
+                <div className="absolute -top-12 md:-top-16 animate-pulse z-30">
                     <div className="w-4 h-4 md:w-6 md:h-6 border md:border-2 border-red-500 rounded-full flex items-center justify-center">
                         <div className="w-1 md:w-1.5 h-1 md:h-1.5 bg-red-500 rounded-full" />
+                    </div>
+                </div>
+            )}
+
+            {/* Status Indicators (Moved Above Sprite) */}
+            {!combatant.isDead && (
+                <div className="absolute -top-8 md:-top-10 w-16 md:w-20 bg-black/60 p-0.5 rounded border border-white/5 flex flex-col gap-0.5 z-20 shadow-xl">
+                    {/* HP Bar */}
+                    <div className="h-1 w-full bg-zinc-950 rounded-px overflow-hidden">
+                        <div
+                            className="h-full bg-red-600 transition-all duration-500"
+                            style={{ width: `${(combatant.resources.hp / combatant.resources.maxHp) * 100}%` }}
+                        />
+                    </div>
+                    {/* WP Bar */}
+                    <div className="h-1 w-full bg-zinc-950 rounded-px overflow-hidden">
+                        <div
+                            className="h-full bg-blue-500 transition-all duration-500"
+                            style={{ width: `${(combatant.resources.wp / combatant.resources.maxWp) * 100}%` }}
+                        />
+                    </div>
+                    <div className="flex justify-between items-center px-0.5 font-mono text-[5px] md:text-[6px] leading-none">
+                        <span className="text-red-400 font-bold">H{combatant.resources.hp}</span>
+                        <span className="text-blue-300 font-bold">W{Math.floor(combatant.resources.wp)}</span>
                     </div>
                 </div>
             )}

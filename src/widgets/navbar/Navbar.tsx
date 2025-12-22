@@ -19,7 +19,7 @@ export const Navbar: React.FC<NavbarProps> = ({ className }) => {
   return (
     <div
       className={cn(
-        'fixed inset-x-0 top-0 z-50',
+        'sticky top-0 z-50',
         'border-b border-[color:var(--color-border)] backdrop-blur-md',
         'bg-[color:var(--color-surface)]/70',
         className

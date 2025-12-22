@@ -13,6 +13,7 @@ import { industrialZoneScenes } from './industrial_zone'
 import { marketTraderScenes } from './market_trader'
 import { allFactionScenes } from './factions'
 import { allDynamicScenes, DYNAMIC_EVENTS } from './dynamic_events'
+import { onboardingScenes } from '../onboarding'
 
 // Реэкспорт для удобства
 export * from './factions'
@@ -22,6 +23,7 @@ export { marketTraderScenes } from './market_trader'
 
 // Объединённый объект всех сценариев Chapter 1
 export const chapter1Scenes = {
+  ...onboardingScenes,
   ...industrialZoneScenes,
   ...marketTraderScenes,
   ...allFactionScenes,

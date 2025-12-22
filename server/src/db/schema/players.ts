@@ -8,6 +8,8 @@ export const players = pgTable('players', {
     deviceId: text('device_id').unique(), // For guests
     name: text('name').notNull(),
     fame: integer('fame').default(0),
+    passwordHash: text('password_hash'),
+    passwordSalt: text('password_salt'),
 
     // Multiplayer Status
     factionId: text('faction_id'),

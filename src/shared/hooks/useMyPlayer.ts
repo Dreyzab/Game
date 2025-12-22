@@ -1,22 +1,38 @@
 import { useAuth } from "@clerk/clerk-react";
 import { useQuery } from "@tanstack/react-query";
 import { authenticatedClient } from "../api/client";
+import { useDeviceId } from "./useDeviceId";
 
 export const useMyPlayer = () => {
-    const { getToken, isLoaded, isSignedIn } = useAuth();
+    const { getToken, isLoaded } = useAuth();
+    const { deviceId } = useDeviceId();
 
     return useQuery({
         queryKey: ['myPlayer'],
         queryFn: async () => {
             const token = await getToken();
-            if (!token) throw new Error("No token");
 
-            const client = authenticatedClient(token);
+            const client = authenticatedClient(token || undefined, deviceId);
             const { data, error } = await client.player.get();
 
             if (error) throw error;
+
+            const payload = data as any;
+            const hasPlayer = Boolean(payload?.player);
+            const hasProgress = Boolean(payload?.progress);
+
+            // Ensure a player exists for guests (and legacy records without progress).
+            if (!hasPlayer || !hasProgress) {
+                const initResult = await client.player.init.post({});
+                if (initResult.error) throw initResult.error;
+
+                const refreshed = await client.player.get();
+                if (refreshed.error) throw refreshed.error;
+                return refreshed.data;
+            }
+
             return data;
         },
-        enabled: isLoaded && isSignedIn
+        enabled: isLoaded
     });
 };

@@ -425,7 +425,18 @@ export const artisansScenes: Record<string, Scene> = {
         emotion: { primary: 'happy', intensity: 65 },
       },
     ],
-    nextScene: 'dieter_introduction_good',
+    choices: [
+      {
+        id: 'confirm_delivery_to_dieter',
+        text: 'Поставить ящик на верстак.',
+        nextScene: 'dieter_introduction_good',
+        effects: {
+          addFlags: ['met_dieter', 'completed_dieter_delivery', 'delivered_parts_to_dieter'],
+          removeFlags: ['has_dieter_parts', 'chance_for_newbie_active'],
+          xp: 15,
+        },
+      },
+    ],
   },
 
   dieter_introduction_good: {

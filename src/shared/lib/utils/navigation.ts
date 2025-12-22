@@ -21,6 +21,7 @@ export const Routes = {
   HOME: '/',
   PROLOGUE: '/prologue',
   VISUAL_NOVEL: '/visual-novel',
+  REGISTRATION: '/registration',
   CHARACTER: '/character',
   MAP: '/map',
   ENHANCED_MAP: '/enhanced-map',

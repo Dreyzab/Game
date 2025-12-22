@@ -1,0 +1,97 @@
+/* Chronicles of Freiburg VN theme (scoped) */
+
+.vn-chronicles {
+  background: #020617;
+  color: #f8fafc;
+  font-family: 'Inter', sans-serif;
+}
+
+.vn-chronicles .font-cinzel {
+  font-family: 'Cinzel', serif;
+}
+
+.vn-chronicles .font-playfair {
+  font-family: 'Playfair Display', serif;
+}
+
+/* Custom scrollbar (scoped) */
+.vn-chronicles ::-webkit-scrollbar {
+  width: 6px;
+}
+
+.vn-chronicles ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.vn-chronicles ::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 3px;
+}
+
+.vn-chronicles ::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+@keyframes vn-pulse-soft {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+.vn-chronicles .animate-pulse-soft {
+  animation: vn-pulse-soft 2s infinite;
+}
+
+@keyframes vn-float {
+  0% {
+    transform: translateY(0) translateX(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-100vh) translateX(20px);
+    opacity: 0;
+  }
+}
+
+.vn-chronicles .animate-float {
+  animation: vn-float linear infinite;
+}
+
+@keyframes vn-slide-up {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.vn-chronicles .animate-slide-up {
+  animation: vn-slide-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes vn-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.vn-chronicles .animate-fade-in {
+  animation: vn-fade-in 0.8s ease-out forwards;
+}
+

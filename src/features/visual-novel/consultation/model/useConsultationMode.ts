@@ -1,32 +1,33 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { VisualNovelAdvice, VisualNovelChoiceView, VisualNovelLine } from '@/shared/types/visualNovel'
+import type { VoiceId } from '@/shared/types/parliament'
 import { filterAvailableAdvices } from '../lib/consultationUtils'
 import { getVoiceDefinition } from '@/entities/parliament/lib/voiceDefinitions'
 
 export interface ConsultationModeState {
   isConsultationMode: boolean
-  activeVoiceId: string | null
-  viewedVoiceIds: Set<string>
-  availableVoiceIds: string[]
+  activeVoiceId: VoiceId | null
+  viewedVoiceIds: Set<VoiceId>
+  availableVoiceIds: VoiceId[]
   currentAdvice: VisualNovelAdvice | null
 }
 
 export interface ConsultationModeActions {
   enterConsultationMode: () => void
   exitConsultationMode: () => void
-  consultVoice: (voiceId: string) => void
+  consultVoice: (voiceId: VoiceId) => void
   reset: () => void
 }
 
 export interface UseConsultationModeParams {
   currentLine: VisualNovelLine | null
   choices: VisualNovelChoiceView[]
-  skills: Record<string, number>
+  skills: Partial<Record<VoiceId, number>>
   flags: Set<string>
   onAdviceViewed?: (payload: {
     sceneId: string
     lineId: string
-    characterId: string
+    characterId: VoiceId
     choiceContext: string[]
     skillLevel: number
     viewOrder: number
@@ -45,8 +46,8 @@ export function useConsultationMode({
   sceneId,
 }: UseConsultationModeParams): UseConsultationModeReturn {
   const [isConsultationMode, setConsultationMode] = useState(false)
-  const [activeVoiceId, setActiveVoiceId] = useState<string | null>(null)
-  const [viewedVoiceIds, setViewedVoiceIds] = useState<Set<string>>(new Set())
+  const [activeVoiceId, setActiveVoiceId] = useState<VoiceId | null>(null)
+  const [viewedVoiceIds, setViewedVoiceIds] = useState<Set<VoiceId>>(new Set())
   const viewOrderRef = useRef(0)
   const viewStartTimeRef = useRef<number>(0)
 
@@ -95,7 +96,7 @@ export function useConsultationMode({
   }, [activeVoiceId])
 
   const consultVoice = useCallback(
-    (voiceId: string) => {
+    (voiceId: VoiceId) => {
       // Проверяем доступность
       if (!availableVoiceIds.includes(voiceId)) {
         console.warn('⚠️ [Consultation] Голос недоступен:', voiceId)

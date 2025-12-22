@@ -411,7 +411,7 @@ export declare const npcInstances: import("drizzle-orm/pg-core").PgTableWithColu
             name: "combat_session_id";
             tableName: "npc_instances";
             dataType: "string";
-            columnType: "PgUUID";
+            columnType: "PgText";
             data: string;
             driverParam: string;
             notNull: false;
@@ -419,7 +419,7 @@ export declare const npcInstances: import("drizzle-orm/pg-core").PgTableWithColu
             isPrimaryKey: false;
             isAutoincrement: false;
             hasRuntimeDefault: false;
-            enumValues: undefined;
+            enumValues: [string, ...string[]];
             baseColumn: never;
             identity: undefined;
             generated: undefined;

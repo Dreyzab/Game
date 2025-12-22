@@ -102,23 +102,24 @@ export declare const vnRoutes: (app: Elysia) => Elysia<"", {
                         error: string;
                         status: number;
                         success?: undefined;
+                        duplicate?: undefined;
                         progress?: undefined;
                         awardedItems?: undefined;
                     } | {
                         success: boolean;
+                        duplicate: undefined;
                         progress: {
-                            currentScene: string;
                             visitedScenes: string[];
-                            flags: Record<string, unknown>;
-                            level: number;
-                            xp: number;
-                            skillPoints: number;
-                            phase: number;
-                            reputation: Record<string, number>;
-                            updatedAt: number;
+                            flags: Record<string, any>;
+                            reputation: any;
+                            skills: Record<string, number>;
                             id: number;
+                            updatedAt: number;
                             playerId: number;
-                            skills: Record<string, number> | null;
+                            currentScene: string | null;
+                            level: number | null;
+                            xp: number | null;
+                            skillPoints: number | null;
                             subclasses: string[] | null;
                             gold: number | null;
                             hp: number | null;
@@ -127,6 +128,7 @@ export declare const vnRoutes: (app: Elysia) => Elysia<"", {
                             maxMorale: number | null;
                             stamina: number | null;
                             maxStamina: number | null;
+                            phase: number | null;
                         };
                         awardedItems: {
                             itemId: string;

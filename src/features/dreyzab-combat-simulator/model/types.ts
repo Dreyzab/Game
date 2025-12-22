@@ -20,17 +20,27 @@ export interface ActiveEffect {
     remainingTurns: number
 }
 
+export interface CombatantResources {
+    hp: number
+    maxHp: number
+    ap: number
+    maxAp: number
+    mp: number
+    maxMp: number
+    wp: number
+    maxWp: number
+    pp: number
+    maxPp: number
+}
+
 export interface Combatant {
     id: string
     name: string
     side: Side
     rank: number // 1-4
-    hp: number
-    maxHp: number
-    stamina: number
-    maxStamina: number
-    ap: number
-    maxAp: number
+
+    resources: CombatantResources
+
     bonusAp: number
     initiative: number
     armor: number
@@ -86,4 +96,6 @@ export interface BattleSession {
     stats: BattleStats
     activeUnitId: string | null
     turnQueue: string[]
+    teamSP: number
+    maxTeamSP: number
 }

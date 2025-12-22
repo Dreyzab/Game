@@ -43,6 +43,7 @@ export interface EquipmentSlotConfig {
 export type LoadoutState = Record<string, string | null>
 
 export interface InventoryState {
+  initialized: boolean
   items: Record<string, InventoryItem>
   templates: Record<string, ItemTemplate>
   equipment: LoadoutState

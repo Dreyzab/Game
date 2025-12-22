@@ -1,5 +1,4 @@
 import React from 'react'
-import { motion } from 'framer-motion'
 import { cn } from '@/shared/lib/utils/cn'
 import type { VisualNovelCharacter } from '@/shared/types/visualNovel'
 
@@ -12,42 +11,51 @@ export const CharacterGroup: React.FC<CharacterGroupProps> = ({
   characters,
   activeCharacterId,
 }) => {
-  if (!characters || characters.length === 0) {
-    return null
-  }
+  if (!characters || characters.length === 0) return null
 
   return (
-    <div className="flex flex-wrap gap-3">
+    <div className="flex justify-center gap-4 mt-8 px-4 w-full max-w-5xl mx-auto overflow-x-auto pb-4">
       {characters.map((character) => {
         const isActive = character.id === activeCharacterId
+
         return (
-          <motion.div
+          <div
             key={character.id}
-            layout
             className={cn(
-              'min-w-[160px] flex-1 rounded-2xl border px-4 py-3 backdrop-blur',
-              isActive
-                ? 'border-white/70 bg-white/15 shadow-lg'
-                : 'border-white/10 bg-white/5'
+              'flex flex-col items-center min-w-[140px] transition-all duration-500',
+              isActive ? 'opacity-100 scale-105' : 'opacity-60 scale-95'
             )}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
           >
-            <p
-              className="text-xs uppercase tracking-[0.35em] text-white/60"
-              style={{ color: character.color }}
+            <div
+              className={cn(
+                'w-full p-3 rounded-lg border backdrop-blur-md flex flex-col items-center text-center',
+                isActive
+                  ? 'bg-white/10 border-white/30 shadow-[0_0_20px_rgba(255,255,255,0.1)]'
+                  : 'bg-black/20 border-white/10'
+              )}
             >
-              {character.name}
-            </p>
-            {character.title && (
-              <p className="text-xs text-white/60">{character.title}</p>
+              <span
+                className="text-xs font-cinzel tracking-[0.2em] font-bold"
+                style={{ color: character.color }}
+              >
+                {character.name.toUpperCase()}
+              </span>
+              {character.title && (
+                <span className="text-[10px] text-slate-400 mt-1 uppercase tracking-wider leading-none">
+                  {character.title}
+                </span>
+              )}
+            </div>
+
+            {character.tagline && isActive && (
+              <span className="text-[9px] text-slate-500 mt-2 italic font-medium tracking-tight animate-fade-in">
+                {character.tagline}
+              </span>
             )}
-            {character.tagline && (
-              <p className="text-[11px] text-white/70">{character.tagline}</p>
-            )}
-          </motion.div>
+          </div>
         )
       })}
     </div>
   )
 }
+

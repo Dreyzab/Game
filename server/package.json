@@ -9,7 +9,8 @@
         "db:generate": "drizzle-kit generate",
         "db:migrate": "drizzle-kit migrate",
         "db:push": "drizzle-kit push",
-        "db:seed": "bun run src/scripts/seed.ts"
+        "db:seed": "bun run src/scripts/seed.ts",
+        "db:reset": "bun run src/scripts/reset-db.ts"
     },
     "dependencies": {
         "@clerk/backend": "^2.25.1",

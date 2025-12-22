@@ -102,7 +102,7 @@ export const TEST_SCENE_WITH_ADVICES: VisualNovelSceneDefinition = {
           minSkillLevel: 40,
         },
         {
-          characterId: 'intuition',
+          characterId: 'analysis',
           text: 'Что-то не так. Внутренний голос кричит "ловушка". Но какая? Может, предмет отслеживается. Или это приманка для чего-то большего.',
           mood: 'grim',
           stageDirection: 'Предчувствие опасности',
@@ -116,7 +116,7 @@ export const TEST_SCENE_WITH_ADVICES: VisualNovelSceneDefinition = {
           minSkillLevel: 35,
         },
         {
-          characterId: 'cynicism',
+          characterId: 'drama',
           text: 'Все торговцы — мошенники. Все артефакты на рынке — подделки. Единственная ценность здесь — урок: никому не доверяй. Уходи.',
           mood: 'grim',
           stageDirection: 'Скептицизм',

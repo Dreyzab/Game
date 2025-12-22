@@ -4,12 +4,12 @@ import { cn } from '@/shared/lib/utils/cn'
 import type { VisualNovelMood } from '@/shared/types/visualNovel'
 
 const moodLabel: Record<VisualNovelMood, string> = {
-  neutral: 'Спокойно',
-  tense: 'Напряжённо',
-  warm: 'Тепло',
-  serious: 'Собранно',
-  hopeful: 'Надежда',
-  grim: 'Мрачно',
+  neutral: 'Neutral',
+  tense: 'Tense',
+  warm: 'Warm',
+  serious: 'Serious',
+  hopeful: 'Hopeful',
+  grim: 'Grim',
 }
 
 export interface DialogueBoxProps {
@@ -20,6 +20,7 @@ export interface DialogueBoxProps {
   mood?: VisualNovelMood
   disabled?: boolean
   isPending?: boolean
+  style?: React.CSSProperties
   onAdvance?: () => void
   onRevealComplete?: () => void
   onTypingStatusChange?: (isTyping: boolean) => void
@@ -34,31 +35,22 @@ export const DialogueBox: React.FC<DialogueBoxProps> = ({
   mood = 'neutral',
   disabled,
   isPending,
+  style,
   onAdvance,
   onRevealComplete,
   onTypingStatusChange,
   forceShow,
 }) => {
   const sanitizeText = useCallback((value: string) => {
-    if (!value) {
-      return value
-    }
+    if (!value) return value
+
     let next = value.trimEnd()
-    // Убираем "undefined" в конце строки
-    next = next.replace(/[\s–—\-.,!?…]*undefined\s*$/gi, '')
-    // Заменяем множественные пробелы на один
+    next = next.replace(/[\s\-.,!?]*undefined\s*$/gi, '')
     next = next.replace(/\s+/g, ' ').trim()
-
-    // Улучшаем разделение предложений
-    // Убираем лишние пробелы вокруг скобок для лучшей читаемости
     next = next.replace(/\s*\(\s*/g, ' (').replace(/\s*\)\s*/g, ') ')
-    // Добавляем пробел после многоточия, если его нет
-    next = next.replace(/…(?=[А-ЯA-Z])/g, '… ')
-
     return next
   }, [])
 
-  // Typewriter effect state
   const [visibleCount, setVisibleCount] = React.useState(0)
   const [isTyping, setIsTyping] = React.useState(false)
 
@@ -72,18 +64,15 @@ export const DialogueBox: React.FC<DialogueBoxProps> = ({
     return stageDirection ? sanitizeText(stageDirection) : undefined
   }, [stageDirection, sanitizeText])
 
-  // Reset typing when text changes
   useEffect(() => {
     setVisibleCount(0)
     setIsTyping(true)
   }, [displayedText])
 
-  // Notify parent about typing status
   useEffect(() => {
     onTypingStatusChange?.(isTyping)
   }, [isTyping, onTypingStatusChange])
 
-  // Handle forceShow
   useEffect(() => {
     if (forceShow && isTyping) {
       setVisibleCount(displayedText.length)
@@ -92,7 +81,6 @@ export const DialogueBox: React.FC<DialogueBoxProps> = ({
     }
   }, [forceShow, isTyping, displayedText.length, onRevealComplete])
 
-  // Typing effect
   useEffect(() => {
     if (!isTyping) return
 
@@ -104,71 +92,89 @@ export const DialogueBox: React.FC<DialogueBoxProps> = ({
 
     const timeoutId = setTimeout(() => {
       setVisibleCount((prev) => prev + 1)
-    }, 30) // 30ms per character speed
+    }, 25)
 
     return () => clearTimeout(timeoutId)
   }, [visibleCount, isTyping, displayedText.length, onRevealComplete])
 
-  const handleAdvance = useCallback((e?: React.MouseEvent) => {
-    if (disabled) return
-    // Останавливаем всплытие события, чтобы клик на DialogueBox не вызывал обработчик родителя
-    e?.stopPropagation()
+  const handleAdvance = useCallback(
+    (e?: React.MouseEvent) => {
+      if (disabled) return
+      e?.stopPropagation()
 
-    // If still typing, finish immediately
-    if (isTyping) {
-      setVisibleCount(displayedText.length)
-      setIsTyping(false)
-      onRevealComplete?.()
-      return
-    }
+      if (isTyping) {
+        setVisibleCount(displayedText.length)
+        setIsTyping(false)
+        onRevealComplete?.()
+        return
+      }
 
-    onAdvance?.()
-  }, [disabled, isTyping, displayedText.length, onRevealComplete, onAdvance])
+      onAdvance?.()
+    },
+    [disabled, displayedText.length, isTyping, onAdvance, onRevealComplete]
+  )
 
   return (
     <motion.div
+      onClick={handleAdvance}
       className={cn(
-        'relative w-full rounded-3xl border border-white/10 bg-black/60 px-6 py-5 shadow-[0_20px_45px_rgba(0,0,0,0.45)] backdrop-blur-lg transition duration-200',
-        !disabled && 'cursor-pointer hover:border-white/30'
+        'relative w-full max-w-5xl mx-auto mb-8 px-6 select-none',
+        !disabled && 'cursor-pointer'
       )}
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 16 }}
-      onClick={handleAdvance}
     >
-      <div className="flex flex-col gap-2 pb-2 md:flex-row md:items-center md:justify-between">
-        <div>
-          {speakerName && (
-            <p className="text-xs uppercase tracking-[0.35em] text-white/60">
-              {speakerName}
-            </p>
-          )}
-          {speakerTitle && (
-            <p className="text-xs text-white/50">{speakerTitle}</p>
+      <div
+        className={cn(
+          'bg-slate-950/80 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl overflow-hidden min-h-[160px] transition-colors',
+          !disabled && 'hover:border-white/20'
+        )}
+        style={style}
+      >
+        <div className="flex justify-between items-start mb-4">
+          <div>
+            {speakerName && (
+              <h3 className="font-cinzel text-lg font-bold tracking-[0.2em] text-white">
+                {speakerName.toUpperCase()}
+              </h3>
+            )}
+            {speakerTitle && (
+              <p className="text-[10px] text-slate-400 font-medium tracking-widest uppercase mt-0.5">
+                {speakerTitle}
+              </p>
+            )}
+          </div>
+          <div className="bg-white/5 border border-white/10 px-3 py-1 rounded-full">
+            <span className="text-[10px] text-slate-300 font-medium tracking-widest uppercase">
+              {moodLabel[mood]}
+            </span>
+          </div>
+        </div>
+
+        <div className="font-playfair text-xl leading-relaxed text-slate-100 min-h-[3rem]">
+          {displayedText.slice(0, visibleCount)}
+          {isTyping && (
+            <span className="inline-block w-2 h-5 bg-white/40 ml-1 animate-pulse" />
           )}
         </div>
-        <span className="text-xs text-white/50">{moodLabel[mood]}</span>
+
+        {displayedStageDirection && !isTyping && (
+          <p className="text-sm text-slate-500 italic mt-4 animate-fade-in">
+            * {displayedStageDirection} *
+          </p>
+        )}
+
+        {!disabled && !isTyping && (
+          <div className="absolute bottom-4 right-10 flex items-center gap-2 animate-pulse-soft">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+              {isPending ? 'Tap / Click to skip' : 'Tap / Click to continue'}
+            </span>
+            <div className="w-1.5 h-1.5 bg-slate-400 rounded-full" />
+          </div>
+        )}
       </div>
-
-      <p className="text-base leading-relaxed text-white md:text-lg hyphens-auto wrap-break-word">
-        {displayedText.slice(0, visibleCount)}
-      </p>
-
-      {displayedStageDirection && (
-        <p className="pt-3 text-xs italic text-white/60 hyphens-auto wrap-break-word">
-          {displayedStageDirection}
-        </p>
-      )}
-
-      {!disabled && (
-        <motion.div
-          className="pointer-events-none absolute -bottom-3 right-6 rounded-full border border-white/20 bg-white/5 px-3 py-1 text-[10px] uppercase tracking-[0.45em] text-white/70"
-          animate={{ opacity: [0.4, 1, 0.4] }}
-          transition={{ duration: isPending ? 1.5 : 2.4, repeat: Infinity }}
-        >
-          {isPending ? '⏭ Skip' : 'Tap / Click'}
-        </motion.div>
-      )}
     </motion.div>
   )
 }
+

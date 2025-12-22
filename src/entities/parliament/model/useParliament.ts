@@ -6,6 +6,9 @@ import {
     type AttributeGroup,
     type VoiceId
 } from '@/shared/types/parliament'
+import { calculateDerivedStats, calculateMaxResources } from '../lib/statCalculators'
+
+export type CheckResult = 'critical_failure' | 'failure' | 'success' | 'critical_success'
 
 /**
  * Hook for working with the Internal Parliament (Voices) system
@@ -15,10 +18,10 @@ export function useParliament() {
     const { progress } = usePlayerProgress()
     const skills = progress?.skills || {}
 
-    const getVoiceLevel = (voiceId: string) => skills[voiceId] || 0
+    const getVoiceLevel = (voiceId: VoiceId) => skills[voiceId] || 0
 
-    const getVoice = (voiceId: string): VoiceDefinition | undefined =>
-        PARLIAMENT_VOICES[voiceId as VoiceId]
+    const getVoice = (voiceId: VoiceId): VoiceDefinition | undefined =>
+        PARLIAMENT_VOICES[voiceId]
 
     const getVoicesByGroup = (group: AttributeGroup): VoiceDefinition[] => {
         const groupDef = ATTRIBUTE_GROUPS[group]
@@ -26,10 +29,23 @@ export function useParliament() {
         return groupDef.voices.map(id => PARLIAMENT_VOICES[id])
     }
 
-    const checkVoice = (voiceId: string, difficulty: number) => {
+    /**
+     * Perform a voice check with success levels
+     */
+    const checkVoice = (voiceId: VoiceId, difficulty: number): CheckResult => {
         const level = getVoiceLevel(voiceId)
-        return level >= difficulty
+        // Note: For now using a simple 1-100 roll or 1-20 logic as suggested
+        const roll = Math.floor(Math.random() * 20) + 1 // 1d20
+        const total = level + roll
+
+        if (roll === 20) return 'critical_success'
+        if (roll === 1) return 'critical_failure'
+
+        return total >= difficulty ? 'success' : 'failure'
     }
+
+    const derivedStats = calculateDerivedStats(skills)
+    const maxResources = calculateMaxResources(skills)
 
     return {
         skills,
@@ -37,6 +53,8 @@ export function useParliament() {
         getVoice,
         getVoicesByGroup,
         checkVoice,
+        derivedStats,
+        maxResources,
         VOICES: PARLIAMENT_VOICES,
         VOICE_GROUPS: ATTRIBUTE_GROUPS,
     }

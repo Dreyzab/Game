@@ -49,7 +49,7 @@ export declare const app: Elysia<"", {
                         lastSeen: number | null;
                         createdAt: number;
                         updatedAt: number;
-                    };
+                    } | null;
                     progress: {
                         id: number;
                         updatedAt: number;
@@ -120,8 +120,85 @@ export declare const app: Elysia<"", {
                             lastSeen: number | null;
                             createdAt: number;
                             updatedAt: number;
-                        };
+                        } | null;
                         created: boolean;
+                        error?: undefined;
+                        status?: undefined;
+                    };
+                    422: {
+                        type: "validation";
+                        on: string;
+                        summary?: string;
+                        message?: string;
+                        found?: unknown;
+                        property?: string;
+                        expected?: string;
+                    };
+                };
+            };
+        };
+    };
+} & {
+    player: {
+        "city-registration": {
+            post: {
+                body: {
+                    password?: string | undefined;
+                    nickname?: string | undefined;
+                    returnScene?: string | undefined;
+                    method: "clerk" | "password";
+                };
+                params: {};
+                query: unknown;
+                headers: unknown;
+                response: {
+                    200: {
+                        success: boolean;
+                        error: string;
+                        status: number;
+                        player?: undefined;
+                        progress?: undefined;
+                    } | {
+                        success: boolean;
+                        player: {
+                            id: number;
+                            status: string | null;
+                            userId: string | null;
+                            deviceId: string | null;
+                            name: string;
+                            fame: number | null;
+                            factionId: string | null;
+                            squadId: string | null;
+                            location: {
+                                lat: number;
+                                lng: number;
+                            } | null;
+                            lastSeen: number | null;
+                            createdAt: number;
+                            updatedAt: number;
+                        } | null;
+                        progress: {
+                            id: number;
+                            playerId: number;
+                            currentScene: string | null;
+                            visitedScenes: string[] | null;
+                            flags: Record<string, any> | null;
+                            level: number | null;
+                            xp: number | null;
+                            skillPoints: number | null;
+                            skills: Record<string, number> | null;
+                            subclasses: string[] | null;
+                            gold: number | null;
+                            reputation: Record<string, number> | null;
+                            hp: number | null;
+                            maxHp: number | null;
+                            morale: number | null;
+                            maxMorale: number | null;
+                            stamina: number | null;
+                            maxStamina: number | null;
+                            phase: number | null;
+                            updatedAt: number;
+                        };
                         error?: undefined;
                         status?: undefined;
                     };
@@ -738,10 +815,24 @@ export declare const app: Elysia<"", {
                         error: string;
                         status: number;
                         kind?: undefined;
+                        gated?: undefined;
+                        actions?: undefined;
                         bonusId?: undefined;
                         title?: undefined;
                         alreadyClaimed?: undefined;
-                        actions?: undefined;
+                        awardedItems?: undefined;
+                        pointId?: undefined;
+                        unlockStatus?: undefined;
+                    } | {
+                        success: boolean;
+                        kind: string;
+                        gated: boolean;
+                        actions: import("./lib/qrBonuses").QrAction[];
+                        error?: undefined;
+                        status?: undefined;
+                        bonusId?: undefined;
+                        title?: undefined;
+                        alreadyClaimed?: undefined;
                         awardedItems?: undefined;
                         pointId?: undefined;
                         unlockStatus?: undefined;
@@ -759,6 +850,7 @@ export declare const app: Elysia<"", {
                         }[];
                         error?: undefined;
                         status?: undefined;
+                        gated?: undefined;
                         pointId?: undefined;
                         unlockStatus?: undefined;
                     } | {
@@ -769,6 +861,7 @@ export declare const app: Elysia<"", {
                         unlockStatus: "researched" | "already_researched";
                         actions: import("./lib/qrBonuses").QrAction[];
                         error?: undefined;
+                        gated?: undefined;
                         bonusId?: undefined;
                         title?: undefined;
                         alreadyClaimed?: undefined;
@@ -1139,23 +1232,24 @@ export declare const app: Elysia<"", {
                         error: string;
                         status: number;
                         success?: undefined;
+                        duplicate?: undefined;
                         progress?: undefined;
                         awardedItems?: undefined;
                     } | {
                         success: boolean;
+                        duplicate: undefined;
                         progress: {
-                            currentScene: string;
                             visitedScenes: string[];
-                            flags: Record<string, unknown>;
-                            level: number;
-                            xp: number;
-                            skillPoints: number;
-                            phase: number;
-                            reputation: Record<string, number>;
-                            updatedAt: number;
+                            flags: Record<string, any>;
+                            reputation: any;
+                            skills: Record<string, number>;
                             id: number;
+                            updatedAt: number;
                             playerId: number;
-                            skills: Record<string, number> | null;
+                            currentScene: string | null;
+                            level: number | null;
+                            xp: number | null;
+                            skillPoints: number | null;
                             subclasses: string[] | null;
                             gold: number | null;
                             hp: number | null;
@@ -1164,6 +1258,7 @@ export declare const app: Elysia<"", {
                             maxMorale: number | null;
                             stamina: number | null;
                             maxStamina: number | null;
+                            phase: number | null;
                         };
                         awardedItems: {
                             itemId: string;

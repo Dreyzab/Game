@@ -102,10 +102,24 @@ export declare const mapRoutes: (app: Elysia) => Elysia<"", {
                         error: string;
                         status: number;
                         kind?: undefined;
+                        gated?: undefined;
+                        actions?: undefined;
                         bonusId?: undefined;
                         title?: undefined;
                         alreadyClaimed?: undefined;
-                        actions?: undefined;
+                        awardedItems?: undefined;
+                        pointId?: undefined;
+                        unlockStatus?: undefined;
+                    } | {
+                        success: boolean;
+                        kind: string;
+                        gated: boolean;
+                        actions: QrAction[];
+                        error?: undefined;
+                        status?: undefined;
+                        bonusId?: undefined;
+                        title?: undefined;
+                        alreadyClaimed?: undefined;
                         awardedItems?: undefined;
                         pointId?: undefined;
                         unlockStatus?: undefined;
@@ -123,6 +137,7 @@ export declare const mapRoutes: (app: Elysia) => Elysia<"", {
                         }[];
                         error?: undefined;
                         status?: undefined;
+                        gated?: undefined;
                         pointId?: undefined;
                         unlockStatus?: undefined;
                     } | {
@@ -133,6 +148,7 @@ export declare const mapRoutes: (app: Elysia) => Elysia<"", {
                         unlockStatus: "researched" | "already_researched";
                         actions: QrAction[];
                         error?: undefined;
+                        gated?: undefined;
                         bonusId?: undefined;
                         title?: undefined;
                         alreadyClaimed?: undefined;

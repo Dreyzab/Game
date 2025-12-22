@@ -127,8 +127,8 @@ export const GENERIC_ADVICES: Record<VoiceId, string[]> = {
     ],
 }
 
-export function getGenericAdvice(voiceId: string): VisualNovelAdvice {
-    const advices = GENERIC_ADVICES[voiceId as VoiceId] || GENERIC_ADVICES.logic
+export function getGenericAdvice(voiceId: VoiceId): VisualNovelAdvice {
+    const advices = GENERIC_ADVICES[voiceId] || GENERIC_ADVICES.logic
     const text = advices[Math.floor(Math.random() * advices.length)]
 
     return {

@@ -1,5 +1,6 @@
 import { Suspense, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '@clerk/clerk-react'
 import { LoadingSpinner } from '@/shared/ui/components/LoadingSpinner'
 import { HeroSection } from '@/widgets/hero/HeroSection.tsx'
 import { AuthActions } from '@/features/auth'
@@ -9,13 +10,20 @@ import { QuickActionsWidget } from '@/widgets/quick-actions'
 import { ActiveQuestsWidget } from '@/widgets/active-quests'
 import { SystemStatusWidget } from '@/widgets/system-status'
 import { usePlayerProgress, useCreatePlayer } from '@/shared/hooks/usePlayer'
-import { getStartDestination } from '@/shared/lib/utils/navigation'
+import { authenticatedClient } from '@/shared/api/client'
+import { useDeviceId } from '@/shared/hooks/useDeviceId'
+import { getStartDestination, Routes } from '@/shared/lib/utils/navigation'
 
 export function ModernHomePage() {
   const navigate = useNavigate()
+  const { getToken, isLoaded } = useAuth()
+  const { deviceId } = useDeviceId()
   const { progress } = usePlayerProgress()
   const { createPlayer, isCreating } = useCreatePlayer()
   const [createMsg, setCreateMsg] = useState<string | null>(null)
+  const [qrSimNotice, setQrSimNotice] = useState<string | null>(null)
+  const [qrSimError, setQrSimError] = useState<string | null>(null)
+  const [isSimulatingQr, setSimulatingQr] = useState(false)
 
   const isSignedIn = progress !== null
   const hasUnallocatedSkills = progress?.skillPoints ? progress.skillPoints > 0 : false
@@ -45,6 +53,60 @@ export function ModernHomePage() {
     setCreateMsg('Регистрация админа доступна через серверную консоль.')
   }
 
+  const handleSimulateRathausQr = async () => {
+    if (!isLoaded) {
+      setQrSimError('Auth ещё загружается. Попробуйте через пару секунд.')
+      return
+    }
+
+    if (isSimulatingQr) return
+
+    setSimulatingQr(true)
+    setQrSimNotice(null)
+    setQrSimError(null)
+
+    try {
+      const token = await getToken()
+      const client = authenticatedClient(token ?? undefined, deviceId)
+      const { data, error } = await client.map['activate-qr'].post({
+        qrData: 'gw3:point:rathaus_square',
+      })
+      if (error) throw error
+
+      const payload = (data ?? {}) as any
+      if (payload.success !== true) {
+        const message =
+          typeof payload.error === 'string' && payload.error.trim().length > 0
+            ? payload.error
+            : 'Не удалось активировать QR'
+        setQrSimError(message)
+        return
+      }
+
+      const actionsRaw = payload.actions
+      const actions: any[] = Array.isArray(actionsRaw) ? actionsRaw : []
+      const startVn = actions.find((action) => action?.type === 'start_vn' && typeof action.sceneId === 'string')
+
+      if (startVn?.sceneId) {
+        navigate(`${Routes.VISUAL_NOVEL}/${startVn.sceneId}`)
+        return
+      }
+
+      const isOnboardingGate = payload.gated === true && payload.kind === 'onboarding'
+      if (isOnboardingGate) {
+        navigate(Routes.MAP)
+        return
+      }
+
+      setQrSimNotice('QR активирован.')
+    } catch (err) {
+      console.error('[HomePage] Failed to simulate Rathaus QR', err)
+      setQrSimError('Не удалось симулировать сканирование QR. Проверьте соединение с сервером.')
+    } finally {
+      setSimulatingQr(false)
+    }
+  }
+
   return (
     <Layout>
       <HeroSection
@@ -61,6 +123,36 @@ export function ModernHomePage() {
             <QuickActionsWidget />
           </div>
         </div>
+
+        <div className="flex justify-center gap-3 mb-8 flex-wrap">
+          <button
+            onClick={handleSimulateRathausQr}
+            disabled={!isLoaded || isSimulatingQr}
+            className="group relative px-8 py-4 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-full transition-all shadow-lg hover:shadow-emerald-500/40 uppercase tracking-widest overflow-hidden"
+            title="Симулирует сканирование QR Ратушной площади и запускает онбординг"
+          >
+            <span className="relative z-10 flex items-center gap-2">
+              <span className="w-2 h-2 bg-white rounded-full" />
+              Simulate Rathaus QR
+            </span>
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />
+          </button>
+        </div>
+
+        {(qrSimNotice || qrSimError) && (
+          <div className="flex justify-center mb-8">
+            <div
+              className={[
+                'max-w-xl w-full rounded-xl border px-4 py-3 text-sm',
+                qrSimError
+                  ? 'bg-red-950/40 border-red-500/30 text-red-200'
+                  : 'bg-emerald-950/30 border-emerald-500/30 text-emerald-100',
+              ].join(' ')}
+            >
+              {qrSimError ?? qrSimNotice}
+            </div>
+          </div>
+        )}
 
         <div className="panel-grid">
           <div className="panel-span-7">

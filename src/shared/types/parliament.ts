@@ -11,18 +11,18 @@
 /**
  * 6 Атрибутных Групп согласно MSDD v0.4
  */
-export type AttributeGroup = 
-  | 'body'          // ТЕЛО - Физическое существование
-  | 'motorics'      // МОТОРИКА - Взаимодействие с пространством
-  | 'mind'          // РАЗУМ - Интеллект и стратегия
-  | 'consciousness' // СОЗНАНИЕ - Воля и влияние
-  | 'psyche'        // ПСИХИКА - Эмоции и творчество
-  | 'sociality'     // СОЦИАЛЬНОСТЬ - Эмпатия и группа
+export type AttributeGroup =
+  | 'body'          // ТЕЛО - Физическое существование  Hit Points! 
+  | 'motorics'      // МОТОРИКА - Взаимодействие с пространством Action Points
+  | 'mind'          // РАЗУМ - Интеллект и стратегия Mental Points
+  | 'consciousness' // СОЗНАНИЕ - Воля и влияние Will Points
+  | 'psyche'        // ПСИХИКА - Эмоции и творчество Psychic Points
+  | 'sociality'     // СОЦИАЛЬНОСТЬ - Эмпатия и группа Social Points
 
 /**
  * Все 18 голосов Внутреннего Парламента
  */
-export type VoiceId = 
+export type VoiceId =
   // ТЕЛО (Body)
   | 'force'        // СИЛА - Мир — арена. Ты побеждаешь, потому что мощнее.
   | 'resilience'   // СТОЙКОСТЬ - Не сломался? Уже победил.
@@ -58,6 +58,12 @@ export interface AttributeGroupDefinition {
   icon: string
   color: string
   voices: VoiceId[]
+  resourceMetadata: {
+    id: 'hp' | 'ap' | 'mp' | 'wp' | 'pp' | 'sp'
+    name: string
+    acronym: string
+    color: string
+  }
 }
 
 export const ATTRIBUTE_GROUPS: Record<AttributeGroup, AttributeGroupDefinition> = {
@@ -68,7 +74,13 @@ export const ATTRIBUTE_GROUPS: Record<AttributeGroup, AttributeGroupDefinition> 
     description: 'Фундамент физического существования. Отвечает за выживание, грубую силу и сопротивляемость среде.',
     icon: '💪',
     color: '#e74c3c',
-    voices: ['force', 'resilience', 'endurance']
+    voices: ['force', 'resilience', 'endurance'],
+    resourceMetadata: {
+      id: 'hp',
+      name: 'Hit Points',
+      acronym: 'HP',
+      color: '#e74c3c'
+    }
   },
   motorics: {
     id: 'motorics',
@@ -77,7 +89,13 @@ export const ATTRIBUTE_GROUPS: Record<AttributeGroup, AttributeGroupDefinition> 
     description: 'Взаимодействие с пространством, скоростью и точностью.',
     icon: '⚡',
     color: '#f39c12',
-    voices: ['perception', 'reaction', 'coordination']
+    voices: ['perception', 'reaction', 'coordination'],
+    resourceMetadata: {
+      id: 'ap',
+      name: 'Action Points',
+      acronym: 'AP',
+      color: '#f39c12'
+    }
   },
   mind: {
     id: 'mind',
@@ -86,7 +104,13 @@ export const ATTRIBUTE_GROUPS: Record<AttributeGroup, AttributeGroupDefinition> 
     description: 'Интеллектуальная обработка информации и стратегическое планирование.',
     icon: '🧠',
     color: '#3498db',
-    voices: ['logic', 'rhetoric', 'analysis']
+    voices: ['logic', 'rhetoric', 'analysis'],
+    resourceMetadata: {
+      id: 'mp',
+      name: 'Mental Points',
+      acronym: 'MP',
+      color: '#3498db'
+    }
   },
   consciousness: {
     id: 'consciousness',
@@ -95,7 +119,13 @@ export const ATTRIBUTE_GROUPS: Record<AttributeGroup, AttributeGroupDefinition> 
     description: 'Сила воли, влияние на других и внутренний стержень.',
     icon: '👁️',
     color: '#9b59b6',
-    voices: ['authority', 'suggestion', 'courage']
+    voices: ['authority', 'suggestion', 'courage'],
+    resourceMetadata: {
+      id: 'wp',
+      name: 'Will Points',
+      acronym: 'WP',
+      color: '#9b59b6'
+    }
   },
   psyche: {
     id: 'psyche',
@@ -104,7 +134,13 @@ export const ATTRIBUTE_GROUPS: Record<AttributeGroup, AttributeGroupDefinition> 
     description: 'Эмоциональный спектр, связь с иррациональным и творческим началом.',
     icon: '🎭',
     color: '#e91e63',
-    voices: ['gambling', 'drama', 'creativity']
+    voices: ['gambling', 'drama', 'creativity'],
+    resourceMetadata: {
+      id: 'pp',
+      name: 'Psychic Points',
+      acronym: 'PP',
+      color: '#e91e63'
+    }
   },
   sociality: {
     id: 'sociality',
@@ -113,7 +149,13 @@ export const ATTRIBUTE_GROUPS: Record<AttributeGroup, AttributeGroupDefinition> 
     description: 'Эмпатия и взаимодействие в группе (Кооператив и NPC).',
     icon: '🤝',
     color: '#2ecc71',
-    voices: ['empathy', 'solidarity', 'honor']
+    voices: ['empathy', 'solidarity', 'honor'],
+    resourceMetadata: {
+      id: 'sp',
+      name: 'Social Points',
+      acronym: 'SP',
+      color: '#2ecc71'
+    }
   }
 }
 
@@ -126,14 +168,14 @@ export interface VoiceDefinition {
   alias: string
   group: AttributeGroup
   icon: string
-  
+
   // Lore
   motto: string
   description: string
-  
+
   // Combat Effects
   combatEffects: VoiceCombatEffect[]
-  
+
   // Voice Comments (for Kinetic Layer)
   comments: {
     onSuccess: string[]
@@ -152,7 +194,7 @@ export interface VoiceCombatEffect {
 }
 
 export const PARLIAMENT_VOICES: Record<VoiceId, VoiceDefinition> = {
-  // ================ ГРУППА I: ТЕЛО (BODY) ================
+  // ================ ГРУППА I: ТЕЛО (BODY )  ================
   force: {
     id: 'force',
     name: 'Force',
@@ -187,7 +229,7 @@ export const PARLIAMENT_VOICES: Record<VoiceId, VoiceDefinition> = {
       ]
     }
   },
-  
+
   resilience: {
     id: 'resilience',
     name: 'Resilience',
@@ -209,7 +251,7 @@ export const PARLIAMENT_VOICES: Record<VoiceId, VoiceDefinition> = {
       onExhaustion: ['Тело падает. Но дух — нет.', 'Один вдох. Потом ещё один.']
     }
   },
-  
+
   endurance: {
     id: 'endurance',
     name: 'Endurance',
@@ -231,8 +273,8 @@ export const PARLIAMENT_VOICES: Record<VoiceId, VoiceDefinition> = {
       onExhaustion: ['Истощение — иллюзия. Вставай.', 'Ты переживал и худшее.']
     }
   },
-  
-  // ================ ГРУППА II: МОТОРИКА (MOTORICS) ================
+
+  // ================ ГРУППА II: МОТОРИКА  (MOTORICS) ================
   perception: {
     id: 'perception',
     name: 'Perception',
@@ -254,7 +296,7 @@ export const PARLIAMENT_VOICES: Record<VoiceId, VoiceDefinition> = {
       onExhaustion: ['Глаза слипаются... но враг всё ещё там.']
     }
   },
-  
+
   reaction: {
     id: 'reaction',
     name: 'Reaction',
@@ -276,7 +318,7 @@ export const PARLIAMENT_VOICES: Record<VoiceId, VoiceDefinition> = {
       onExhaustion: ['Рефлексы затухают... опасно.']
     }
   },
-  
+
   coordination: {
     id: 'coordination',
     name: 'Coordination',
@@ -289,7 +331,8 @@ export const PARLIAMENT_VOICES: Record<VoiceId, VoiceDefinition> = {
     combatEffects: [
       { type: 'passive', stat: 'accuracy', modifier: 1, description: '+1% к точности за уровень' },
       { type: 'passive', stat: 'critical_chance', modifier: 0.3, description: '+0.3% к крит. шансу за уровень' },
-      { type: 'scaling', stat: 'ranged_damage', modifier: 0.2, description: '+0.2 к урону огнестрельного оружия' }
+      { type: 'scaling', stat: 'ranged_damage', modifier: 0.2, description: '+0.2 к урону огнестрельного оружия' },
+      { type: 'passive', stat: 'melee_penalty', modifier: -0.1, description: '-0.1 к урону ближнего боя (штраф специализации)' }
     ],
     comments: {
       onSuccess: ['Точно в цель. Как всегда.', 'Рука не дрогнула.'],
@@ -298,8 +341,8 @@ export const PARLIAMENT_VOICES: Record<VoiceId, VoiceDefinition> = {
       onExhaustion: ['Руки дрожат... но цель всё ещё там.']
     }
   },
-  
-  // ================ ГРУППА III: РАЗУМ (MIND) ================
+
+  // ================ ГРУППА III: РАЗУМ MP!(MIND) ================
   logic: {
     id: 'logic',
     name: 'Logic',
@@ -310,7 +353,7 @@ export const PARLIAMENT_VOICES: Record<VoiceId, VoiceDefinition> = {
     motto: 'Факты — твоя вера, вывод — твой меч.',
     description: 'Аннулирует ложь и иллюзии. Строит непробиваемые доводы, накладывая статус Confusion на врагов.',
     combatEffects: [
-      { type: 'trigger', condition: 'on_enemy_illusion', description: 'Автоматически развеивает иллюзии' },
+      { type: 'trigger', condition: 'on_enemy_illusion', description: 'Развеивает иллюзии уровня X, где X = Logic / 10' },
       { type: 'passive', stat: 'confusion_chance', modifier: 1, description: '+1% к шансу Confusion за уровень' },
       { type: 'scaling', stat: 'tactical_bonus', modifier: 0.5, description: '+0.5 к тактическим бонусам' }
     ],
@@ -321,7 +364,7 @@ export const PARLIAMENT_VOICES: Record<VoiceId, VoiceDefinition> = {
       onExhaustion: ['Когнитивная перегрузка... система охлаждается.']
     }
   },
-  
+
   rhetoric: {
     id: 'rhetoric',
     name: 'Rhetoric',
@@ -343,7 +386,7 @@ export const PARLIAMENT_VOICES: Record<VoiceId, VoiceDefinition> = {
       onExhaustion: ['Голос садится... но аргументы остаются.']
     }
   },
-  
+
   analysis: {
     id: 'analysis',
     name: 'Analysis',
@@ -365,8 +408,8 @@ export const PARLIAMENT_VOICES: Record<VoiceId, VoiceDefinition> = {
       onExhaustion: ['Аналитические процессы замедляются...']
     }
   },
-  
-  // ================ ГРУППА IV: СОЗНАНИЕ (CONSCIOUSNESS) ================
+
+  // ================ ГРУППА IV: СОЗНАНИЕ WP!(CONSCIOUSNESS) ================
   authority: {
     id: 'authority',
     name: 'Authority',
@@ -388,7 +431,7 @@ export const PARLIAMENT_VOICES: Record<VoiceId, VoiceDefinition> = {
       onExhaustion: ['Даже уставший лев — всё ещё лев.']
     }
   },
-  
+
   suggestion: {
     id: 'suggestion',
     name: 'Suggestion',
@@ -410,7 +453,7 @@ export const PARLIAMENT_VOICES: Record<VoiceId, VoiceDefinition> = {
       onExhaustion: ['Влияние ослабевает... нужен отдых.']
     }
   },
-  
+
   courage: {
     id: 'courage',
     name: 'Courage',
@@ -432,8 +475,8 @@ export const PARLIAMENT_VOICES: Record<VoiceId, VoiceDefinition> = {
       onExhaustion: ['Устал бояться. Устал сдаваться.']
     }
   },
-  
-  // ================ ГРУППА V: ПСИХИКА (PSYCHE) ================
+
+  // ================ ГРУППА V: ПСИХИКА Id((Оно) по Фрейду) (PSYCHE) ================
   gambling: {
     id: 'gambling',
     name: 'Gambling',
@@ -455,7 +498,7 @@ export const PARLIAMENT_VOICES: Record<VoiceId, VoiceDefinition> = {
       onExhaustion: ['Устал выигрывать? НИКОГДА.']
     }
   },
-  
+
   drama: {
     id: 'drama',
     name: 'Drama',
@@ -477,7 +520,7 @@ export const PARLIAMENT_VOICES: Record<VoiceId, VoiceDefinition> = {
       onExhaustion: ['Даже трагедия требует антракта...']
     }
   },
-  
+
   creativity: {
     id: 'creativity',
     name: 'Creativity',
@@ -499,8 +542,8 @@ export const PARLIAMENT_VOICES: Record<VoiceId, VoiceDefinition> = {
       onExhaustion: ['Муза устала... но не ушла.']
     }
   },
-  
-  // ================ ГРУППА VI: СОЦИАЛЬНОСТЬ (SOCIALITY) ================
+
+  // ================ ГРУППА VI: СОЦИАЛЬНОСТЬ SP! (SOCIALITY) ================
   empathy: {
     id: 'empathy',
     name: 'Empathy',
@@ -522,7 +565,7 @@ export const PARLIAMENT_VOICES: Record<VoiceId, VoiceDefinition> = {
       onExhaustion: ['Чужая боль... она истощает...']
     }
   },
-  
+
   solidarity: {
     id: 'solidarity',
     name: 'Solidarity',
@@ -534,7 +577,7 @@ export const PARLIAMENT_VOICES: Record<VoiceId, VoiceDefinition> = {
     description: 'Объединяет усилия (Combo attacks). Делит входящий урон и бонусы между членами отряда.',
     combatEffects: [
       { type: 'trigger', condition: 'on_combo', description: '+25% к урону комбо-атак' },
-      { type: 'passive', stat: 'damage_share', modifier: 0.3, description: 'Делит 0.3% урона с союзниками за уровень' },
+      { type: 'passive', stat: 'damage_share', modifier: 0.3, description: 'Делит 0.3% урона с союзниками (только при HP > 30%)' },
       { type: 'scaling', stat: 'team_bonus', modifier: 0.2, description: '+0.2 к командным бонусам' }
     ],
     comments: {
@@ -544,7 +587,7 @@ export const PARLIAMENT_VOICES: Record<VoiceId, VoiceDefinition> = {
       onExhaustion: ['Они устали... но мы держимся вместе.']
     }
   },
-  
+
   honor: {
     id: 'honor',
     name: 'Honor',
@@ -618,7 +661,7 @@ export const STARTING_VOICE_LEVELS: Record<VoiceId, number> = {
  * Получить случайный комментарий голоса
  */
 export function getVoiceComment(
-  voiceId: VoiceId, 
+  voiceId: VoiceId,
   situation: 'onSuccess' | 'onFailure' | 'onCritical' | 'onExhaustion'
 ): string {
   const voice = PARLIAMENT_VOICES[voiceId]

@@ -178,19 +178,31 @@ export interface CombatEffect {
  */
 export type ExhaustionLevel = 'none' | 'winded' | 'exhausted' | 'collapsed'
 
+export interface CombatantResources {
+  hp: number
+  maxHp: number
+  ap: number
+  maxAp: number
+  mp: number
+  maxMp: number
+  wp: number
+  maxWp: number
+  pp: number
+  maxPp: number // Hard cap 100
+}
+
 export interface CombatantState {
   id: string
   name: string
   side: CombatSide
   rank: CombatRank
 
-  // Health
-  hp: number
-  maxHp: number
-  morale: number
-  maxMorale: number
-  stamina: number
-  maxStamina: number
+  resources: CombatantResources
+
+  // Deprecated flat fields (kept for compatibility if needed, but prefer resources object)
+  // hp: number -> resources.hp
+  // morale: number -> resources.wp
+  // stamina: number -> resources.ap
 
   // Equipment state
   currentWeaponId?: string
@@ -274,7 +286,7 @@ export interface EnemyTemplate {
  */
 export type ZoneType =
   | 'sanctuary'      // Freiburger Münster - Sacred Ground
-  | 'chaos_zone'     // Vauban District - Solar Overcharge  
+  | 'chaos_zone'     // Vauban District - Solar Overcharge
   | 'forge'          // Industrial North - Magnetic Field
   | 'canals'         // Bächle - Slippery
   | 'neutral'
@@ -329,6 +341,10 @@ export interface BattleSession {
   // Combatants
   playerState: CombatantState
   enemies: CombatantState[]
+
+  // Team Resources
+  teamSP: number      // Social Points (Current)
+  maxTeamSP: number   // Social Points (Max)
 
   // Deck state (Card-based combat)
   deck: CombatCard[]
@@ -426,16 +442,18 @@ export function calculatePowerScore(
   return itemSum + (playerLevel * 10) + (voiceSum * 5)
 }
 
-// ================== STAMINA COSTS ==================
+// ================== ACTION POINT COSTS ==================
 
-export const STAMINA_COSTS = {
-  light_attack: 15,
-  heavy_attack: 40,
-  dash: 20,
-  dodge: 25,
-  block: 15,
-  block_per_hit: 5,
-  recover: 0, // Free action, restores stamina
+export const ACTION_POINT_COSTS = {
+  light_attack: 2,
+  heavy_attack: 4,
+  move: 1,
+  dash: 2,
+  dodge: 2, // Reaction cost
+  block: 1,
+  reload: 2,
+  item_use: 1,
+  overwatch: 2
 } as const
 
 // ================== ЭКСПОРТ ==================

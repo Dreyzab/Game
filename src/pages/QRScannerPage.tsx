@@ -31,7 +31,7 @@ function getErrorMessage(err: unknown): string {
 export default function QRScannerPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const { getToken } = useAuth()
+  const { getToken, isLoaded } = useAuth()
   const { deviceId } = useDeviceId()
 
   const [error, setError] = useState<string | null>(null)
@@ -92,6 +92,37 @@ export default function QRScannerPage() {
       setLastValue(result)
 
       try {
+        // Onboarding gate: before city registration, any QR scan routes the player into onboarding flow.
+        // We do this client-side for a silent UX, and keep server-side gating as a fallback.
+        if (isLoaded) {
+          try {
+            const vnState = await queryClient.fetchQuery({
+              queryKey: ['vn-state'],
+              queryFn: async () => {
+                const token = await getToken()
+                const client = authenticatedClient(token ?? undefined, deviceId)
+                const { data, error } = await client.vn.state.get()
+                if (error) throw error
+                return data
+              },
+              staleTime: 0,
+            })
+
+            const flags = (vnState as any)?.progress?.flags as Record<string, unknown> | undefined
+            const isRegistered = Boolean(flags?.city_registered)
+            const hasNickname = Boolean(flags?.nickname_set)
+
+            if (!isRegistered) {
+              if (!hasNickname) {
+                navigate(`${Routes.VISUAL_NOVEL}/onboarding_police_intro`)
+                return
+              }
+            }
+          } catch {
+            // Ignore onboarding fetch failures and let the server-side QR gate handle it.
+          }
+        }
+
         const token = await getToken()
         const client = authenticatedClient(token ?? undefined, deviceId)
 
@@ -115,9 +146,16 @@ export default function QRScannerPage() {
         const actions: QRAction[] | undefined = Array.isArray(actionsRaw) ? actionsRaw.filter(isQRAction) : undefined
         await applyActions(actions)
 
-        if (!actions || actions.length === 0) {
-          setNotice('QR активирован')
+        const gated = payload.gated === true && payload.kind === 'onboarding'
+        if (gated) {
+          const hasStartVn = Boolean(actions?.some((action) => action.type === 'start_vn'))
+          if (!hasStartVn) {
+            navigate(Routes.MAP)
+          }
+          return
         }
+
+        // If no actions are returned, stay silent (especially for onboarding-gated scans).
       } catch (err) {
         console.error('[QRScannerPage] QR activation failed', err)
         setError('Ошибка активации QR. Проверьте соединение и попробуйте снова.')
@@ -125,7 +163,7 @@ export default function QRScannerPage() {
         setIsProcessing(false)
       }
     },
-    [applyActions, deviceId, getToken, isProcessing, lastValue]
+    [applyActions, deviceId, getToken, isLoaded, isProcessing, lastValue, navigate, queryClient]
   )
 
   return (
@@ -178,4 +216,3 @@ export default function QRScannerPage() {
     </div>
   )
 }
-

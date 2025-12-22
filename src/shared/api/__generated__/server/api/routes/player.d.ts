@@ -1,4 +1,7 @@
 import { Elysia } from "elysia";
+import { players } from "../../db/schema";
+type PlayerRow = typeof players.$inferSelect;
+type PublicPlayer = Omit<PlayerRow, "passwordHash" | "passwordSalt">;
 export declare const playerRoutes: (app: Elysia) => Elysia<"", {
     decorator: {};
     store: {};
@@ -33,23 +36,7 @@ export declare const playerRoutes: (app: Elysia) => Elysia<"", {
                     status?: undefined;
                     progress?: undefined;
                 } | {
-                    player: {
-                        id: number;
-                        status: string | null;
-                        userId: string | null;
-                        deviceId: string | null;
-                        name: string;
-                        fame: number | null;
-                        factionId: string | null;
-                        squadId: string | null;
-                        location: {
-                            lat: number;
-                            lng: number;
-                        } | null;
-                        lastSeen: number | null;
-                        createdAt: number;
-                        updatedAt: number;
-                    };
+                    player: PublicPlayer | null;
                     progress: {
                         id: number;
                         updatedAt: number;
@@ -104,24 +91,69 @@ export declare const playerRoutes: (app: Elysia) => Elysia<"", {
                         player?: undefined;
                         created?: undefined;
                     } | {
-                        player: {
+                        player: PublicPlayer | null;
+                        created: boolean;
+                        error?: undefined;
+                        status?: undefined;
+                    };
+                    422: {
+                        type: "validation";
+                        on: string;
+                        summary?: string;
+                        message?: string;
+                        found?: unknown;
+                        property?: string;
+                        expected?: string;
+                    };
+                };
+            };
+        };
+    };
+} & {
+    player: {
+        "city-registration": {
+            post: {
+                body: {
+                    password?: string | undefined;
+                    nickname?: string | undefined;
+                    returnScene?: string | undefined;
+                    method: "clerk" | "password";
+                };
+                params: {};
+                query: unknown;
+                headers: unknown;
+                response: {
+                    200: {
+                        success: boolean;
+                        error: string;
+                        status: number;
+                        player?: undefined;
+                        progress?: undefined;
+                    } | {
+                        success: boolean;
+                        player: PublicPlayer | null;
+                        progress: {
                             id: number;
-                            status: string | null;
-                            userId: string | null;
-                            deviceId: string | null;
-                            name: string;
-                            fame: number | null;
-                            factionId: string | null;
-                            squadId: string | null;
-                            location: {
-                                lat: number;
-                                lng: number;
-                            } | null;
-                            lastSeen: number | null;
-                            createdAt: number;
+                            playerId: number;
+                            currentScene: string | null;
+                            visitedScenes: string[] | null;
+                            flags: Record<string, any> | null;
+                            level: number | null;
+                            xp: number | null;
+                            skillPoints: number | null;
+                            skills: Record<string, number> | null;
+                            subclasses: string[] | null;
+                            gold: number | null;
+                            reputation: Record<string, number> | null;
+                            hp: number | null;
+                            maxHp: number | null;
+                            morale: number | null;
+                            maxMorale: number | null;
+                            stamina: number | null;
+                            maxStamina: number | null;
+                            phase: number | null;
                             updatedAt: number;
                         };
-                        created: boolean;
                         error?: undefined;
                         status?: undefined;
                     };
@@ -169,3 +201,4 @@ export declare const playerRoutes: (app: Elysia) => Elysia<"", {
         readonly isGuest: boolean;
     }>;
 }>;
+export {};

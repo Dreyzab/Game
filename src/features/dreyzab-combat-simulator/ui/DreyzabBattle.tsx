@@ -1,17 +1,65 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Hourglass, RefreshCw, SquareTerminal, Terminal, Trophy, X } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import {
+    DndContext,
+    DragOverlay,
+    MouseSensor,
+    TouchSensor,
+    useDroppable,
+    useSensor,
+    useSensors,
+    type DragEndEvent,
+    type DragStartEvent,
+} from '@dnd-kit/core'
+import { Backpack, Trophy, X, Terminal, Hourglass, RefreshCw, SquareTerminal } from 'lucide-react'
 import { ENEMY_TEMPLATES, INITIAL_PLAYER_HAND } from '../model/constants'
-import type { Achievement, BattleSession, CombatCard, Combatant } from '../model/types'
-import { CardType, Side } from '../model/types'
-import CombatCardUI from './components/CombatCardUI'
-import GaugeUI from './components/GaugeUI'
+import type { Achievement, BattleSession, Combatant, CombatCard } from '../model/types'
+import { Side, CardType } from '../model/types'
 import RankLane from './components/RankLane'
+import type { FloatingTextEvent } from './components/FloatingText'
+import { sortTurnQueue, canPlayCard } from '../model/utils'
+import CombatCardUI from './components/CombatCardUI'
+import BattleEquipmentOverlay from './components/BattleEquipmentOverlay'
+import DraggableCombatCard from './components/DraggableCombatCard'
+import GaugeUI from './components/GaugeUI'
 
 type DreyzabBattleResult = 'victory' | 'defeat'
 
 type DreyzabBattleProps = {
     onBattleEnd?: (result: DreyzabBattleResult) => void
 }
+
+type BattleDropZoneProps = {
+    id: string
+    disabled: boolean
+    data: Record<string, unknown>
+    isActive: boolean
+    isValid: boolean
+    highlightClassName: string
+    children: ReactNode
+}
+
+const BattleDropZone = ({ id, disabled, data, isActive, isValid, highlightClassName, children }: BattleDropZoneProps) => {
+    const { setNodeRef, isOver } = useDroppable({ id, disabled, data })
+
+    return (
+        <div ref={setNodeRef} className="relative h-full">
+            {children}
+            {isActive && isValid && (
+                <div
+                    className={[
+                        'absolute inset-1 rounded-xl pointer-events-none transition-all',
+                        highlightClassName,
+                        isOver ? 'ring-4 opacity-100' : 'ring-2 opacity-40',
+                    ].join(' ')}
+                />
+            )}
+        </div>
+    )
+}
+
+type CardPlayTarget =
+    | { type: 'enemy'; enemyId: string }
+    | { type: 'player-rank'; rank: number }
 
 const INITIAL_ACHIEVEMENTS: Achievement[] = [
     {
@@ -53,13 +101,6 @@ const INITIAL_ACHIEVEMENTS: Achievement[] = [
 
 const ACHIEVEMENTS_STORAGE_KEY = 'dreyzab_achievements'
 
-const calculateInitiative = (unit: Combatant) => unit.stamina / 10 + (unit.side === Side.PLAYER ? 5 : 0)
-
-const sortTurnQueue = (players: Combatant[], enemies: Combatant[]) => {
-    const all = [...players, ...enemies].filter((u) => !u.isDead)
-    return all.sort((a, b) => calculateInitiative(b) - calculateInitiative(a)).map((u) => u.id)
-}
-
 const readAchievements = (): Achievement[] => {
     const saved = localStorage.getItem(ACHIEVEMENTS_STORAGE_KEY)
     if (!saved) return INITIAL_ACHIEVEMENTS
@@ -83,12 +124,13 @@ const createInitialSession = (): { session: BattleSession; defaultTargetId: stri
             name: 'Vanguard',
             side: Side.PLAYER,
             rank: 1,
-            hp: 120,
-            maxHp: 120,
-            stamina: 100,
-            maxStamina: 100,
-            ap: 3,
-            maxAp: 3,
+            resources: {
+                hp: 120, maxHp: 120,
+                ap: 3, maxAp: 3,
+                mp: 20, maxMp: 20,
+                wp: 20, maxWp: 20,
+                pp: 0, maxPp: 100
+            },
             bonusAp: 0,
             initiative: 0,
             armor: 8,
@@ -103,12 +145,13 @@ const createInitialSession = (): { session: BattleSession; defaultTargetId: stri
             name: 'Operator',
             side: Side.PLAYER,
             rank: 2,
-            hp: 100,
-            maxHp: 100,
-            stamina: 100,
-            maxStamina: 100,
-            ap: 3,
-            maxAp: 3,
+            resources: {
+                hp: 100, maxHp: 100,
+                ap: 3, maxAp: 3,
+                mp: 30, maxMp: 30,
+                wp: 20, maxWp: 20,
+                pp: 0, maxPp: 100
+            },
             bonusAp: 0,
             initiative: 0,
             armor: 5,
@@ -123,12 +166,13 @@ const createInitialSession = (): { session: BattleSession; defaultTargetId: stri
             name: 'Support',
             side: Side.PLAYER,
             rank: 3,
-            hp: 80,
-            maxHp: 80,
-            stamina: 100,
-            maxStamina: 100,
-            ap: 3,
-            maxAp: 3,
+            resources: {
+                hp: 80, maxHp: 80,
+                ap: 3, maxAp: 3,
+                mp: 20, maxMp: 20,
+                wp: 30, maxWp: 30,
+                pp: 0, maxPp: 100
+            },
             bonusAp: 0,
             initiative: 0,
             armor: 3,
@@ -145,12 +189,13 @@ const createInitialSession = (): { session: BattleSession; defaultTargetId: stri
         name: t.name,
         side: Side.ENEMY,
         rank: t.rank,
-        hp: t.hp,
-        maxHp: t.hp,
-        stamina: 50,
-        maxStamina: 50,
-        ap: 1,
-        maxAp: 1,
+        resources: {
+            hp: t.hp, maxHp: t.hp,
+            ap: 1, maxAp: 1,
+            mp: 10, maxMp: 10,
+            wp: 10, maxWp: 10,
+            pp: 0, maxPp: 100
+        },
         bonusAp: 0,
         initiative: 0,
         armor: t.armor,
@@ -174,30 +219,49 @@ const createInitialSession = (): { session: BattleSession; defaultTargetId: stri
             stats: { damageTaken: 0, attacksInOneTurn: 0, turnCount: 1 },
             activeUnitId: turnQueue[0] ?? null,
             turnQueue,
+            teamSP: 50, // Initial testing value
+            maxTeamSP: 100,
         },
         defaultTargetId: enemies[0]?.id ?? null,
     }
 }
 
-const canPlayCard = ({ session, card }: { session: BattleSession; card: CombatCard }) => {
-    if (session.phase !== 'PLAYER_TURN') return false
-    const activePlayer = session.players.find((p) => p.id === session.activeUnitId)
-    if (!activePlayer) return false
-    return activePlayer.ap >= card.apCost && activePlayer.stamina >= card.staminaCost
-}
-
+// Battle component
 export default function DreyzabBattle({ onBattleEnd }: DreyzabBattleProps) {
     const [initial] = useState(() => createInitialSession())
     const [battle, setBattle] = useState<BattleSession>(initial.session)
     const [selectedTargetId, setSelectedTargetId] = useState<string | null>(initial.defaultTargetId)
     const [achievements, setAchievements] = useState<Achievement[]>(() => readAchievements())
     const [showAchievements, setShowAchievements] = useState(false)
+    const [showEquipment, setShowEquipment] = useState(false)
+    const [combatEvents, setCombatEvents] = useState<(FloatingTextEvent & { unitId: string })[]>([])
+    const [activeDragCardId, setActiveDragCardId] = useState<string | null>(null)
 
     const logEndRef = useRef<HTMLDivElement>(null)
     const battleRef = useRef<BattleSession>(battle)
     const enemyActionTimerRef = useRef<number | null>(null)
     const autoAdvanceTimerRef = useRef<number | null>(null)
     const reportedResultRef = useRef<DreyzabBattleResult | null>(null)
+
+    const sensors = useSensors(
+        useSensor(MouseSensor, {
+            activationConstraint: { distance: 5 },
+        }),
+        useSensor(TouchSensor, {
+            activationConstraint: { delay: 150, tolerance: 5 },
+        })
+    )
+
+    const addCombatEvent = useCallback((unitId: string, text: string, type: 'damage' | 'heal' | 'miss') => {
+        const id = Math.random().toString(36).substr(2, 9)
+        const color = type === 'damage' ? '#ef4444' : type === 'heal' ? '#10b981' : '#fbbf24'
+        setCombatEvents((prev) => [...prev, { id, text, color, unitId }])
+
+        // Auto-cleanup
+        setTimeout(() => {
+            setCombatEvents((prev) => prev.filter((e) => e.id !== id))
+        }, 2000)
+    }, [])
 
     useEffect(() => {
         battleRef.current = battle
@@ -264,8 +328,12 @@ export default function DreyzabBattle({ onBattleEnd }: DreyzabBattleProps) {
             if (currentUnit?.side === Side.PLAYER) {
                 const playerIndex = nextPlayers.findIndex((p) => p.id === currentUnit.id)
                 if (playerIndex >= 0) {
-                    const carryOver = currentUnit.ap > 0 ? 1 : 0
-                    nextPlayers[playerIndex] = { ...currentUnit, bonusAp: carryOver, ap: 0 }
+                    const carryOver = currentUnit.resources.ap > 0 ? 1 : 0
+                    nextPlayers[playerIndex] = {
+                        ...currentUnit,
+                        bonusAp: carryOver,
+                        resources: { ...currentUnit.resources, ap: 0 },
+                    }
                 }
             }
 
@@ -273,8 +341,15 @@ export default function DreyzabBattle({ onBattleEnd }: DreyzabBattleProps) {
             const isNewRound = nextIdx === 0
 
             if (isNewRound) {
-                nextPlayers = nextPlayers.map((p) => ({ ...p, ap: p.maxAp + p.bonusAp, bonusAp: 0 }))
-                nextEnemies = nextEnemies.map((e) => ({ ...e, ap: e.maxAp }))
+                nextPlayers = nextPlayers.map((p) => ({
+                    ...p,
+                    resources: { ...p.resources, ap: p.resources.maxAp + p.bonusAp },
+                    bonusAp: 0,
+                }))
+                nextEnemies = nextEnemies.map((e) => ({
+                    ...e,
+                    resources: { ...e.resources, ap: e.resources.maxAp },
+                }))
 
                 const newQueue = sortTurnQueue(nextPlayers, nextEnemies)
                 const nextId = newQueue[0] ?? null
@@ -346,10 +421,15 @@ export default function DreyzabBattle({ onBattleEnd }: DreyzabBattleProps) {
                 } else {
                     const dmg = Math.max(1, 10 - target.armor)
                     const targetIndex = players.findIndex((p) => p.id === target.id)
-                    const nextHp = Math.max(0, players[targetIndex].hp - dmg)
-                    players[targetIndex] = { ...players[targetIndex], hp: nextHp, isDead: nextHp <= 0 }
+                    const nextHp = Math.max(0, players[targetIndex].resources.hp - dmg)
+                    players[targetIndex] = {
+                        ...players[targetIndex],
+                        resources: { ...players[targetIndex].resources, hp: nextHp },
+                        isDead: nextHp <= 0,
+                    }
                     damageDealt = dmg
                     nextLogs.push(`${enemy.name} strikes ${target.name} for ${dmg} damage.`)
+                    addCombatEvent(target.id, `-${dmg}`, 'damage')
                     if (nextHp <= 0) nextLogs.push(`${target.name} offline.`)
                 }
 
@@ -372,7 +452,7 @@ export default function DreyzabBattle({ onBattleEnd }: DreyzabBattleProps) {
                 advanceTurn()
             }, 500)
         },
-        [advanceTurn]
+        [advanceTurn, addCombatEvent]
     )
 
     useEffect(() => {
@@ -389,7 +469,7 @@ export default function DreyzabBattle({ onBattleEnd }: DreyzabBattleProps) {
     }, [battle.activeUnitId, battle.enemies, battle.phase, battle.players, resolveEnemyAction])
 
     const playCard = useCallback(
-        (card: CombatCard) => {
+        (card: CombatCard, target?: CardPlayTarget) => {
             if (!canPlayCard({ session: battle, card })) return
 
             setBattle((prev) => {
@@ -403,49 +483,90 @@ export default function DreyzabBattle({ onBattleEnd }: DreyzabBattleProps) {
                 const nextLogs = [...prev.logs]
 
                 const actingPlayer = players[playerIndex]
-                if (actingPlayer.ap < card.apCost || actingPlayer.stamina < card.staminaCost) return prev
+                if (actingPlayer.resources.ap < card.apCost || actingPlayer.resources.wp < card.staminaCost) return prev
 
-                const nextPlayer = {
-                    ...actingPlayer,
-                    ap: actingPlayer.ap - card.apCost,
-                    stamina: actingPlayer.stamina - card.staminaCost,
-                }
-                players[playerIndex] = nextPlayer
+                const spendCosts = (unit: Combatant) => ({
+                    ...unit,
+                    resources: {
+                        ...unit.resources,
+                        ap: unit.resources.ap - card.apCost,
+                        wp: unit.resources.wp - card.staminaCost,
+                    },
+                })
 
                 let nextAttacksInTurn = prev.stats.attacksInOneTurn
 
                 if (card.type === CardType.ATTACK) {
+                    const enemyId = target?.type === 'enemy' ? target.enemyId : selectedTargetId
+                    const targetIndex = enemies.findIndex((e) => e.id === enemyId)
+                    const enemy = targetIndex >= 0 ? enemies[targetIndex] : null
+
+                    if (!enemy || enemy.isDead) {
+                        nextLogs.push('No valid target.')
+                        return { ...prev, logs: nextLogs }
+                    }
+
+                    const dist = Math.abs(enemy.rank - actingPlayer.rank)
+                    const inRange = card.optimalRange.length === 0 || card.optimalRange.includes(dist)
+
+                    if (!inRange) {
+                        nextLogs.push(`${actingPlayer.name} cannot reach ${enemy.name} with ${card.name}.`)
+                        return { ...prev, logs: nextLogs }
+                    }
+
+                    const nextPlayer = spendCosts(actingPlayer)
+                    players[playerIndex] = nextPlayer
                     nextAttacksInTurn++
-                    const targetIndex = enemies.findIndex((e) => e.id === selectedTargetId)
-                    const target = targetIndex >= 0 ? enemies[targetIndex] : null
-                    if (target && !target.isDead) {
-                        const dist = Math.abs(target.rank - nextPlayer.rank)
-                        const isOptimal = card.optimalRange.includes(dist) || card.optimalRange.length === 0
-                        const multiplier = isOptimal ? 1 : 0.6
-                        let damage = Math.floor(card.damage * multiplier - target.armor)
-                        damage = Math.max(1, damage)
 
-                        const nextHp = Math.max(0, target.hp - damage)
-                        enemies[targetIndex] = { ...target, hp: nextHp, isDead: nextHp <= 0 }
+                    let damage = Math.floor(card.damage - enemy.armor)
+                    damage = Math.max(1, damage)
 
-                        if (nextHp <= 0 && target.name === 'Rail Scorpion') unlockAchievement('scorpion_slayer')
-                        nextLogs.push(`${nextPlayer.name} uses ${card.name}: ${damage} DMG to ${target.name}.`)
+                    const nextHp = Math.max(0, enemy.resources.hp - damage)
+                    enemies[targetIndex] = {
+                        ...enemy,
+                        resources: { ...enemy.resources, hp: nextHp },
+                        isDead: nextHp <= 0,
                     }
+
+                    if (nextHp <= 0 && enemy.name === 'Rail Scorpion') unlockAchievement('scorpion_slayer')
+                    nextLogs.push(`${nextPlayer.name} uses ${card.name}: ${damage} DMG to ${enemy.name}.`)
+                    addCombatEvent(enemy.id, `-${damage}`, 'damage')
                 } else if (card.type === CardType.MOVEMENT) {
-                    if (nextPlayer.rank > 1) {
-                        players[playerIndex] = { ...nextPlayer, rank: nextPlayer.rank - 1 }
-                        nextLogs.push(`${players[playerIndex].name} advances.`)
-                    } else {
-                        const nextHp = Math.max(0, nextPlayer.hp - 5)
-                        players[playerIndex] = { ...nextPlayer, hp: nextHp, isDead: nextHp <= 0 }
-                        nextLogs.push(`${players[playerIndex].name} hit the boundary.`)
+                    const desiredRank = target?.type === 'player-rank' ? target.rank : actingPlayer.rank - 1
+                    const isAdjacent = Math.abs(desiredRank - actingPlayer.rank) === 1
+                    const inBounds = desiredRank >= 1 && desiredRank <= 4
+
+                    if (!isAdjacent || !inBounds) {
+                        nextLogs.push(`${actingPlayer.name} cannot reposition there.`)
+                        return { ...prev, logs: nextLogs }
                     }
+
+                    const nextPlayer = spendCosts(actingPlayer)
+
+                    const occupantIndex = players.findIndex(
+                        (p) => p.id !== nextPlayer.id && !p.isDead && p.rank === desiredRank
+                    )
+
+                    if (occupantIndex >= 0) {
+                        players[occupantIndex] = { ...players[occupantIndex], rank: nextPlayer.rank }
+                    }
+
+                    players[playerIndex] = { ...nextPlayer, rank: desiredRank }
+                    nextLogs.push(`${nextPlayer.name} repositions to rank ${desiredRank}.`)
                 } else if (card.type === CardType.VOICE) {
+                    const nextPlayer = spendCosts(actingPlayer)
                     players[playerIndex] = {
                         ...nextPlayer,
-                        stamina: Math.min(nextPlayer.maxStamina, nextPlayer.stamina + 30),
+                        resources: {
+                            ...nextPlayer.resources,
+                            wp: Math.min(nextPlayer.resources.maxWp, nextPlayer.resources.wp + 30),
+                        },
                     }
                     nextLogs.push(`${players[playerIndex].name} stabilizes vitals.`)
+                    addCombatEvent(actingPlayer.id, '+30 WP', 'heal')
+                } else if (card.type === CardType.DEFENSE) {
+                    nextLogs.push('Defense protocols unavailable.')
+                    return { ...prev, logs: nextLogs }
                 }
 
                 const allDead = enemies.every((e) => e.isDead)
@@ -474,10 +595,10 @@ export default function DreyzabBattle({ onBattleEnd }: DreyzabBattleProps) {
                 if (!activePlayer) return
 
                 const allEnemiesDead = current.enemies.every((e) => e.isDead)
-                if (activePlayer.ap <= 0 && !allEnemiesDead) advanceTurn()
+                if (activePlayer.resources.ap <= 0 && !allEnemiesDead) advanceTurn()
             }, 800)
         },
-        [advanceTurn, battle, selectedTargetId, unlockAchievement]
+        [advanceTurn, battle, selectedTargetId, unlockAchievement, addCombatEvent]
     )
 
     const resetBattle = useCallback(() => {
@@ -489,6 +610,36 @@ export default function DreyzabBattle({ onBattleEnd }: DreyzabBattleProps) {
         reportedResultRef.current = null
     }, [clearTimers])
 
+    const handleTouchScrub = useCallback((e: React.TouchEvent) => {
+        const touch = e.touches[0]
+        const { clientX, clientY } = touch
+
+        // Расширенный поиск: проверяем не только точку касания, но и область над/под ней
+        // Это позволяет легче выбирать карты, не удерживая палец точно на них
+        const verticalOffsets = [0, -20, 20, -40, 40, -60, 60, -100, 100]
+        let foundId: string | null = null
+
+        for (const offset of verticalOffsets) {
+            const el = document.elementFromPoint(clientX, clientY + offset)
+            const cardEl = el?.closest('[data-card-id]')
+            if (cardEl) {
+                foundId = cardEl.getAttribute('data-card-id')
+                break
+            }
+        }
+
+        if (foundId) {
+            return
+        } else {
+            // Если мы всё еще в горизонтальной зоне карт, но выше/ниже допустимого,
+            // можно не сбрасывать выделение сразу для плавности (опционально)
+            return
+        }
+    }, [])
+
+    const handleTouchEnd = useCallback(() => {
+    }, [])
+
     const activeUnit = useMemo(() => {
         if (!battle.activeUnitId) return null
         return [...battle.players, ...battle.enemies].find((u) => u.id === battle.activeUnitId) ?? null
@@ -496,66 +647,120 @@ export default function DreyzabBattle({ onBattleEnd }: DreyzabBattleProps) {
 
     const activePlayer = activeUnit?.side === Side.PLAYER ? activeUnit : null
 
+    const activeDraggedCard = useMemo(() => {
+        if (!activeDragCardId) return null
+        return battle.playerHand.find((c) => c.id === activeDragCardId) ?? null
+    }, [activeDragCardId, battle.playerHand])
+
+    const dragHighlightClassName = useMemo(() => {
+        if (!activeDraggedCard) return ''
+        switch (activeDraggedCard.type) {
+            case CardType.ATTACK:
+                return 'ring-red-500/60 bg-red-950/10'
+            case CardType.MOVEMENT:
+                return 'ring-blue-500/60 bg-blue-950/10'
+            case CardType.DEFENSE:
+                return 'ring-emerald-500/60 bg-emerald-950/10'
+            case CardType.VOICE:
+                return 'ring-amber-500/60 bg-amber-950/10'
+            default:
+                return ''
+        }
+    }, [activeDraggedCard])
+
+    const validEnemyDropIds = useMemo(() => {
+        const ids = new Set<string>()
+        if (!activeDraggedCard || !activePlayer) return ids
+        if (activeDraggedCard.type !== CardType.ATTACK) return ids
+
+        for (const enemy of battle.enemies) {
+            if (enemy.isDead) continue
+            const dist = Math.abs(enemy.rank - activePlayer.rank)
+            if (activeDraggedCard.optimalRange.length === 0 || activeDraggedCard.optimalRange.includes(dist)) {
+                ids.add(enemy.id)
+            }
+        }
+
+        return ids
+    }, [activeDraggedCard, activePlayer, battle.enemies])
+
+    const validPlayerRankDrops = useMemo(() => {
+        const ranks = new Set<number>()
+        if (!activeDraggedCard || !activePlayer) return ranks
+
+        if (activeDraggedCard.type === CardType.MOVEMENT) {
+            if (activePlayer.rank > 1) ranks.add(activePlayer.rank - 1)
+            if (activePlayer.rank < 4) ranks.add(activePlayer.rank + 1)
+        } else if (activeDraggedCard.type === CardType.VOICE || activeDraggedCard.type === CardType.DEFENSE) {
+            ranks.add(activePlayer.rank)
+        }
+
+        return ranks
+    }, [activeDraggedCard, activePlayer])
+
+    const handleDragStart = useCallback((event: DragStartEvent) => {
+        setActiveDragCardId(event.active.id as string)
+    }, [])
+
+    const handleDragCancel = useCallback(() => {
+        setActiveDragCardId(null)
+    }, [])
+
+    const handleDragEnd = useCallback(
+        (event: DragEndEvent) => {
+            const { active, over } = event
+            setActiveDragCardId(null)
+
+            if (!over) return
+
+            const card = active.data.current?.card as CombatCard | undefined
+            if (!card) return
+
+            if (over.data.current?.type === 'enemy') {
+                const enemyId = over.data.current.enemyId as string | undefined
+                if (!enemyId) return
+                setSelectedTargetId(enemyId)
+                playCard(card, { type: 'enemy', enemyId })
+                return
+            }
+
+            if (over.data.current?.type === 'player-rank') {
+                const rank = over.data.current.rank as number | undefined
+                if (typeof rank !== 'number') return
+                playCard(card, { type: 'player-rank', rank })
+            }
+        },
+        [playCard]
+    )
+
     return (
-        <div className="dreyzab-battle h-screen w-full flex flex-col arena-bg relative overflow-hidden text-xs md:text-sm">
-            <div className="absolute top-2 left-2 z-50">
-                <div className="bg-black/60 backdrop-blur-md border border-zinc-800 rounded px-1.5 py-1 flex items-center gap-1 shadow-lg">
-                    <span className="text-[7px] text-zinc-500 font-black uppercase">Round</span>
-                    <span className="text-amber-500 font-mono font-black text-[10px]">{battle.turnCount}</span>
-                </div>
-            </div>
+        <DndContext sensors={sensors} onDragStart={handleDragStart} onDragCancel={handleDragCancel} onDragEnd={handleDragEnd}>
+            <div
+                className="dreyzab-battle h-screen w-full flex flex-col arena-bg relative overflow-hidden text-xs md:text-sm select-none"
+            >
 
-            <div className="absolute top-2 right-2 z-50 flex gap-2">
-                <button
-                    onClick={() => setShowAchievements(true)}
-                    className="p-1.5 bg-black/60 backdrop-blur-md border border-zinc-800 text-zinc-400 rounded-full hover:text-amber-500 transition-colors shadow-2xl"
-                    type="button"
-                >
-                    <Trophy size={16} />
-                </button>
-            </div>
-
+            {/* Turn Order Display (Original Style) */}
             <div className="absolute top-0 left-0 right-0 z-40 pointer-events-none flex flex-col items-center">
-                <div className="flex items-start gap-1 p-1 bg-black/70 backdrop-blur-xl border-x border-b border-white/10 rounded-b-2xl shadow-2xl pointer-events-auto overflow-x-auto max-w-[calc(100%-100px)] no-scrollbar">
+                <div className="flex items-start gap-1 p-1 bg-black/60 backdrop-blur-md border-x border-b border-white/10 rounded-b-2xl shadow-2xl pointer-events-auto overflow-x-auto max-w-[calc(100%-120px)] no-scrollbar">
                     {battle.turnQueue.map((id) => {
                         const unit = [...battle.players, ...battle.enemies].find((u) => u.id === id)
                         if (!unit || unit.isDead) return null
-
                         const isActive = battle.activeUnitId === id
                         const isPlayer = unit.side === Side.PLAYER
-
                         return (
-                            <div
-                                key={id}
-                                className={[
-                                    'flex flex-col transition-all duration-300',
-                                    isActive ? 'scale-105' : 'opacity-40 grayscale scale-90',
-                                ].join(' ')}
-                            >
-                                <div
-                                    className={[
-                                        'relative w-9 h-9 md:w-16 md:h-16 bg-zinc-950 border-2 overflow-hidden rounded-lg shadow-xl',
-                                        isActive
-                                            ? isPlayer
-                                                ? 'border-blue-500 ring-2 ring-blue-500/30'
-                                                : 'border-red-600 ring-2 ring-red-600/30'
-                                            : 'border-zinc-800',
-                                    ].join(' ')}
-                                >
+                            <div key={id} className={`flex flex-col transition-all duration-300 ${isActive ? 'scale-105' : 'opacity-40 grayscale scale-90'}`}>
+                                <div className={`relative w-9 h-9 md:w-14 md:h-14 bg-zinc-950 border-2 overflow-hidden rounded-lg shadow-xl ${isActive ? (isPlayer ? 'border-blue-500 ring-1 ring-blue-500/30' : 'border-red-600 ring-1 ring-red-600/30') : 'border-zinc-800'}`}>
                                     <img
                                         src={
                                             isPlayer
-                                                ? `https://api.dicebear.com/7.x/avataaars/svg?seed=${id}`
-                                                : `https://api.dicebear.com/7.x/bottts/svg?seed=${id}`
+                                                ? `https://api.dicebear.com/7.x/avataaars/svg?seed=operator${unit.id}&backgroundColor=transparent&style=straight`
+                                                : `https://api.dicebear.com/7.x/bottts/svg?seed=enemy${unit.id}&backgroundColor=transparent`
                                         }
                                         className="w-full h-full object-cover"
                                         alt="portrait"
                                     />
                                     <div className="absolute bottom-0 left-0 right-0 h-0.5 md:h-1 bg-zinc-900">
-                                        <div
-                                            className={isPlayer ? 'h-full bg-blue-500' : 'h-full bg-red-600'}
-                                            style={{ width: `${(unit.hp / unit.maxHp) * 100}%` }}
-                                        />
+                                        <div className={`h-full ${isPlayer ? 'bg-blue-500' : 'bg-red-600'}`} style={{ width: `${(unit.resources.hp / unit.resources.maxHp) * 100}%` }} />
                                     </div>
                                 </div>
                             </div>
@@ -564,41 +769,104 @@ export default function DreyzabBattle({ onBattleEnd }: DreyzabBattleProps) {
                 </div>
             </div>
 
-            <div className="flex-1 relative flex overflow-hidden pt-12 md:pt-16">
-                <div className="flex-1 grid grid-cols-4 h-full">
-                    {[4, 3, 2, 1].map((rank) => (
-                        <RankLane
-                            key={`p-rank-${rank}`}
-                            combatant={battle.players.find((p) => p.rank === rank && !p.isDead)}
-                        />
-                    ))}
+            {/* Top HUD Controls */}
+            <div className="relative z-50 pt-2 px-4 flex justify-between items-start pointer-events-none">
+                <div className="flex items-center gap-2 pointer-events-auto mt-2">
+                    <button
+                        onClick={() => setShowEquipment(true)}
+                        className="p-2 bg-black/40 backdrop-blur-md border border-white/10 text-zinc-400 rounded-full hover:text-blue-400 transition-colors shadow-xl"
+                        title="Equipment"
+                        type="button"
+                    >
+                        <Backpack size={16} />
+                    </button>
+                    <div className="bg-black/40 backdrop-blur-md border border-white/10 rounded-lg px-2 py-1 flex items-center gap-2 shadow-xl">
+                        <span className="text-[8px] text-zinc-400 font-black uppercase tracking-widest">Round</span>
+                        <span className="text-amber-500 font-mono font-black text-xs">{battle.turnCount}</span>
+                    </div>
                 </div>
-                <div className="w-1 md:w-16 h-full flex-shrink-0" />
+
+                <div className="flex gap-2 pointer-events-auto mt-2">
+                    <button
+                        onClick={() => setShowAchievements(true)}
+                        className="p-2 bg-black/40 backdrop-blur-md border border-white/10 text-zinc-400 rounded-full hover:text-amber-500 transition-colors shadow-xl"
+                        type="button"
+                    >
+                        <Trophy size={16} />
+                    </button>
+                </div>
+            </div>
+
+            {/* Battlefield */}
+            <div className="flex-1 relative flex overflow-hidden pt-12 pb-28 md:pb-36">
+
+                {/* Player Lanes */}
                 <div className="flex-1 grid grid-cols-4 h-full">
-                    {[1, 2, 3, 4].map((rank) => {
-                        const enemyInRank = battle.enemies.find((e) => e.rank === rank && !e.isDead)
+                    {[4, 3, 2, 1].map((rank) => {
+                        const player = battle.players.find((p) => p.rank === rank && !p.isDead)
+                        const isValidDrop = validPlayerRankDrops.has(rank)
                         return (
-                            <RankLane
-                                key={`e-rank-${rank}`}
-                                combatant={enemyInRank}
-                                isTargeted={selectedTargetId === enemyInRank?.id}
-                                onTarget={() => {
-                                    if (enemyInRank) setSelectedTargetId(enemyInRank.id)
-                                }}
-                            />
+                            <BattleDropZone
+                                key={`p-rank-${rank}`}
+                                id={`player-rank-${rank}`}
+                                data={{ type: 'player-rank', rank }}
+                                disabled={!activeDraggedCard || !isValidDrop}
+                                isActive={!!activeDraggedCard}
+                                isValid={isValidDrop}
+                                highlightClassName={dragHighlightClassName}
+                            >
+                                <RankLane
+                                    combatant={player}
+                                    isActive={activePlayer?.id === player?.id}
+                                    events={combatEvents.filter((e) => e.unitId === player?.id)}
+                                />
+                            </BattleDropZone>
                         )
                     })}
                 </div>
 
-                <div className="hidden lg:flex absolute bottom-4 left-4 w-60 h-24 bg-black/60 backdrop-blur-md border border-zinc-800 p-2 z-30 flex-col rounded-xl overflow-hidden shadow-2xl">
+                <div className="w-0 md:w-16 h-full shrink-0 relative">
+                </div>
+
+                {/* Enemy Lanes */}
+                <div className="flex-1 grid grid-cols-4 h-full">
+                    {[1, 2, 3, 4].map((rank) => {
+                        const enemyInRank = battle.enemies.find((e) => e.rank === rank && !e.isDead)
+                        const isValidDrop = enemyInRank ? validEnemyDropIds.has(enemyInRank.id) : false
+                        return (
+                            <BattleDropZone
+                                key={`e-rank-${rank}`}
+                                id={`enemy-rank-${rank}`}
+                                data={{ type: 'enemy', enemyId: enemyInRank?.id ?? null }}
+                                disabled={!activeDraggedCard || !isValidDrop}
+                                isActive={!!activeDraggedCard}
+                                isValid={isValidDrop}
+                                highlightClassName={dragHighlightClassName}
+                            >
+                                <RankLane
+                                    combatant={enemyInRank}
+                                    isTargeted={selectedTargetId === enemyInRank?.id}
+                                    isActive={battle.activeUnitId === enemyInRank?.id}
+                                    onTarget={() => {
+                                        if (enemyInRank) setSelectedTargetId(enemyInRank.id)
+                                    }}
+                                    events={combatEvents.filter((e) => e.unitId === enemyInRank?.id)}
+                                />
+                            </BattleDropZone>
+                        )
+                    })}
+                </div>
+
+                {/* Combat Log Panel */}
+                <div className="hidden lg:flex absolute bottom-4 left-4 w-64 h-40 bg-black/60 backdrop-blur-md border border-zinc-800 p-2 z-30 flex-col rounded-xl overflow-hidden shadow-2xl">
                     <div className="flex items-center gap-1 text-[8px] text-zinc-500 mb-1 border-b border-zinc-800 font-bold uppercase pb-1">
                         <Terminal size={10} /> Logic_Stream
                     </div>
-                    <div className="flex-1 overflow-y-auto custom-scrollbar font-mono text-[9px] text-zinc-400 space-y-1">
-                        {battle.logs.slice(-5).map((log, i) => (
+                    <div className="flex-1 overflow-y-auto custom-scrollbar font-mono text-[10px] text-zinc-400 space-y-1">
+                        {battle.logs.slice().reverse().map((log, i) => (
                             <div
                                 key={`${battle.turnCount}-${i}`}
-                                className={log.includes('strike') || log.includes('DMG') ? 'text-red-500' : 'text-zinc-400'}
+                                className={log.includes('strike') || log.includes('DMG') ? 'text-red-400' : 'text-zinc-400'}
                             >
                                 &gt; {log}
                             </div>
@@ -608,92 +876,104 @@ export default function DreyzabBattle({ onBattleEnd }: DreyzabBattleProps) {
                 </div>
             </div>
 
-            <div className="h-32 md:h-44 bg-[#1a1a15] border-t-2 border-[#3d3d35] mt-auto z-40 flex px-0 items-center gap-0 flex-shrink-0 shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
-                <div className="flex-shrink-0 flex flex-col items-center justify-center border-r border-[#3d3d35] h-full py-1 px-1.5 min-w-[85px] md:min-w-[180px]">
-                    {activePlayer ? (
-                        <>
-                            <div className="flex gap-0.5 mb-1 scale-[0.7] md:scale-100 origin-center">
-                                <GaugeUI value={activePlayer.hp} max={activePlayer.maxHp} label="HP" color="#ef4444" />
-                                <GaugeUI
-                                    value={activePlayer.stamina}
-                                    max={activePlayer.maxStamina}
-                                    label="WP"
-                                    color="#3b82f6"
-                                />
-                            </div>
-
-                            <div className="relative mb-1">
-                                <div className="w-9 h-9 md:w-16 md:h-16 bg-zinc-950 border border-zinc-800 rounded flex items-center justify-center overflow-hidden grayscale opacity-80">
-                                    <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${activePlayer.id}`} alt="avatar" />
+            {/* Bottom Interface: Floating & Transparent (Original Style) */}
+            <div className="absolute bottom-0 left-0 right-0 p-2 md:p-4 z-50 flex items-end gap-1 md:gap-4 pointer-events-none">
+                {/* Left Side: Status & Portrait Cluster */}
+                <div className="flex flex-col items-start gap-1 pointer-events-auto">
+                    <div className="flex items-center gap-1.5 p-1 bg-black/60 backdrop-blur-lg border border-white/10 rounded-xl shadow-2xl">
+                        {activePlayer ? (
+                            <>
+                                {/* Portrait & Action Cluster */}
+                                <div className="flex flex-col items-center gap-1">
+                                    <div className="relative">
+                                        <div className="w-12 h-12 md:w-16 md:h-16 bg-zinc-950/80 border border-white/20 rounded-lg overflow-hidden flex items-center justify-center grayscale opacity-90 shadow-inner">
+                                            <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${activePlayer.id}`} alt="avatar" />
+                                        </div>
+                                        {/* AP Dots on the portrait corner */}
+                                        <div className="absolute -top-1.5 -right-1.5 flex flex-wrap-reverse gap-0.5 justify-end max-w-[30px] z-10">
+                                            {Array.from({ length: Math.min(activePlayer.resources.ap, activePlayer.resources.maxAp) }).map((_, i) => (
+                                                <div key={`std-${i}`} className="w-2.5 h-2.5 bg-blue-500 rounded-full border border-blue-200 shadow-[0_0_8px_rgba(59,130,246,0.8)]"></div>
+                                            ))}
+                                            {Array.from({ length: Math.max(0, activePlayer.resources.ap - activePlayer.resources.maxAp) }).map((_, i) => (
+                                                <div key={`bonus-${i}`} className="w-2.5 h-2.5 bg-amber-500 rounded-full border border-amber-200 shadow-[0_0_8px_rgba(245,158,11,0.8)]"></div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    {/* End Turn (Hourglass) */}
+                                    <button
+                                        onClick={advanceTurn}
+                                        className="w-full py-1.5 flex items-center justify-center bg-zinc-900/80 border border-white/10 hover:border-red-500 hover:bg-red-950/40 text-zinc-400 rounded-lg transition-all shadow-lg group"
+                                        title="End Turn"
+                                        type="button"
+                                    >
+                                        <Hourglass size={14} className="group-hover:animate-spin" />
+                                    </button>
                                 </div>
-                                <div className="absolute -top-1 -right-1 flex flex-wrap gap-0.5 justify-end max-w-[25px]">
-                                    {Array.from({ length: Math.min(activePlayer.ap, activePlayer.maxAp) }).map((_, i) => (
-                                        <div
-                                            key={`std-${i}`}
-                                            className="w-2 h-2 bg-blue-500 rounded-full border border-blue-300"
-                                        />
-                                    ))}
-                                    {Array.from({ length: Math.max(0, activePlayer.ap - activePlayer.maxAp) }).map((_, i) => (
-                                        <div
-                                            key={`bonus-${i}`}
-                                            className="w-2 h-2 bg-amber-500 rounded-full border border-amber-300"
-                                        />
-                                    ))}
-                                </div>
-                            </div>
 
-                            <button
-                                onClick={advanceTurn}
-                                className="py-1 px-1.5 bg-zinc-900 border border-zinc-700 hover:border-red-500 hover:bg-red-950/20 text-zinc-400 hover:text-red-500 rounded shadow-md transition-all group"
-                                type="button"
-                            >
-                                <Hourglass size={12} className="group-hover:animate-spin" />
-                            </button>
-                        </>
-                    ) : (
-                        <RefreshCw className="animate-spin text-zinc-800" size={20} />
-                    )}
+                                {/* Vertical Indicators */}
+                                <div className="flex flex-col gap-2 scale-90 md:scale-100 origin-left">
+                                    <GaugeUI value={activePlayer.resources.hp} max={activePlayer.resources.maxHp} label="HP" color="#ef4444" />
+                                    <GaugeUI value={activePlayer.resources.wp} max={activePlayer.resources.maxWp} label="WP" color="#3b82f6" />
+                                </div>
+                            </>
+                        ) : (
+                            <div className="p-4"><RefreshCw className="animate-spin text-zinc-600" size={24} /></div>
+                        )}
+                    </div>
                 </div>
 
-                <div className="flex-1 h-full flex items-center justify-center card-fan overflow-visible px-0.5">
-                    {activePlayer &&
-                        battle.playerHand.map((card, i) => (
-                            <CombatCardUI
+                {/* Center: Cards (Original Floating Style) */}
+                <div className="flex-1 h-32 md:h-40 flex items-end justify-center pointer-events-none mb-4">
+                    <div
+                        className="flex items-center justify-center card-fan pointer-events-auto py-32 -my-32"
+                        onTouchStart={handleTouchScrub}
+                        onTouchMove={handleTouchScrub}
+                        onTouchEnd={handleTouchEnd}
+                    >
+                        {activePlayer && battle.playerHand.map((card, i) => (
+                            <DraggableCombatCard
                                 key={card.id}
                                 card={card}
                                 disabled={!canPlayCard({ session: battle, card })}
                                 onClick={() => playCard(card)}
                                 style={{
-                                    transform: `rotate(${(i - (battle.playerHand.length - 1) / 2) * 4}deg) scale(1.1)`,
-                                    margin: '0 -18px',
+                                    transform: `rotate(${(i - (battle.playerHand.length - 1) / 2) * 5}deg) scale(1.0) translateY(${Math.abs(i - (battle.playerHand.length - 1) / 2) * 2}px)`,
+                                    margin: '0 -10px'
                                 }}
-                                className="md:scale-110 md:m-0"
+                                className="cursor-grab active:cursor-grabbing hover:z-100 transition-all duration-300 hover:-translate-y-12 md:hover:-translate-y-16"
                             />
                         ))}
+                    </div>
                 </div>
 
-                <div className="flex-shrink-0 w-12 md:w-1/4 border-l border-[#3d3d35] h-full flex flex-col p-1 items-center justify-center bg-black/10">
+                {/* Right Side: Small Target Icon (Unobtrusive) */}
+                <div className="shrink-0 mb-4 mr-2 pointer-events-auto">
                     {selectedTargetId ? (
-                        <div className="flex flex-col items-center gap-0.5">
-                            <div className="w-7 h-7 md:w-10 md:h-10 bg-zinc-950 border border-red-900/40 p-0.5 rounded">
-                                <img
-                                    src={`https://api.dicebear.com/7.x/bottts/svg?seed=${selectedTargetId}`}
-                                    className="opacity-60 grayscale"
-                                    alt="target"
-                                />
+                        <div className="flex flex-col items-center p-1.5 bg-black/40 backdrop-blur border border-white/10 rounded-xl shadow-2xl">
+                            <div className="w-8 h-8 md:w-12 md:h-12 bg-red-950/20 border border-red-500/30 rounded-lg overflow-hidden grayscale">
+                                <img src={`https://api.dicebear.com/7.x/bottts/svg?seed=${selectedTargetId}`} alt="target" />
                             </div>
-                            <div className="text-[6px] md:text-[8px] text-zinc-600 font-mono truncate max-w-[35px] md:max-w-none">
-                                {battle.enemies.find((e) => e.id === selectedTargetId)?.name.split(' ')[0]}
-                            </div>
+                            <span className="text-[6px] md:text-[8px] text-zinc-500 mt-1 uppercase font-black">
+                                {battle.enemies.find(e => e.id === selectedTargetId)?.name.split(' ')[0]}
+                            </span>
                         </div>
                     ) : (
-                        <SquareTerminal size={12} className="text-zinc-800" />
+                        <div className="p-2 bg-black/40 backdrop-blur border border-white/10 rounded-xl">
+                            <SquareTerminal className="text-zinc-600" size={16} />
+                        </div>
                     )}
                 </div>
             </div>
 
+            {showEquipment && (
+                <BattleEquipmentOverlay
+                    onClose={() => setShowEquipment(false)}
+                    title={activePlayer?.name}
+                />
+            )}
+
             {showAchievements && (
-                <div className="fixed inset-0 bg-black/95 z-[110] flex items-center justify-center p-4 backdrop-blur-sm">
+                <div className="fixed inset-0 bg-black/95 z-110 flex items-center justify-center p-4 backdrop-blur-sm">
                     <div className="bg-[#1a1a15] border-2 border-zinc-800 w-full max-w-xl rounded-2xl flex flex-col max-h-[80vh] shadow-2xl overflow-hidden">
                         <div className="p-4 border-b border-zinc-800 flex justify-between items-center bg-black/40">
                             <h2 className="text-xl font-black uppercase tracking-tighter flex items-center gap-2">
@@ -731,7 +1011,7 @@ export default function DreyzabBattle({ onBattleEnd }: DreyzabBattleProps) {
             )}
 
             {battle.phase === 'VICTORY' && (
-                <div className="fixed inset-0 bg-green-950/80 backdrop-blur-xl z-[120] flex flex-col items-center justify-center p-8">
+                <div className="fixed inset-0 bg-green-950/80 backdrop-blur-xl z-120 flex flex-col items-center justify-center p-8">
                     <div className="text-5xl md:text-9xl font-black text-green-500 uppercase tracking-tighter drop-shadow-2xl">
                         Victory
                     </div>
@@ -746,7 +1026,7 @@ export default function DreyzabBattle({ onBattleEnd }: DreyzabBattleProps) {
             )}
 
             {battle.phase === 'DEFEAT' && (
-                <div className="fixed inset-0 bg-red-950/80 backdrop-blur-xl z-[120] flex flex-col items-center justify-center p-8">
+                <div className="fixed inset-0 bg-red-950/80 backdrop-blur-xl z-120 flex flex-col items-center justify-center p-8">
                     <div className="text-5xl md:text-9xl font-black text-red-600 uppercase tracking-tighter glitch-text">
                         Lost
                     </div>
@@ -759,6 +1039,13 @@ export default function DreyzabBattle({ onBattleEnd }: DreyzabBattleProps) {
                     </button>
                 </div>
             )}
-        </div>
+            </div>
+
+            <DragOverlay>
+                {activeDraggedCard ? (
+                    <CombatCardUI card={activeDraggedCard} onClick={() => {}} className="cursor-grabbing" />
+                ) : null}
+            </DragOverlay>
+        </DndContext>
     )
 }
