@@ -35,7 +35,7 @@ export const SCENARIOS: Record<ScenarioId, (baseSession?: Partial<BattleSession>
         ]
 
         const enemies = [
-            createBoss('boss', 'The Executioner', 4, 300)
+            createBoss('boss', 'The Executioner', 1, 300)
         ]
 
         return finalizeSession(players, enemies)
@@ -84,13 +84,25 @@ function createDefaultSession(): BattleSession {
 function finalizeSession(players: Combatant[], enemies: Combatant[]): BattleSession {
     const turnQueue = sortTurnQueue(players, enemies)
 
-    const initialHand = [
-        ...INITIAL_PLAYER_HAND,
+    const playerHand = [
+        ...INITIAL_PLAYER_HAND.map(c => ({ ...c, ownerId: 'p1' })),
         ...NPC_CARDS.filter(c => players.some(p =>
             (p.id.includes('cond') && c.id.startsWith('cond')) ||
             (p.id.includes('lena') && c.id.startsWith('lena')) ||
             (p.id.includes('otto') && c.id.startsWith('otto'))
-        ))
+        )).map(c => {
+            let ownerId = ''
+            if (c.id.startsWith('cond')) ownerId = 'npc_cond'
+            if (c.id.startsWith('lena')) ownerId = 'npc_lena'
+            if (c.id.startsWith('otto')) ownerId = 'npc_otto'
+            // Fallback for dynamic NPCs if IDs match pattern
+            if (!ownerId) {
+                // Try to find matching player
+                const p = players.find(p => c.id.startsWith(p.id.replace('npc_', '')))
+                if (p) ownerId = p.id
+            }
+            return { ...c, ownerId }
+        })
     ]
 
     return {
@@ -99,7 +111,7 @@ function finalizeSession(players: Combatant[], enemies: Combatant[]): BattleSess
         logs: ['Combat initiated.'],
         players,
         enemies,
-        playerHand: initialHand,
+        playerHand,
         stats: { damageTaken: 0, attacksInOneTurn: 0, turnCount: 1 },
         activeUnitId: turnQueue[0] ?? null,
         turnQueue,

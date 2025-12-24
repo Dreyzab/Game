@@ -206,7 +206,7 @@ export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default' }: D
                         // Let's just push Bruno. `sortTurnQueue` handles order.
 
                         // Add Bruno cards
-                        const brunoCards = NPC_CARDS.filter(c => c.id.startsWith('bruno'))
+                        const brunoCards = NPC_CARDS.filter(c => c.id.startsWith('bruno')).map(c => ({ ...c, ownerId: 'npc_bruno' }))
                         const newHand = [...prev.playerHand, ...brunoCards]
 
                         // Ensure turn queue is updated
@@ -373,11 +373,13 @@ export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default' }: D
                 if (alivePlayers.length === 0) return prev
 
                 const target = [...alivePlayers].sort(
-                    (a, b) => Math.abs(a.rank - enemy.rank) - Math.abs(b.rank - enemy.rank)
+                    (a, b) => (a.rank + enemy.rank - 1) - (b.rank + enemy.rank - 1)
                 )[0]
 
                 let damageDealt = 0
-                const distance = Math.abs(enemy.rank - target.rank)
+                // Correct distance for mirrored lanes: (Enemy Rank) + (Player Rank) - 1
+                // Assuming R1 vs R1 is distance 1
+                const distance = enemy.rank + target.rank - 1
 
                 if (distance > 2) {
                     enemies[enemyIndex] = { ...enemies[enemyIndex], rank: Math.max(1, enemy.rank - 1) }
@@ -470,7 +472,7 @@ export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default' }: D
                         return { ...prev, logs: nextLogs }
                     }
 
-                    const dist = Math.abs(enemy.rank - actingPlayer.rank)
+                    const dist = Math.abs(enemy.rank + actingPlayer.rank - 1)
                     const inRange = card.optimalRange.length === 0 || card.optimalRange.includes(dist)
 
                     if (!inRange) {
@@ -639,7 +641,7 @@ export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default' }: D
 
         for (const enemy of battle.enemies) {
             if (enemy.isDead) continue
-            const dist = Math.abs(enemy.rank - activePlayer.rank)
+            const dist = Math.abs(enemy.rank + activePlayer.rank - 1)
             if (activeDraggedCard.optimalRange.length === 0 || activeDraggedCard.optimalRange.includes(dist)) {
                 ids.add(enemy.id)
             }
@@ -894,19 +896,25 @@ export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default' }: D
                             onTouchMove={handleTouchScrub}
                             onTouchEnd={handleTouchEnd}
                         >
-                            {activePlayer && battle.playerHand.map((card, i) => (
-                                <DraggableCombatCard
-                                    key={card.id}
-                                    card={card}
-                                    disabled={!canPlayCard({ session: battle, card })}
-                                    onClick={() => playCard(card)}
-                                    style={{
-                                        transform: `rotate(${(i - (battle.playerHand.length - 1) / 2) * 5}deg) scale(1.0) translateY(${Math.abs(i - (battle.playerHand.length - 1) / 2) * 2}px)`,
-                                        margin: '0 -10px'
-                                    }}
-                                    className="cursor-grab active:cursor-grabbing hover:z-100 transition-all duration-300 hover:-translate-y-12 md:hover:-translate-y-16"
-                                />
-                            ))}
+                            {battle.playerHand
+                                .filter(card => card.ownerId === battle.activeUnitId)
+                                .map((card, i) => {
+                                    // Double check (redundant given filter, but safe)
+                                    if (card.ownerId !== battle.activeUnitId) return null
+                                    return (
+                                        <DraggableCombatCard
+                                            key={card.id}
+                                            card={card}
+                                            disabled={!canPlayCard({ session: battle, card })}
+                                            onClick={() => playCard(card)}
+                                            style={{
+                                                transform: `rotate(${(i - (battle.playerHand.length - 1) / 2) * 5}deg) scale(1.0) translateY(${Math.abs(i - (battle.playerHand.length - 1) / 2) * 2}px)`,
+                                                margin: '0 -10px'
+                                            }}
+                                            className="cursor-grab active:cursor-grabbing hover:z-100 transition-all duration-300 hover:-translate-y-12 md:hover:-translate-y-16"
+                                        />
+                                    )
+                                })}
                         </div>
                     </div>
 

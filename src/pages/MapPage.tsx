@@ -6,7 +6,8 @@
  * Вся логика карты инкапсулирована в MapView
  */
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
+import { Menu, X } from 'lucide-react'
 import { Heading } from '@/shared/ui/components/Heading'
 import { Text } from '@/shared/ui/components/Text'
 import { MapView, MapFilters, MapLegend, PointsListPanel, type MapFilterType } from '@/widgets/map/map-view'
@@ -38,10 +39,19 @@ export const MapPage: React.FC = () => {
   const [showSafeZones, setShowSafeZones] = useState(true)
   const [showDangerZones, setShowDangerZones] = useState(true)
   const [showFog, setShowFog] = useState(true)
-  const [showLegend, setShowLegend] = useState(false)
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [showPointsList, setShowPointsList] = useState(false)
   const [bbox, setBbox] = useState<BBox | undefined>(undefined)
   const [activeFilters, setActiveFilters] = useState<MapFilterType[]>(['quest', 'npc', 'poi', 'board', 'anomaly'])
+
+  useEffect(() => {
+    if (!isMenuOpen) return
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsMenuOpen(false)
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isMenuOpen])
 
   /* moved to `src/processes/map-interaction-visual-novel/model/useMapInteractionFlow.ts`
   const [interactionNotice, setInteractionNotice] = useState<string | null>(null)
@@ -231,49 +241,18 @@ export const MapPage: React.FC = () => {
             </Text>
           </div>
 
-          {/* Контролы слоев */}
+          {/* Меню */}
           <div className="flex flex-col gap-2 items-end pointer-events-auto">
-            <div className="bg-gray-900 bg-opacity-90 backdrop-blur-sm rounded-lg shadow-xl px-3 py-2 flex flex-col gap-2">
-              <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-800/50 p-1 rounded">
-                <input
-                  type="checkbox"
-                  checked={showSafeZones}
-                  onChange={(e) => setShowSafeZones(e.target.checked)}
-                  className="w-4 h-4 text-green-500 bg-gray-800 border-gray-700 rounded focus:ring-green-500"
-                />
-                <span className="text-sm text-gray-300">Безопасные зоны</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-800/50 p-1 rounded">
-                <input
-                  type="checkbox"
-                  checked={showDangerZones}
-                  onChange={(e) => setShowDangerZones(e.target.checked)}
-                  className="w-4 h-4 text-red-500 bg-gray-800 border-gray-700 rounded focus:ring-red-500"
-                />
-                <span className="text-sm text-gray-300">Опасные зоны</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-800/50 p-1 rounded">
-                <input
-                  type="checkbox"
-                  checked={showFog}
-                  onChange={(e) => setShowFog(e.target.checked)}
-                  className="w-4 h-4 text-gray-500 bg-gray-800 border-gray-700 rounded focus:ring-gray-500"
-                />
-                <span className="text-sm text-gray-300">Туман войны</span>
-              </label>
-            </div>
-
             <button
-              onClick={() => setShowLegend(!showLegend)}
+              onClick={() => setIsMenuOpen((open) => !open)}
               className="bg-gray-900 bg-opacity-90 backdrop-blur-sm rounded-lg shadow-xl px-3 py-2 text-sm text-gray-300 hover:text-white hover:bg-gray-800 transition-colors"
+              aria-haspopup="dialog"
+              aria-expanded={isMenuOpen}
             >
-              {showLegend ? 'Скрыть легенду' : 'Показать легенду'}
-            </button>
-            <button
-              onClick={() => setShowPointsList(!showPointsList)}
-              className="bg-gray-900 bg-opacity-90 backdrop-blur-sm rounded-lg shadow-xl px-3 py-2 text-sm text-gray-300 hover:text-white hover:bg-gray-800 transition-colors"
-            >
-              {showPointsList ? 'Скрыть список' : 'Список объектов'}
+              <span className="inline-flex items-center gap-2">
+                {isMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+                {isMenuOpen ? 'Закрыть меню' : 'Меню карты'}
+              </span>
             </button>
           </div>
         </div>
@@ -289,19 +268,103 @@ export const MapPage: React.FC = () => {
         <QuestTracker />
       </div>
 
-      {/* Фильтры - Centered Top */}
-      <div className="absolute top-20 left-1/2 -translate-x-1/2 z-20 pointer-events-auto">
-        <MapFilters
-          activeFilters={activeFilters}
-          onChange={setActiveFilters}
-          className="bg-gray-900/90 backdrop-blur-md rounded-full shadow-2xl border border-white/10 px-4 py-2"
-        />
-      </div>
+      {isMenuOpen && (
+        <div className="absolute inset-0 z-40 pointer-events-auto">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setIsMenuOpen(false)}
+            aria-hidden="true"
+          />
 
-      {/* Легенда */}
-      {showLegend && (
-        <div className="absolute top-24 right-4 z-20 pointer-events-auto">
-          <MapLegend />
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="absolute top-16 right-4 w-[min(92vw,420px)] max-h-[calc(100vh-5rem)] overflow-auto bg-gray-900/95 backdrop-blur-md rounded-xl shadow-2xl border border-white/10 p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <div>
+                <div className="text-xs font-bold text-white tracking-wider">Меню карты</div>
+                <div className="text-[11px] text-gray-400 mt-0.5">
+                  Фильтры, слои и легенда
+                </div>
+              </div>
+              <button
+                onClick={() => setIsMenuOpen(false)}
+                className="text-gray-400 hover:text-white transition-colors"
+                aria-label="Закрыть меню"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-5">
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.28em] text-gray-500 mb-2">
+                  Слои
+                </div>
+                <div className="space-y-2">
+                  <label className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-black/20 px-3 py-2 cursor-pointer hover:bg-black/30">
+                    <span className="text-sm text-gray-200">Безопасные зоны</span>
+                    <input
+                      type="checkbox"
+                      checked={showSafeZones}
+                      onChange={(e) => setShowSafeZones(e.target.checked)}
+                      className="w-4 h-4 text-green-500 bg-gray-800 border-gray-700 rounded focus:ring-green-500"
+                    />
+                  </label>
+                  <label className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-black/20 px-3 py-2 cursor-pointer hover:bg-black/30">
+                    <span className="text-sm text-gray-200">Опасные зоны</span>
+                    <input
+                      type="checkbox"
+                      checked={showDangerZones}
+                      onChange={(e) => setShowDangerZones(e.target.checked)}
+                      className="w-4 h-4 text-red-500 bg-gray-800 border-gray-700 rounded focus:ring-red-500"
+                    />
+                  </label>
+                  <label className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-black/20 px-3 py-2 cursor-pointer hover:bg-black/30">
+                    <span className="text-sm text-gray-200">Туман войны</span>
+                    <input
+                      type="checkbox"
+                      checked={showFog}
+                      onChange={(e) => setShowFog(e.target.checked)}
+                      className="w-4 h-4 text-gray-500 bg-gray-800 border-gray-700 rounded focus:ring-gray-500"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.28em] text-gray-500 mb-2">
+                  Фильтры точек
+                </div>
+                <MapFilters
+                  activeFilters={activeFilters}
+                  onChange={setActiveFilters}
+                  className="rounded-lg border border-white/10 bg-black/20 p-2"
+                />
+              </div>
+
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.28em] text-gray-500 mb-2">
+                  Панели
+                </div>
+                <button
+                  onClick={() => {
+                    setShowPointsList((v) => !v)
+                    setIsMenuOpen(false)
+                  }}
+                  className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-gray-200 hover:bg-black/30 transition-colors text-left"
+                >
+                  {showPointsList ? 'Скрыть список объектов' : 'Открыть список объектов'}
+                </button>
+              </div>
+
+              <div>
+                <MapLegend className="bg-transparent border-0 p-0 text-gray-300" />
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

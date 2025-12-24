@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useAuth } from '@clerk/clerk-react'
 import {
   DndContext,
   DragOverlay,
@@ -33,9 +34,15 @@ export function TrinityInventoryPage() {
     })
   )
 
+  const { getToken } = useAuth()
+
   useEffect(() => {
-    initialize()
-  }, [initialize])
+    const init = async () => {
+      const token = await getToken()
+      await initialize(token || undefined)
+    }
+    init()
+  }, [initialize, getToken])
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string)

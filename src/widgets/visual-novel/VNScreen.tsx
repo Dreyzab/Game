@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import {
   CharacterGroup,
@@ -61,10 +61,11 @@ export const VNScreen: React.FC<VNScreenProps> = ({
   }, [currentLine?.speakerId, scene.characters])
 
   const backgroundImage = currentLine?.backgroundOverride ?? scene.background
+  const isVideoBackground = backgroundImage.toLowerCase().endsWith('.mp4') || 
+                          backgroundImage.toLowerCase().endsWith('.webm')
+
   const [isLineRevealed, setLineRevealed] = useState(false)
-  const [isWaitingForAdvance, setWaitingForAdvance] = useState(false)
   const [forceShowText, setForceShowText] = useState(false)
-  const autoAdvanceTimeoutRef = useRef<number | null>(null)
 
   const consultation = useConsultationMode({
     currentLine,
@@ -102,54 +103,8 @@ export const VNScreen: React.FC<VNScreenProps> = ({
 
   useEffect(() => {
     setLineRevealed(false)
-    setWaitingForAdvance(false)
     setForceShowText(false)
   }, [currentLine?.id, scene.id])
-
-  useEffect(() => {
-    return () => {
-      if (autoAdvanceTimeoutRef.current !== null) {
-        clearTimeout(autoAdvanceTimeoutRef.current)
-        autoAdvanceTimeoutRef.current = null
-      }
-    }
-  }, [])
-
-  useEffect(() => {
-    if (!isLineRevealed) return
-    if (choices.length > 0) return
-    if (isSceneCompleted) return
-    if (isPending) return
-
-    const hasNext = Boolean(currentLine?.nextLineId || currentLine?.transition?.nextSceneId)
-    if (!hasNext) return
-
-    const PAUSE_BEFORE_ADVANCE = 5000
-    setWaitingForAdvance(true)
-
-    autoAdvanceTimeoutRef.current = window.setTimeout(() => {
-      setWaitingForAdvance(false)
-      onAdvance()
-      autoAdvanceTimeoutRef.current = null
-    }, PAUSE_BEFORE_ADVANCE)
-
-    return () => {
-      if (autoAdvanceTimeoutRef.current !== null) {
-        clearTimeout(autoAdvanceTimeoutRef.current)
-        autoAdvanceTimeoutRef.current = null
-      }
-      setWaitingForAdvance(false)
-    }
-  }, [
-    choices.length,
-    currentLine?.id,
-    currentLine?.nextLineId,
-    currentLine?.transition?.nextSceneId,
-    isLineRevealed,
-    isPending,
-    isSceneCompleted,
-    onAdvance,
-  ])
 
   const handleChoiceSelect = useCallback(
     (choiceId: string) => {
@@ -159,33 +114,31 @@ export const VNScreen: React.FC<VNScreenProps> = ({
     [isLineRevealed, isPending, isSceneCompleted, onChoice]
   )
 
-  const skipPause = useCallback(() => {
-    if (autoAdvanceTimeoutRef.current !== null) {
-      clearTimeout(autoAdvanceTimeoutRef.current)
-      autoAdvanceTimeoutRef.current = null
-      setWaitingForAdvance(false)
-      onAdvance()
-    }
-  }, [onAdvance])
-
   return (
     <div className="vn-chronicles relative w-screen h-screen overflow-hidden bg-[#020617]">
-      <div
-        className="absolute inset-0 bg-cover bg-center transition-all duration-1000 scale-105"
-        style={{ backgroundImage: `url(${backgroundImage})` }}
-      />
+      {isVideoBackground ? (
+        <video
+          key={backgroundImage}
+          autoPlay
+          muted
+          loop
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover transition-all duration-1000 scale-105"
+        >
+          <source src={backgroundImage} type={`video/${backgroundImage.split('.').pop()}`} />
+        </video>
+      ) : (
+        <div
+          className="absolute inset-0 bg-cover bg-center transition-all duration-1000 scale-105"
+          style={{ backgroundImage: `url(${backgroundImage})` }}
+        />
+      )}
 
       <VFXOverlay />
 
       <CharacterSprites characters={scene.characters} activeSpeakerId={spritesActiveSpeakerId} />
 
-      <div className="absolute top-0 left-0 w-full z-30 p-6 flex justify-between items-start pointer-events-none">
-        <div className="animate-fade-in">
-          <h1 className="font-cinzel text-xs tracking-[0.5em] text-white/40 uppercase">
-            {scene.location}
-          </h1>
-          <h2 className="font-playfair text-2xl text-white mt-1">{scene.title}</h2>
-        </div>
+      <div className="absolute top-0 left-0 w-full z-30 p-4 sm:p-6 flex flex-col sm:flex-row justify-end items-center sm:items-start pointer-events-none">
         <div className="flex gap-4 animate-fade-in pointer-events-auto">
           {isCommitting && (
             <div className="bg-black/40 border border-white/10 px-4 py-2 rounded-lg backdrop-blur-md">
@@ -198,10 +151,10 @@ export const VNScreen: React.FC<VNScreenProps> = ({
         </div>
       </div>
 
-      <div className="absolute inset-0 flex flex-col justify-end z-40 pb-4">
-        <div className="w-full mb-4">
+      <div className="absolute inset-0 flex flex-col justify-end items-center z-40 pb-4">
+        <div className="w-full mb-4 flex flex-col items-center">
           {showVoiceTabs ? (
-            <div className="flex justify-center gap-3 animate-slide-up">
+            <div className="flex justify-center gap-2 sm:gap-3 animate-slide-up flex-wrap px-4">
               <button
                 onClick={exitConsultation}
                 className={cn(
@@ -235,14 +188,33 @@ export const VNScreen: React.FC<VNScreenProps> = ({
                 )
               })}
             </div>
-          ) : (
-            !isSceneCompleted &&
-            !consultation.isConsultationMode && (
-              <CharacterGroup
-                characters={scene.characters}
-                activeCharacterId={currentLine?.speakerId}
-              />
-            )
+          ) : null}
+
+          {!isSceneCompleted && (
+            <div className="w-full">
+              {consultation.isConsultationMode && activeVoice ? (
+                <div className="flex justify-center mt-4 sm:mt-8 px-4 w-full max-w-5xl mx-auto animate-fade-in">
+                  <div className="flex flex-col items-center min-w-[140px]">
+                    <div
+                      className="bg-white/10 border border-white/30 shadow-[0_0_20px_rgba(255,255,255,0.1)] p-3 rounded-lg backdrop-blur-md flex flex-col items-center text-center"
+                      style={{ borderLeft: `4px solid ${activeVoice.color}` }}
+                    >
+                      <span className="text-xs sm:text-sm font-cinzel tracking-[0.2em] font-bold text-white">
+                        {activeVoice.name.toUpperCase()}
+                      </span>
+                      <span className="text-[10px] text-slate-400 mt-1 uppercase tracking-wider leading-none">
+                        Internal voice (lvl {skills[consultation.activeVoiceId || ''] ?? 0})
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <CharacterGroup
+                  characters={scene.characters}
+                  activeCharacterId={currentLine?.speakerId}
+                />
+              )}
+            </div>
           )}
         </div>
 
@@ -253,7 +225,6 @@ export const VNScreen: React.FC<VNScreenProps> = ({
               speakerName={activeVoice.name}
               speakerTitle={`Internal voice (lvl ${skills[consultation.activeVoiceId || ''] ?? 0})`}
               text={consultation.currentAdvice.text}
-              mood={consultation.currentAdvice.mood}
               stageDirection={consultation.currentAdvice.stageDirection}
               disabled={false}
               isPending={false}
@@ -270,11 +241,10 @@ export const VNScreen: React.FC<VNScreenProps> = ({
               speakerName={speaker?.name}
               speakerTitle={speaker?.title}
               text={currentLine?.text}
-              mood={currentLine?.mood}
               stageDirection={currentLine?.stageDirection}
               disabled={visibleChoices.length > 0 || isSceneCompleted}
-              isPending={isPending || isWaitingForAdvance}
-              onAdvance={isWaitingForAdvance ? skipPause : onAdvance}
+              isPending={isPending}
+              onAdvance={onAdvance}
               onRevealComplete={() => setLineRevealed(true)}
               forceShow={forceShowText}
             />

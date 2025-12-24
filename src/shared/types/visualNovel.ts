@@ -107,6 +107,7 @@ export interface VisualNovelSceneDefinition extends VisualNovelScene {
 export interface VisualNovelChoiceView extends VisualNovelChoice {
   disabled?: boolean
   lockReason?: string
+  isVisited?: boolean
 }
 
 export interface VisualNovelHistoryEntry {

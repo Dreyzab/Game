@@ -20,8 +20,8 @@ export default function TutorialBattlePage() {
   )
 
   const handleSkip = useCallback(() => {
-    navigate(`${Routes.VISUAL_NOVEL}/station_hub`)
-  }, [navigate])
+    navigate(`${Routes.VISUAL_NOVEL}/${returnScene}`)
+  }, [navigate, returnScene])
 
   return (
     <div className="relative">

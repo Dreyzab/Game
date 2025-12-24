@@ -11,21 +11,36 @@
 // Импорт основных сценариев
 import { industrialZoneScenes } from './industrial_zone'
 import { marketTraderScenes } from './market_trader'
+import { stationArrivalScenes } from './station_arrival'
+import { schwabentorGateScenes } from './schwabentor_gate'
+import { schlossbergExpeditionScenes } from './schlossberg_expedition'
+import { sideQuestScenes } from './side_quests'
 import { allFactionScenes } from './factions'
 import { allDynamicScenes, DYNAMIC_EVENTS } from './dynamic_events'
 import { onboardingScenes } from '../onboarding'
+import { chapter1CommonScenes } from './common_scenes'
 
 // Реэкспорт для удобства
 export * from './factions'
 export * from './dynamic_events'
 export { industrialZoneScenes } from './industrial_zone'
 export { marketTraderScenes } from './market_trader'
+export { stationArrivalScenes } from './station_arrival'
+export { schwabentorGateScenes } from './schwabentor_gate'
+export { schlossbergExpeditionScenes } from './schlossberg_expedition'
+export { sideQuestScenes } from './side_quests'
+export { chapter1CommonScenes } from './common_scenes'
 
 // Объединённый объект всех сценариев Chapter 1
 export const chapter1Scenes = {
+  ...stationArrivalScenes,
   ...onboardingScenes,
+  ...chapter1CommonScenes,
   ...industrialZoneScenes,
   ...marketTraderScenes,
+  ...schwabentorGateScenes,
+  ...schlossbergExpeditionScenes,
+  ...sideQuestScenes,
   ...allFactionScenes,
   ...allDynamicScenes,
 }

@@ -2,7 +2,7 @@ import type { Scene } from '../../model/types'
 
 const TRAIN_CIGAR_BACKGROUND = '/images/trainCigar.png'
 const TRAIN_CARDS_BACKGROUND = '/images/trainCards.png'
-const COUPE_BACKGROUND = '/images/trainCigar.png' // Placeholder for coupes
+const COUPE_BACKGROUND = '/video/Анимация_пейзажа_и_планшета.mp4'
 const TAMBOUR_BACKGROUND = '/images/trainCigar.png'
 const CORRIDOR_BACKGROUND = '/images/trainCigar.png' // Placeholder
 
@@ -28,6 +28,12 @@ export const scenarios: Record<string, Scene> = {
       {
         speaker: 'Рассказчик',
         text: 'Мерный, убаюкивающий стук колёс. Дребезжание ложки в пустом стакане. Тесное купе пропахло табаком и усталостью.',
+        condition: { notFlag: 'prologue_visited_any' },
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Вы возвращаетесь к обсуждению.',
+        condition: { flag: 'prologue_visited_any' },
       },
       {
         speaker: 'Рассказчик',
@@ -39,6 +45,50 @@ export const scenarios: Record<string, Scene> = {
         id: 'prologue_coupe_look_bruno',
         text: 'Посмотреть на Бруно.',
         nextScene: 'prologue_coupe_bruno',
+        effects: {
+          addFlags: ['prologue_visited_bruno', 'prologue_visited_any'],
+        },
+        availability: {
+          condition: {
+            notFlag: 'prologue_visited_bruno',
+          },
+        },
+      },
+      {
+        id: 'prologue_coupe_look_lena',
+        text: 'Слушать Лену.',
+        nextScene: 'prologue_coupe_lena',
+        effects: {
+          addFlags: ['prologue_visited_lena', 'prologue_visited_any'],
+        },
+        availability: {
+          condition: {
+            notFlag: 'prologue_visited_lena',
+          },
+        },
+      },
+      {
+        id: 'prologue_coupe_look_adele',
+        text: 'Взглянуть на Адель.',
+        nextScene: 'prologue_coupe_adele',
+        effects: {
+          addFlags: ['prologue_visited_adele', 'prologue_visited_any'],
+        },
+        availability: {
+          condition: {
+            notFlag: 'prologue_visited_adele',
+          },
+        },
+      },
+      {
+        id: 'prologue_coupe_look_otto',
+        text: 'Посмотреть на Отто.',
+        nextScene: 'prologue_coupe_otto',
+        availability: {
+          condition: {
+            flags: ['prologue_visited_bruno', 'prologue_visited_lena', 'prologue_visited_adele'],
+          },
+        },
       },
     ],
   },
@@ -49,6 +99,14 @@ export const scenarios: Record<string, Scene> = {
     characters: [{ id: 'bruno', name: 'Бруно Вебер', position: 'left' }],
     dialogue: [
       {
+        speaker: 'Рассказчик',
+        text: 'Крепко сбитый мужчина средних лет. Его лицо изрезано мелкими шрамами, а руки, испачканные в мазуте, нервно теребят край старого плаща.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Бруно прерывает тишину.',
+      },
+      {
         speaker: 'Бруно Вебер',
         text: 'Подъезжаем. Я узнаю этот дым. Промышленный Север, Зона Гамма. Там воздух на вкус как жженая резина... Хех, пахнет домом.',
       },
@@ -57,13 +115,7 @@ export const scenarios: Record<string, Scene> = {
         text: 'Надеюсь, старина Дитер не забыл меня встретить. Он писал, что устроился у Артисанов. "Приезжай, — говорит, — Бруно, тут есть работа для тех, кто отличает детонатор от суппозитория".',
       },
     ],
-    choices: [
-      {
-        id: 'prologue_coupe_bruno_next',
-        text: 'Слушать Лену.',
-        nextScene: 'prologue_coupe_lena',
-      },
-    ],
+    nextScene: 'prologue_coupe_intro',
   },
 
   prologue_coupe_lena: {
@@ -71,6 +123,14 @@ export const scenarios: Record<string, Scene> = {
     background: COUPE_BACKGROUND,
     characters: [{ id: 'lena', name: 'Лена Рихтер', position: 'right' }],
     dialogue: [
+      {
+        speaker: 'Рассказчик',
+        text: 'Женщина с уставшими глазами, в безупречно чистом, несмотря на дорожную пыль, медицинском халате под пальто. Она сосредоточенно пересчитывает ампулы в небольшой сумке.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Лена тяжело вздыхает и обращается к Бруно.',
+      },
       {
         speaker: 'Лена Рихтер',
         text: 'Работу ты найдешь, Бруно. А вот найдешь ли ты горячую воду?',
@@ -84,13 +144,7 @@ export const scenarios: Record<string, Scene> = {
         text: 'Если в этом хваленом Фрайбурге есть ванна и кусок мыла, который пахнет лавандой, а не хлоркой — я остаюсь.',
       },
     ],
-    choices: [
-      {
-        id: 'prologue_coupe_lena_next',
-        text: 'Взглянуть на Адель.',
-        nextScene: 'prologue_coupe_adele',
-      },
-    ],
+    nextScene: 'prologue_coupe_intro',
   },
 
   prologue_coupe_adele: {
@@ -98,6 +152,14 @@ export const scenarios: Record<string, Scene> = {
     background: COUPE_BACKGROUND,
     characters: [{ id: 'adele', name: 'Адель', position: 'center' }],
     dialogue: [
+      {
+        speaker: 'Рассказчик',
+        text: 'Молодая особа с дерзким взглядом, одетая в яркую, но поношенную куртку. Она вальяжно развалилась на сиденье, закинув ногу на ногу.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Адель усмехается, не глядя на остальных.',
+      },
       {
         speaker: 'Адель',
         text: 'Мелко плаваешь, док. Ванна — это гигиена. А жить надо ради удовольствия.',
@@ -111,13 +173,7 @@ export const scenarios: Record<string, Scene> = {
         text: 'Говорят, на "Теневом рынке" за кредиты можно купить даже свежие овощи. Вот это — цель. А помыться можно и в Рейне.',
       },
     ],
-    choices: [
-      {
-        id: 'prologue_coupe_adele_next',
-        text: 'Посмотреть на Отто.',
-        nextScene: 'prologue_coupe_otto',
-      },
-    ],
+    nextScene: 'prologue_coupe_intro',
   },
 
   prologue_coupe_otto: {
@@ -125,6 +181,14 @@ export const scenarios: Record<string, Scene> = {
     background: COUPE_BACKGROUND,
     characters: [{ id: 'otto', name: 'Отто Кляйн', position: 'left' }],
     dialogue: [
+      {
+        speaker: 'Рассказчик',
+        text: 'Массивный старик с седой щетиной. Его военная выправка выдает в нем бывшего солдата, а тяжелый взгляд прикован к окну, за которым мелькают тени.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Голос Отто звучит подобно треску сухого дерева.',
+      },
       {
         speaker: 'Отто Кляйн',
         text: 'Стейки, ванны... Вы как дети, честное слово.',
@@ -615,10 +679,10 @@ export const scenarios: Record<string, Scene> = {
     choices: [
       {
         id: 'prologue_to_registration',
-        text: 'Идти к Ратуше.',
+        text: 'Сойти на перрон.',
+        nextScene: 'freiburg_platform_gustav',
         effects: {
           addFlags: ['arrived_at_freiburg', 'prologue_complete', 'survived_train_crash'],
-          immediate: [{ type: 'open_map' }], // Переход на карту, где игрок должен будет пойти в Ратушу (или авто-запуск сцены)
         },
       },
     ],

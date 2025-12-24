@@ -271,7 +271,9 @@ export interface SceneChoice {
     condition?: {
       [key: string]: unknown
       flag?: string
+      flags?: string[]
       notFlag?: string
+      notFlags?: string[]
       /**
        * Минимальное количество валюты (кредитов), требуемое для выбора.
        * Используется в сценариях для покупок/пожертвований.

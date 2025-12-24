@@ -1,11 +1,12 @@
 import { create } from 'zustand'
 import { EQUIPMENT_SLOTS, IS_MOBILE, ITEM_TEMPLATES } from './constants'
-import type { InventoryItem, InventoryState, ItemTemplate } from './types'
+import type { InventoryItem, InventoryState, ItemTemplate, LoadoutState } from './types'
+import { authenticatedClient } from '@/shared/api/client'
 
-const generateId = () => Math.random().toString(36).slice(2, 11)
+
 
 type Store = InventoryState & {
-  initialize: () => void
+  initialize: (token?: string, deviceId?: string) => Promise<void>
   getTotalWeight: () => number
 }
 
@@ -80,57 +81,119 @@ export const useTrinityInventoryStore = create<Store>((set, get) => ({
   },
   selectedItemId: null,
 
-  initialize: () => {
+  initialize: async (token, deviceId) => {
     if (get().initialized) return
 
-    const primaryWeaponId = generateId()
-    const secondaryWeaponId = generateId()
-    const pocketMedkitId = generateId()
-    const pocketAmmo1Id = generateId()
-    const pocketAmmo2Id = generateId()
-    const pocketLootId = generateId()
-    const armorId = generateId()
-    const backpackId = generateId()
+    try {
+      const client = authenticatedClient(token, deviceId)
+      const { data, error } = await client.inventory.get()
+      const { data: stashData, error: stashError } = await (client.inventory as any).stash.get()
 
-    const starterItems: InventoryItem[] = [
-      { instanceId: primaryWeaponId, templateId: 'ar-15', x: -1, y: -1, rotation: 0, quantity: 1, containerId: 'equipped' },
-      { instanceId: secondaryWeaponId, templateId: 'pistol', x: -1, y: -1, rotation: 0, quantity: 1, containerId: 'equipped' },
-      { instanceId: pocketMedkitId, templateId: 'medkit', x: -1, y: -1, rotation: 0, quantity: 1, containerId: 'equipped' },
-      { instanceId: pocketAmmo1Id, templateId: 'ammo_box', x: -1, y: -1, rotation: 0, quantity: 60, containerId: 'equipped' },
-      { instanceId: pocketAmmo2Id, templateId: 'ammo_box', x: -1, y: -1, rotation: 0, quantity: 60, containerId: 'equipped' },
-      { instanceId: pocketLootId, templateId: 'gold_watch', x: -1, y: -1, rotation: 0, quantity: 1, containerId: 'equipped' },
-      { instanceId: armorId, templateId: 'armor_light', x: -1, y: -1, rotation: 0, quantity: 1, containerId: 'equipped' },
-      { instanceId: backpackId, templateId: 'backpack_large', x: -1, y: -1, rotation: 0, quantity: 1, containerId: 'equipped' },
-    ]
+      if (error || stashError) {
+        console.warn('Inventory sync failed, using default state', error || stashError)
+      }
 
-    const items = starterItems.reduce(
-      (acc, item) => {
-        acc[item.instanceId] = item
-        return acc
-      },
-      {} as Record<string, InventoryItem>
-    )
-
-    set({
-      items,
-      equipment: {
+      const items: Record<string, InventoryItem> = {}
+      const equipment: LoadoutState = {
         helmet: null,
-        armor: armorId,
-        primary: primaryWeaponId,
-        secondary: secondaryWeaponId,
-        backpack: backpackId,
+        armor: null,
+        primary: null,
+        secondary: null,
+        backpack: null,
         rig: null,
-        pocket1: pocketMedkitId,
-        pocket2: pocketAmmo1Id,
-        pocket3: pocketAmmo2Id,
-        pocket4: pocketLootId,
-      },
-      containers: {
+        pocket1: null,
+        pocket2: null,
+        pocket3: null,
+        pocket4: null,
+      }
+      const containers: Record<string, { width: number; height: number }> = {
         stash: { width: INITIAL_STASH_WIDTH, height: INITIAL_STASH_HEIGHT },
-        [backpackId]: { width: 5, height: 5 },
-      },
-      initialized: true,
-    })
+      }
+
+      // Map stash items
+      if (stashData && (stashData as any).items) {
+        (stashData as any).items.forEach((item: any) => {
+          items[item.id] = {
+            instanceId: item.id,
+            templateId: item.templateId,
+            x: item.gridPosition?.x ?? 0,
+            y: item.gridPosition?.y ?? 0,
+            rotation: item.gridPosition?.rotation ?? 0,
+            quantity: item.quantity ?? 1,
+            containerId: 'stash'
+          }
+        })
+      }
+
+      // Map main inventory items
+      if (data) {
+        // Items
+        if (Array.isArray(data.items)) {
+          data.items.forEach((item: any) => {
+            if (item.slot === 'stash') return // Already handled if using separate stash API
+            items[item.id] = {
+              instanceId: item.id,
+              templateId: item.templateId,
+              x: item.gridPosition?.x ?? 0,
+              y: item.gridPosition?.y ?? 0,
+              rotation: item.gridPosition?.rotation ?? 0,
+              quantity: item.quantity ?? 1,
+              containerId: item.containerId || 'equipped'
+            }
+          })
+        }
+
+        // Equipment
+        const inventoryData = data as any
+        if (inventoryData.equipment) {
+          Object.entries(inventoryData.equipment).forEach(([slot, item]: [string, any]) => {
+            if (item && typeof item === 'object' && item.id) {
+              equipment[slot] = item.id
+              items[item.id] = {
+                instanceId: item.id,
+                templateId: item.templateId,
+                x: -1,
+                y: -1,
+                rotation: 0,
+                quantity: item.quantity ?? 1,
+                containerId: 'equipped'
+              }
+              // If it's a container (backpack), add to containers record
+              if (item.stats?.containerConfig) {
+                containers[item.id] = {
+                  width: item.stats.containerConfig.width,
+                  height: item.stats.containerConfig.height
+                }
+              }
+            }
+          })
+        }
+
+        // Recursive items in containers
+        if (Array.isArray((data as any).containers)) {
+          (data as any).containers.forEach((c: any) => {
+            containers[c.id] = { width: c.width, height: c.height };
+            if (Array.isArray(c.items)) {
+              c.items.forEach((item: any) => {
+                items[item.id] = {
+                  instanceId: item.id,
+                  templateId: item.templateId,
+                  x: item.gridPosition?.x ?? 0,
+                  y: item.gridPosition?.y ?? 0,
+                  rotation: item.gridPosition?.rotation ?? 0,
+                  quantity: item.quantity ?? 1,
+                  containerId: c.id
+                }
+              })
+            }
+          })
+        }
+      }
+
+      set({ items, equipment, containers, initialized: true })
+    } catch (e) {
+      console.error('Failed to initialize trinity inventory store', e)
+    }
   },
 
   selectItem: (instanceId) => set({ selectedItemId: instanceId }),
@@ -140,7 +203,7 @@ export const useTrinityInventoryStore = create<Store>((set, get) => ({
     return Object.values(items).filter((item) => item.containerId === containerId)
   },
 
-  moveItemToGrid: (instanceId, containerId, targetX, targetY) => {
+  moveItemToGrid: async (instanceId, containerId, targetX, targetY) => {
     const { items, templates, containers, equipment } = get()
     const item = items[instanceId]
     if (!item) return
@@ -172,6 +235,20 @@ export const useTrinityInventoryStore = create<Store>((set, get) => ({
     }
 
     if (hasCollision) return
+
+    // Persistence logic
+    if (containerId === 'stash' || item.containerId === 'stash') {
+      try {
+        const client = authenticatedClient()
+        await (client.inventory as any).stash.move.post({
+          itemId: instanceId,
+          toStash: containerId === 'stash',
+          gridPosition: { x: targetX, y: targetY }
+        })
+      } catch (e) {
+        console.error('Failed to sync stash move', e)
+      }
+    }
 
     const equippedSlot = Object.entries(equipment).find(([, id]) => id === instanceId)
     const nextEquipment = equippedSlot ? { ...equipment, [equippedSlot[0]]: null } : equipment
@@ -253,4 +330,3 @@ export const useTrinityInventoryStore = create<Store>((set, get) => ({
     return Object.values(items).reduce((total, item) => total + templates[item.templateId].weight * (item.quantity || 1), 0)
   },
 }))
-

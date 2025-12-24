@@ -72,10 +72,15 @@ export function buildChoiceViews(line: VisualNovelLine | null, flags: Set<string
       }
     }
 
+    const isVisited = choice.effects?.some(
+      (e) => e.type === 'flag' && e.value === true && flags.has(e.flag)
+    )
+
     return {
       ...choice,
       disabled,
       lockReason,
+      isVisited,
     }
   })
 }
@@ -293,14 +298,20 @@ function convertChoice(choice: SceneChoice): VisualNovelChoice {
           },
         }
         : {}),
-      ...(choice.availability?.condition?.flag
+      ...(choice.availability?.condition?.flag || choice.availability?.condition?.flags
         ? {
-          flags: [choice.availability.condition.flag],
+          flags: [
+            ...(choice.availability?.condition?.flag ? [choice.availability.condition.flag] : []),
+            ...(choice.availability?.condition?.flags || []),
+          ],
         }
         : {}),
-      ...(choice.availability?.condition?.notFlag
+      ...(choice.availability?.condition?.notFlag || choice.availability?.condition?.notFlags
         ? {
-          notFlags: [choice.availability.condition.notFlag],
+          notFlags: [
+            ...(choice.availability?.condition?.notFlag ? [choice.availability.condition.notFlag] : []),
+            ...(choice.availability?.condition?.notFlags || []),
+          ],
         }
         : {}),
     },

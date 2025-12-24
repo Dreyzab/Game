@@ -1,6 +1,5 @@
 import React from 'react';
-import { useCoopStore } from '@/features/coop';
-import { CoopLobby } from '@/features/coop/CoopLobby';
+import { useCoopStore, CoopLobby } from '@/features/coop';
 import { CoopVisualNovelPage } from './CoopVisualNovelPage';
 import { LoadingSpinner } from '@/shared/ui/components/LoadingSpinner';
 

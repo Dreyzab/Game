@@ -181,6 +181,7 @@ export const MapPointMarker: React.FC<MapPointMarkerProps> = ({
   onClick,
 }) => {
   const colorClass = getColorClass(point)
+  const shouldFade = point.status === 'researched' && point.type !== 'settlement' && !isSelected
   const isQuestTarget = Boolean(point.metadata?.isActiveQuestTarget)
   const isGlobalObjective = Boolean(point.metadata?.isGlobalObjective)
   const icon = getIconForPoint(point)
@@ -189,7 +190,10 @@ export const MapPointMarker: React.FC<MapPointMarkerProps> = ({
     <div
       className={cn(
         'relative flex items-center justify-center cursor-pointer transition-all duration-200',
+        'shrink-0', // Prevent squeezing
+        '!p-0 !m-0', // Override global styles
         'transform-gpu',
+        shouldFade && 'opacity-[0.3]',
         isSelected && 'scale-125 z-50',
         isHovered && !isSelected && 'scale-110 z-40'
       )}
@@ -197,6 +201,10 @@ export const MapPointMarker: React.FC<MapPointMarkerProps> = ({
       role="button"
       tabIndex={0}
       aria-label={`Точка: ${point.title}`}
+      style={{
+        width: '32px',
+        height: '32px',
+      }}
     >
       {/* Пульсирующее кольцо для целей квестов */}
       {isQuestTarget && (
@@ -218,17 +226,14 @@ export const MapPointMarker: React.FC<MapPointMarkerProps> = ({
       <div
         className={cn(
           'relative flex items-center justify-center',
-          'w-8 h-8 rounded-full border-2',
+          'w-full h-full rounded-full border-2', // w-full h-full instead of w-8 h-8
           'bg-gray-900/80 backdrop-blur-sm', // Default dark bg
           'shadow-lg',
           colorClass,
           'transition-all duration-200',
-          isSelected && 'ring-2 ring-white ring-opacity-75 scale-125',
+          isSelected && 'ring-2 ring-white ring-opacity-75',
           'hover:scale-110'
         )}
-        style={{
-          boxShadow: '0 4px 8px rgba(0, 0, 0, 0.5)',
-        }}
       >
         <div className="drop-shadow-lg">{icon}</div>
       </div>
@@ -237,9 +242,10 @@ export const MapPointMarker: React.FC<MapPointMarkerProps> = ({
       {point.metadata?.danger_level && point.metadata.danger_level !== 'low' && (
         <div
           className={cn(
-            'absolute -top-1 -right-1 w-3 h-3 rounded-full border border-white',
+            'absolute w-3 h-3 rounded-full border border-white',
             point.metadata.danger_level === 'high' ? 'bg-red-600' : 'bg-orange-500'
           )}
+          style={{ top: '-3px', right: '-3px' }}
           title={`Уровень опасности: ${point.metadata.danger_level}`}
         />
       )}
@@ -247,7 +253,8 @@ export const MapPointMarker: React.FC<MapPointMarkerProps> = ({
       {/* Индикатор необходимости QR */}
       {point.metadata?.qrRequired && (
         <div
-          className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-indigo-500 border border-white"
+          className="absolute w-3 h-3 rounded-full bg-indigo-500 border border-white"
+          style={{ bottom: '-3px', right: '-3px' }}
           title="Требуется QR-сканирование"
         />
       )}

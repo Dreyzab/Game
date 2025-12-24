@@ -30,59 +30,260 @@ export const marketTraderScenes: Record<string, Scene> = {
     dialogue: [
       {
         speaker: 'Рассказчик',
-        text: 'Площадь старой синагоги — одно из немногих мест, где старый мир всё ещё кажется живым, пусть и в виде руин. Лавка "Ржавый Якорь" Элиаса примостилась прямо у входа в один из уцелевших кварталов.',
+        text: 'Ты оставляешь вокзал позади. Город встречает тебя шумом и запахами. Площадь Старой Синагоги — муравейник: сотни людей, палатки из брезента, запах жареного мяса и специй.',
       },
       {
         speaker: 'ВОСПРИЯТИЕ',
-        text: '[ПАРАМЕТР: ПСИХЕ/ВОСПРИЯТИЕ (Успех)] Элиас выбрал стратегическое место. Весь поток людей с вокзала в центр проходит мимо него.',
+        text: '[ПАРАМЕТР: ПСИХЕ/ВОСПРИЯТИЕ] Лавка стоит так, что мимо неё проходит весь поток — и беженцы, и работяги, и патрули. Удобно для торговли. И для наблюдения.',
         emotion: { primary: 'neutral', intensity: 70 },
       },
       {
         speaker: 'Рассказчик',
-        text: 'Сам торговец, тучный мужчина с цепким взглядом, сидит на высоком табурете, лениво обмахиваясь пожелтевшей газетой.',
+        text: 'Ты находишь «Ржавый Якорь» — лавку под навесом из красной парусины. За прилавком, заваленным всяким хламом, сидит седобородый старик с цепким взглядом. Рядом дремлет огромный пёс.',
       },
       {
         speaker: 'Элиас',
         characterId: 'elias',
-        text: '(Не открывая глаз) Чего надо? Если продавать — цены на табло. Если покупать — покажи кредиты. Если просто глазеть — вали отсюда.',
+        text: '(Не поднимая головы) Чего надо?',
         emotion: { primary: 'neutral', intensity: 55 },
       },
       {
         speaker: 'ЦИНИЗМ',
-        text: 'Какой тёплый приём. Чувствуешь себя желанным гостем.',
+        text: 'Ну конечно. Улыбки — по талонам, гостеприимство — по расписанию.',
         emotion: { primary: 'sad', intensity: 45 },
       },
     ],
     choices: [
       {
-        id: 'mention_hans',
-        text: '"Я от Ганса. Он говорил, у тебя есть посылка для Дитера."',
-        nextScene: 'trader_hans_mention',
+        id: 'delivery_from_hans',
+        text: '"Я от Ганса. За запчастями для Дитера."',
+        nextScene: 'elias_delivery_pickup',
       },
       {
-        id: 'ask_about_trade',
-        text: '"Сначала хочу осмотреть товар."',
-        nextScene: 'trader_browse_goods',
+        id: 'scan_market',
+        text: '[ВОСПРИЯТИЕ] Осмотреться, прежде чем говорить.',
+        nextScene: 'elias_market_scan',
       },
       {
-        id: 'authority_approach',
-        text: '[АВТОРИТЕТ] "Открой глаза, когда с тобой разговаривают." (Сложность 10)',
-        presentation: {
-          color: 'bold',
-          icon: '👑',
-          tooltip: 'Требуется АВТОРИТЕТ',
-        },
-        availability: {
-          skillCheck: {
-            skill: 'authority',
-            difficulty: 10,
-            successText: 'Твой голос звучит неожиданно уверенно.',
-            failureText: 'Элиас даже не шевельнулся...',
-          },
-        },
+        id: 'dog_trade_joke',
+        text: '[ТОРГОВЛЯ] "Хороший пёс. Сколько стоит?"',
+        nextScene: 'elias_dog_joke',
+      },
+    ],
+  },
+
+  elias_market_scan: {
+    id: 'elias_market_scan',
+    background: MARKET_BACKGROUND,
+    characters: [
+      {
+        id: 'elias',
+        name: 'Элиас',
+        position: 'center',
+        sprite: ELIAS_SPRITE,
+        emotion: { primary: 'neutral', intensity: 55 },
+      },
+    ],
+    dialogue: [
+      {
+        speaker: 'Рассказчик',
+        text: 'Ты не спешишь раскрывать карты. Оцениваешь лавку, людей вокруг, выходы. Пёс у прилавка не просто спит — он слушает.',
+      },
+      {
+        speaker: 'ЛОГИКА',
+        text: 'Правило рынка простое: сначала смотри, кто на кого смотрит. Потом говори.',
+        emotion: { primary: 'neutral', intensity: 70 },
+      },
+    ],
+    choices: [
+      {
+        id: 'scan_to_business',
+        text: 'Подойти ближе: "Я от Ганса."',
+        nextScene: 'elias_delivery_pickup',
+      },
+      {
+        id: 'scan_to_dog',
+        text: 'Проверить почву шуткой про пса.',
+        nextScene: 'elias_dog_joke',
+      },
+      {
+        id: 'scan_leave',
+        text: 'Передумать и отойти.',
+        nextScene: 'exit_to_map',
+      },
+    ],
+  },
+
+  elias_dog_joke: {
+    id: 'elias_dog_joke',
+    background: MARKET_BACKGROUND,
+    characters: [
+      {
+        id: 'elias',
+        name: 'Элиас',
+        position: 'center',
+        sprite: ELIAS_SPRITE,
+        emotion: { primary: 'neutral', intensity: 60 },
+      },
+    ],
+    dialogue: [
+      {
+        speaker: 'Вы',
+        text: 'Хороший пёс. Сколько стоит?',
+      },
+      {
+        speaker: 'Элиас',
+        characterId: 'elias',
+        text: '(Хмыкает, не глядя) Не продаётся. Он дешевле любого замка — и надёжнее.',
+        emotion: { primary: 'neutral', intensity: 60 },
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Пёс приоткрывает один глаз, оценивает тебя и снова «засыпает».',
+      },
+    ],
+    choices: [
+      {
+        id: 'dog_to_business',
+        text: '"Я от Ганса. За запчастями для Дитера."',
+        nextScene: 'elias_delivery_pickup',
+      },
+      {
+        id: 'dog_leave',
+        text: 'Не затягивать и уйти.',
+        nextScene: 'exit_to_map',
+      },
+    ],
+  },
+
+  elias_delivery_pickup: {
+    id: 'elias_delivery_pickup',
+    background: MARKET_BACKGROUND,
+    characters: [
+      {
+        id: 'elias',
+        name: 'Элиас',
+        position: 'center',
+        sprite: ELIAS_SPRITE,
+        emotion: { primary: 'neutral', intensity: 65 },
+      },
+    ],
+    dialogue: [
+      {
+        speaker: 'Элиас',
+        characterId: 'elias',
+        text: 'От Ганса? Значит, курьер. Ну-ну.',
+        emotion: { primary: 'neutral', intensity: 65 },
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Он наклоняется под прилавок и с кряхтением вытаскивает тяжёлый, промасленный деревянный ящик. Ставит перед тобой с глухим стуком.',
+      },
+      {
+        speaker: 'Элиас',
+        characterId: 'elias',
+        text: 'Вот. Конденсаторы, предохранители, пара сервоприводов. Всё как заказывали. Только смотри — не разбей. Дитер шкуру спустит, если хоть одна лампа треснет.',
+        emotion: { primary: 'neutral', intensity: 60 },
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Ящик тяжёлый — килограммов десять, не меньше.',
+      },
+      {
+        speaker: 'Элиас',
+        characterId: 'elias',
+        text: '(Тише) И ещё. Передай Дитеру: Фленс недоволен задержкой оплаты. Пусть не тянет с кредитами. Понял?',
+        emotion: { primary: 'serious', intensity: 65 },
+      },
+    ],
+    choices: [
+      {
+        id: 'delivery_ack',
+        text: '"Понял. Передам."',
+        nextScene: 'exit_to_map',
         effects: {
-          onSuccess: { nextScene: 'trader_authority_success' },
-          onFailure: { nextScene: 'trader_authority_fail' },
+          addFlags: ['met_elias', 'has_dieter_parts', 'heard_flens_payment_warning'],
+          immediate: [{ type: 'open_map' }],
+        },
+      },
+      {
+        id: 'delivery_only_courier',
+        text: '"Это ваши дела. Я только ношу груз."',
+        nextScene: 'elias_delivery_respect',
+      },
+      {
+        id: 'delivery_force',
+        text: '[СИЛА] "Ты мне угрожаешь, старик?"',
+        nextScene: 'elias_delivery_force',
+      },
+    ],
+  },
+
+  elias_delivery_respect: {
+    id: 'elias_delivery_respect',
+    background: MARKET_BACKGROUND,
+    characters: [
+      {
+        id: 'elias',
+        name: 'Элиас',
+        position: 'center',
+        sprite: ELIAS_SPRITE,
+        emotion: { primary: 'neutral', intensity: 60 },
+      },
+    ],
+    dialogue: [
+      {
+        speaker: 'Элиас',
+        characterId: 'elias',
+        text: '(Хмыкает) Деловое отношение. Мне нравится. Вали давай, пока я не передумал.',
+        emotion: { primary: 'neutral', intensity: 60 },
+      },
+    ],
+    choices: [
+      {
+        id: 'elias_delivery_respect_leave',
+        text: 'Уйти с ящиком.',
+        nextScene: 'exit_to_map',
+        effects: {
+          addFlags: ['met_elias', 'has_dieter_parts', 'heard_flens_payment_warning'],
+          immediate: [{ type: 'open_map' }],
+        },
+      },
+    ],
+  },
+
+  elias_delivery_force: {
+    id: 'elias_delivery_force',
+    background: MARKET_BACKGROUND,
+    characters: [
+      {
+        id: 'elias',
+        name: 'Элиас',
+        position: 'center',
+        sprite: ELIAS_SPRITE,
+        emotion: { primary: 'angry', intensity: 65 },
+      },
+    ],
+    dialogue: [
+      {
+        speaker: 'Элиас',
+        characterId: 'elias',
+        text: '(Сухо) Я предупреждаю, а не угрожаю. Тут разница — в том, кто потом остаётся целым.',
+        emotion: { primary: 'angry', intensity: 60 },
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Пёс приоткрывает глаз чуть шире. На секунду тебе кажется, что лучше не продолжать.',
+      },
+    ],
+    choices: [
+      {
+        id: 'elias_delivery_force_leave',
+        text: 'Забрать ящик и уйти.',
+        nextScene: 'exit_to_map',
+        effects: {
+          addFlags: ['met_elias', 'has_dieter_parts', 'heard_flens_payment_warning'],
+          immediate: [{ type: 'open_map' }],
         },
       },
     ],
@@ -987,6 +1188,47 @@ export const marketTraderScenes: Record<string, Scene> = {
           immediate: [
             { type: 'reputation', data: { faction: 'traders', delta: -3 } },
           ],
+        },
+      },
+    ],
+  },
+
+  elias_shop: {
+    id: 'elias_shop',
+    background: MARKET_BACKGROUND,
+    characters: [
+      {
+        id: 'elias',
+        name: 'Элиас',
+        position: 'center',
+        sprite: ELIAS_SPRITE,
+        emotion: { primary: 'neutral', intensity: 55 },
+      },
+    ],
+    dialogue: [
+      {
+        speaker: 'Элиас',
+        characterId: 'elias',
+        text: 'Чего надо? Торговаться будем или просто время тратить?',
+        emotion: { primary: 'neutral', intensity: 55 },
+      },
+    ],
+    choices: [
+      {
+        id: 'elias_shop_open_menu',
+        text: 'Посмотреть товары.',
+        nextScene: 'elias_shop_menu',
+        effects: {
+          addFlags: ['met_elias'],
+        },
+      },
+      {
+        id: 'elias_shop_leave',
+        text: 'Уйти.',
+        nextScene: 'exit_to_map',
+        effects: {
+          addFlags: ['met_elias'],
+          immediate: [{ type: 'open_map' }],
         },
       },
     ],

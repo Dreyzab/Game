@@ -78,7 +78,7 @@ export const MapMarkers: React.FC<MapMarkersProps> = ({
                     try {
                         // Ñ­ÑóÑúÑïÑø¥'Ñ¬ Ñ«ÑóÑý¥<Ñû Ñ¬Ñø¥?Ñ§Ñæ¥?
                         const el = document.createElement('div')
-                        el.style.cssText = 'width: 32px; height: 32px;'
+                        el.style.cssText = 'width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;'
                         const root = createRoot(el)
 
                         root.render(
@@ -89,6 +89,7 @@ export const MapMarkers: React.FC<MapMarkersProps> = ({
                                 onClick={() => onSelectPoint(point)}
                             />
                         )
+
 
                         const marker = new mapboxgl.Marker({
                             element: el,

@@ -20,7 +20,7 @@ export const ChoicePanel: React.FC<ChoicePanelProps> = ({
     (skills as Partial<Record<VoiceId, number>>)[skill] ?? 0
 
   return (
-    <div className="flex flex-col gap-3 w-full max-w-4xl mx-auto px-6 mb-12 animate-slide-up">
+    <div className="flex flex-col gap-2 sm:gap-3 w-full max-w-4xl mx-auto px-4 sm:px-6 mb-6 sm:mb-12 animate-slide-up">
       {choices.map((choice) => {
         const check = choice.requirements?.skillCheck
         const skillLevel = check ? readSkill(check.skill) : 0
@@ -31,6 +31,7 @@ export const ChoicePanel: React.FC<ChoicePanelProps> = ({
           (isSkillLocked && check
             ? check.label ?? `Requires ${check.skill.toUpperCase()} ${check.difficulty}+`
             : undefined)
+        const isVisited = choice.isVisited
 
         return (
           <button
@@ -38,35 +39,39 @@ export const ChoicePanel: React.FC<ChoicePanelProps> = ({
             disabled={isLocked}
             onClick={() => onSelect(choice.id)}
             className={cn(
-              'relative group flex flex-col p-4 rounded-xl text-left border transition-all duration-300',
-              isLocked
+              'relative group flex flex-col p-3 sm:p-4 rounded-xl text-left border transition-all duration-300',
+              isLocked && !isVisited
                 ? 'bg-slate-900/40 border-slate-800 cursor-not-allowed opacity-60'
+                : isVisited
+                ? 'bg-emerald-950/20 border-emerald-500/30 opacity-80 cursor-not-allowed'
                 : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/30 hover:-translate-y-0.5 active:translate-y-0'
             )}
           >
             <div className="flex justify-between items-center w-full">
               <span
                 className={cn(
-                  'font-cinzel text-sm tracking-widest font-bold',
-                  isLocked ? 'text-slate-500' : 'text-white'
+                  'font-cinzel text-xs sm:text-sm tracking-widest font-bold',
+                  isLocked && !isVisited ? 'text-slate-500' : isVisited ? 'text-emerald-200/60' : 'text-white'
                 )}
               >
-                {choice.label}
+                {choice.label} {isVisited && '✓'}
               </span>
               <span
                 className={cn(
                   'text-[10px] uppercase tracking-tighter font-bold',
-                  isLocked
+                  isLocked && !isVisited
                     ? 'text-red-500/60'
+                    : isVisited
+                    ? 'text-emerald-500/40'
                     : 'text-slate-500 group-hover:text-white/80'
                 )}
               >
-                {isLocked ? 'Locked' : 'Select'}
+                {isLocked && !isVisited ? 'Locked' : isVisited ? 'Visited' : 'Select'}
               </span>
             </div>
 
             {choice.description && (
-              <p className="text-[11px] text-slate-400 mt-1 leading-normal font-medium max-w-[90%]">
+              <p className="text-[10px] sm:text-[11px] text-slate-400 mt-1 leading-normal font-medium max-w-[90%]">
                 {choice.description}
               </p>
             )}

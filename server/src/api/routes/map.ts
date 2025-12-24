@@ -380,6 +380,14 @@ export const mapRoutes = (app: Elysia) =>
                         activeQuestIds.add('chance_for_a_newbie');
                     }
 
+                    if (playerFlags['whispers_quest_active'] === true) {
+                        activeQuestIds.add('whispers_of_rift');
+                    }
+
+                    if (playerFlags['shopkeeper_truant_active'] === true) {
+                        activeQuestIds.add('shopkeeper_truant');
+                    }
+
                     // Fetch All Active Points (then filter in memory for bbox/reqs)
                     const allPoints = await db.query.mapPoints.findMany({
                         where: eq(mapPoints.isActive, true),

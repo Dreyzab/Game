@@ -129,9 +129,9 @@ const buildInventoryPayload = async (ownerId: number) => {
 
         const kind =
             row.kind === 'backpack' ? 'backpack' :
-            row.kind === 'rig' ? 'rig' :
-            row.kind === 'helmet' ? 'pocket' :
-            'equipment_storage';
+                row.kind === 'rig' ? 'rig' :
+                    row.kind === 'helmet' ? 'pocket' :
+                        'equipment_storage';
 
         containers.push({
             id: item.instanceId,
@@ -506,6 +506,69 @@ export const inventoryRoutes = (app: Elysia) =>
                 }, {
                     body: t.Object({
                         itemId: t.String(),
+                    }),
+                })
+
+                // GET /inventory/stash - Get stash items (not directly on player)
+                .get("/stash", async ({ user }) => {
+                    if (!user) return { error: "Unauthorized", status: 401 };
+                    const player = await resolvePlayer(user);
+                    if (!player) return { items: [] };
+
+                    const stashItems = await db.query.items.findMany({
+                        where: and(
+                            eq(items.ownerId, player.id),
+                            eq(items.slot, 'stash')
+                        ),
+                    });
+
+                    return {
+                        items: stashItems.map(row => ({
+                            id: row.id,
+                            templateId: row.templateId,
+                            instanceId: row.instanceId ?? row.id,
+                            kind: row.kind ?? 'misc',
+                            name: row.name ?? TEMPLATE_BY_ID[row.templateId ?? '']?.name ?? 'Unknown',
+                            quantity: row.quantity ?? 1,
+                            condition: row.condition ?? 100,
+                            gridPosition: row.gridPosition,
+                            stats: row.stats,
+                        }))
+                    };
+                })
+
+                // POST /inventory/stash/move - Move item between inventory and stash
+                // This is a simplified move for now: change 'slot' to 'stash' or null
+                .post("/stash/move", async ({ user, body }) => {
+                    if (!user) return { error: "Unauthorized", status: 401 };
+                    const player = await resolvePlayer(user);
+                    if (!player) return { error: "Player not found", status: 404 };
+
+                    const { itemId, toStash, gridPosition } = body;
+
+                    const item = await db.query.items.findFirst({
+                        where: and(eq(items.id, itemId), eq(items.ownerId, player.id)),
+                    });
+
+                    if (!item) return { error: "Item not found", status: 404 };
+
+                    await db.update(items)
+                        .set({
+                            slot: toStash ? 'stash' : null,
+                            gridPosition: gridPosition ?? null,
+                        })
+                        .where(eq(items.id, itemId));
+
+                    return { success: true };
+                }, {
+                    body: t.Object({
+                        itemId: t.String(),
+                        toStash: t.Boolean(),
+                        gridPosition: t.Optional(t.Object({
+                            x: t.Number(),
+                            y: t.Number(),
+                            rotation: t.Optional(t.Number()),
+                        })),
                     }),
                 })
         );

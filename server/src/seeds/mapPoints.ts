@@ -31,7 +31,7 @@ export const SEED_MAP_POINTS: SeedMapPoint[] = [
       category: 'workshop',
       npcId: 'dieter_craftsman_artisan',
       characterName: 'Мастер Дитер',
-      services: ['repair', 'crafting', 'upgrade'],
+      services: ['repair', 'crafting', 'upgrade', 'storage'],
       dialogues: ['craftsman_meeting_dialog', 'weapon_repair_dialog'],
       questBindings: ['chance_for_a_newbie', 'whispers_of_rift'],
       atmosphere:
@@ -50,6 +50,15 @@ export const SEED_MAP_POINTS: SeedMapPoint[] = [
             notFlags: ['delivered_parts_to_dieter'],
           },
           priority: 100,
+        },
+        {
+          sceneId: 'dieter_schlossberg_return',
+          triggerType: 'click',
+          conditions: {
+            flags: ['schlossberg_crystal_obtained', 'met_dieter'],
+            notFlags: ['schlossberg_crystal_delivered'],
+          },
+          priority: 95,
         },
         {
           sceneId: 'dieter_workshop_approach',
@@ -241,6 +250,15 @@ export const SEED_MAP_POINTS: SeedMapPoint[] = [
           triggerType: 'click',
           conditions: {
             flags: ['arrived_at_freiburg'],
+            notFlags: ['visited_info_bureau'],
+          },
+          priority: 10,
+        },
+        {
+          sceneId: 'info_bureau_return',
+          triggerType: 'click',
+          conditions: {
+            flags: ['arrived_at_freiburg', 'visited_info_bureau'],
           },
           priority: 1,
         },
@@ -374,6 +392,105 @@ export const SEED_MAP_POINTS: SeedMapPoint[] = [
             flags: ['met_father_johann'],
           },
           priority: 10,
+        },
+      ],
+    },
+    createdAt: Date.now(),
+  },
+
+  // Ворота Швабентор — КПП на выход к Шлосбергу
+  {
+    id: 'schwabentor_gate',
+    title: 'Ворота Швабентор',
+    description:
+      'КПП у восточных ворот. Через Швабентор начинается старая тропа к Шлосбергу.',
+    coordinates: { lat: 47.9939, lng: 7.8562 },
+    type: 'location',
+    phase: 1,
+    isActive: true,
+    metadata: {
+      category: 'checkpoint',
+      faction: 'fjr',
+      atmosphere:
+        'Массивная арка, баррикады и шлагбаум. Патрульные FJR проверяют бумаги и держат палец на спуске.',
+      questBindings: ['whispers_of_rift'],
+      danger_level: 'medium',
+      sceneBindings: [
+        {
+          sceneId: 'schwabentor_morning_denial',
+          triggerType: 'click',
+          conditions: {
+            flags: ['need_visit_schwabentor'],
+            notFlags: ['schwabentor_blocked'],
+          },
+          priority: 100,
+        },
+        {
+          sceneId: 'schwabentor_morning_open',
+          triggerType: 'click',
+          conditions: {
+            flags: ['schwabentor_blocked', 'whispers_delayed_until_morning', 'rested_at_cathedral'],
+            notFlags: ['schlossberg_access_granted'],
+          },
+          priority: 90,
+        },
+        {
+          sceneId: 'schwabentor_departure_ready',
+          triggerType: 'click',
+          conditions: {
+            flags: ['schlossberg_access_granted'],
+            notFlags: ['schlossberg_crystal_obtained'],
+          },
+          priority: 80,
+        },
+        {
+          sceneId: 'schwabentor_closed_repeat',
+          triggerType: 'click',
+          conditions: {
+            flags: ['schwabentor_blocked'],
+          },
+          priority: 10,
+        },
+      ],
+    },
+    createdAt: Date.now(),
+  },
+
+  // Шлосберг — склон и аномальная зона (доступ после пропуска Шмидта)
+  {
+    id: 'schlossberg_anomaly',
+    title: 'Шлосберг — Склон',
+    description:
+      'Лесной склон за восточными воротами. Дитер говорил о схроне и кристаллах — но гора отвечает шёпотом.',
+    coordinates: { lat: 47.9954, lng: 7.8586 },
+    type: 'anomaly',
+    phase: 1,
+    isActive: true,
+    metadata: {
+      category: 'anomaly',
+      atmosphere: 'Влажный лес, туман и редкие щелчки дозиметра. Воздух будто дрожит.',
+      questBindings: ['whispers_of_rift'],
+      danger_level: 'high',
+      unlockRequirements: {
+        flags: ['schlossberg_access_granted', 'whispers_quest_active'],
+      },
+      sceneBindings: [
+        {
+          sceneId: 'schlossberg_trail_entry',
+          triggerType: 'click',
+          conditions: {
+            notFlags: ['schlossberg_crystal_obtained'],
+          },
+          priority: 100,
+        },
+        {
+          sceneId: 'schlossberg_have_crystal_return',
+          triggerType: 'click',
+          conditions: {
+            flags: ['schlossberg_crystal_obtained'],
+            notFlags: ['schlossberg_crystal_delivered'],
+          },
+          priority: 50,
         },
       ],
     },
@@ -531,6 +648,16 @@ export const SEED_MAP_POINTS: SeedMapPoint[] = [
       atmosphere: 'Тусклый свет, запах дешёвого пива и табака. Люда протирает стаканы за стойкой.',
       dialogues: ['luda_gossip_dialog', 'luda_shopkeeper_info'],
       questBindings: ['shopkeeper_truant'],
+      sceneBindings: [
+        {
+          sceneId: 'luda_introduction',
+          triggerType: 'click',
+          conditions: {
+            flags: ['arrived_at_freiburg'],
+          },
+          priority: 1,
+        },
+      ],
       interactionMenu: [
         { id: 'talk_luda', label: 'Поговорить с Людой', sceneId: 'luda_introduction' },
         { id: 'buy_drink', label: 'Купить напиток', sceneId: 'luda_drink_scene', cost: 5 },
@@ -607,8 +734,6 @@ export const SEED_MAP_POINTS: SeedMapPoint[] = [
     isActive: true,
     metadata: {
       category: 'investigation',
-      qrRequired: true,
-      qrHint: 'Найдите замок на двери 3Б. Код выцарапан на дверном косяке.',
       atmosphere: 'Скрипучие половицы, запах сырости. Дверь комнаты 3Б приоткрыта.',
       questBindings: ['shopkeeper_truant'],
       danger_level: 'medium',
@@ -648,6 +773,17 @@ export const SEED_MAP_POINTS: SeedMapPoint[] = [
       unlockRequirements: {
         flags: ['tenement_evidence_found'],
       },
+      sceneBindings: [
+        {
+          sceneId: 'hole_club_entry',
+          triggerType: 'click',
+          conditions: {
+            flags: ['tenement_evidence_found'],
+            notFlags: ['shopkeeper_truant_completed'],
+          },
+          priority: 1,
+        },
+      ],
     },
     createdAt: Date.now(),
   },
@@ -661,17 +797,26 @@ export const SEED_MAP_POINTS: SeedMapPoint[] = [
     coordinates: { lat: 47.9928, lng: 7.8520 },
     type: 'location',
     phase: 1,
-    isActive: false,
+    isActive: true,
     metadata: {
       category: 'dungeon',
-      qrRequired: true,
-      qrHint: 'Люк коллектора отмечен символом волны.',
       atmosphere: 'Эхо капающей воды, запах плесени. В углу виднеется свет.',
       questBindings: ['shopkeeper_truant'],
       danger_level: 'high',
       unlockRequirements: {
-        flags: ['scar_gave_location'],
+        flags: ['collector_entrance_found'],
       },
+      sceneBindings: [
+        {
+          sceneId: 'collectors_techroom_rescue',
+          triggerType: 'click',
+          conditions: {
+            flags: ['collector_entrance_found'],
+            notFlags: ['shopkeeper_truant_completed'],
+          },
+          priority: 1,
+        },
+      ],
     },
     createdAt: Date.now(),
   },

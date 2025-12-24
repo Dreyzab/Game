@@ -1,23 +1,12 @@
 import React, { useCallback, useEffect, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { cn } from '@/shared/lib/utils/cn'
-import type { VisualNovelMood } from '@/shared/types/visualNovel'
-
-const moodLabel: Record<VisualNovelMood, string> = {
-  neutral: 'Neutral',
-  tense: 'Tense',
-  warm: 'Warm',
-  serious: 'Serious',
-  hopeful: 'Hopeful',
-  grim: 'Grim',
-}
 
 export interface DialogueBoxProps {
   speakerName?: string
   speakerTitle?: string
   text?: string
   stageDirection?: string
-  mood?: VisualNovelMood
   disabled?: boolean
   isPending?: boolean
   style?: React.CSSProperties
@@ -32,7 +21,6 @@ export const DialogueBox: React.FC<DialogueBoxProps> = ({
   speakerTitle,
   text,
   stageDirection,
-  mood = 'neutral',
   disabled,
   isPending,
   style,
@@ -118,44 +106,25 @@ export const DialogueBox: React.FC<DialogueBoxProps> = ({
     <motion.div
       onClick={handleAdvance}
       className={cn(
-        'relative w-full max-w-5xl mx-auto mb-8 px-6 select-none',
+        'relative w-full max-w-5xl mx-auto mb-4 sm:mb-8 px-4 sm:px-6 select-none',
         !disabled && 'cursor-pointer'
       )}
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 16 }}
+      style={{ opacity: disabled ? 0.9 : 1 }}
     >
       <div
         className={cn(
-          'bg-slate-950/80 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl overflow-hidden min-h-[160px] transition-colors',
+          'bg-slate-950/80 backdrop-blur-xl border border-white/10 rounded-2xl p-5 sm:p-8 shadow-2xl overflow-hidden min-h-[120px] sm:min-h-[160px] transition-colors',
           !disabled && 'hover:border-white/20'
         )}
         style={style}
       >
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            {speakerName && (
-              <h3 className="font-cinzel text-lg font-bold tracking-[0.2em] text-white">
-                {speakerName.toUpperCase()}
-              </h3>
-            )}
-            {speakerTitle && (
-              <p className="text-[10px] text-slate-400 font-medium tracking-widest uppercase mt-0.5">
-                {speakerTitle}
-              </p>
-            )}
-          </div>
-          <div className="bg-white/5 border border-white/10 px-3 py-1 rounded-full">
-            <span className="text-[10px] text-slate-300 font-medium tracking-widest uppercase">
-              {moodLabel[mood]}
-            </span>
-          </div>
-        </div>
-
-        <div className="font-playfair text-xl leading-relaxed text-slate-100 min-h-[3rem]">
+        <div className="font-sans text-[17px] sm:text-[20px] leading-relaxed text-white/90 font-medium tracking-tight min-h-[3rem]">
           {displayedText.slice(0, visibleCount)}
           {isTyping && (
-            <span className="inline-block w-2 h-5 bg-white/40 ml-1 animate-pulse" />
+            <span className="inline-block w-1 h-5 bg-[color:var(--color-cyan)] ml-1 animate-pulse" />
           )}
         </div>
 

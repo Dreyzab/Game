@@ -70,6 +70,7 @@ export interface CombatCard {
     optimalRange: number[]
     description: string
     jamChance: number
+    ownerId?: string
 }
 
 export interface Achievement {

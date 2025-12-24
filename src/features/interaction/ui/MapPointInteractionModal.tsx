@@ -70,6 +70,28 @@ export const MapPointInteractionModal: React.FC<MapPointInteractionModalProps> =
               {interaction.type === 'quests' && (
                 <QuestBoard interaction={interaction} onClose={onClose} />
               )}
+              {interaction.type === 'storage' && (
+                <div className="flex flex-col items-center justify-center py-12 space-y-6">
+                  <div className="w-20 h-20 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-4xl shadow-inner">
+                    📦
+                  </div>
+                  <div className="text-center space-y-2">
+                    <p className="text-white/60 max-w-sm">
+                      Вы можете получить доступ к своему глобальному хранилищу из этой точки.
+                      Предметы в хранилище защищены от потери при смерти.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      window.location.hash = '/inventory'
+                      onClose()
+                    }}
+                    className="px-8 py-3 bg-white text-slate-950 rounded-xl font-bold hover:bg-white/90 transition-all transform hover:scale-105 active:scale-95 shadow-[0_10px_20px_rgba(255,255,255,0.1)]"
+                  >
+                    ОТКРЫТЬ ХРАНИЛИЩЕ
+                  </button>
+                </div>
+              )}
             </div>
           </motion.div>
         </motion.div>

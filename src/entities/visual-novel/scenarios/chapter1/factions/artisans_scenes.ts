@@ -406,34 +406,362 @@ export const artisansScenes: Record<string, Scene> = {
         sprite: DIETER_SPRITE,
         emotion: { primary: 'happy', intensity: 60 },
       },
+      {
+        id: 'rico',
+        name: 'Рико',
+        position: 'right',
+        sprite: RICO_SPRITE,
+        emotion: { primary: 'happy', intensity: 75 },
+      },
     ],
     dialogue: [
       {
+        speaker: 'Рассказчик',
+        text: 'Мастерская «Опора» — огромный ангар с распахнутыми воротами. Внутри гудит сварка, летят искры. Ты входишь с ящиком, и в глубине цеха видишь две фигуры у разобранного генератора.',
+      },
+      {
+        speaker: 'Рико',
+        characterId: 'rico',
+        text: 'Опа! Кого я вижу! Живой! А я думал, тебя Густав на запчасти разобрал.',
+        emotion: { primary: 'happy', intensity: 80 },
+      },
+      {
         speaker: 'Мастер Дитер',
         characterId: 'dieter',
-        text: '(Глаза загораются) От Ганса? Наконец-то! Я уже неделю жду эти конденсаторы!',
-        emotion: { primary: 'happy', intensity: 70 },
+        text: '(Поднимает очки на лоб) Вы знакомы?',
+        emotion: { primary: 'neutral', intensity: 60 },
+      },
+      {
+        speaker: 'Рико',
+        characterId: 'rico',
+        text: 'Это тот самый парень с поезда! Тот, что не зассал, когда твари попёрли.',
+        emotion: { primary: 'happy', intensity: 75 },
+      },
+      {
+        speaker: 'Мастер Дитер',
+        characterId: 'dieter',
+        text: '(Хмыкает) Вот как? Полезное качество.',
+        emotion: { primary: 'neutral', intensity: 60 },
       },
       {
         speaker: 'Рассказчик',
-        text: 'Вы передаёте тяжёлый ящик. Дитер открывает его и внимательно осматривает содержимое.',
+        text: 'Ты ставишь ящик на верстак. Дитер быстро проверяет содержимое.',
       },
       {
         speaker: 'Мастер Дитер',
         characterId: 'dieter',
-        text: 'Хорошо, хорошо... Всё на месте. Ты быстро справился. Как тебя зовут, парень?',
-        emotion: { primary: 'happy', intensity: 65 },
+        text: 'Всё на месте. Отлично.',
+        emotion: { primary: 'happy', intensity: 60 },
+      },
+      {
+        speaker: 'Вы',
+        condition: { flag: 'heard_flens_payment_warning' },
+        text: 'Элиас просил передать: Фленс недоволен задержкой оплаты.',
+      },
+      {
+        speaker: 'Мастер Дитер',
+        characterId: 'dieter',
+        condition: { flag: 'heard_flens_payment_warning' },
+        text: '(Мрачно) Фленс всегда недоволен. Передай ему: пусть не забывает, кто держит город на ходу.',
+        emotion: { primary: 'angry', intensity: 55 },
+      },
+      {
+        speaker: 'Мастер Дитер',
+        characterId: 'dieter',
+        text: '(Достаёт кошелёк) Держи. Заслужил. Тридцать кредитов.',
+        emotion: { primary: 'happy', intensity: 55 },
+      },
+      {
+        speaker: 'Мастер Дитер',
+        characterId: 'dieter',
+        emotion: { primary: 'serious', intensity: 70 },
+        text: 'И раз уж вы с Рико друг друга знаете, и он тебя хвалит... есть у меня к тебе разговор. Дело посложнее, чем коробки таскать.',
       },
     ],
     choices: [
       {
         id: 'confirm_delivery_to_dieter',
         text: 'Поставить ящик на верстак.',
-        nextScene: 'dieter_introduction_good',
+        nextScene: 'dieter_schlossberg_offer',
         effects: {
-          addFlags: ['met_dieter', 'completed_dieter_delivery', 'delivered_parts_to_dieter'],
+          addFlags: ['met_dieter', 'met_rico', 'completed_dieter_delivery', 'delivered_parts_to_dieter'],
           removeFlags: ['has_dieter_parts', 'chance_for_newbie_active'],
           xp: 15,
+        },
+      },
+    ],
+  },
+
+  dieter_schlossberg_offer: {
+    id: 'dieter_schlossberg_offer',
+    background: WORKSHOP_BACKGROUND,
+    characters: [
+      {
+        id: 'dieter',
+        name: 'Мастер Дитер',
+        position: 'center',
+        sprite: DIETER_SPRITE,
+        emotion: { primary: 'neutral', intensity: 60 },
+      },
+      {
+        id: 'rico',
+        name: 'Рико',
+        position: 'right',
+        sprite: RICO_SPRITE,
+        emotion: { primary: 'neutral', intensity: 65 },
+      },
+    ],
+    dialogue: [
+      {
+        speaker: 'Мастер Дитер',
+        characterId: 'dieter',
+        text: 'Там, на горе, у подножия старого замка, есть мой схрон. Старая смотровая площадка. Я оставил там... кое-какие кристаллы. Нужно их забрать.',
+        emotion: { primary: 'neutral', intensity: 60 },
+      },
+      {
+        speaker: 'Рико',
+        characterId: 'rico',
+        text: '(Перестает улыбаться) Старик, ты же не хочешь его на Шлосберг послать?',
+        emotion: { primary: 'worried', intensity: 65 },
+      },
+      {
+        speaker: 'Мастер Дитер',
+        characterId: 'dieter',
+        text: 'Цыц. Не пугай парня.',
+        emotion: { primary: 'angry', intensity: 55 },
+      },
+    ],
+    choices: [
+      {
+        id: 'schlossberg_danger',
+        text: '"На гору? Я слышал, там опасно. И проход закрыт."',
+        nextScene: 'dieter_schlossberg_danger',
+      },
+      {
+        id: 'schlossberg_pay',
+        text: '"Сколько платишь?"',
+        nextScene: 'dieter_schlossberg_payment',
+      },
+      {
+        id: 'schlossberg_why_rico',
+        text: '"Почему ты не пошлёшь Рико?"',
+        nextScene: 'dieter_schlossberg_why_not_rico',
+      },
+      {
+        id: 'schlossberg_decline',
+        text: '"Мне нужно подумать. Я зайду позже."',
+        nextScene: 'exit_to_map',
+        effects: {
+          immediate: [{ type: 'open_map' }],
+          addFlags: ['declined_schlossberg_job'],
+        },
+      },
+    ],
+  },
+
+  dieter_schlossberg_danger: {
+    id: 'dieter_schlossberg_danger',
+    background: WORKSHOP_BACKGROUND,
+    characters: [
+      {
+        id: 'dieter',
+        name: 'Мастер Дитер',
+        position: 'center',
+        sprite: DIETER_SPRITE,
+        emotion: { primary: 'neutral', intensity: 60 },
+      },
+      {
+        id: 'rico',
+        name: 'Рико',
+        position: 'right',
+        sprite: RICO_SPRITE,
+        emotion: { primary: 'neutral', intensity: 60 },
+      },
+    ],
+    dialogue: [
+      {
+        speaker: 'Мастер Дитер',
+        characterId: 'dieter',
+        text: 'Опасно — да. Но пройти можно. На выходе к горе, на КПП у ворот Швабентор, тебе выдадут временное разрешение. Скажешь, что работаешь на Артисанов по спецзаказу.',
+        emotion: { primary: 'neutral', intensity: 60 },
+      },
+      {
+        speaker: 'Рико',
+        characterId: 'rico',
+        text: '(Криво улыбается) «Временное разрешение» — звучит как «временная жизнь».',
+        emotion: { primary: 'neutral', intensity: 60 },
+      },
+    ],
+    choices: [
+      { id: 'danger_back', text: 'Вернуться к разговору.', nextScene: 'dieter_schlossberg_offer' },
+      { id: 'danger_accept', text: '"Ладно. По рукам."', nextScene: 'dieter_schlossberg_payment' },
+    ],
+  },
+
+  dieter_schlossberg_why_not_rico: {
+    id: 'dieter_schlossberg_why_not_rico',
+    background: WORKSHOP_BACKGROUND,
+    characters: [
+      {
+        id: 'dieter',
+        name: 'Мастер Дитер',
+        position: 'center',
+        sprite: DIETER_SPRITE,
+        emotion: { primary: 'neutral', intensity: 60 },
+      },
+      {
+        id: 'rico',
+        name: 'Рико',
+        position: 'right',
+        sprite: RICO_SPRITE,
+        emotion: { primary: 'neutral', intensity: 70 },
+      },
+    ],
+    dialogue: [
+      {
+        speaker: 'Рико',
+        characterId: 'rico',
+        text: 'Эй, я занятой человек! У меня тут генераторы, взрывы, искусство…',
+        emotion: { primary: 'happy', intensity: 70 },
+      },
+      {
+        speaker: 'Мастер Дитер',
+        characterId: 'dieter',
+        text: 'Рико нужен здесь. А тебе — нужно доказать, что на тебя можно положиться.',
+        emotion: { primary: 'neutral', intensity: 60 },
+      },
+    ],
+    choices: [
+      { id: 'why_back', text: 'Вернуться к разговору.', nextScene: 'dieter_schlossberg_offer' },
+      { id: 'why_accept', text: '"Хорошо. Сколько платишь?"', nextScene: 'dieter_schlossberg_payment' },
+    ],
+  },
+
+  dieter_schlossberg_payment: {
+    id: 'dieter_schlossberg_payment',
+    background: WORKSHOP_BACKGROUND,
+    characters: [
+      {
+        id: 'dieter',
+        name: 'Мастер Дитер',
+        position: 'center',
+        sprite: DIETER_SPRITE,
+        emotion: { primary: 'neutral', intensity: 60 },
+      },
+      {
+        id: 'rico',
+        name: 'Рико',
+        position: 'right',
+        sprite: RICO_SPRITE,
+        emotion: { primary: 'excited', intensity: 75 },
+      },
+    ],
+    dialogue: [
+      {
+        speaker: 'Мастер Дитер',
+        characterId: 'dieter',
+        text: '(Морщится) Полтинник накину, не больше. Времена тяжёлые. Но могу предложить кое-что получше.',
+        emotion: { primary: 'neutral', intensity: 60 },
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Он достаёт из-под верстака пистолет. Старый, потёртый, но ухоженный. Ствол удлинён, рукоять обмотана кожей.',
+      },
+      {
+        speaker: 'Мастер Дитер',
+        characterId: 'dieter',
+        text: 'Модифицированный «Шершень». И главное — я посодействую с разрешением. В этом городе пушка с бумажкой стоит дороже золота.',
+        emotion: { primary: 'neutral', intensity: 60 },
+      },
+      {
+        speaker: 'Рико',
+        characterId: 'rico',
+        text: 'Неплохое предложение, брат. С такой игрушкой и по ночам гулять не страшно.',
+        emotion: { primary: 'happy', intensity: 70 },
+      },
+    ],
+    choices: [
+      {
+        id: 'pay_accept',
+        text: '"По рукам. Где этот схрон?"',
+        nextScene: 'dieter_schlossberg_instructions',
+      },
+      {
+        id: 'pay_turn_back',
+        text: '"Ладно. Но если там будет жарко — я разворачиваюсь."',
+        nextScene: 'dieter_schlossberg_instructions',
+        effects: { addFlags: ['will_turn_back_if_hot'] },
+      },
+      {
+        id: 'pay_think',
+        text: '"Мне нужно подумать. Я зайду позже."',
+        nextScene: 'exit_to_map',
+        effects: {
+          addFlags: ['declined_schlossberg_job'],
+          immediate: [{ type: 'open_map' }],
+        },
+      },
+    ],
+  },
+
+  dieter_schlossberg_instructions: {
+    id: 'dieter_schlossberg_instructions',
+    background: WORKSHOP_BACKGROUND,
+    characters: [
+      {
+        id: 'dieter',
+        name: 'Мастер Дитер',
+        position: 'center',
+        sprite: DIETER_SPRITE,
+        emotion: { primary: 'happy', intensity: 60 },
+      },
+      {
+        id: 'rico',
+        name: 'Рико',
+        position: 'right',
+        sprite: RICO_SPRITE,
+        emotion: { primary: 'neutral', intensity: 70 },
+      },
+    ],
+    dialogue: [
+      {
+        speaker: 'Мастер Дитер',
+        characterId: 'dieter',
+        text: 'Идёшь к воротам Швабентор. Там покажешь мою записку — это для Шмидта, начальника караула. Он пропустит.',
+        emotion: { primary: 'neutral', intensity: 60 },
+      },
+      {
+        speaker: 'Мастер Дитер',
+        characterId: 'dieter',
+        text: 'Дальше по старой туристической тропе. Не сворачивай в лес. Дойдёшь до смотровой площадки — под старой скамьёй тайник. Код: 4-5-1. Заберёшь контейнер и пулей назад.',
+        emotion: { primary: 'neutral', intensity: 60 },
+      },
+      {
+        speaker: 'Рико',
+        characterId: 'rico',
+        text: 'Если выживешь на горе — загляни ко мне потом. Я в подвале «Цех 4». Может, подгоню тебе пару гранат. На всякий пожарный.',
+        emotion: { primary: 'happy', intensity: 70 },
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'КВЕСТ ОБНОВЛЁН: «Шёпот Разлома». Цель: добраться до ворот Швабентор.',
+      },
+    ],
+    choices: [
+      {
+        id: 'head_to_schwabentor',
+        text: 'Кивнуть и выйти из мастерской.',
+        nextScene: 'exit_to_map',
+        effects: {
+          addFlags: [
+            'whispers_quest_active',
+            'need_visit_schwabentor',
+            'need_talk_to_rico',
+            'rico_hideout_marker',
+            'talked_schlossberg_with_dieter',
+          ],
+          immediate: [{ type: 'open_map' }],
+          xp: 10,
         },
       },
     ],
@@ -1761,6 +2089,176 @@ export const artisansScenes: Record<string, Scene> = {
         nextScene: 'exit_to_map',
         effects: {
           flags: [{ key: 'met_rico', value: true }],
+        },
+      },
+    ],
+  },
+
+  // =====================================
+  // ШЛОСБЕРГ — ВОЗВРАТ С КРИСТАЛЛОМ
+  // =====================================
+
+  dieter_schlossberg_return: {
+    id: 'dieter_schlossberg_return',
+    background: WORKSHOP_BACKGROUND,
+    characters: [
+      {
+        id: 'dieter',
+        name: 'Мастер Дитер',
+        position: 'center',
+        sprite: DIETER_SPRITE,
+        emotion: { primary: 'serious', intensity: 70 },
+      },
+    ],
+    dialogue: [
+      {
+        speaker: 'Рассказчик',
+        text: 'Мастерская встречает тебя привычным шумом: сварка, молоты, запах горячего металла. Только тебе кажется, что после горы здесь слишком… нормально.',
+      },
+      {
+        speaker: 'Мастер Дитер',
+        characterId: 'dieter',
+        text: 'Ну? Принёс?',
+        emotion: { primary: 'serious', intensity: 70 },
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Ты ставишь контейнер на стол. Дитер открывает крышку — и мастерская на секунду озаряется холодным голубым светом.',
+      },
+      {
+        speaker: 'Мастер Дитер',
+        characterId: 'dieter',
+        text: '(Выдыхает) Он… целый. Заряд полный. Парень… ты даже не представляешь, что ты сделал.',
+        emotion: { primary: 'happy', intensity: 60 },
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Он быстро убирает кристалл в ящик с инструментами, как будто боится, что свет привлечёт лишние глаза.',
+      },
+      {
+        speaker: 'Мастер Дитер',
+        characterId: 'dieter',
+        text: 'Договор есть договор. Держи награду. И вот — бумага. Постоянное разрешение на ношение. Я замолвил слово где надо.',
+        emotion: { primary: 'neutral', intensity: 60 },
+      },
+      {
+        speaker: 'Рассказчик',
+        condition: { flag: 'schlossberg_amulet_obtained' },
+        text: 'Когда ты двигаешься, из кармана на миг выглядывает грубый каменный амулет. Взгляд Дитера цепляется за него мгновенно.',
+      },
+      {
+        speaker: 'Мастер Дитер',
+        characterId: 'dieter',
+        condition: { flag: 'schlossberg_amulet_obtained' },
+        text: 'Стой. Это… откуда у тебя такое?',
+        emotion: { primary: 'curious', intensity: 65 },
+      },
+    ],
+    choices: [
+      {
+        id: 'return_complete_no_amulet',
+        text: 'Поблагодарить и уйти.',
+        nextScene: 'exit_to_map',
+        availability: { condition: { notFlag: 'schlossberg_amulet_obtained' } },
+        effects: {
+          addFlags: [
+            'schlossberg_crystal_delivered',
+            'schlossberg_investigated',
+            'weapon_permit_granted',
+            'whispers_quest_completed',
+          ],
+          removeFlags: ['need_return_to_dieter', 'whispers_quest_active'],
+          immediate: [{ type: 'open_map' }],
+          xp: 30,
+        },
+      },
+      {
+        id: 'return_show_amulet',
+        text: 'Показать амулет.',
+        nextScene: 'dieter_amulet_buy_offer',
+        availability: { condition: { flag: 'schlossberg_amulet_obtained' } },
+        effects: {
+          addFlags: [
+            'schlossberg_crystal_delivered',
+            'schlossberg_investigated',
+            'weapon_permit_granted',
+            'whispers_quest_completed',
+          ],
+          removeFlags: ['need_return_to_dieter', 'whispers_quest_active'],
+          xp: 30,
+        },
+      },
+      {
+        id: 'return_hide_amulet',
+        text: 'Сделать вид, что он ничего не видел, и уйти.',
+        nextScene: 'exit_to_map',
+        availability: { condition: { flag: 'schlossberg_amulet_obtained' } },
+        effects: {
+          addFlags: [
+            'schlossberg_crystal_delivered',
+            'schlossberg_investigated',
+            'weapon_permit_granted',
+            'whispers_quest_completed',
+            'schlossberg_amulet_hidden_from_dieter',
+          ],
+          removeFlags: ['need_return_to_dieter', 'whispers_quest_active'],
+          immediate: [{ type: 'open_map' }],
+          xp: 30,
+        },
+      },
+    ],
+  },
+
+  dieter_amulet_buy_offer: {
+    id: 'dieter_amulet_buy_offer',
+    background: WORKSHOP_BACKGROUND,
+    characters: [
+      {
+        id: 'dieter',
+        name: 'Мастер Дитер',
+        position: 'center',
+        sprite: DIETER_SPRITE,
+        emotion: { primary: 'curious', intensity: 70 },
+      },
+    ],
+    dialogue: [
+      {
+        speaker: 'Рассказчик',
+        text: 'Ты достаёшь амулет. Камень тёплый, будто впитал чужие ладони и чужую ярость.',
+      },
+      {
+        speaker: 'Мастер Дитер',
+        characterId: 'dieter',
+        text: '(Берёт, вертит в руках) Хм… очень старая работа. Я такое видел только в дневниках первых «лесных».',
+        emotion: { primary: 'curious', intensity: 70 },
+      },
+      {
+        speaker: 'Мастер Дитер',
+        characterId: 'dieter',
+        text: 'Слушай. Я дам тебе за него сотню кредитов сверху. Идёт?',
+        emotion: { primary: 'neutral', intensity: 65 },
+      },
+    ],
+    choices: [
+      {
+        id: 'sell_amulet',
+        text: 'Идёт. Забирай.',
+        nextScene: 'exit_to_map',
+        effects: {
+          addFlags: ['schlossberg_amulet_sold_to_dieter'],
+          removeFlags: ['schlossberg_amulet_obtained'],
+          immediate: [{ type: 'open_map' }],
+          xp: 10,
+        },
+      },
+      {
+        id: 'keep_amulet',
+        text: 'Нет. Оставлю себе.',
+        nextScene: 'exit_to_map',
+        effects: {
+          addFlags: ['schlossberg_amulet_kept'],
+          immediate: [{ type: 'open_map' }],
+          xp: 10,
         },
       },
     ],

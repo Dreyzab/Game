@@ -34,10 +34,16 @@ export interface QuestBoardEntry {
   recommendedLevel?: number
 }
 
+export interface StorageInteraction extends BaseInteraction {
+  type: 'storage'
+  key: 'storage'
+  capacity?: number
+}
+
 interface BaseInteraction {
   id: string
   key: InteractionKey
-  type: 'trade' | 'upgrade' | 'training' | 'dialogue' | 'quests'
+  type: 'trade' | 'upgrade' | 'training' | 'dialogue' | 'quests' | 'storage'
   title: string
   subtitle?: string
   pointId: string
@@ -85,6 +91,7 @@ export type MapPointInteraction =
   | TrainingInteraction
   | DialogueInteraction
   | QuestBoardInteraction
+  | StorageInteraction
 
 const normalizeServices = (services: unknown): InteractionKey[] => {
   if (!Array.isArray(services)) return []
@@ -255,6 +262,16 @@ const buildQuestBoardInteraction = (point: MapPoint): QuestBoardInteraction => (
   ],
 })
 
+const buildStorageInteraction = (point: MapPoint): StorageInteraction => ({
+  id: `${point.id}-storage`,
+  pointId: point.id,
+  type: 'storage',
+  key: 'storage',
+  title: 'Хранилище',
+  subtitle: 'Доступ к вашему складу или тайнику',
+  summary: 'Оставьте лишние вещи или заберите необходимое из вашего личного хранилища.',
+})
+
 const buildDialogueInteractions = (point: MapPoint): DialogueInteraction[] => {
   if (!Array.isArray(point.metadata?.sceneBindings)) {
     return []
@@ -291,6 +308,9 @@ export const buildInteractionsForPoint = (point: MapPoint): MapPointInteraction[
         break
       case 'quests':
         interactions.push(buildQuestBoardInteraction(point))
+        break
+      case 'storage':
+        interactions.push(buildStorageInteraction(point))
         break
       case 'dialog':
         interactions.push(...buildDialogueInteractions(point))
