@@ -5,6 +5,15 @@ import { getDeviceId } from '@/shared/lib/utils/deviceId'
 const resolveBaseUrl = (): string => {
   const envUrl = import.meta.env.VITE_API_URL as string | undefined
 
+  // In production, we strictly use the environment variable to avoid
+  // accidental invalid fallbacks (like localhost:3000) that cause Mixed Content errors.
+  if (import.meta.env.PROD) {
+    if (!envUrl) {
+      console.error('VITE_API_URL is not defined in production environment!')
+    }
+    return envUrl ?? ''
+  }
+
   if (typeof window === 'undefined') return envUrl ?? 'http://localhost:3000'
 
   const hostname = window.location.hostname
