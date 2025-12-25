@@ -424,7 +424,7 @@ export const MapPage: React.FC = () => {
       {isQRScanning && qrTargetPoint && (
         <QRPointActivation
           pointTitle={qrTargetPoint.title}
-          simulateData={qrTargetPoint.qrCode ?? qrTargetPoint.id}
+          simulateData={qrTargetPoint.qrCode ?? `gw3:point:${qrTargetPoint.id}`}
           onScan={handleQRScan}
           onClose={closeQRScanner}
         />

@@ -583,6 +583,7 @@ export const SEED_MAP_POINTS: SeedMapPoint[] = [
     type: 'poi',
     phase: 1,
     isActive: true,
+    qrCode: 'gw3:point:old_terminal',
     metadata: {
       category: 'terminal',
       qrRequired: true,

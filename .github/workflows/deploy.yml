@@ -21,6 +21,8 @@ jobs:
     permissions:
       contents: 'read'
       id-token: 'write'
+    outputs:
+      backend_url: ${{ steps.deploy.outputs.url }}
 
     steps:
       - name: Checkout
@@ -56,6 +58,7 @@ jobs:
           docker push "${{ env.GAR_LOCATION }}/${{ env.SERVICE_NAME }}:${{ github.sha }}"
 
       - name: Deploy to Cloud Run
+        id: deploy
         uses: google-github-actions/deploy-cloudrun@v2
         with:
           service: ${{ env.SERVICE_NAME }}
@@ -84,8 +87,8 @@ jobs:
       - name: Build Frontend
         run: npm run build
         env:
-          # In a real setup, you might fetch the backend URL from the previous job's output
-          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          # Automatically use the deployed backend URL
+          VITE_API_URL: ${{ needs.deploy-backend.outputs.backend_url }}
           VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
           VITE_MAPBOX_TOKEN: ${{ secrets.VITE_MAPBOX_TOKEN }}
 
