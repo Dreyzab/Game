@@ -57,6 +57,17 @@ export const INITIAL_PLAYER_HAND: CombatCard[] = [
         description: 'Recover 30 Stamina.',
         jamChance: 0,
     },
+    {
+        id: 'c6',
+        name: 'Tactical Scan',
+        type: CardType.ANALYSIS,
+        apCost: 1,
+        staminaCost: 5,
+        damage: 0,
+        optimalRange: [],
+        description: 'Analyze target vital stats.',
+        jamChance: 0,
+    },
 ]
 
 export const NPC_CARDS: CombatCard[] = [

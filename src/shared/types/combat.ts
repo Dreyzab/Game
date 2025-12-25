@@ -49,6 +49,8 @@ export type DamageType =
   | 'fire'
   | 'poison'
   | 'sonic'
+  | 'ritual'  // Cult/magic damage
+  | 'ice'     // Ice Golem, cold attacks
 
 /**
  * Протокол "Холодная Сталь" (Cold Steel Protocol)
@@ -105,6 +107,7 @@ export type CardType =
   | 'posture'
   | 'jammed'
   | 'debt'
+  | 'analysis' // New card type for scanning/intel
 
 export type CardRarity = 'common' | 'uncommon' | 'rare' | 'legendary' | 'negative'
 
@@ -160,6 +163,12 @@ export type EffectType =
   | 'armor_pierce'
   | 'critical_boost'
   | 'interrupt'
+  // New effects for expanded content
+  | 'freeze'    // Cannot act for N turns (Ice Golem)
+  | 'root'      // Cannot move for N turns (Tree Creature)
+  | 'calm'      // Reduces aggression (Empathy counter to fear)
+  | 'blessed'   // Immune to fear/debuffs (Sacred Symbol)
+  | 'analyze'   // Reveal stats (Scanner)
 
 export interface CombatEffect {
   type: EffectType
@@ -213,6 +222,9 @@ export interface CombatantState {
   // Status
   exhaustionLevel: ExhaustionLevel
   activeEffects: ActiveEffect[]
+
+  // Scanned State
+  scannedLevel?: number // 0 = none, 1 = basic, 2 = full
 
   // Arena specific
   posture?: Posture
@@ -453,7 +465,8 @@ export const ACTION_POINT_COSTS = {
   block: 1,
   reload: 2,
   item_use: 1,
-  overwatch: 2
+  overwatch: 2,
+  scan: 1 // Analysis action cost
 } as const
 
 // ================== ЭКСПОРТ ==================

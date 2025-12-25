@@ -2,6 +2,7 @@ import type { Scene } from '../../model/types'
 
 const TRAIN_CIGAR_BACKGROUND = '/images/trainCigar.png'
 const TRAIN_CARDS_BACKGROUND = '/images/trainCards.png'
+const TRAIN_KNIFE_BACKGROUND = '/images/trainKnife.png'
 const COUPE_BACKGROUND = '/video/Анимация_пейзажа_и_планшета.mp4'
 const TAMBOUR_BACKGROUND = '/images/trainCigar.png'
 const CORRIDOR_BACKGROUND = '/images/trainCigar.png' // Placeholder
@@ -76,6 +77,7 @@ export const scenarios: Record<string, Scene> = {
         },
         availability: {
           condition: {
+            flags: ['prologue_visited_lena'],
             notFlag: 'prologue_visited_adele',
           },
         },
@@ -173,12 +175,47 @@ export const scenarios: Record<string, Scene> = {
         text: 'Говорят, на "Теневом рынке" за кредиты можно купить даже свежие овощи. Вот это — цель. А помыться можно и в Рейне.',
       },
     ],
+    choices: [
+      {
+        id: 'prologue_adele_to_lena',
+        text: 'Слушать Лену.',
+        nextScene: 'prologue_coupe_lena_from_adele',
+        effects: {
+          addFlags: ['prologue_visited_lena', 'prologue_visited_adele', 'prologue_visited_any'],
+        },
+      },
+      {
+        id: 'prologue_adele_back',
+        text: 'Вернуться к общему разговору.',
+        nextScene: 'prologue_coupe_intro',
+      },
+    ],
+  },
+
+  prologue_coupe_lena_from_adele: {
+    id: 'prologue_coupe_lena_from_adele',
+    background: COUPE_BACKGROUND,
+    characters: [{ id: 'lena', name: 'Лена Рихтер', position: 'right' }],
+    dialogue: [
+      {
+        speaker: 'Рассказчик',
+        text: 'Лена Рихтер кривится, явно не разделяя энтузиазма Адель.',
+      },
+      {
+        speaker: 'Лена Рихтер',
+        text: 'В Рейне? Ты хоть представляешь, сколько там заразы сейчас? После таких "купаний" мне придется лечить тебя не от удовольствия, а от сыпи по всему телу.',
+      },
+      {
+        speaker: 'Лена Рихтер',
+        text: 'Но... ты права в одном. В этом городе каждый ищет что-то своё. Кто-то стейки, кто-то выживание. Я же просто хочу покоя.',
+      },
+    ],
     nextScene: 'prologue_coupe_intro',
   },
 
   prologue_coupe_otto: {
     id: 'prologue_coupe_otto',
-    background: COUPE_BACKGROUND,
+    background: '/images/prolog/1сцена4p.png',
     characters: [{ id: 'otto', name: 'Отто Кляйн', position: 'left' }],
     dialogue: [
       {
@@ -191,24 +228,21 @@ export const scenarios: Record<string, Scene> = {
       },
       {
         speaker: 'Отто Кляйн',
+        characterId: 'otto',
         text: 'Стейки, ванны... Вы как дети, честное слово.',
       },
       {
         speaker: 'Отто Кляйн',
+        characterId: 'otto',
         text: 'В Фрайбурге есть FJR, есть ОРДНУНГ, и есть комендантский час. Всё, что мне нужно — это кабак, где не разбавляют шнапс.',
       },
       {
         speaker: 'Отто Кляйн',
+        characterId: 'otto',
         text: 'Я хочу выпить. Так, чтобы внутри всё выжгло. Чтобы этот гул в голове заткнулся хотя бы на пару часов. А потом пойду в вербовочный пункт. "Железная леди" платит тем, кто умеет держать строй.',
       },
     ],
-    choices: [
-      {
-        id: 'prologue_coupe_finish',
-        text: 'Встать и выйти.',
-        nextScene: 'prologue_coupe_exit',
-      },
-    ],
+    nextScene: 'prologue_coupe_exit',
   },
 
   prologue_coupe_exit: {
@@ -225,13 +259,7 @@ export const scenarios: Record<string, Scene> = {
         text: 'Бруно выходит из купе. Тебе тоже становится тесно. Хочется уединиться, подумать.',
       },
     ],
-    choices: [
-      {
-        id: 'prologue_go_to_tambour',
-        text: 'Выйти в тамбур.',
-        nextScene: 'prologue_tambour_arrival',
-      },
-    ],
+    nextScene: 'prologue_tambour_arrival',
   },
 
   // ============================================================================
@@ -265,7 +293,15 @@ export const scenarios: Record<string, Scene> = {
         id: 'prologue_choice_smoke',
         text: 'Прикурить последнюю сигарету (Улица / Осторожность).',
         nextScene: 'prologue_tambour_smoke',
-        effects: { addFlags: ['prologue_smoke'] },
+        effects: {
+          addFlags: ['prologue_smoke'],
+          immediate: [
+            // +1 Разум (интерпретируем как +1 к ключевому навыку группы mind: logic)
+            { type: 'skill_boost', data: { skillId: 'logic', amount: 1 } },
+            // +2 Анализ
+            { type: 'skill_boost', data: { skillId: 'analysis', amount: 2 } },
+          ],
+        },
       },
     ],
   },
@@ -273,7 +309,7 @@ export const scenarios: Record<string, Scene> = {
   // --- PATH: KNIFE ---
   prologue_tambour_knife: {
     id: 'prologue_tambour_knife',
-    background: TAMBOUR_BACKGROUND,
+    background: TRAIN_KNIFE_BACKGROUND,
     characters: [],
     dialogue: [
       {
@@ -286,6 +322,7 @@ export const scenarios: Record<string, Scene> = {
       },
       {
         speaker: 'Рассказчик',
+        background: '/images/oknorazbil.png',
         text: 'Окно тамбура разлетается вдребезги! Жуткие конечности, фасеточные глаза, нос, готовый выстрелить ядом!',
       },
     ],
@@ -300,7 +337,7 @@ export const scenarios: Record<string, Scene> = {
 
   prologue_tambour_knife_fight: {
     id: 'prologue_tambour_knife_fight',
-    background: TAMBOUR_BACKGROUND,
+    background: '/images/oknorazbil.png',
     characters: [],
     dialogue: [
       {
@@ -334,6 +371,7 @@ export const scenarios: Record<string, Scene> = {
       },
       {
         speaker: 'Рассказчик',
+        background: '/images/oknorazbil.png',
         text: 'Чудовище врывается внутрь, готовясь к атаке.',
       },
     ],
@@ -348,7 +386,7 @@ export const scenarios: Record<string, Scene> = {
 
   prologue_tambour_cards_fight: {
     id: 'prologue_tambour_cards_fight',
-    background: TAMBOUR_BACKGROUND,
+    background: '/images/oknorazbil.png',
     characters: [],
     dialogue: [
       {
@@ -381,11 +419,23 @@ export const scenarios: Record<string, Scene> = {
         text: 'Дым медленно поднимается к потолку. Ты внимательно следишь за тенями за окном.',
       },
       {
+        speaker: 'ЛОГИКА',
+        characterId: 'logic',
+        text: 'Где-то в соседнем проходе скрипит дверь. Слишком уверенно. Это не пассажир — это Проводник.',
+      },
+      {
+        speaker: 'АНАЛИЗ',
+        characterId: 'analysis',
+        text: 'Постукивания сверху. По крыше. Ритмично. Кто-то движется над тамбуром.',
+      },
+      {
         speaker: 'Рассказчик',
+        background: '/images/oknorazbil.png',
         text: 'Твоё чутьё вопит об опасности за секунду до удара. Стекло лопается!',
       },
       {
         speaker: 'Рассказчик',
+        background: '/images/oknorazbil.png',
         text: 'Существо раздувает ноздри, готовясь плюнуть кислотой!',
       },
     ],
@@ -395,12 +445,88 @@ export const scenarios: Record<string, Scene> = {
         text: 'Бросить сигарету, сбивая прицел!',
         nextScene: 'prologue_tambour_smoke_fight',
       },
+      {
+        id: 'prologue_smoke_grab_trunk',
+        text: 'Схватить за хобот!',
+        nextScene: 'prologue_tambour_smoke_grab',
+      },
+      {
+        id: 'prologue_smoke_escape',
+        text: 'Попытаться сбежать.',
+        nextScene: 'prologue_tambour_smoke_escape',
+        effects: {
+          addFlags: ['prologue_acid_burn'],
+          immediate: [{ type: 'hp_delta', data: { amount: -5 } }],
+        },
+      },
     ],
+  },
+
+  prologue_tambour_smoke_grab: {
+    id: 'prologue_tambour_smoke_grab',
+    background: '/images/oknorazbil.png',
+    characters: [{ id: 'conductor', name: 'Проводник', position: 'right' }],
+    dialogue: [
+      {
+        speaker: 'Рассказчик',
+        text: 'Ты хватаешь существо за хобот и, напрягаясь всем телом, разворачиваешь его в сторону.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Едкая жижа ударяет в стену и начинает шипеть, проедая металл.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'В этот момент дверь распахивается — в тамбур влетает Проводник.',
+      },
+      {
+        speaker: 'Герой',
+        text: 'ФОНАРЬ!',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Проводник включает прожектор, ослепляя тварь. Ты ловишь момент и ударом ноги отправляешь её прочь — в ночь за окном.',
+      },
+    ],
+    nextScene: 'prologue_conductor_dialogue_plan',
+  },
+
+  prologue_tambour_smoke_escape: {
+    id: 'prologue_tambour_smoke_escape',
+    background: '/images/oknorazbil.png',
+    characters: [{ id: 'conductor', name: 'Проводник', position: 'right' }],
+    dialogue: [
+      {
+        speaker: 'Рассказчик',
+        text: 'Ты ловко распахиваешь дверь и просачиваешься в проход.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Но в судорожной попытке захлопнуть её — едкая жижа, выпущенная тварью, пролетает в щель и попадает тебе в шею.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Ощущение — как раскалённые капли металла. Дыхание сбивается, глаза слезятся.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Дверь распахивается вновь — Проводник уже здесь. Ты, стиснув зубы, киваешь на тамбур.',
+      },
+      {
+        speaker: 'Герой',
+        text: 'ФОНАРЬ!',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Яркий луч прожектора ослепляет тварь. Проводник держит свет, а ты отталкиваешь её прочь ударом ноги.',
+      },
+    ],
+    nextScene: 'prologue_conductor_dialogue_plan',
   },
 
   prologue_tambour_smoke_fight: {
     id: 'prologue_tambour_smoke_fight',
-    background: TRAIN_CIGAR_BACKGROUND,
+    background: '/images/oknorazbil.png',
     characters: [{ id: 'conductor', name: 'Проводник', position: 'right' }],
     dialogue: [
       {
@@ -433,7 +559,7 @@ export const scenarios: Record<string, Scene> = {
 
   prologue_conductor_enter: {
     id: 'prologue_conductor_enter',
-    background: TAMBOUR_BACKGROUND,
+    background: '/images/arena/boivpoezde.png',
     characters: [{ id: 'conductor', name: 'Проводник', position: 'center' }],
     dialogue: [
       {
@@ -452,7 +578,7 @@ export const scenarios: Record<string, Scene> = {
 
   prologue_conductor_dialogue_plan: {
     id: 'prologue_conductor_dialogue_plan',
-    background: TAMBOUR_BACKGROUND,
+    background: '/images/arena/boivpoezde.png',
     characters: [{ id: 'conductor', name: 'Проводник', position: 'center' }],
     dialogue: [
       {
@@ -479,7 +605,7 @@ export const scenarios: Record<string, Scene> = {
 
   prologue_next_car_noise: {
     id: 'prologue_next_car_noise',
-    background: CORRIDOR_BACKGROUND,
+    background: '/images/arena/boivpoezde.png',
     characters: [],
     dialogue: [
       {
@@ -498,7 +624,7 @@ export const scenarios: Record<string, Scene> = {
 
   prologue_find_lena: {
     id: 'prologue_find_lena',
-    background: COUPE_BACKGROUND,
+    background: '/images/backgrounds/NashelLeny.png',
     characters: [{ id: 'lena', name: 'Лена Рихтер', position: 'center' }],
     dialogue: [
       {
@@ -533,20 +659,16 @@ export const scenarios: Record<string, Scene> = {
 
   prologue_after_tutorial_1: {
     id: 'prologue_after_tutorial_1',
-    background: COUPE_BACKGROUND,
+    background: '/images/backgrounds/NashelLeny.png',
     characters: [{ id: 'lena', name: 'Лена Рихтер', position: 'right' }],
     dialogue: [
       {
         speaker: 'Лена Рихтер',
-        text: 'Чисто... пока что. Спасибо за помощь.',
+        text: 'Вроде пока что отбились. Спасибо за помощь.',
       },
       {
         speaker: 'Рассказчик',
-        text: 'Лена быстро перевязывает тебе царапину. Её движения точные, профессиональные.',
-      },
-      {
-        speaker: 'Отто Кляйн',
-        text: 'Сзади — чисто! Но их там тьма!',
+        text: 'Лена быстро перевязывает тебе царапину. Её движения точные, профессиональные. Тут вы замечаете открывающуюся дверь позади вас и готовитесь к худшему, однако в проёме появляется Отто.',
       }
     ],
     choices: [
@@ -560,12 +682,12 @@ export const scenarios: Record<string, Scene> = {
 
   prologue_otto_warning: {
     id: 'prologue_otto_warning',
-    background: COUPE_BACKGROUND,
+    background: '/images/backgrounds/NashelLeny.png',
     characters: [{ id: 'otto', name: 'Отто Кляйн', position: 'left' }],
     dialogue: [
       {
         speaker: 'Отто Кляйн',
-        text: 'С хвоста прёт орда! Надо уходить, быстро!',
+        text: 'С хвоста прёт орда! Надо двигаться дальше, быстро!',
       },
       {
         speaker: 'Рассказчик',
@@ -573,13 +695,13 @@ export const scenarios: Record<string, Scene> = {
       },
       {
         speaker: 'Рассказчик',
-        text: 'Она огромная. Хитин блестит как броня танка. Это не разведчик. Это Палач.',
+        text: 'Она огромная. Хитин блестит как броня танка. Это не разведчик. Это Палач. Вы понимаете, что ситуация не на вашей стороне.',
       }
     ],
     choices: [
       {
         id: 'prologue_boss_reaction',
-        text: 'Приготовиться к смерти...',
+        text: 'Приготовиться к худшему.',
         nextScene: 'prologue_bruno_boom',
       }
     ]
@@ -587,16 +709,20 @@ export const scenarios: Record<string, Scene> = {
 
   prologue_bruno_boom: {
     id: 'prologue_bruno_boom',
-    background: COUPE_BACKGROUND,
-    characters: [{ id: 'bruno', name: 'Бруно Вебер', position: 'center' }],
+    background: '/images/backgrounds/NashelLeny.png',
+    characters: [{ id: 'bruno', name: 'Бруно Вебер', position: 'left' }],
     dialogue: [
+      {
+        speaker: 'Рассказчик',
+        text: ' Монстр отбрасывает пасажиров на своём пути без промедления приближаясь к вам.',
+      },
       {
         speaker: 'Бруно Вебер',
         text: 'Эй, урод! Лови "привет" из Зоны Гамма!',
       },
       {
         speaker: 'Рассказчик',
-        text: 'Бруно швыряет связку самодельных трубок под ноги монстра. ВЗРЫВ! Вагон наполняется едким дымом.',
+        text: 'Бруно швыряет связку самодельных трубок на шею монстра. ВЗРЫВ! Вагон наполняется едким дымом.',
       },
       {
         speaker: 'Рассказчик',
@@ -627,7 +753,7 @@ export const scenarios: Record<string, Scene> = {
 
   prologue_fjr_storming: {
     id: 'prologue_fjr_storming',
-    background: TAMBOUR_BACKGROUND,
+    background: '/images/prolog/PosleBoyasbossom.png',
     characters: [],
     dialogue: [
       {
@@ -636,15 +762,27 @@ export const scenarios: Record<string, Scene> = {
       },
       {
         speaker: 'Голос из динамика',
-        text: '«Фрайбург-Центральный. Конечная. Всем оставаться на местах! Работает FJR!»',
+        text: '«Фрайбург-Центральный. Конечная.»',
       },
       {
         speaker: 'Рассказчик',
-        text: 'Двери тамбура вылетают с грохотом. В вагон врываются фигуры в тяжелой броне и с автоматическими винтовками. Свет тактических фонарей ослепляет.',
+        text: 'Двери тамбура вылетают с грохотом. В вагон врывается штурмовая группа FJR в тяжёлой броне. Красные лазерные целеуказатели разрезают пороховой дым, выискивая цели.',
       },
       {
-        speaker: 'Спецназ FJR',
-        text: 'ОРУЖИЕ НА ПОЛ! РУКИ ЗА ГОЛОВУ! ДВИЖЕНИЕ — СТРЕЛЬБА НА ПОРАЖЕНИЕ!',
+        speaker: 'Спецназ',
+        text: '(Через вокодер) ОРУЖИЕ НА ПОЛ! ЛИЦОМ К СТЕНЕ!',
+      },
+      {
+        speaker: 'Лена Рихтер',
+        text: 'Здесь раненые! Им нужна срочная помощь!',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Лена высоко поднимает руки, показывая медицинский патч на рукаве. Её голос звучит твёрдо, перекрывая шум.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Бруно, сохраняя ледяное спокойствие, медленно опускает руки, незаметно скрывая самодельную бомбу в глубине широкого рукава.',
       },
     ],
     choices: [
@@ -658,22 +796,22 @@ export const scenarios: Record<string, Scene> = {
 
   prologue_fjr_inspection: {
     id: 'prologue_fjr_inspection',
-    background: TAMBOUR_BACKGROUND, // Или другой фон, если есть
+    background: '/images/prolog/PosleBoyasbossom.png',
     characters: [
       { id: 'fjr_commander', name: 'Командир FJR', position: 'center' }
     ],
     dialogue: [
       {
         speaker: 'Командир FJR',
-        text: 'Чисто. Био-угроза устранена. (Смотрит на труп монстра, потом на вас) Выжившие? В этом поезде? Вам дьявольски повезло.',
+        text: 'Продолжать зачистку поезда! (После отданой команды, он смотрит на труп монстра, потом на вас) Вам дьявольски повезло .',
       },
       {
         speaker: 'Командир FJR',
-        text: 'Медики — осмотреть раненых. Остальные — на выход, живо! Регистрация беженцев в Ратуше. Не толпиться!',
+        text: 'Медики — осмотреть раненых. Остальные — на выход, живо!',
       },
       {
         speaker: 'Рассказчик',
-        text: 'Вас грубо, но эффективно выталкивают на перрон. Свежий, холодный воздух Фрайбурга ударяет в лицо.',
+        text: 'Вас грубо подхватывают под руки и выталкивают на перрон. Свежий, холодный воздух обдаёт лицо, рассветные лучи освещают людей на перроне.',
       },
     ],
     choices: [
@@ -690,7 +828,7 @@ export const scenarios: Record<string, Scene> = {
 
   prologue_defeat: {
     id: 'prologue_defeat',
-    background: TAMBOUR_BACKGROUND,
+    background: '/images/prolog/PosleBoyasbossom.png',
     characters: [],
     dialogue: [
       {

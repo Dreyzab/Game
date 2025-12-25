@@ -233,14 +233,6 @@ export const MapPage: React.FC = () => {
       {/* Заголовок и контролы - floating поверх карты */}
       <div className="absolute top-4 left-4 right-4 z-20 flex flex-col gap-2 pointer-events-none">
         <div className="flex items-start justify-between gap-4">
-          {/* Заголовок */}
-          <div className="bg-gray-900 bg-opacity-90 backdrop-blur-sm rounded-lg shadow-xl px-4 py-3 pointer-events-auto">
-            <Heading level={2} className="text-xl mb-1">Карта</Heading>
-            <Text variant="muted" size="sm">
-              Интерактивная карта
-            </Text>
-          </div>
-
           {/* Меню */}
           <div className="flex flex-col gap-2 items-end pointer-events-auto">
             <button

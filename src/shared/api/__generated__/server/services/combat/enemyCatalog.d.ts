@@ -1,5 +1,5 @@
 import type { BTNode } from '../ai/BehaviorTreeRunner';
-export type EnemyKey = 'rail_scorpion' | 'rust_marksman' | 'fjr_riot_guard' | 'anarchist_berserker' | 'echo_stalker_drone';
+export type EnemyKey = 'rail_scorpion' | 'mutated_rat_swarm' | 'cult_neophyte' | 'scout_drone' | 'rust_marksman' | 'scavenger_bruiser' | 'mutated_boar' | 'cult_priest' | 'fjr_riot_guard' | 'anarchist_berserker' | 'echo_stalker_drone' | 'heavy_combat_drone' | 'tree_creature' | 'techno_beast' | 'ice_golem';
 export declare const DEFAULT_ENEMY_KEY: EnemyKey;
 export interface EnemyCatalogEntry {
     key: EnemyKey;

@@ -28,7 +28,7 @@ export const universityCampusScenes: Record<string, Scene> = {
       {
         speaker: 'Лейтенант Лена Рихтер',
         characterId: 'lena',
-        text: 'Лейтенант Рихтер, возвращение из командировки. Со мной гражданский, курьер к профессору Крюгеру.',
+        text: 'Лейтенант Рихтер, возвращение из командировки. Со мной гражданский, курьер к профессору Штейнбаху.',
       },
       {
         speaker: 'Охранник "Синтеза"',
@@ -86,9 +86,14 @@ export const universityCampusScenes: Record<string, Scene> = {
       {
         id: 'lena_runs_to_infirmary',
         text: 'Кивнуть Лене и отойти от ворот.',
-        nextScene: 'university_wait_evening',
         effects: {
-          flags: [{ key: 'waiting_for_kruger', value: true }],
+          flags: [
+            { key: 'waiting_for_kruger', value: true },
+            { key: 'visited_synthesis_campus', value: true },
+          ],
+          removeFlags: ['lena_accompanies_to_campus'],
+          narrative: 'Квест "Доставка посылки" обновлён: "Ждать до вечера / Заняться другими делами".',
+          immediate: [{ type: 'open_map' }],
         },
       },
     ],
@@ -105,7 +110,7 @@ export const universityCampusScenes: Record<string, Scene> = {
       },
       {
         speaker: 'Рассказчик',
-        text: 'До вечера ещё далеко. Время убить время: найти ночлег, познакомиться с городом, решить чужие и свои проблемы.',
+        text: 'До вечера ещё далеко. Нужно не терять время: найти ночлег, познакомиться с городом, решить чужие и свои проблемы.',
       },
     ],
     choices: [
@@ -116,10 +121,9 @@ export const universityCampusScenes: Record<string, Scene> = {
       },
       {
         id: 'check_pda_from_university',
-        text: 'Проверить PDA и карту города.',
+        text: 'Проверить КПК и карту города.',
         nextScene: 'market_square_arrival',
       },
     ],
   },
 }
-

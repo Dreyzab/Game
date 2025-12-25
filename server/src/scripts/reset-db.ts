@@ -3,7 +3,9 @@ import { sql } from "drizzle-orm";
 import { SEED_MAP_POINTS } from "../seeds/mapPoints";
 import { ITEM_TEMPLATES } from "../seeds/itemTemplates";
 import { SEED_SAFE_ZONES } from "../seeds/safeZones";
-import { mapPoints, items, safeZones } from "../db/schema";
+import { SEED_DANGER_ZONES } from "../seeds/dangerZones";
+import { seedScenarios } from "../db/seeds/scenarios";
+import { mapPoints, items, safeZones, dangerZones } from "../db/schema";
 
 async function resetDatabase() {
     console.log("🧨 Начинаю полную очистку базы данных...");
@@ -17,8 +19,8 @@ async function resetDatabase() {
             AND tablename NOT LIKE '__drizzle_migrations%'
         `);
 
-        if (tablesResponse && tablesResponse.length > 0) {
-            for (const table of tablesResponse) {
+        if (tablesResponse && (tablesResponse as any).length > 0) {
+            for (const table of (tablesResponse as any)) {
                 const tableName = table.tablename;
                 console.log(`🧼 Очищаю таблицу: ${tableName}`);
                 await db.execute(sql.raw(`TRUNCATE TABLE "${tableName}" RESTART IDENTITY CASCADE`));
@@ -67,6 +69,20 @@ async function seedSafeZones() {
     console.log(`🌱 Safe zones seeded: ${inserted}`);
 }
 
+async function seedDangerZones() {
+    let inserted = 0;
+    for (const zone of SEED_DANGER_ZONES) {
+        await db.insert(dangerZones).values({
+            title: zone.title,
+            dangerLevel: zone.dangerLevel,
+            polygon: zone.polygon,
+            isActive: true,
+        });
+        inserted += 1;
+    }
+    console.log(`🌱 Danger zones seeded: ${inserted}`);
+}
+
 async function seedItemTemplates() {
     const now = Date.now();
     let inserted = 0;
@@ -97,7 +113,9 @@ async function main() {
     console.log("📡 Начинаю сидирование новых данных...");
     await seedMapPoints();
     await seedSafeZones();
+    await seedDangerZones();
     await seedItemTemplates();
+    await seedScenarios();
     console.log("✨ Процесс сброса и сидирования завершен!");
     process.exit(0);
 }

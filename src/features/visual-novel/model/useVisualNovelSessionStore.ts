@@ -17,6 +17,7 @@ interface VisualNovelSessionState {
   pendingAddFlags: string[]
   pendingRemoveFlags: string[]
   pendingXp: number
+  pendingHpDelta: number
   pendingReputation: Record<string, number>
   pendingItems: { itemId: string; quantity: number }[]
   pendingQuests: string[]
@@ -83,6 +84,7 @@ export const useVisualNovelSessionStore = create<VisualNovelSessionState>((set, 
   pendingAddFlags: [],
   pendingRemoveFlags: [],
   pendingXp: 0,
+  pendingHpDelta: 0,
   pendingReputation: {},
   pendingItems: [],
   pendingQuests: [],
@@ -96,6 +98,7 @@ export const useVisualNovelSessionStore = create<VisualNovelSessionState>((set, 
       pendingAddFlags: [],
       pendingRemoveFlags: [],
       pendingXp: 0,
+      pendingHpDelta: 0,
       pendingReputation: {},
       pendingItems: [],
       pendingQuests: [],
@@ -114,6 +117,7 @@ export const useVisualNovelSessionStore = create<VisualNovelSessionState>((set, 
       let nextAddFlags = [...state.pendingAddFlags]
       let nextRemoveFlags = [...state.pendingRemoveFlags]
       let nextXp = state.pendingXp
+      let nextHpDelta = state.pendingHpDelta
       let nextReputation = { ...state.pendingReputation }
       let nextItems = [...state.pendingItems]
       let nextQuests = [...state.pendingQuests]
@@ -144,6 +148,16 @@ export const useVisualNovelSessionStore = create<VisualNovelSessionState>((set, 
           case 'xp': {
             nextXp += effect.amount
             xpDelta += effect.amount
+            break
+          }
+          case 'immediate': {
+            if (effect.action === 'hp_delta') {
+              const data = (effect.data ?? {}) as { amount?: unknown }
+              const amount = typeof data.amount === 'number' ? data.amount : 0
+              if (Number.isFinite(amount) && amount !== 0) {
+                nextHpDelta += amount
+              }
+            }
             break
           }
           case 'relationship_change': {
@@ -197,6 +211,7 @@ export const useVisualNovelSessionStore = create<VisualNovelSessionState>((set, 
         pendingAddFlags: nextAddFlags,
         pendingRemoveFlags: nextRemoveFlags,
         pendingXp: nextXp,
+        pendingHpDelta: nextHpDelta,
         pendingReputation: nextReputation,
         pendingItems: nextItems,
         pendingQuests: nextQuests,

@@ -23,6 +23,10 @@ const MAX_FLAGS_PER_COMMIT = 50;
 const MAX_ITEMS_PER_COMMIT = 10;
 const MAX_ITEM_QUANTITY = 50;
 const MAX_XP_DELTA = 500;
+const MAX_SKILL_DELTA_PER_COMMIT = 10;
+const MAX_SKILL_VALUE = 100;
+const MAX_HP_DELTA_PER_COMMIT = 50;
+const DEFAULT_MAX_HP = 100;
 const MAX_REPUTATION_ENTRIES = 20;
 const MAX_REPUTATION_DELTA = 100;
 
@@ -36,6 +40,103 @@ function clampInt(value: unknown, min: number, max: number): number {
 
 function isSafeId(value: string): boolean {
     return value.length > 0 && value.length <= 128 && SAFE_ID_RE.test(value);
+}
+
+function clampSkillValue(value: number): number {
+    return Math.max(0, Math.min(MAX_SKILL_VALUE, Math.trunc(value)));
+}
+
+function clampHp(value: number, maxHp: number): number {
+    const safeMax = Math.max(1, Math.trunc(maxHp));
+    return Math.max(0, Math.min(safeMax, Math.trunc(value)));
+}
+
+function applyHpDeltasFromChoices(
+    baseHpRaw: unknown,
+    baseMaxHpRaw: unknown,
+    choices: Array<{ effects: unknown }>
+): { hp: number; maxHp: number } {
+    const maxHp = typeof baseMaxHpRaw === 'number' && Number.isFinite(baseMaxHpRaw)
+        ? Math.max(1, Math.trunc(baseMaxHpRaw))
+        : DEFAULT_MAX_HP;
+
+    let hp = typeof baseHpRaw === 'number' && Number.isFinite(baseHpRaw)
+        ? clampHp(baseHpRaw, maxHp)
+        : maxHp;
+
+    for (const choice of choices) {
+        const effects = (choice as any)?.effects;
+        if (!Array.isArray(effects)) continue;
+
+        for (const effect of effects) {
+            if (!effect || typeof effect !== "object") continue;
+
+            // Support: { type: 'immediate', action: 'hp_delta', data: { amount: -5 } }
+            if ((effect as any).type === "immediate" && (effect as any).action === "hp_delta") {
+                const data = (effect as any).data ?? {};
+                const amountRaw = (data as any).amount;
+                const delta = clampInt(amountRaw, -MAX_HP_DELTA_PER_COMMIT, MAX_HP_DELTA_PER_COMMIT);
+                if (delta === 0) continue;
+                hp = clampHp(hp + delta, maxHp);
+                continue;
+            }
+
+            // Optional support: { type: 'stat_modifier', stat: 'hp', delta: -5 }
+            if ((effect as any).type === "stat_modifier") {
+                const statRaw = typeof (effect as any).stat === "string" ? (effect as any).stat.trim() : "";
+                if (statRaw !== 'hp' && statRaw !== 'health') continue;
+                const delta = clampInt((effect as any).delta, -MAX_HP_DELTA_PER_COMMIT, MAX_HP_DELTA_PER_COMMIT);
+                if (delta === 0) continue;
+                hp = clampHp(hp + delta, maxHp);
+            }
+        }
+    }
+
+    return { hp, maxHp };
+}
+
+function applySkillDeltasFromChoices(
+    baseSkills: Record<string, number>,
+    choices: Array<{ effects: unknown }>
+): Record<string, number> {
+    const next = { ...baseSkills };
+
+    for (const choice of choices) {
+        const effects = (choice as any)?.effects;
+        if (!Array.isArray(effects)) continue;
+
+        for (const effect of effects) {
+            if (!effect || typeof effect !== "object") continue;
+
+            // Support: { type: 'immediate', action: 'skill_boost', data: { skillId, amount } }
+            if ((effect as any).type === "immediate" && (effect as any).action === "skill_boost") {
+                const data = (effect as any).data ?? {};
+                const skillIdRaw = typeof data.skillId === "string" ? data.skillId.trim() : "";
+                const amountRaw = data.amount;
+                if (!skillIdRaw || !isSafeId(skillIdRaw)) continue;
+                const delta = clampInt(amountRaw, -MAX_SKILL_DELTA_PER_COMMIT, MAX_SKILL_DELTA_PER_COMMIT);
+                if (delta === 0) continue;
+                next[skillIdRaw] = clampSkillValue((next[skillIdRaw] ?? 0) + delta);
+                continue;
+            }
+
+            // Support: { type: 'stat_modifier', stat: 'analysis', delta: 2 } or { stat: 'skill:analysis', delta: 2 }
+            if ((effect as any).type === "stat_modifier") {
+                const statRaw = typeof (effect as any).stat === "string" ? (effect as any).stat.trim() : "";
+                const deltaRaw = (effect as any).delta;
+                const delta = clampInt(deltaRaw, -MAX_SKILL_DELTA_PER_COMMIT, MAX_SKILL_DELTA_PER_COMMIT);
+                if (!statRaw || delta === 0) continue;
+
+                const skillId = statRaw.startsWith("skill:") ? statRaw.slice("skill:".length) : statRaw;
+                if (!skillId || !isSafeId(skillId)) continue;
+                if (skillId === "xp") continue;
+
+                next[skillId] = clampSkillValue((next[skillId] ?? 0) + delta);
+            }
+        }
+    }
+
+    return next;
 }
 
 function sanitizeStringArray(
@@ -267,10 +368,24 @@ export const vnRoutes = (app: Elysia) =>
                     const awardedItems: Array<{ itemId: string; quantity: number; dbId?: string }> = [];
                     let duplicate = false;
 
+                    const normalizedSkills = normalizeSkills(progress.skills as any);
+                    const nextSkills = applySkillDeltasFromChoices(
+                        normalizedSkills,
+                        choices.map((entry) => ({ effects: entry.effects }))
+                    );
+                    const hpPatch = applyHpDeltasFromChoices(
+                        (progress as any).hp,
+                        (progress as any).maxHp,
+                        choices.map((entry) => ({ effects: entry.effects }))
+                    );
+
                     const progressPatch = {
                         currentScene: sceneId,
                         visitedScenes: Array.from(visited),
                         flags,
+                        skills: nextSkills,
+                        hp: hpPatch.hp,
+                        maxHp: hpPatch.maxHp,
                         level: xpResult.level,
                         xp: xpResult.xp,
                         skillPoints: xpResult.skillPoints,

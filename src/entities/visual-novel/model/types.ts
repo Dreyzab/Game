@@ -213,6 +213,11 @@ export interface SceneDialogue {
   text: string
   characterId?: string
   emotion?: SceneEmotion
+  /**
+   * Optional per-line background override (relative to /public).
+   * Example: '/images/oknorazbil.png'
+   */
+  background?: string
   condition?: {
     flag?: string
     notFlag?: string

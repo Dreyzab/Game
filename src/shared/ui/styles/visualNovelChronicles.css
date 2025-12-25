@@ -95,3 +95,55 @@
   animation: vn-fade-in 0.8s ease-out forwards;
 }
 
+/* Background "camera" pan for wide images (Ken Burns-like) */
+@keyframes vn-bg-pan-center {
+  0% {
+    transform: translate3d(-6%, 0, 0) scale(1.08);
+  }
+  100% {
+    transform: translate3d(6%, 0, 0) scale(1.08);
+  }
+}
+
+@keyframes vn-bg-pan-right {
+  0% {
+    transform: translate3d(-14%, 0, 0) scale(1.1);
+  }
+  100% {
+    transform: translate3d(-6%, 0, 0) scale(1.1);
+  }
+}
+
+@keyframes vn-bg-pan-left {
+  0% {
+    transform: translate3d(6%, 0, 0) scale(1.1);
+  }
+  100% {
+    transform: translate3d(14%, 0, 0) scale(1.1);
+  }
+}
+
+.vn-chronicles .vn-bg-pan {
+  will-change: transform;
+  animation: vn-bg-pan-center 18s ease-in-out infinite alternate;
+}
+
+.vn-chronicles .vn-bg-pan-right {
+  will-change: transform;
+  animation: vn-bg-pan-right 18s ease-in-out infinite alternate;
+}
+
+.vn-chronicles .vn-bg-pan-left {
+  will-change: transform;
+  animation: vn-bg-pan-left 18s ease-in-out infinite alternate;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vn-chronicles .vn-bg-pan,
+  .vn-chronicles .vn-bg-pan-right,
+  .vn-chronicles .vn-bg-pan-left {
+    animation: none;
+    transform: translate3d(0, 0, 0) scale(1.05);
+  }
+}
+

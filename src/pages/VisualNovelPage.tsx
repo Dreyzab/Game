@@ -13,6 +13,7 @@ import { DEFAULT_VN_SCENE_ID } from '@/entities/visual-novel/model/scenes'
 import { useVisualNovelSessionStore, useVisualNovelViewModel } from '@/features/visual-novel/model'
 import { Routes } from '@/shared/lib/utils/navigation'
 import type { VisualNovelChoice, VisualNovelChoiceEffect } from '@/shared/types/visualNovel'
+import type { FloatingTextEvent } from '@/features/dreyzab-combat-simulator/ui/components/FloatingText'
 
 export type VisualNovelExperienceProps = {
   lockedSceneId?: string
@@ -36,6 +37,9 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
   const trackScene = useVisualNovelSessionStore((state) => state.trackScene)
   const recordChoice = useVisualNovelSessionStore((state) => state.recordChoice)
   const consumePayload = useVisualNovelSessionStore((state) => state.consumePayload)
+  const pendingHpDelta = useVisualNovelSessionStore((state) => state.pendingHpDelta)
+
+  const [floatingEvents, setFloatingEvents] = useState<FloatingTextEvent[]>([])
 
   const [isNicknamePromptOpen, setNicknamePromptOpen] = useState(false)
   const [nicknameDraft, setNicknameDraft] = useState('')
@@ -103,6 +107,19 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
     () => (vnStateQuery.data?.progress?.skills as Record<string, number> | undefined) ?? {},
     [vnStateQuery.data?.progress?.skills]
   )
+
+  const hp = useMemo(() => {
+    const baseHpRaw = (vnStateQuery.data as any)?.progress?.hp
+    const baseMaxHpRaw = (vnStateQuery.data as any)?.progress?.maxHp
+    const maxHp =
+      typeof baseMaxHpRaw === 'number' && Number.isFinite(baseMaxHpRaw) ? Math.max(1, Math.trunc(baseMaxHpRaw)) : 100
+    const baseHp =
+      typeof baseHpRaw === 'number' && Number.isFinite(baseHpRaw)
+        ? Math.max(0, Math.min(maxHp, Math.trunc(baseHpRaw)))
+        : maxHp
+    const nextHp = Math.max(0, Math.min(maxHp, baseHp + pendingHpDelta))
+    return { hp: nextHp, maxHp }
+  }, [pendingHpDelta, vnStateQuery.data])
 
   const handleImmediateEffects = useCallback(
     (sceneId: string, choice: VisualNovelChoice) => {
@@ -183,6 +200,27 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
     {
       onChoiceApplied: ({ sceneId, lineId, choice }) => {
         recordChoice({ sceneId, lineId, choice })
+
+        // Floating HP numbers (styles borrowed from battle FloatingText)
+        const hpDelta = (choice.effects ?? []).reduce((acc, effect) => {
+          if (effect.type !== 'immediate') return acc
+          if (effect.action !== 'hp_delta') return acc
+          const amount = typeof (effect.data as any)?.amount === 'number' ? (effect.data as any).amount : 0
+          return Number.isFinite(amount) ? acc + amount : acc
+        }, 0)
+
+        if (hpDelta !== 0) {
+          const id = `vn_hp_${Date.now()}_${Math.random().toString(16).slice(2)}`
+          const text = `${hpDelta > 0 ? '+' : ''}${Math.trunc(hpDelta)} HP`
+          const color = hpDelta < 0 ? '#ef4444' : '#22c55e'
+          const event: FloatingTextEvent = { id, text, color }
+
+          setFloatingEvents((prev) => [...prev, event])
+          window.setTimeout(() => {
+            setFloatingEvents((prev) => prev.filter((e) => e.id !== id))
+          }, 1600)
+        }
+
         handleImmediateEffects(sceneId, choice)
       },
     }
@@ -342,6 +380,9 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
         isPending={viewModel.isPending}
         flags={viewModel.flags}
         skills={skills}
+        hp={hp.hp}
+        maxHp={hp.maxHp}
+        floatingEvents={floatingEvents}
         onAdvance={viewModel.goNext}
         onChoice={viewModel.choose}
         onExit={handleExit}

@@ -10,6 +10,7 @@ export const EffectType = {
     STAGGER: 'stagger',
     BUFF: 'buff',
     EVASIVE: 'evasive',
+    ANALYZE: 'analyze',
 } as const
 
 export type EffectType = (typeof EffectType)[keyof typeof EffectType]
@@ -49,6 +50,10 @@ export interface Combatant {
     weaponHeat: number
     isJammed: boolean
     ammo: number
+    threatLevel?: string // e.g. T1, T2
+
+    // Analysis State
+    scannedLevel?: number // 0=none, 1=basic, 2=detailed
 }
 
 export const CardType = {
@@ -56,6 +61,7 @@ export const CardType = {
     DEFENSE: 'defense',
     MOVEMENT: 'movement',
     VOICE: 'voice',
+    ANALYSIS: 'analysis',
 } as const
 
 export type CardType = (typeof CardType)[keyof typeof CardType]

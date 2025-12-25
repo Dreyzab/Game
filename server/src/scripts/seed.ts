@@ -1,8 +1,9 @@
 import { db } from "../db";
-import { mapPoints, items, safeZones } from "../db/schema";
+import { mapPoints, items, safeZones, dangerZones } from "../db/schema";
 import { SEED_MAP_POINTS } from "../seeds/mapPoints";
 import { ITEM_TEMPLATES } from "../seeds/itemTemplates";
 import { SEED_SAFE_ZONES } from "../seeds/safeZones";
+import { SEED_DANGER_ZONES } from "../seeds/dangerZones";
 import { inArray } from "drizzle-orm";
 
 async function seedMapPoints() {
@@ -64,6 +65,26 @@ async function seedSafeZones() {
     console.log(`[seed] safe_zones inserted: ${inserted} (ts=${now})`);
 }
 
+async function seedDangerZones() {
+    const now = Date.now();
+
+    // Full replace for deterministic seeding
+    await db.delete(dangerZones);
+
+    let inserted = 0;
+    for (const zone of SEED_DANGER_ZONES) {
+        await db.insert(dangerZones).values({
+            title: zone.title,
+            dangerLevel: zone.dangerLevel,
+            polygon: zone.polygon,
+            isActive: true,
+        });
+        inserted += 1;
+    }
+
+    console.log(`[seed] danger_zones inserted: ${inserted} (ts=${now})`);
+}
+
 async function seedItemTemplates() {
     const templateIds = ITEM_TEMPLATES.map((t) => t.id);
 
@@ -98,6 +119,7 @@ async function seedItemTemplates() {
 async function main() {
     await seedMapPoints();
     await seedSafeZones();
+    await seedDangerZones();
     await seedItemTemplates();
     process.exit(0);
 }

@@ -86,9 +86,31 @@
 .dreyzab-battle.arena-bg {
   background:
     linear-gradient(to bottom, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.7)),
-    url('https://images.unsplash.com/photo-1551009175-15bdf9dcb580?auto=format&fit=crop&q=80&w=2000');
+    url('/images/arena/boivpoezde.png');
   background-size: cover;
   background-position: center;
+}
+
+/* Small mobile landscape: keep combatants vertically centered and reduce battlefield padding */
+@media (max-height: 520px) and (orientation: landscape) {
+  .dreyzab-battle .dreyzab-top-hud {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding-top: 0.25rem;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .dreyzab-battle .dreyzab-battlefield {
+    padding-top: 1.25rem !important;   /* was pt-12 */
+    padding-bottom: 1.25rem !important; /* was pb-28 */
+  }
+
+  .dreyzab-battle .dreyzab-lane-sprite-area {
+    align-items: center !important; /* override items-end */
+  }
 }
 
 .dreyzab-battle .card-fan {

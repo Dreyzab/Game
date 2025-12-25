@@ -28,7 +28,7 @@ const RankLane = ({ combatant, isTargeted, isActive, onTarget, events = [] }: Pr
             `}
         >
             {/* Main Sprite Area */}
-            <div className="flex-1 flex items-end justify-center relative">
+            <div className="flex-1 flex items-end justify-center relative dreyzab-lane-sprite-area">
                 <FloatingText events={events} />
                 {combatant && (
                     <CombatantSprite

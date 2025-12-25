@@ -3,15 +3,195 @@ import type { Scene } from '../../../model/types'
 /**
  * Сценарии для фракции Синтез
  * 
- * Ключевые NPC: Лена Рихтер, Профессор Шмидт
+ * Ключевые NPC: Лена Рихтер, Профессор Штейнбах
  * Квесты: field_medicine, emergency_patient, professor_mystery
  */
 
 const MEDCENTER_BACKGROUND = '/images/backgrounds/synthesis_medcenter.jpg'
+const CAMPUS_BACKGROUND = '/images/backgrounds/station1.png'
 const GREENHOUSE_BACKGROUND = '/images/backgrounds/greenhouse.jpg'
-const LENA_SPRITE = '/images/npcs/lena_richter.jpg'
+const LENA_SPRITE = '/images/characters/Lena.png'
 
 export const synthesisScenes: Record<string, Scene> = {
+  // =====================================
+  // КАМПУС "СИНТЕЗ" — ПЕРВЫЙ ВИЗИТ
+  // =====================================
+
+  synthesis_campus_arrival_with_lena: {
+    id: 'synthesis_campus_arrival_with_lena',
+    background: CAMPUS_BACKGROUND,
+    characters: [
+      {
+        id: 'lena',
+        name: 'Лейтенант Лена Рихтер',
+        position: 'left',
+        sprite: LENA_SPRITE,
+        emotion: { primary: 'neutral', intensity: 60 },
+      },
+      {
+        id: 'guard',
+        name: 'Охранник «Синтеза»',
+        position: 'center',
+        emotion: { primary: 'neutral', intensity: 70 },
+      },
+    ],
+    dialogue: [
+      {
+        speaker: 'Рассказчик',
+        text: 'Вы подходите к воротам кампуса «Синтеза». После суеты вокзала здесь царит пугающая тишина и порядок.',
+      },
+      {
+        speaker: 'Лейтенант Лена Рихтер',
+        characterId: 'lena',
+        text: 'Лейтенант Рихтер. Возвращение из командировки. Со мной гражданский — курьер к профессору Штейнбаху.',
+      },
+      {
+        speaker: 'Охранник «Синтеза»',
+        characterId: 'guard',
+        text: 'С возвращением, лейтенант. Проходите. А вот насчёт профессора…',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Охранник виновато разводит руками.',
+      },
+      {
+        speaker: 'Охранник «Синтеза»',
+        characterId: 'guard',
+        text: 'Его нет. Экстренное собрание Совета — из‑за инцидента на путях. Вернётся не раньше вечера.',
+      },
+      {
+        speaker: 'ЛОГИКА',
+        text: '«Инцидент на путях» — это ваш поезд. Круг замкнулся. Верхушка уже знает.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'К воротам подъезжает грузовик с красным крестом. Из кузова выгружают носилки — гражданских и бойцов FJR.',
+      },
+      {
+        speaker: 'Лейтенант Лена Рихтер',
+        characterId: 'lena',
+        emotion: { primary: 'angry', intensity: 65 },
+        text: 'Чёрт… Я нужна им.',
+      },
+      {
+        speaker: 'Лейтенант Лена Рихтер',
+        characterId: 'lena',
+        text: 'Слушай. Я не могу сейчас водить тебя по кампусу. Займись своими делами: найди ночлег, зарегистрируйся в мэрии, осмотрись.',
+      },
+      {
+        speaker: 'Лейтенант Лена Рихтер',
+        characterId: 'lena',
+        text: 'А это — на всякий случай.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Она быстро суёт тебе аптечку и уже на ходу отдаёт команды санитарам.',
+      },
+    ],
+    choices: [
+      {
+        id: 'leave_campus_with_lena_gone',
+        text: 'Отойти от ворот.',
+        effects: {
+          addFlags: ['visited_synthesis_campus'],
+          removeFlags: ['lena_accompanies_to_campus'],
+          narrative: 'Профессор будет доступен не раньше вечера.',
+          immediate: [
+            { type: 'item', data: { itemId: 'medkit', amount: 1 } },
+            { type: 'open_map' },
+          ],
+        },
+      },
+    ],
+  },
+
+  synthesis_campus_arrival: {
+    id: 'synthesis_campus_arrival',
+    background: CAMPUS_BACKGROUND,
+    characters: [
+      {
+        id: 'guard',
+        name: 'Охранник «Синтеза»',
+        position: 'center',
+        emotion: { primary: 'neutral', intensity: 70 },
+      },
+    ],
+    dialogue: [
+      {
+        speaker: 'Рассказчик',
+        text: 'Ты подходишь к воротам кампуса «Синтеза». Здесь всё выглядит слишком чистым и слишком правильным для города, пережившего такую ночь.',
+      },
+      {
+        speaker: 'Охранник «Синтеза»',
+        characterId: 'guard',
+        text: 'Цель визита?',
+      },
+      {
+        speaker: 'Игрок',
+        text: 'К профессору Штейнбаху. У меня для него поручение.',
+      },
+      {
+        speaker: 'Охранник «Синтеза»',
+        characterId: 'guard',
+        text: 'Его нет. Экстренное собрание Совета по поводу инцидента на путях. Вернётся не раньше вечера.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Дальше ворот тебя не пускают.',
+      },
+    ],
+    choices: [
+      {
+        id: 'leave_campus_solo',
+        text: 'Отойти от ворот.',
+        effects: {
+          addFlags: ['visited_synthesis_campus'],
+          narrative: 'Профессор будет доступен не раньше вечера.',
+          immediate: [{ type: 'open_map' }],
+        },
+      },
+    ],
+  },
+
+  synthesis_ask_about_professor: {
+    id: 'synthesis_ask_about_professor',
+    background: CAMPUS_BACKGROUND,
+    characters: [
+      {
+        id: 'guard',
+        name: 'Охранник «Синтеза»',
+        position: 'center',
+        emotion: { primary: 'neutral', intensity: 70 },
+      },
+    ],
+    dialogue: [
+      {
+        speaker: 'Рассказчик',
+        text: 'Ты возвращаешься к кампусу и снова пытаешься выяснить, где искать профессора.',
+      },
+      {
+        speaker: 'Охранник «Синтеза»',
+        characterId: 'guard',
+        text: 'Профессор Штейнбах занят. Если срочно — его кабинет в университетском корпусе. Но предупреждаю: сейчас там никого.',
+      },
+      {
+        speaker: 'ЛОГИКА',
+        text: 'Кабинет — это не профессор. Но это следы. И ответы редко лежат на виду.',
+      },
+    ],
+    choices: [
+      {
+        id: 'mark_professor_office',
+        text: 'Запомнить и отойти.',
+        effects: {
+          addFlags: ['know_professor_location'],
+          narrative: 'Кабинет профессора Штейнбаха отмечен на карте.',
+          immediate: [{ type: 'open_map' }],
+        },
+      },
+    ],
+  },
+
   // =====================================
   // ПЕРВАЯ ВСТРЕЧА С ЛЕНОЙ РИХТЕР
   // =====================================
@@ -66,7 +246,7 @@ export const synthesisScenes: Record<string, Scene> = {
       },
       {
         id: 'ask_about_professor',
-        text: '"Я ищу профессора Шмидта."',
+        text: '"Я ищу профессора Штейнбаха."',
         nextScene: 'lena_professor_question',
         availability: {
           condition: { flag: 'has_package' },
@@ -766,19 +946,19 @@ export const synthesisScenes: Record<string, Scene> = {
       {
         speaker: 'Лена Рихтер',
         characterId: 'lena',
-        text: 'Если услышишь что-то о профессоре Шмидте — дай знать. Он пропал три дня назад, и... это важно. Очень важно.',
+        text: 'Если услышишь что-то о профессоре Штейнбахе — дай знать. Он пропал три дня назад, и... это важно. Очень важно.',
         emotion: { primary: 'worried', intensity: 65 },
       },
       {
         speaker: 'ЛОГИКА',
-        text: '[ПАРАМЕТР: МЫСЛЬ/ЛОГИКА (Успех)] Профессор Шмидт. То самое имя, которое было на твоей посылке. Совпадение?',
+        text: '[ПАРАМЕТР: МЫСЛЬ/ЛОГИКА (Успех)] Профессор Штейнбах. То самое имя, которое было на твоей посылке. Совпадение?',
         emotion: { primary: 'determined', intensity: 85 },
       },
     ],
     choices: [
       {
         id: 'mention_package',
-        text: '"У меня есть посылка для Шмидта."',
+        text: '"У меня есть посылка для Штейнбаха."',
         nextScene: 'lena_professor_revelation',
         availability: {
           condition: { flag: 'has_package' },
@@ -865,7 +1045,7 @@ export const synthesisScenes: Record<string, Scene> = {
       {
         speaker: 'Лена Рихтер',
         characterId: 'lena',
-        text: '(Замирает) Посылка? Для Шмидта? (Её голос становится напряжённым) Покажи.',
+        text: '(Замирает) Посылка? Для Штейнбаха? (Её голос становится напряжённым) Покажи.',
         emotion: { primary: 'surprised', intensity: 85 },
       },
       {
@@ -913,7 +1093,7 @@ export const synthesisScenes: Record<string, Scene> = {
       {
         speaker: 'Лена Рихтер',
         characterId: 'lena',
-        text: '"Acta, non verba"... Это печать Совета Старейшин. (Бледнеет) Послушай меня внимательно. Не открывай это. Не отдавай никому, кроме самого Шмидта.',
+        text: '"Acta, non verba"... Это печать Совета Старейшин. (Бледнеет) Послушай меня внимательно. Не открывай это. Не отдавай никому, кроме самого Штейнбаха.',
         emotion: { primary: 'worried', intensity: 75 },
       },
       {
@@ -936,7 +1116,7 @@ export const synthesisScenes: Record<string, Scene> = {
           immediate: [
             { type: 'quest', data: { questId: 'professor_mystery', action: 'start' } },
           ],
-          narrative: 'Кабинет профессора Шмидта отмечен на карте.',
+          narrative: 'Кабинет профессора Штейнбаха отмечен на карте.',
         },
       },
     ],
@@ -1086,7 +1266,7 @@ export const synthesisScenes: Record<string, Scene> = {
       {
         speaker: 'Лена Рихтер',
         characterId: 'lena',
-        text: '(Резко поднимает голову) Шмидт? Ты знаешь его? Откуда?',
+        text: '(Резко поднимает голову) Штейнбах? Ты знаешь его? Откуда?',
         emotion: { primary: 'surprised', intensity: 75 },
       },
     ],

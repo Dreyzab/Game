@@ -19,6 +19,12 @@ import { allFactionScenes } from './factions'
 import { allDynamicScenes, DYNAMIC_EVENTS } from './dynamic_events'
 import { onboardingScenes } from '../onboarding'
 import { chapter1CommonScenes } from './common_scenes'
+import { universityCampusScenes } from './university_campus'
+import { universityEveningScenes } from './university_evening'
+import { scenarios as marketSquareArrivalScenes } from './market_square_arrival'
+import { scenarios as marketNodeKitchenScenes } from './market_node_kitchen'
+import { scenarios as marketNodeMarketScenes } from './market_node_market'
+import { scenarios as marketNodePostersScenes } from './market_node_posters'
 
 // Реэкспорт для удобства
 export * from './factions'
@@ -30,12 +36,20 @@ export { schwabentorGateScenes } from './schwabentor_gate'
 export { schlossbergExpeditionScenes } from './schlossberg_expedition'
 export { sideQuestScenes } from './side_quests'
 export { chapter1CommonScenes } from './common_scenes'
+export { universityCampusScenes } from './university_campus'
+export { universityEveningScenes } from './university_evening'
 
 // Объединённый объект всех сценариев Chapter 1
 export const chapter1Scenes = {
   ...stationArrivalScenes,
   ...onboardingScenes,
   ...chapter1CommonScenes,
+  ...universityCampusScenes,
+  ...universityEveningScenes,
+  ...marketSquareArrivalScenes,
+  ...marketNodeKitchenScenes,
+  ...marketNodeMarketScenes,
+  ...marketNodePostersScenes,
   ...industrialZoneScenes,
   ...marketTraderScenes,
   ...schwabentorGateScenes,

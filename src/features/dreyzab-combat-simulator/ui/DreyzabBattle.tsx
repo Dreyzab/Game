@@ -17,7 +17,7 @@ import { Side, CardType } from '../model/types'
 import { SCENARIOS, type ScenarioId } from '../model/scenarios'
 import RankLane from './components/RankLane'
 import type { FloatingTextEvent } from './components/FloatingText'
-import { sortTurnQueue, canPlayCard } from '../model/utils'
+import { sortTurnQueue, canPlayCard, rollAttack } from '../model/utils'
 import CombatCardUI from './components/CombatCardUI'
 import BattleEquipmentOverlay from './components/BattleEquipmentOverlay'
 import DraggableCombatCard from './components/DraggableCombatCard'
@@ -156,9 +156,13 @@ export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default' }: D
         })
     )
 
-    const addCombatEvent = useCallback((unitId: string, text: string, type: 'damage' | 'heal' | 'miss') => {
+    const addCombatEvent = useCallback((unitId: string, text: string, type: 'damage' | 'heal' | 'miss' | 'debuff' | 'buff') => {
         const id = Math.random().toString(36).substr(2, 9)
-        const color = type === 'damage' ? '#ef4444' : type === 'heal' ? '#10b981' : '#fbbf24'
+        const color = type === 'damage' ? '#ef4444' :
+            type === 'heal' ? '#10b981' :
+                type === 'debuff' ? '#a855f7' :
+                    type === 'buff' ? '#3b82f6' :
+                        '#fbbf24'
         setCombatEvents((prev) => [...prev, { id, text, color, unitId }])
 
         // Auto-cleanup
@@ -385,18 +389,28 @@ export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default' }: D
                     enemies[enemyIndex] = { ...enemies[enemyIndex], rank: Math.max(1, enemy.rank - 1) }
                     nextLogs.push(`${enemy.name} advances to rank ${enemies[enemyIndex].rank}.`)
                 } else {
-                    const dmg = Math.max(1, 10 - target.armor)
+                    // Perform hit roll with dodge system
                     const targetIndex = players.findIndex((p) => p.id === target.id)
-                    const nextHp = Math.max(0, players[targetIndex].resources.hp - dmg)
-                    players[targetIndex] = {
-                        ...players[targetIndex],
-                        resources: { ...players[targetIndex].resources, hp: nextHp },
-                        isDead: nextHp <= 0,
+                    const attackResult = rollAttack(enemy, target, 70) // Enemy base accuracy 70%
+
+                    if (attackResult.hit) {
+                        // Hit - deal damage
+                        const dmg = enemy.name === 'Mutant Marauder' ? 10 : Math.max(1, 10 - target.armor)
+                        const nextHp = Math.max(0, players[targetIndex].resources.hp - dmg)
+                        players[targetIndex] = {
+                            ...players[targetIndex],
+                            resources: { ...players[targetIndex].resources, hp: nextHp },
+                            isDead: nextHp <= 0,
+                        }
+                        damageDealt = dmg
+                        nextLogs.push(`${enemy.name} strikes ${target.name} for ${dmg} DMG! (roll: ${attackResult.roll}/${attackResult.needed})`)
+                        addCombatEvent(target.id, `-${dmg}`, 'damage')
+                        if (nextHp <= 0) nextLogs.push(`${target.name} offline.`)
+                    } else {
+                        // Miss - target dodged
+                        nextLogs.push(`${target.name} dodges ${enemy.name}'s attack! (${attackResult.dodgeChance}% dodge from ${target.resources.ap} unused AP)`)
+                        addCombatEvent(target.id, 'DODGE!', 'miss')
                     }
-                    damageDealt = dmg
-                    nextLogs.push(`${enemy.name} strikes ${target.name} for ${dmg} damage.`)
-                    addCombatEvent(target.id, `-${dmg}`, 'damage')
-                    if (nextHp <= 0) nextLogs.push(`${target.name} offline.`)
                 }
 
                 const allPlayersDead = players.every((p) => p.isDead)
@@ -484,19 +498,29 @@ export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default' }: D
                     players[playerIndex] = nextPlayer
                     nextAttacksInTurn++
 
-                    let damage = Math.floor(card.damage - enemy.armor)
-                    damage = Math.max(1, damage)
+                    // Perform hit roll with dodge system
+                    const attackResult = rollAttack(nextPlayer, enemy, 75) // Player base accuracy 75%
 
-                    const nextHp = Math.max(0, enemy.resources.hp - damage)
-                    enemies[targetIndex] = {
-                        ...enemy,
-                        resources: { ...enemy.resources, hp: nextHp },
-                        isDead: nextHp <= 0,
+                    if (attackResult.hit) {
+                        // Hit - deal damage
+                        let damage = Math.floor(card.damage - enemy.armor)
+                        damage = Math.max(1, damage)
+
+                        const nextHp = Math.max(0, enemy.resources.hp - damage)
+                        enemies[targetIndex] = {
+                            ...enemy,
+                            resources: { ...enemy.resources, hp: nextHp },
+                            isDead: nextHp <= 0,
+                        }
+
+                        if (nextHp <= 0 && enemy.name === 'Rail Scorpion') unlockAchievement('scorpion_slayer')
+                        nextLogs.push(`${nextPlayer.name} uses ${card.name}: ${damage} DMG to ${enemy.name}! (roll: ${attackResult.roll}/${attackResult.needed})`)
+                        addCombatEvent(enemy.id, `-${damage}`, 'damage')
+                    } else {
+                        // Miss - enemy dodged
+                        nextLogs.push(`${enemy.name} dodges ${nextPlayer.name}'s ${card.name}! (${attackResult.dodgeChance}% dodge from ${enemy.resources.ap} AP)`)
+                        addCombatEvent(enemy.id, 'DODGE!', 'miss')
                     }
-
-                    if (nextHp <= 0 && enemy.name === 'Rail Scorpion') unlockAchievement('scorpion_slayer')
-                    nextLogs.push(`${nextPlayer.name} uses ${card.name}: ${damage} DMG to ${enemy.name}.`)
-                    addCombatEvent(enemy.id, `-${damage}`, 'damage')
                 } else if (card.type === CardType.MOVEMENT) {
                     const desiredRank = target?.type === 'player-rank' ? target.rank : actingPlayer.rank - 1
                     const isAdjacent = Math.abs(desiredRank - actingPlayer.rank) === 1
@@ -530,6 +554,34 @@ export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default' }: D
                     }
                     nextLogs.push(`${players[playerIndex].name} stabilizes vitals.`)
                     addCombatEvent(actingPlayer.id, '+30 WP', 'heal')
+                } else if (card.type === CardType.ANALYSIS) {
+                    const enemyId = target?.type === 'enemy' ? target.enemyId : selectedTargetId
+                    const targetIndex = enemies.findIndex((e) => e.id === enemyId)
+                    const enemy = targetIndex >= 0 ? enemies[targetIndex] : null
+
+                    if (!enemy || enemy.isDead) {
+                        nextLogs.push('No valid target for analysis.')
+                        return { ...prev, logs: nextLogs }
+                    }
+
+                    const nextPlayer = spendCosts(actingPlayer)
+                    players[playerIndex] = nextPlayer
+
+                    const currentScan = enemy.scannedLevel || 0
+                    const nextScan = Math.min(2, currentScan + 1)
+
+                    enemies[targetIndex] = {
+                        ...enemy,
+                        scannedLevel: nextScan
+                    }
+
+                    // Log info based on scan level
+                    let info = ''
+                    if (nextScan >= 1) info += `HP: ${enemy.resources.hp}/${enemy.resources.maxHp} | ARM: ${enemy.armor}`
+                    if (nextScan >= 2) info += ` | AP: ${enemy.resources.ap} | THR: ${enemy.threatLevel || 'Unknown'}`
+
+                    nextLogs.push(`${nextPlayer.name} scans ${enemy.name}. Analysis: [${info}]`)
+                    addCombatEvent(enemy.id, 'SCANNED', 'debuff') // Visual feedback
                 } else if (card.type === CardType.DEFENSE) {
                     nextLogs.push('Defense protocols unavailable.')
                     return { ...prev, logs: nextLogs }
@@ -613,6 +665,41 @@ export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default' }: D
 
     const activePlayer = activeUnit?.side === Side.PLAYER ? activeUnit : null
 
+    const resolveLocalPortrait = useCallback((unit: Combatant): string | null => {
+        const id = unit.id.toLowerCase()
+        const name = unit.name.toLowerCase()
+
+        // Player (p1) portrait
+        if (unit.side === Side.PLAYER && (id === 'p1' || name === 'player')) {
+            return '/images/characters/Player.png'
+        }
+
+        // Conductor / Provodnik
+        if (unit.side === Side.PLAYER && (id === 'npc_cond' || name.includes('conductor') || name.includes('проводник'))) {
+            return '/images/npcs/Provodnik.png'
+        }
+
+        // Party members
+        if (id.includes('bruno') || name.includes('bruno')) return '/images/characters/Bruno.png'
+        if (id.includes('lena') || name.includes('lena')) return '/images/characters/Lena.png'
+        if (id.includes('otto') || name.includes('otto')) return '/images/characters/Otto.png'
+        if (id.includes('adel') || id.includes('adele') || name.includes('adel')) return '/images/characters/Adel.png'
+
+        // Enemies
+        if (unit.side === Side.ENEMY && name.includes('mutant marauder')) return '/images/enemy/melkiyShuk.png'
+        if (unit.side === Side.ENEMY && (id === 'boss' || name.includes('executioner'))) return '/images/enemy/BossPalach.png'
+
+        return null
+    }, [])
+
+    const resolvePortrait = useCallback((unit: Combatant): string => {
+        const local = resolveLocalPortrait(unit)
+        if (local) return local
+        return unit.side === Side.PLAYER
+            ? `https://api.dicebear.com/7.x/avataaars/svg?seed=operator${unit.id}&backgroundColor=transparent&style=straight`
+            : `https://api.dicebear.com/7.x/bottts/svg?seed=enemy${unit.id}&backgroundColor=transparent`
+    }, [resolveLocalPortrait])
+
     const activeDraggedCard = useMemo(() => {
         if (!activeDragCardId) return null
         return battle.playerHand.find((c) => c.id === activeDragCardId) ?? null
@@ -629,6 +716,8 @@ export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default' }: D
                 return 'ring-emerald-500/60 bg-emerald-950/10'
             case CardType.VOICE:
                 return 'ring-amber-500/60 bg-amber-950/10'
+            case CardType.ANALYSIS:
+                return 'ring-purple-500/60 bg-purple-950/10'
             default:
                 return ''
         }
@@ -637,7 +726,7 @@ export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default' }: D
     const validEnemyDropIds = useMemo(() => {
         const ids = new Set<string>()
         if (!activeDraggedCard || !activePlayer) return ids
-        if (activeDraggedCard.type !== CardType.ATTACK) return ids
+        if (activeDraggedCard.type !== CardType.ATTACK && activeDraggedCard.type !== CardType.ANALYSIS) return ids
 
         for (const enemy of battle.enemies) {
             if (enemy.isDead) continue
@@ -717,11 +806,7 @@ export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default' }: D
                                 <div key={id} className={`flex flex-col transition-all duration-300 ${isActive ? 'scale-105' : 'opacity-40 grayscale scale-90'}`}>
                                     <div className={`relative w-9 h-9 md:w-14 md:h-14 bg-zinc-950 border-2 overflow-hidden rounded-lg shadow-xl ${isActive ? (isPlayer ? 'border-blue-500 ring-1 ring-blue-500/30' : 'border-red-600 ring-1 ring-red-600/30') : 'border-zinc-800'}`}>
                                         <img
-                                            src={
-                                                isPlayer
-                                                    ? `https://api.dicebear.com/7.x/avataaars/svg?seed=operator${unit.id}&backgroundColor=transparent&style=straight`
-                                                    : `https://api.dicebear.com/7.x/bottts/svg?seed=enemy${unit.id}&backgroundColor=transparent`
-                                            }
+                                            src={resolvePortrait(unit)}
                                             className="w-full h-full object-cover"
                                             alt="portrait"
                                         />
@@ -736,7 +821,7 @@ export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default' }: D
                 </div>
 
                 {/* Top HUD Controls */}
-                <div className="relative z-50 pt-2 px-4 flex justify-between items-start pointer-events-none">
+                <div className="relative z-50 pt-2 px-4 flex justify-between items-start pointer-events-none dreyzab-top-hud">
                     <div className="flex items-center gap-2 pointer-events-auto mt-2">
                         <button
                             onClick={() => setShowEquipment(true)}
@@ -764,7 +849,7 @@ export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default' }: D
                 </div>
 
                 {/* Battlefield */}
-                <div className="flex-1 relative flex overflow-hidden pt-12 pb-28 md:pb-36">
+                <div className="flex-1 relative flex overflow-hidden pt-12 pb-28 md:pb-36 dreyzab-battlefield">
 
                     {/* Player Lanes */}
                     <div className="flex-1 grid grid-cols-4 h-full">
@@ -847,39 +932,47 @@ export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default' }: D
                     {/* Left Side: Status & Portrait Cluster */}
                     <div className="flex flex-col items-start gap-1 pointer-events-auto">
                         <div className="flex items-center gap-1.5 p-1 bg-black/60 backdrop-blur-lg border border-white/10 rounded-xl shadow-2xl">
-                            {activePlayer ? (
+                            {activeUnit ? (
                                 <>
                                     {/* Portrait & Action Cluster */}
                                     <div className="flex flex-col items-center gap-1">
                                         <div className="relative">
                                             <div className="w-12 h-12 md:w-16 md:h-16 bg-zinc-950/80 border border-white/20 rounded-lg overflow-hidden flex items-center justify-center grayscale opacity-90 shadow-inner">
-                                                <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${activePlayer.id}`} alt="avatar" />
+                                                <img src={resolvePortrait(activeUnit)} alt="avatar" />
                                             </div>
                                             {/* AP Dots on the portrait corner */}
-                                            <div className="absolute -top-1.5 -right-1.5 flex flex-wrap-reverse gap-0.5 justify-end max-w-[30px] z-10">
-                                                {Array.from({ length: Math.min(activePlayer.resources.ap, activePlayer.resources.maxAp) }).map((_, i) => (
-                                                    <div key={`std-${i}`} className="w-2.5 h-2.5 bg-blue-500 rounded-full border border-blue-200 shadow-[0_0_8px_rgba(59,130,246,0.8)]"></div>
-                                                ))}
-                                                {Array.from({ length: Math.max(0, activePlayer.resources.ap - activePlayer.resources.maxAp) }).map((_, i) => (
-                                                    <div key={`bonus-${i}`} className="w-2.5 h-2.5 bg-amber-500 rounded-full border border-amber-200 shadow-[0_0_8px_rgba(245,158,11,0.8)]"></div>
-                                                ))}
-                                            </div>
+                                            {activeUnit.side === Side.PLAYER ? (
+                                                <div className="absolute -top-1.5 -right-1.5 flex flex-wrap-reverse gap-0.5 justify-end max-w-[30px] z-10">
+                                                    {Array.from({ length: Math.min(activeUnit.resources.ap, activeUnit.resources.maxAp) }).map((_, i) => (
+                                                        <div key={`std-${i}`} className="w-2.5 h-2.5 bg-blue-500 rounded-full border border-blue-200 shadow-[0_0_8px_rgba(59,130,246,0.8)]"></div>
+                                                    ))}
+                                                    {Array.from({ length: Math.max(0, activeUnit.resources.ap - activeUnit.resources.maxAp) }).map((_, i) => (
+                                                        <div key={`bonus-${i}`} className="w-2.5 h-2.5 bg-amber-500 rounded-full border border-amber-200 shadow-[0_0_8px_rgba(245,158,11,0.8)]"></div>
+                                                    ))}
+                                                </div>
+                                            ) : null}
                                         </div>
                                         {/* End Turn (Hourglass) */}
-                                        <button
-                                            onClick={advanceTurn}
-                                            className="w-full py-1.5 flex items-center justify-center bg-zinc-900/80 border border-white/10 hover:border-red-500 hover:bg-red-950/40 text-zinc-400 rounded-lg transition-all shadow-lg group"
-                                            title="End Turn"
-                                            type="button"
-                                        >
-                                            <Hourglass size={14} className="group-hover:animate-spin" />
-                                        </button>
+                                        {activeUnit.side === Side.PLAYER ? (
+                                            <button
+                                                onClick={advanceTurn}
+                                                className="w-full py-1.5 flex items-center justify-center bg-zinc-900/80 border border-white/10 hover:border-red-500 hover:bg-red-950/40 text-zinc-400 rounded-lg transition-all shadow-lg group"
+                                                title="End Turn"
+                                                type="button"
+                                            >
+                                                <Hourglass size={14} className="group-hover:animate-spin" />
+                                            </button>
+                                        ) : (
+                                            <div className="w-full py-1.5 flex items-center justify-center bg-zinc-900/60 border border-white/5 text-zinc-500 rounded-lg shadow-lg">
+                                                <Hourglass size={14} className="animate-pulse" />
+                                            </div>
+                                        )}
                                     </div>
 
                                     {/* Vertical Indicators */}
                                     <div className="flex flex-col gap-2 scale-90 md:scale-100 origin-left">
-                                        <GaugeUI value={activePlayer.resources.hp} max={activePlayer.resources.maxHp} label="HP" color="#ef4444" />
-                                        <GaugeUI value={activePlayer.resources.wp} max={activePlayer.resources.maxWp} label="WP" color="#3b82f6" />
+                                        <GaugeUI value={activeUnit.resources.hp} max={activeUnit.resources.maxHp} label="HP" color="#ef4444" />
+                                        <GaugeUI value={activeUnit.resources.wp} max={activeUnit.resources.maxWp} label="WP" color="#3b82f6" />
                                     </div>
                                 </>
                             ) : (
@@ -923,7 +1016,16 @@ export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default' }: D
                         {selectedTargetId ? (
                             <div className="flex flex-col items-center p-1.5 bg-black/40 backdrop-blur border border-white/10 rounded-xl shadow-2xl">
                                 <div className="w-8 h-8 md:w-12 md:h-12 bg-red-950/20 border border-red-500/30 rounded-lg overflow-hidden grayscale">
-                                    <img src={`https://api.dicebear.com/7.x/bottts/svg?seed=${selectedTargetId}`} alt="target" />
+                                    <img
+                                        src={
+                                            (() => {
+                                                const targetUnit = [...battle.players, ...battle.enemies].find((u) => u.id === selectedTargetId)
+                                                if (targetUnit) return resolvePortrait(targetUnit)
+                                                return `https://api.dicebear.com/7.x/bottts/svg?seed=${selectedTargetId}`
+                                            })()
+                                        }
+                                        alt="target"
+                                    />
                                 </div>
                                 <span className="text-[6px] md:text-[8px] text-zinc-500 mt-1 uppercase font-black">
                                     {battle.enemies.find(e => e.id === selectedTargetId)?.name.split(' ')[0]}

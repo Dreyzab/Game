@@ -74,7 +74,7 @@ export const MapMarkers: React.FC<MapMarkersProps> = ({
                     } catch (e) {
                         console.error('[MapMarkers] Failed to update marker', point.id, e)
                     }
-                } else {
+                } else {    
                     try {
                         // Ñ­ÑóÑúÑïÑø¥'Ñ¬ Ñ«ÑóÑý¥<Ñû Ñ¬Ñø¥?Ñ§Ñæ¥?
                         const el = document.createElement('div')

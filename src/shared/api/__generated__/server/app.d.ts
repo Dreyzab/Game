@@ -452,6 +452,105 @@ export declare const app: Elysia<"", {
         };
     };
 } & {
+    inventory: {
+        stash: {
+            get: {
+                body: unknown;
+                params: {};
+                query: unknown;
+                headers: unknown;
+                response: {
+                    200: {
+                        error: string;
+                        status: number;
+                        items?: undefined;
+                    } | {
+                        items: {
+                            id: string;
+                            templateId: string;
+                            instanceId: string;
+                            kind: string;
+                            name: string;
+                            quantity: number;
+                            condition: number;
+                            gridPosition: {
+                                x: number;
+                                y: number;
+                                rotation?: number;
+                            } | null;
+                            stats: {
+                                damage?: number;
+                                defense?: number;
+                                weight: number;
+                                width: number;
+                                height: number;
+                                maxDurability?: number;
+                                specialEffects?: any[];
+                                containerConfig?: {
+                                    width: number;
+                                    height: number;
+                                    name?: string;
+                                };
+                            } | null;
+                        }[];
+                        error?: undefined;
+                        status?: undefined;
+                    };
+                    422: {
+                        type: "validation";
+                        on: string;
+                        summary?: string;
+                        message?: string;
+                        found?: unknown;
+                        property?: string;
+                        expected?: string;
+                    };
+                };
+            };
+        };
+    };
+} & {
+    inventory: {
+        stash: {
+            move: {
+                post: {
+                    body: {
+                        gridPosition?: {
+                            rotation?: number | undefined;
+                            x: number;
+                            y: number;
+                        } | undefined;
+                        itemId: string;
+                        toStash: boolean;
+                    };
+                    params: {};
+                    query: unknown;
+                    headers: unknown;
+                    response: {
+                        200: {
+                            error: string;
+                            status: number;
+                            success?: undefined;
+                        } | {
+                            success: boolean;
+                            error?: undefined;
+                            status?: undefined;
+                        };
+                        422: {
+                            type: "validation";
+                            on: string;
+                            summary?: string;
+                            message?: string;
+                            found?: unknown;
+                            property?: string;
+                            expected?: string;
+                        };
+                    };
+                };
+            };
+        };
+    };
+} & {
     quests: {
         get: {
             body: unknown;

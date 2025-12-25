@@ -40,6 +40,7 @@ const CITY_REGISTERED_FLAG = 'city_registered';
 const NICKNAME_FLAG = 'nickname_set';
 const TOWNHALL_POINT_ID = 'rathaus_square';
 const LEGACY_TOWNHALL_POINT_ID = 'mayor_aurelia_fox';
+const SYNTHESIS_CAMPUS_POINT_ID = 'synthesis_campus';
 const ONBOARDING_POLICE_SCENE_ID = 'onboarding_police_intro';
 const ONBOARDING_POLICE_DIRECT_SCENE_ID = 'onboarding_police_direct';
 const ONBOARDING_TOWNHALL_SCENE_ID = 'onboarding_townhall_registration';
@@ -295,6 +296,16 @@ export const mapRoutes = (app: Elysia) =>
                     // Onboarding lock: before city registration, show only the Town Hall point.
                     // This is intentionally independent from bbox/unlock requirements to ensure the player always sees the objective.
                     if (user && !isCityRegistered) {
+                        const hasArrivalFlag =
+                            playerFlags['arrived_at_freiburg'] === true ||
+                            playerFlags['need_info_bureau'] === true ||
+                            playerFlags['prologue_complete'] === true;
+
+                        if (hasArrivalFlag) {
+                            activeQuestIds.add('delivery_for_dieter');
+                            activeQuestIds.add('delivery_for_professor');
+                        }
+
                         const townhall =
                             (await db.query.mapPoints.findFirst({
                                 where: eq(mapPoints.id, TOWNHALL_POINT_ID)
@@ -303,9 +314,19 @@ export const mapRoutes = (app: Elysia) =>
                                 where: eq(mapPoints.id, LEGACY_TOWNHALL_POINT_ID)
                             }));
 
-                        if (!townhall) return { points: [] };
+                        const synthesisCampus = hasArrivalFlag
+                            ? await db.query.mapPoints.findFirst({
+                                where: eq(mapPoints.id, SYNTHESIS_CAMPUS_POINT_ID)
+                            })
+                            : null;
 
-                        const results = await Promise.all([townhall].map(async (point) => {
+                        if (!townhall && !synthesisCampus) return { points: [] };
+
+                        const visiblePoints = [townhall, synthesisCampus].filter(
+                            (point): point is typeof mapPoints.$inferSelect => Boolean(point)
+                        );
+
+                        const results = await Promise.all(visiblePoints.map(async (point) => {
                             const meta = (point.metadata as any) || {};
 
                             // Discovery Status
@@ -326,11 +347,22 @@ export const mapRoutes = (app: Elysia) =>
                                 researchedAt = discovery.researchedAt || undefined;
                             }
 
-                            let finalMeta = { ...meta, isGlobalObjective: true };
+                            const questBindings = Array.isArray(meta.questBindings) ? meta.questBindings : [];
+                            const isQuestTarget = questBindings.some((id: string) => activeQuestIds.has(id));
+
+                            let finalMeta = { ...meta };
+
+                            if (point.id === townhall?.id) {
+                                finalMeta = { ...finalMeta, isGlobalObjective: true };
+                            }
+
+                            if (isQuestTarget) {
+                                finalMeta = { ...finalMeta, isActiveQuestTarget: true };
+                            }
 
                             // Ensure the registration scene is always reachable even if the DB seed
                             // hasn't been re-applied yet (inject a default scene binding).
-                            if (!Array.isArray((finalMeta as any).sceneBindings)) {
+                            if (point.id === townhall?.id && !Array.isArray((finalMeta as any).sceneBindings)) {
                                 finalMeta = {
                                     ...finalMeta,
                                     sceneBindings: [
@@ -339,6 +371,35 @@ export const mapRoutes = (app: Elysia) =>
                                             triggerType: 'click',
                                             conditions: { notFlags: [CITY_REGISTERED_FLAG] },
                                             priority: 100,
+                                        },
+                                    ],
+                                };
+                            }
+
+                            // Ensure the campus scene is reachable even if the DB seed is outdated.
+                            // We want the first interaction to show the gate denial, and repeat clicks to show the waiting scene.
+                            const campusBindings = (finalMeta as any).sceneBindings;
+                            const hasCampusScenes =
+                                Array.isArray(campusBindings) &&
+                                campusBindings.some((binding: any) =>
+                                    binding?.sceneId === 'university_gate_denial' || binding?.sceneId === 'university_wait_evening'
+                                );
+
+                            if (point.id === synthesisCampus?.id && !hasCampusScenes) {
+                                finalMeta = {
+                                    ...finalMeta,
+                                    sceneBindings: [
+                                        {
+                                            sceneId: 'university_wait_evening',
+                                            triggerType: 'click',
+                                            conditions: { flags: ['waiting_for_kruger'] },
+                                            priority: 100,
+                                        },
+                                        {
+                                            sceneId: 'university_gate_denial',
+                                            triggerType: 'click',
+                                            conditions: { notFlags: ['visited_synthesis_campus'] },
+                                            priority: 90,
                                         },
                                     ],
                                 };
@@ -373,6 +434,11 @@ export const mapRoutes = (app: Elysia) =>
                     if (hasArrivalFlag) {
                         activeQuestIds.add('delivery_for_dieter');
                         activeQuestIds.add('delivery_for_professor');
+                    }
+
+                    const needsCityRegistration = playerFlags['city_registered'] !== true;
+                    if (hasArrivalFlag && needsCityRegistration) {
+                        activeQuestIds.add('city_registration');
                     }
 
                     // Lightweight quest highlighting via flags (until full quest seeding is in place)
@@ -448,6 +514,35 @@ export const mapRoutes = (app: Elysia) =>
                         const questBindings = Array.isArray(meta.questBindings) ? meta.questBindings : [];
                         const isQuestTarget = questBindings.some((id: string) => activeQuestIds.has(id));
                         let finalMeta = isQuestTarget ? { ...meta, isActiveQuestTarget: true } : meta;
+
+                        // Ensure the campus scene is reachable even if the DB seed is outdated.
+                        // We want the first interaction to show the gate denial, and repeat clicks to show the waiting scene.
+                        const campusBindings = (finalMeta as any).sceneBindings;
+                        const hasCampusScenes =
+                            Array.isArray(campusBindings) &&
+                            campusBindings.some((binding: any) =>
+                                binding?.sceneId === 'university_gate_denial' || binding?.sceneId === 'university_wait_evening'
+                            );
+
+                        if (point.id === SYNTHESIS_CAMPUS_POINT_ID && !hasCampusScenes) {
+                            finalMeta = {
+                                ...finalMeta,
+                                sceneBindings: [
+                                    {
+                                        sceneId: 'university_wait_evening',
+                                        triggerType: 'click',
+                                        conditions: { flags: ['waiting_for_kruger'] },
+                                        priority: 100,
+                                    },
+                                    {
+                                        sceneId: 'university_gate_denial',
+                                        triggerType: 'click',
+                                        conditions: { notFlags: ['visited_synthesis_campus'] },
+                                        priority: 90,
+                                    },
+                                ],
+                            };
+                        }
 
                         // QR-gated points: mark unlocked per-player once researched
                         if (finalMeta.qrRequired === true) {

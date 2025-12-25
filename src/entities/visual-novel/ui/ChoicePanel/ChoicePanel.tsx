@@ -66,7 +66,7 @@ export const ChoicePanel: React.FC<ChoicePanelProps> = ({
                     : 'text-slate-500 group-hover:text-white/80'
                 )}
               >
-                {isLocked && !isVisited ? 'Locked' : isVisited ? 'Visited' : 'Select'}
+                {isLocked && !isVisited ? 'Заблокировано' : isVisited ? 'Посещено' : ''}
               </span>
             </div>
 

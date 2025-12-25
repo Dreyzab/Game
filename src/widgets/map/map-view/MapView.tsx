@@ -308,9 +308,9 @@ export const MapView: React.FC<MapViewProps> = ({
         onMapLoad={handleMapLoad}
         onBoundsChange={handleBoundsChange}
         onZoomChange={handleZoomChange}
-        showNavigation
-        showGeolocate
-        showScale
+        showNavigation={false}
+        showGeolocate={false}
+        showScale={false}
         className="absolute inset-0"
       />
 

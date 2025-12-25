@@ -20,6 +20,15 @@ const BASE_LOCATION = 'Фрайбург — Пролог'
 const DEFAULT_AMBIENT = 'rgba(2, 6, 23, 0.78)'
 const COLOR_PALETTE = ['#7dd3fc', '#f97316', '#facc15', '#f472b6', '#a855f7', '#2dd4bf']
 
+const CANONICAL_CHARACTER_SPRITES_BY_ID: Record<string, string> = {
+  bruno: '/images/characters/Bruno.png',
+  lena: '/images/characters/Lena.png',
+  otto: '/images/characters/Otto.png',
+  adel: '/images/characters/Adel.png',
+  adele: '/images/characters/Adel.png',
+  player: '/images/characters/Player.png',
+}
+
 type SceneRecord = Record<string, VisualNovelSceneDefinition>
 
 const convertedPrologue = Object.values(prologueScenarios).map((scene) => convertScene(scene))
@@ -72,9 +81,23 @@ export function buildChoiceViews(line: VisualNovelLine | null, flags: Set<string
       }
     }
 
-    const isVisited = choice.effects?.some(
-      (e) => e.type === 'flag' && e.value === true && flags.has(e.flag)
+    // "Visited" should not be inferred from generic scene flags (e.g. prologue_visited_any).
+    // Prefer unique gating flags (commonly expressed as notFlags) when present.
+    const isVisitedByNotFlags = Boolean(
+      choice.requirements?.notFlags?.some((flag) => flags.has(flag))
     )
+
+    const isVisitedByEffectFlags = Boolean(
+      choice.effects?.some(
+        (e) =>
+          e.type === 'flag' &&
+          e.value === true &&
+          flags.has(e.flag) &&
+          !/visited_any$/i.test(e.flag)
+      )
+    )
+
+    const isVisited = isVisitedByNotFlags || isVisitedByEffectFlags
 
     return {
       ...choice,
@@ -96,6 +119,28 @@ function convertScene(scene: Scene): VisualNovelSceneDefinition {
     if (!speaker) {
       return undefined
     }
+
+    const normalizeSpeakerName = (value: string) =>
+      value.trim().toLowerCase().replace(/\s+/g, ' ')
+
+    const normalizedSpeaker = normalizeSpeakerName(speaker)
+    if (normalizedSpeaker === 'рассказчик' || normalizedSpeaker === 'narrator') {
+      return 'narrator'
+    }
+
+    // Prefer mapping to an existing scene character by display name.
+    // This fixes cases where scenario dialogue uses full names ("Бруно Вебер"),
+    // while character ids are canonical ("bruno"), and avoids generating auto_* ids.
+    const exactMatch = scene.characters.find(
+      (character) => normalizeSpeakerName(character.name) === normalizedSpeaker
+    )
+    if (exactMatch) return exactMatch.id
+
+    const looseMatch = scene.characters.find((character) => {
+      const normalizedName = normalizeSpeakerName(character.name)
+      return normalizedName.includes(normalizedSpeaker) || normalizedSpeaker.includes(normalizedName)
+    })
+    if (looseMatch) return looseMatch.id
 
     const slug = slugify(speaker)
     const fallbackIndex = typeof index === 'number' ? index : 0
@@ -123,6 +168,7 @@ function convertScene(scene: Scene): VisualNovelSceneDefinition {
       text: entry.text,
       speakerId: resolveSpeakerId(entry.speaker, entry.characterId, lineIndex),
       mood: normalizeMood(entry.emotion?.primary),
+      backgroundOverride: normalizeAssetPath(entry.background) ?? entry.background,
       condition: entry.condition,
       nextLineId,
     }
@@ -188,8 +234,33 @@ function convertCharacter(character: SceneCharacter, index: number): VisualNovel
     name: character.name,
     color: pickColor(COLOR_PALETTE, index, character.id),
     alignment: convertAlignment(character.position),
-    portraitUrl: normalizeAssetPath(character.sprite) ?? character.sprite,
+    portraitUrl: resolvePortraitUrl(character),
   }
+}
+
+function resolvePortraitUrl(character: SceneCharacter): string | undefined {
+  const fromSprite = canonicalizeKnownCharacterSpritePath(character.sprite)
+  if (fromSprite) return fromSprite
+
+  const idKey = character.id.trim().toLowerCase()
+  return CANONICAL_CHARACTER_SPRITES_BY_ID[idKey]
+}
+
+function canonicalizeKnownCharacterSpritePath(path?: string | null): string | undefined {
+  const normalized = normalizeAssetPath(path)
+  if (!normalized) return undefined
+
+  // Fix case mismatches for known sprites (important for Linux hosting).
+  const lower = normalized.toLowerCase()
+
+  if (lower === '/images/characters/bruno.png') return '/images/characters/Bruno.png'
+  if (lower === '/images/characters/lena.png') return '/images/characters/Lena.png'
+  if (lower === '/images/characters/otto.png') return '/images/characters/Otto.png'
+  if (lower === '/images/characters/adel.png') return '/images/characters/Adel.png'
+  if (lower === '/images/characters/adele.png') return '/images/characters/Adel.png'
+  if (lower === '/images/characters/player.png') return '/images/characters/Player.png'
+
+  return normalized
 }
 
 function convertChoice(choice: SceneChoice): VisualNovelChoice {

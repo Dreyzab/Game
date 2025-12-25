@@ -97,13 +97,11 @@ export function useMapPointInteraction(point: MapPoint | null) {
       (point?.metadata?.sceneBindings?.length ?? 0) > 0
     const isNPC = point?.type === 'npc'
     const isBoard = point?.type === 'board'
-    const isQuestTarget = Boolean(point?.metadata?.isActiveQuestTarget)
 
     const services: InteractionKey[] = [
       ...baseServices,
       ...(hasSceneBindings && isNPC && !baseServices.includes('dialog') ? (['dialog'] as const) : []),
       ...(isBoard && !baseServices.includes('quests') ? (['quests'] as const) : []),
-      ...(isQuestTarget ? (['deliver'] as const) : []),
     ]
 
     const uniqueServices = services.filter((key, idx) => services.indexOf(key) === idx)

@@ -818,7 +818,7 @@ export const oldBelieversScenes: Record<string, Scene> = {
       },
       {
         id: 'ask_about_professor',
-        text: '"Что вы знаете о профессоре Шмидте?"',
+        text: '"Что вы знаете о профессоре Штейнбахе?"',
         nextScene: 'johann_professor_info',
         availability: {
           condition: { flag: 'know_professor_missing' },
@@ -883,7 +883,7 @@ export const oldBelieversScenes: Record<string, Scene> = {
       {
         speaker: 'Отец Иоанн',
         characterId: 'father_johann',
-        text: '(Его лицо становится серьёзным) Шмидт... Он приходил сюда. Несколько раз. Искал что-то в наших архивах.',
+        text: '(Его лицо становится серьёзным) Штейнбах... Он приходил сюда. Несколько раз. Искал что-то в наших архивах.',
         emotion: { primary: 'worried', intensity: 70 },
       },
       {

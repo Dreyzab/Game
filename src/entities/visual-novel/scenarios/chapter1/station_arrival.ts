@@ -1,6 +1,7 @@
 import type { Scene } from '../../model/types'
 
-const STATION_BACKGROUND = '/images/backgrounds/station1.png'
+const STATION_BACKGROUND = '/images/backgrounds/station.png'
+const STATION_CHECK_BACKGROUND = '/images/backgrounds/station_check.png'
 const MARTA_SPRITE = '/images/npcs/trader.jpg'
 const HANS_SPRITE = '/images/npcs/craftsman.jpg'
 
@@ -19,62 +20,108 @@ export const stationArrivalScenes: Record<string, Scene> = {
     dialogue: [
       {
         speaker: 'Рассказчик',
-        text: 'Вас выводят на платформу. Вокзал огромен: своды уходят в темноту, но везде свет, люди, суета. Запах угольного дыма и жареного лука. После кошмара в поезде это кажется раем.',
+        text: 'Вас выводят на платформу. Вокзал огромен: своды уходят в темноту, но везде свет, люди, суета. Звуки суеты и запах жареного лука. После кошмара в поезде это кажется раем.',
       },
       {
         speaker: 'Рассказчик',
-        text: 'Вас выстраивают в линию у стены. Где-то рядом Проводник что-то объясняет офицеру, активно жестикулируя. Лена помогает санитарам грузить раненых на носилки.',
+        text: 'Вас выстраивают в линию у вагона. Где-то рядом Проводник что-то объясняет офицеру, активно жестикулируя. Лена помогает санитарам грузить раненых на носилки.',
       },
       {
-        speaker: 'Контролёр Густав',
+        speaker: 'Контролёр',
         characterId: 'gustav',
-        text: 'Контролёр Густав. Очередной рейс из ада… Кто старший?',
+        background: STATION_CHECK_BACKGROUND,
+        text: 'Этой ночью поезда подверглись нападению. Нам требуеться установить личность каждого пассажира. Есть тут офицеры?',
       },
       {
         speaker: 'Лена',
+        background: STATION_CHECK_BACKGROUND,
         text: 'Я врач. Лейтенант медицинской службы Рихтер. Мы ехали транзитом в Карлсруэ.',
       },
       {
-        speaker: 'Контролёр Густав',
+        speaker: 'Контролёр',
         characterId: 'gustav',
-        text: 'Карлсруэ закрыт. Пути взорваны. Вы конечная, лейтенант. Добро пожаловать во Фрайбург.',
+        background: STATION_CHECK_BACKGROUND,
+        text: 'Движение остановилось, дальнейший путь закрыт. Вы на конечной, лейтенант. Добро пожаловать во Фрайбург.',
       },
       {
-        speaker: 'Контролёр Густав',
+        speaker: 'Контролёр',
         characterId: 'gustav',
         emotion: { primary: 'serious', intensity: 70 },
-        text: 'А ты кто такой? Наёмник?',
+        background: STATION_CHECK_BACKGROUND,
+        text: 'А ты кто такой? ',
       },
     ],
     choices: [
       {
         id: 'gustav_answer_force',
-        text: '[СИЛА] "Тот, кто прикрывал их спины, пока вы пили кофе."',
-        nextScene: 'freiburg_platform_portcigar',
+        text: '[Сила] "Тот, кто спас ситуацию."',
+        nextScene: 'freiburg_platform_gustav_force_reaction',
         effects: { addFlags: ['gustav_answer_force'] },
       },
       {
-        id: 'gustav_answer_logic',
-        text: '[ЛОГИКА] "Пассажир. Документы в порядке."',
-        nextScene: 'freiburg_platform_portcigar',
-        effects: { addFlags: ['gustav_answer_logic'] },
+        id: 'gustav_answer_mind',
+        text: '[Разум] "Пассажир. Вот документы."',
+        nextScene: 'freiburg_platform_gustav_mind_reaction',
+        effects: { addFlags: ['gustav_answer_mind'] },
       },
       {
-        id: 'gustav_answer_rhetoric',
-        text: '[ХАРИЗМА] "Просто попутчик, которому не повезло с билетом."',
-        nextScene: 'freiburg_platform_portcigar',
-        effects: { addFlags: ['gustav_answer_rhetoric'] },
+        id: 'gustav_answer_heart',
+        text: '[Азарт] "А кто спрашивает?"',
+        nextScene: 'freiburg_platform_gustav_heart_reaction',
+        effects: { addFlags: ['gustav_answer_heart'] },
       },
     ],
   },
 
+  freiburg_platform_gustav_force_reaction: {
+    id: 'freiburg_platform_gustav_force_reaction',
+    background: STATION_CHECK_BACKGROUND,
+    characters: [{ id: 'gustav', name: 'Контролёр', position: 'center' }],
+    dialogue: [
+      {
+        speaker: 'Контролёр',
+        characterId: 'gustav',
+        text: '«Спас ситуацию»? Громкое заявление. Надеюсь, твои документы так же надёжны, как и твоё самомнение. Давай их сюда.',
+      },
+    ],
+    nextScene: 'freiburg_platform_portcigar',
+  },
+
+  freiburg_platform_gustav_mind_reaction: {
+    id: 'freiburg_platform_gustav_mind_reaction',
+    background: STATION_CHECK_BACKGROUND,
+    characters: [{ id: 'gustav', name: 'Контролёр', position: 'center' }],
+    dialogue: [
+      {
+        speaker: 'Контролёр',
+        characterId: 'gustav',
+        text: 'Разумный подход. Мы ценим порядок и тех, кто не создаёт лишних проблем.',
+      },
+    ],
+    nextScene: 'freiburg_platform_portcigar',
+  },
+
+  freiburg_platform_gustav_heart_reaction: {
+    id: 'freiburg_platform_gustav_heart_reaction',
+    background: STATION_CHECK_BACKGROUND,
+    characters: [{ id: 'gustav', name: 'Контролёр', position: 'center' }],
+    dialogue: [
+      {
+        speaker: 'Контролёр',
+        characterId: 'gustav',
+        text: 'Вопросы здесь задаю я. И если не хочешь провести остаток дня в изоляторе — советую сменить тон и предъявить документы.',
+      },
+    ],
+    nextScene: 'freiburg_platform_portcigar',
+  },
+
   freiburg_platform_portcigar: {
     id: 'freiburg_platform_portcigar',
-    background: STATION_BACKGROUND,
+    background: STATION_CHECK_BACKGROUND,
     characters: [
       {
         id: 'gustav',
-        name: 'Контролёр Густав',
+        name: 'Контролёр',
         position: 'center',
         emotion: { primary: 'neutral', intensity: 60 },
       },
@@ -82,259 +129,270 @@ export const stationArrivalScenes: Record<string, Scene> = {
     dialogue: [
       {
         speaker: 'Рассказчик',
-        text: 'Ты протягиваешь мятое удостоверение. Густав мельком глядит на него, затем делает пометку в планшете.',
+        text: 'Ты протягиваешь мятое удостоверение. Контролёр мельком глядит на него, затем делает пометку в планшете.',
       },
       {
-        speaker: 'Контролёр Густав',
+        speaker: 'Контролёр',
         characterId: 'gustav',
-        text: 'Чист. Пока что.',
+        text: 'Так,так,так - Вьехал через западную границу 2 дня назад и уже здесь. Какую цель преследуешь?',
       },
       {
         speaker: 'Рассказчик',
         text: 'Его взгляд скользит по твоей одежде и останавливается на груди, где под курткой угадываются очертания портсигара.',
       },
       {
-        speaker: 'Контролёр Густав',
+        speaker: 'Контролёр',
         characterId: 'gustav',
         text: 'А это что? Контрабанда? Оружие?',
       },
       {
-        speaker: '[ПАРАНОЙЯ]',
-        text: 'Он знает! Он видит насквозь! Если он откроет его — всё пропало!',
+        speaker: 'АВТОРИТЕТ',
+        text: ' Замечена провокация. Не поддаваться. Не ускорять дыхание. Держать тон ровным.',
       },
       {
-        speaker: '[ЛОГИКА]',
-        text: 'Спокойно. У тебя есть легенда. Имя адресата — твоя защита.',
+        speaker: 'ЛОГИКА',
+        text: ' Спокойно. У тебя есть легенда. Имя адресата — твоя защита.',
       },
     ],
     choices: [
       {
         id: 'portcigar_honest',
-        text: '[ЧЕСТЬ] Достать портсигар и показать этикетку. "Личное поручение. Для профессора Йонаса Крюгера."',
-        nextScene: 'info_bureau_meeting',
-        effects: { addFlags: ['showed_kruger_label'] },
+        text: '[ЧЕСТЬ] Достать портсигар и показать этикетку. "Личное поручение. Для профессора Йонаса Штейнбаха."',
+        nextScene: 'freiburg_platform_portcigar_honest_reaction',
+        effects: {
+          addFlags: ['showed_steinbach_label', 'has_package'],
+          removeFlags: ['hid_portcigar_story', 'portcigar_checked'],
+        },
       },
       {
         id: 'portcigar_stealth',
-        text: '[СКРЫТНОСТЬ] "Личные вещи. Память о деде."',
-        nextScene: 'info_bureau_meeting',
-        effects: { addFlags: ['hid_portcigar_story'] },
+        text: '[ВНУШЕНИЕ] "Личные вещи. Память о деде."',
+        nextScene: 'freiburg_platform_portcigar_stealth_reaction',
+        effects: {
+          addFlags: ['hid_portcigar_story', 'has_package'],
+          removeFlags: ['showed_steinbach_label', 'portcigar_checked'],
+        },
       },
       {
         id: 'portcigar_diplomacy',
-        text: '[ДИПЛОМАТИЯ] "Ничего запрещенного. Можете проверить металлоискателем."',
-        nextScene: 'info_bureau_meeting',
-        effects: { addFlags: ['portcigar_checked'] },
+        text: '[РИТОРИКА] "Ничего запрещенного. Однако разве вам не следует разбираться с нападением на поезд?."',
+        nextScene: 'freiburg_platform_portcigar_diplomacy_reaction',
+        effects: {
+          addFlags: ['portcigar_checked', 'has_package'],
+          removeFlags: ['showed_steinbach_label', 'hid_portcigar_story'],
+        },
       },
     ],
   },
 
-  info_bureau_meeting: {
-    id: 'info_bureau_meeting',
-    background: STATION_BACKGROUND,
+  freiburg_platform_portcigar_honest_reaction: {
+    id: 'freiburg_platform_portcigar_honest_reaction',
+    background: STATION_CHECK_BACKGROUND,
     characters: [
       {
-        id: 'marta',
-        name: 'Марта',
+        id: 'gustav',
+        name: 'Контролёр',
         position: 'center',
-        sprite: MARTA_SPRITE,
-        emotion: { primary: 'neutral', intensity: 70 },
+        emotion: { primary: 'neutral', intensity: 55 },
       },
     ],
     dialogue: [
       {
-        speaker: 'Рассказчик',
-        text: 'Ты, прижимая к себе немногочисленные вещи, подходишь к Информационному бюро — пыльному окошку в стене.',
+        speaker: 'Игрок',
+        text: '(Достаёт портсигар и показывает край этикетки) Личное поручение. Для профессора Йонаса Штейнбаха.',
       },
       {
-        speaker: 'Марта',
-        characterId: 'marta',
-        text: 'О, доктор Рихтер. Живая. А это кто с тобой?',
+        speaker: 'Контролёр',
+        characterId: 'gustav',
+        emotion: { primary: 'surprised', intensity: 70 },
+        text: 'Штейнбаха?.. Хм.',
       },
       {
-        speaker: 'Лена',
-        text: 'Курьер к профессору Крюгеру. Скажи, он у себя?',
-      },
-      {
-        speaker: 'Марта',
-        characterId: 'marta',
-        text: 'Крюгер-то? У себя. Сидит в своей башне, как сыч. Никого не принимает… кроме курьеров, видимо.',
-      },
-      {
-        speaker: 'Марта',
-        characterId: 'marta',
-        emotion: { primary: 'determined', intensity: 70 },
-        text: 'Только вот посылка твоя подождёт. Он сейчас на экстренном совещании Совета — по поводу вашего поезда и того, что творится на путях. Вернётся не раньше вечера.',
-      },
-      {
-        speaker: 'Лена',
-        emotion: { primary: 'worried', intensity: 60 },
-        text: 'Я не могу с тобой ждать. Мне нужно в лазарет — там ад творится. Ты иди, осмотрись. А вечером приходи к главному корпусу. Я буду там. И… спасибо. За то, что прикрыл спину.',
-      },
-      {
-        speaker: 'Рассказчик',
-        text: 'Лена протягивает тебе армейскую аптечку — небольшую коробочку с потертым знаком медслужбы.',
-      },
-      {
-        speaker: 'Рассказчик',
-        text: 'Лена уходит, растворяясь в толпе медиков. Ты остаёшься один перед окошком Марты.',
-      },
-      {
-        speaker: 'Марта',
-        characterId: 'marta',
-        text: 'Ну что, «попутчик»? Застрял? Добро пожаловать во Фрайбург. Прежде чем начнёшь бегать по городу — неплохо бы оформить тебя по-человечески.',
-      },
-    ],
-    choices: [
-      {
-        id: 'info_bureau_register_now',
-        text: 'Пройти регистрацию.',
-        nextScene: 'info_bureau_hans_arrival',
-        effects: {
-          addFlags: ['visited_info_bureau', 'know_lena_richter'],
-          immediate: [
-            {
-              type: 'open_registration',
-              data: { method: 'password', returnScene: 'info_bureau_hans_arrival' },
-            },
-          ],
-        },
-      },
-      {
-        id: 'info_bureau_skip_registration',
-        text: 'Пока пропустить. Разберусь позже.',
-        nextScene: 'info_bureau_hans_arrival',
-        effects: {
-          addFlags: ['visited_info_bureau', 'know_lena_richter'],
-        },
-      },
-    ],
-  },
-
-  info_bureau_hans_arrival: {
-    id: 'info_bureau_hans_arrival',
-    background: STATION_BACKGROUND,
-    characters: [
-      {
-        id: 'marta',
-        name: 'Марта',
-        position: 'right',
-        sprite: MARTA_SPRITE,
-        emotion: { primary: 'neutral', intensity: 65 },
-      },
-      {
-        id: 'hans',
-        name: 'Ганс',
-        position: 'left',
-        sprite: HANS_SPRITE,
-        emotion: { primary: 'neutral', intensity: 60 },
-      },
-    ],
-    dialogue: [
-      {
-        speaker: 'Рассказчик',
-        text: 'К вам подходит патрульный FJR. Он снимает шлем, и ты видишь внимательный взгляд — цепкий, как у человека, который привык оценивать угрозы за секунды.',
-      },
-      {
-        speaker: 'Ганс',
-        characterId: 'hans',
-        text: 'Бабушка, не пугай человека. Ему и так досталось.',
-      },
-      {
-        speaker: 'Ганс',
-        characterId: 'hans',
-        text: 'Я видел, как ты держался при досмотре. И в поезде. Неплохо.',
-      },
-      {
-        speaker: 'Ганс',
-        characterId: 'hans',
+        speaker: 'Контролёр',
+        characterId: 'gustav',
         emotion: { primary: 'serious', intensity: 70 },
-        text: 'У меня есть для тебя дело. Неофициальное. Раз уж тебе всё равно ждать до вечера… хочешь заработать?',
+        text: 'Профессор сейчас в Университете, в кампусе «Синтеза». Говорят, он знает, почему атаки участились.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Контролёр быстро заполняет бланк, ставит штамп и выдёргивает из пачки тонкую карточку.',
+      },
+      {
+        speaker: 'Контролёр',
+        characterId: 'gustav',
+        text: 'Хорошо. Проходи. Вот разрешение на временное пребывание. Зарегистрируйся в мэрии как можно скорее — иначе с документами будут проблемы.',
       },
     ],
-    choices: [
-      {
-        id: 'hans_hear_offer',
-        text: '"Я слушаю. Деньги не помешают."',
-        nextScene: 'info_bureau_hans_offer',
-      },
-      {
-        id: 'hans_ask_whats_going_on',
-        text: '"Сначала расскажите, что здесь вообще происходит."',
-        nextScene: 'info_bureau_factions_briefing',
-      },
-      {
-        id: 'hans_refuse_offer_early',
-        text: '"Нет. Я лучше отдохну."',
-        nextScene: 'info_bureau_hans_refusal',
-      },
-    ],
+    nextScene: 'station_party_split',
   },
 
-  info_bureau_factions_briefing: {
-    id: 'info_bureau_factions_briefing',
-    background: STATION_BACKGROUND,
+  freiburg_platform_portcigar_stealth_reaction: {
+    id: 'freiburg_platform_portcigar_stealth_reaction',
+    background: STATION_CHECK_BACKGROUND,
     characters: [
       {
-        id: 'marta',
-        name: 'Марта',
+        id: 'gustav',
+        name: 'Контролёр',
         position: 'center',
-        sprite: MARTA_SPRITE,
-        emotion: { primary: 'neutral', intensity: 70 },
-      },
-      {
-        id: 'hans',
-        name: 'Ганс',
-        position: 'left',
-        sprite: HANS_SPRITE,
         emotion: { primary: 'neutral', intensity: 60 },
       },
     ],
     dialogue: [
       {
-        speaker: 'Вы',
-        text: 'Я только что с поезда, где нас чуть не сожрали. А теперь вы говорите, что я застрял. Где я? И кто здесь главный?',
+        speaker: 'Игрок',
+        text: 'Личные вещи. Память о деде.',
       },
       {
-        speaker: 'Марта',
-        characterId: 'marta',
-        text: 'Главный? Официально — Мэрия и железная леди, Аурелия Фокс. Она держит город за глотку. Благодаря ей у нас есть стены и патрули FJR.',
+        speaker: 'Контролёр',
+        characterId: 'gustav',
+        emotion: { primary: 'serious', intensity: 70 },
+        text: 'Память, говоришь… В такие времена у всех «память».',
       },
       {
-        speaker: 'Марта',
-        characterId: 'marta',
-        text: 'Если руки не из задницы — иди к Артисанам. Чинят всё, что ломается. Платят мало, но кормят густо. Главный у них Дитер — мужик суровый, но честный.',
+        speaker: 'Рассказчик',
+        text: 'Он смотрит на тебя долгую секунду — и, наконец, отводит взгляд, будто решил не раскручивать эту нитку.',
       },
       {
-        speaker: 'Марта',
-        characterId: 'marta',
-        text: 'Если ты из «умников» — тебе в «Синтез». Наука, медицина, эксперименты. Думают, что спасут мир пробирками.',
+        speaker: 'Контролёр',
+        characterId: 'gustav',
+        text: 'Ладно. Но если это окажется не «память» — портсигар я вспомню. И тебя тоже.',
       },
       {
-        speaker: 'Марта',
-        characterId: 'marta',
-        text: 'Жить по-людски хочешь — иди к Староверам в Собор. Отец Иоанн всех примет. Суп жидкий, зато слово доброе.',
+        speaker: 'Рассказчик',
+        text: 'Контролёр ставит штамп на бланк и протягивает тонкую карточку.',
       },
       {
-        speaker: 'Марта',
-        characterId: 'marta',
-        emotion: { primary: 'tense', intensity: 70 },
-        text: 'А вот куда тебе не надо — так это в «Дыру» к Анархистам. Наркоманы, бандиты, сброд. Если жизнь дорога — обходи стороной.',
+        speaker: 'Контролёр',
+        characterId: 'gustav',
+        text: 'Разрешение на временное пребывание. В мэрию — как можно скорее. Порядок есть порядок.',
+      },
+    ],
+    nextScene: 'station_party_split',
+  },
+
+  freiburg_platform_portcigar_diplomacy_reaction: {
+    id: 'freiburg_platform_portcigar_diplomacy_reaction',
+    background: STATION_CHECK_BACKGROUND,
+    characters: [
+      {
+        id: 'gustav',
+        name: 'Контролёр',
+        position: 'center',
+        emotion: { primary: 'neutral', intensity: 60 },
+      },
+    ],
+    dialogue: [
+      {
+        speaker: 'Игрок',
+        text: 'Ничего запрещённого. Однако разве вам не следует разбираться с нападением на поезд?',
       },
       {
-        speaker: 'Ганс',
-        characterId: 'hans',
-        text: 'В общем, расклад ты понял. Работы навалом, но платить никто не спешит.',
+        speaker: 'Контролёр',
+        characterId: 'gustav',
+        emotion: { primary: 'angry', intensity: 65 },
+        text: 'И разбираемся. Именно поэтому ты сейчас отвечаешь на вопросы.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Он протягивает руку. Не просит — требует.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Контролёр приоткрывает портсигар, быстро осматривает содержимое и цепляется взглядом за этикетку.',
+      },
+      {
+        speaker: 'Контролёр',
+        characterId: 'gustav',
+        emotion: { primary: 'surprised', intensity: 70 },
+        text: 'Штейнбах… Так бы сразу и сказал.',
+      },
+      {
+        speaker: 'Контролёр',
+        characterId: 'gustav',
+        emotion: { primary: 'serious', intensity: 70 },
+        text: 'Профессор сейчас в Университете, в кампусе «Синтеза».',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Он возвращает портсигар, ставит штамп и протягивает тебе карточку.',
+      },
+      {
+        speaker: 'Контролёр',
+        characterId: 'gustav',
+        text: 'Разрешение на временное пребывание. Иди в мэрию и зарегистрируйся. А поучать будешь — когда сам в форме окажешься.',
+      },
+    ],
+    nextScene: 'station_party_split',
+  },
+
+  station_party_split: {
+    id: 'station_party_split',
+    background: STATION_BACKGROUND,
+    characters: [
+      {
+        id: 'otto',
+        name: 'Отто Кляйн',
+        position: 'left',
+        emotion: { primary: 'neutral', intensity: 60 },
+      },
+      {
+        id: 'bruno',
+        name: 'Бруно Вебер',
+        position: 'center',
+        emotion: { primary: 'neutral', intensity: 60 },
+      },
+      {
+        id: 'lena',
+        name: 'Лена Рихтер',
+        position: 'right',
+        emotion: { primary: 'neutral', intensity: 60 },
+      },
+    ],
+    dialogue: [
+      {
+        speaker: 'Рассказчик',
+        text: 'Поток людей размывает перрон. Вокзал проглатывает вас — и, кажется, вместе с ним заканчивается и общая дорога.',
+      },
+      {
+        speaker: 'Отто Кляйн',
+        characterId: 'otto',
+        text: 'Ну, бывайте. У меня тут… дела в «нижнем городе».',
+      },
+      {
+        speaker: 'Бруно Вебер',
+        characterId: 'bruno',
+        text: 'А я должен встретиться с дядей в районе мастерских. Надеюсь, ещё встретимся!',
+      },
+      {
+        speaker: 'Лена Рихтер',
+        characterId: 'lena',
+        text: 'Мне всё равно нужно в Университет, в штаб «Синтеза». А тебе нужно найти профессора. Пойдём вместе?',
       },
     ],
     choices: [
       {
-        id: 'back_to_hans_offer',
-        text: 'Вернуться к разговору с Гансом.',
-        nextScene: 'info_bureau_hans_offer',
+        id: 'station_split_yes',
+        text: 'Да. Пойдём вместе.',
+        effects: {
+          addFlags: ['lena_accompanies_to_campus', 'know_lena_richter'],
+          removeFlags: ['lena_declined_company'],
+          narrative: 'На карте отмечены: Кампус «Синтез» и Ратушная площадь.',
+          immediate: [{ type: 'open_map' }],
+        },
+      },
+      {
+        id: 'station_split_no',
+        text: 'Нет. Я разберусь сам(а).',
+        effects: {
+          addFlags: ['lena_declined_company', 'know_lena_richter'],
+          removeFlags: ['lena_accompanies_to_campus'],
+          narrative: 'На карте отмечены: Кампус «Синтез» и Ратушная площадь.',
+          immediate: [{ type: 'open_map' }],
+        },
       },
     ],
   },
+
 
   info_bureau_hans_offer: {
     id: 'info_bureau_hans_offer',

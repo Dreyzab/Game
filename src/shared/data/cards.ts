@@ -143,6 +143,78 @@ export const ARTIFACTS: Record<string, Artifact> = {
     ],
     requiredVoice: 'honor',
     rarity: 'uncommon'
+  },
+
+  // ============ НОВЫЕ АРТЕФАКТЫ ============
+
+  sacred_symbol: {
+    id: 'sacred_symbol',
+    name: 'Sacred Symbol',
+    nameRu: 'Священный Символ',
+    description: 'Защищает от психических атак и снимает страх',
+    additionalEffects: [
+      { type: 'morale_boost', value: 20, targetSelf: true, description: '+20 к морали (благословение)' },
+      { type: 'buff', value: 100, duration: 2, description: 'Иммунитет к страху на 2 хода' }
+    ],
+    requiredVoice: 'honor',
+    requiredVoiceLevel: 25,
+    rarity: 'rare',
+    sourceZone: 'sanctuary_munster'
+  },
+
+  emp_device: {
+    id: 'emp_device',
+    name: 'EMP Device',
+    nameRu: 'ЭМИ Устройство',
+    description: 'Электромагнитный импульс против техники',
+    damageTypeOverride: 'electric',
+    additionalEffects: [
+      { type: 'paralysis', value: 100, chance: 100, duration: 2, description: '100% паралич механических целей' },
+      { type: 'stamina_drain', value: 30, description: '-30 выносливости врагу' }
+    ],
+    requiredVoice: 'analysis',
+    requiredVoiceLevel: 30,
+    rarity: 'rare',
+    sourceZone: 'forge_industrial'
+  },
+
+  smoke_grenade: {
+    id: 'smoke_grenade',
+    name: 'Smoke Grenade',
+    nameRu: 'Дымовая Шашка',
+    description: 'Снижает точность всех атак на поле боя',
+    additionalEffects: [
+      { type: 'debuff', value: 50, duration: 2, description: '-50% точности для всех на 2 хода' }
+    ],
+    rarity: 'uncommon'
+  },
+
+  war_horn: {
+    id: 'war_horn',
+    name: 'War Horn',
+    nameRu: 'Боевой Рог',
+    description: 'Вдохновляет союзников боевым кличем',
+    additionalEffects: [
+      { type: 'buff', value: 15, duration: 2, targetSelf: true, description: '+15% урон союзникам на 2 хода' },
+      { type: 'morale_boost', value: 20, targetSelf: true, description: '+20 мораль всей команде' }
+    ],
+    requiredVoice: 'solidarity',
+    requiredVoiceLevel: 20,
+    rarity: 'rare'
+  },
+
+  sacred_water: {
+    id: 'sacred_water',
+    name: 'Sacred Water',
+    nameRu: 'Освящённая Вода',
+    description: 'Успокаивает и исцеляет',
+    additionalEffects: [
+      { type: 'heal', value: 15, targetSelf: true, description: '+15 HP исцеление' },
+      { type: 'morale_boost', value: 10, targetSelf: true, description: '+10 мораль (успокоение)' }
+    ],
+    requiredVoice: 'empathy',
+    rarity: 'uncommon',
+    sourceZone: 'sanctuary_munster'
   }
 }
 

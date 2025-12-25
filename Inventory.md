@@ -1,6 +1,6 @@
 # Инвентарь: обзор и архитектура страницы
 
-> Backend: Bun + Elysia (`server/src/api/routes/inventory.ts`). UI — React + Zustand. Исторические Convex-схемы сохранены, но актуальный API — Bun.
+> Backend: Bun + Elysia (`server/src/api/routes/inventory.ts`). UI — React + Zustand. актуальный API — Bun.
 
 ## Цели и возможности
 - Сетка 10×6 (Tarkov-style), drag & drop между сеткой, слотами экипировки, контейнерами и быстрыми слотами.
@@ -46,7 +46,6 @@
 ## Backend и интеграции
 - REST (Bun/Elysia): `GET /inventory`, `POST /inventory/equip`, `POST /inventory/move`, `POST /inventory/quick-slot` (см. фактические маршруты в `server/src/api/routes/inventory.ts`).
 - Связанные фронтовые точки входа: `features/inventory/model/*`, `features/inventory/ui/*`.
-- Исторические Convex схемы/мутации задокументированы в `inventory_system.md`; использовать как справочник типов, но целевой runtime — Bun.
 
 ## Приоритеты улучшений
 - Завершить серверные мутации equip/move/quick-slot под Bun.

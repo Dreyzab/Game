@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { AnimatePresence } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import {
   CharacterGroup,
   CharacterSprites,
@@ -7,6 +7,9 @@ import {
   DialogueBox,
   VFXOverlay,
 } from '@/entities/visual-novel/ui'
+import FloatingText, {
+  type FloatingTextEvent,
+} from '@/features/dreyzab-combat-simulator/ui/components/FloatingText'
 import { cn } from '@/shared/lib/utils/cn'
 import type {
   VisualNovelChoiceView,
@@ -24,6 +27,9 @@ export interface VNScreenProps {
   isPending: boolean
   skills?: Record<string, number>
   flags?: Set<string>
+  hp?: number
+  maxHp?: number
+  floatingEvents?: FloatingTextEvent[]
   onAdvance: () => void
   onChoice: (choiceId: string) => void
   onExit: () => void
@@ -46,6 +52,9 @@ export const VNScreen: React.FC<VNScreenProps> = ({
   isPending,
   skills = {},
   flags = new Set<string>(),
+  hp,
+  maxHp,
+  floatingEvents = [],
   onAdvance,
   onChoice,
   onExit,
@@ -60,12 +69,52 @@ export const VNScreen: React.FC<VNScreenProps> = ({
     )
   }, [currentLine?.speakerId, scene.characters])
 
+  const backgroundFocus = useMemo<'left' | 'center' | 'right'>(() => {
+    // Default: gentle center pan
+    if (scene.id === 'prologue_coupe_otto' && currentLine?.speakerId === 'otto') {
+      // Otto in this artwork sits on the right side (cup is near right edge).
+      return 'right'
+    }
+    return 'center'
+  }, [currentLine?.speakerId, scene.id])
+
   const backgroundImage = currentLine?.backgroundOverride ?? scene.background
   const isVideoBackground = backgroundImage.toLowerCase().endsWith('.mp4') || 
                           backgroundImage.toLowerCase().endsWith('.webm')
 
+  const backgroundPanClass = useMemo(() => {
+    if (backgroundFocus === 'right') return 'vn-bg-pan-right'
+    if (backgroundFocus === 'left') return 'vn-bg-pan-left'
+    return 'vn-bg-pan'
+  }, [backgroundFocus])
+
+  const backgroundPosition = useMemo(() => {
+    if (backgroundFocus === 'right') return 'right center'
+    if (backgroundFocus === 'left') return 'left center'
+    return 'center center'
+  }, [backgroundFocus])
+
   const [isLineRevealed, setLineRevealed] = useState(false)
   const [forceShowText, setForceShowText] = useState(false)
+
+  const shouldShowHp = typeof hp === 'number' && typeof maxHp === 'number'
+  const [hpHudPulseKey, setHpHudPulseKey] = useState(0)
+  const [isHpHudVisible, setHpHudVisible] = useState(false)
+  const [prevHp, setPrevHp] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (!shouldShowHp) return
+    if (prevHp === null) {
+      // Initialize without showing HUD on first paint
+      setPrevHp(hp)
+      return
+    }
+    if (hp !== prevHp) {
+      setPrevHp(hp)
+      setHpHudPulseKey((k) => k + 1)
+      setHpHudVisible(true)
+    }
+  }, [hp, prevHp, shouldShowHp])
 
   const consultation = useConsultationMode({
     currentLine,
@@ -81,9 +130,35 @@ export const VNScreen: React.FC<VNScreenProps> = ({
     [consultation.activeVoiceId]
   )
 
+  const applySequentialChoiceReveal = scene.id === 'prologue_coupe_intro'
+
+  const sequentiallyRevealChoices = useCallback((input: VisualNovelChoiceView[]) => {
+    if (input.length === 0) return input
+
+    // Hide choices that are not yet available due to flag-gates (e.g. "Посмотреть на Отто." before others).
+    // Keep already visited choices visible for feedback (✓).
+    const available = input.filter((choice) => choice.isVisited || !choice.disabled)
+
+    const nextUnvisitedIndex = available.findIndex((choice) => !choice.isVisited)
+    if (nextUnvisitedIndex === -1) return available
+
+    return available.filter((choice, index) => choice.isVisited || index === nextUnvisitedIndex)
+  }, [])
+
   const visibleChoices = useMemo(
-    () => (isLineRevealed && !isPending && !consultation.isConsultationMode ? choices : []),
-    [choices, isLineRevealed, isPending, consultation.isConsultationMode]
+    () => {
+      const base = isLineRevealed && !isPending && !consultation.isConsultationMode ? choices : []
+      if (!applySequentialChoiceReveal) return base
+      return sequentiallyRevealChoices(base)
+    },
+    [
+      choices,
+      isLineRevealed,
+      isPending,
+      consultation.isConsultationMode,
+      applySequentialChoiceReveal,
+      sequentiallyRevealChoices,
+    ]
   )
 
   const showVoiceTabs =
@@ -128,10 +203,13 @@ export const VNScreen: React.FC<VNScreenProps> = ({
           <source src={backgroundImage} type={`video/${backgroundImage.split('.').pop()}`} />
         </video>
       ) : (
-        <div
-          className="absolute inset-0 bg-cover bg-center transition-all duration-1000 scale-105"
-          style={{ backgroundImage: `url(${backgroundImage})` }}
-        />
+        <div className="absolute inset-0 overflow-hidden">
+          <div
+            key={`${backgroundImage}__${backgroundPanClass}`}
+            className={cn('absolute inset-[-8%] bg-cover', backgroundPanClass)}
+            style={{ backgroundImage: `url(${backgroundImage})`, backgroundPosition }}
+          />
+        </div>
       )}
 
       <VFXOverlay />
@@ -139,7 +217,46 @@ export const VNScreen: React.FC<VNScreenProps> = ({
       <CharacterSprites characters={scene.characters} activeSpeakerId={spritesActiveSpeakerId} />
 
       <div className="absolute top-0 left-0 w-full z-30 p-4 sm:p-6 flex flex-col sm:flex-row justify-end items-center sm:items-start pointer-events-none">
-        <div className="flex gap-4 animate-fade-in pointer-events-auto">
+        <div className="w-full flex justify-between items-start gap-4 animate-fade-in pointer-events-auto">
+          <div className="pointer-events-none select-none">
+            <div className="relative h-0 w-[170px]">
+              <FloatingText events={floatingEvents} />
+            </div>
+
+            <AnimatePresence initial={false}>
+              {shouldShowHp && isHpHudVisible ? (
+                <motion.div
+                  // key restarts the keyframe animation on each hp change
+                  key={`hp-hud-${hpHudPulseKey}`}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: [0, 1, 1, 0] }}
+                  transition={{ duration: 4, ease: 'easeOut', times: [0, 0.12, 0.55, 1] }}
+                  onAnimationComplete={() => setHpHudVisible(false)}
+                  className="bg-black/40 border border-white/10 px-3 py-2 rounded-lg backdrop-blur-md w-[170px]"
+                >
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-[10px] font-cinzel text-slate-400 block uppercase tracking-widest">
+                      HP
+                    </span>
+                    <span className="text-[10px] font-bold text-white">
+                      {Math.max(0, Math.min(maxHp!, Math.trunc(hp!)))} / {Math.max(1, Math.trunc(maxHp!))}
+                    </span>
+                  </div>
+                  <div className="mt-2 w-full bg-white/10 rounded-full h-1.5 overflow-hidden">
+                    <div
+                      className="h-full bg-red-500 transition-all duration-500"
+                      style={{
+                        width: `${Math.min(
+                          100,
+                          Math.max(0, (Math.max(0, Math.min(maxHp!, hp!)) / Math.max(1, maxHp!)) * 100)
+                        )}%`,
+                      }}
+                    />
+                  </div>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
+          </div>
           {isCommitting && (
             <div className="bg-black/40 border border-white/10 px-4 py-2 rounded-lg backdrop-blur-md">
               <span className="text-[10px] font-cinzel text-slate-400 block uppercase tracking-widest">
@@ -196,10 +313,10 @@ export const VNScreen: React.FC<VNScreenProps> = ({
                 <div className="flex justify-center mt-4 sm:mt-8 px-4 w-full max-w-5xl mx-auto animate-fade-in">
                   <div className="flex flex-col items-center min-w-[140px]">
                     <div
-                      className="bg-white/10 border border-white/30 shadow-[0_0_20px_rgba(255,255,255,0.1)] p-3 rounded-lg backdrop-blur-md flex flex-col items-center text-center"
+                      className="bg-slate-900/70 border border-slate-200/20 shadow-[0_0_20px_rgba(0,0,0,0.35)] p-3 rounded-lg backdrop-blur-md flex flex-col items-center text-center"
                       style={{ borderLeft: `4px solid ${activeVoice.color}` }}
                     >
-                      <span className="text-xs sm:text-sm font-cinzel tracking-[0.2em] font-bold text-white">
+                      <span className="text-xs sm:text-sm font-cinzel tracking-[0.2em] font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]">
                         {activeVoice.name.toUpperCase()}
                       </span>
                       <span className="text-[10px] text-slate-400 mt-1 uppercase tracking-wider leading-none">

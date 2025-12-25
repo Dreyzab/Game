@@ -108,21 +108,20 @@ export const SEED_MAP_POINTS: SeedMapPoint[] = [
       atmosphere: 'Спокойный технический квартал с лабораториями, аудиториями и пристыкованными научными модулями.',
       sceneBindings: [
         {
-          sceneId: 'synthesis_campus_arrival',
+          sceneId: 'university_wait_evening',
+          triggerType: 'click',
+          conditions: {
+            flags: ['waiting_for_kruger'],
+          },
+          priority: 100,
+        },
+        {
+          sceneId: 'university_gate_denial',
           triggerType: 'click',
           conditions: {
             notFlags: ['visited_synthesis_campus'],
           },
-          priority: 50,
-        },
-        {
-          sceneId: 'synthesis_ask_about_professor',
-          triggerType: 'click',
-          conditions: {
-            flags: ['visited_synthesis_campus'],
-            notFlags: ['know_professor_location'],
-          },
-          priority: 40,
+          priority: 90,
         },
       ],
     },
@@ -1010,10 +1009,10 @@ export const SEED_MAP_POINTS: SeedMapPoint[] = [
     createdAt: Date.now(),
   },
 
-  // Профессор Шмидт - основная цель посылки
+  // Профессор Штейнбах - основная цель посылки
   {
     id: 'professor_schmidt_office',
-    title: 'Кабинет профессора Шмидта',
+    title: 'Кабинет профессора Штейнбаха',
     description:
       'Кабинет в университетском корпусе. Профессор исчез, но здесь могут быть следы.',
     coordinates: { lat: 47.9944, lng: 7.8460 },
@@ -1221,6 +1220,7 @@ export const SEED_MAP_POINTS: SeedMapPoint[] = [
     metadata: {
       category: 'townhall',
       faction: 'neutral',
+      questBindings: ['city_registration'],
       qrRequired: true,
       qrHint: 'QR-код закреплён у входа на Ратушную площадь.',
       atmosphere:

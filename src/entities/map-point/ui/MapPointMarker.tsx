@@ -184,6 +184,7 @@ export const MapPointMarker: React.FC<MapPointMarkerProps> = ({
   const shouldFade = point.status === 'researched' && point.type !== 'settlement' && !isSelected
   const isQuestTarget = Boolean(point.metadata?.isActiveQuestTarget)
   const isGlobalObjective = Boolean(point.metadata?.isGlobalObjective)
+  const isObjective = isQuestTarget || isGlobalObjective
   const icon = getIconForPoint(point)
 
   return (
@@ -207,7 +208,7 @@ export const MapPointMarker: React.FC<MapPointMarkerProps> = ({
       }}
     >
       {/* Пульсирующее кольцо для целей квестов */}
-      {isQuestTarget && (
+      {isObjective && (
         <div
           className={cn(
             'absolute inset-0 rounded-full animate-ping',

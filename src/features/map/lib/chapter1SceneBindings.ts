@@ -160,19 +160,17 @@ export const synthesisSceneBindings: MapPointSceneConfig[] = [
     pointId: 'synthesis_campus',
     bindings: [
       {
-        sceneId: 'synthesis_campus_arrival',
-        priority: 50,
+        sceneId: 'university_wait_evening',
+        priority: 100,
         conditions: {
-          notFlags: ['visited_synthesis_campus'],
+          flags: ['waiting_for_kruger'],
         },
       },
       {
-        sceneId: 'synthesis_ask_about_professor',
-        priority: 40,
+        sceneId: 'university_gate_denial',
+        priority: 90,
         conditions: {
-          flags: ['visited_synthesis_campus'],
-          notFlags: ['know_professor_location'],
-          questCompleted: [],
+          notFlags: ['visited_synthesis_campus'],
         },
       },
     ],
