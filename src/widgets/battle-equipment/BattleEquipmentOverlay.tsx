@@ -1,3 +1,10 @@
+/**
+ * BattleEquipmentOverlay widget
+ * 
+ * This widget composes features from both dreyzab-combat-simulator and 
+ * trinity-protocol-inventory, so it lives in the widgets layer to comply
+ * with FSD (Feature-Sliced Design) boundaries.
+ */
 import { useEffect, useMemo, useState } from 'react'
 import {
     DndContext,
@@ -10,13 +17,17 @@ import {
     type DragStartEvent,
 } from '@dnd-kit/core'
 import { Backpack, X } from 'lucide-react'
-import { CELL_SIZE, EQUIPMENT_SLOTS } from '../../../trinity-protocol-inventory/model/constants'
-import { useTrinityInventoryStore } from '../../../trinity-protocol-inventory/model/store'
-import type { InventoryItem as InventoryItemType, ItemTemplate } from '../../../trinity-protocol-inventory/model/types'
-import { EquipmentSlot } from '../../../trinity-protocol-inventory/ui/components/EquipmentSlot'
-import { GridContainer } from '../../../trinity-protocol-inventory/ui/components/GridContainer'
-import InventoryItem from '../../../trinity-protocol-inventory/ui/components/InventoryItem'
-import { ItemDetailsModal } from '../../../trinity-protocol-inventory/ui/components/ItemDetailsModal'
+import {
+    CELL_SIZE,
+    EQUIPMENT_SLOTS,
+    useTrinityInventoryStore,
+    EquipmentSlot,
+    GridContainer,
+    InventoryItem,
+    ItemDetailsModal,
+    type InventoryItemType,
+    type ItemTemplate,
+} from '@/features/trinity-protocol-inventory'
 
 type Props = {
     onClose: () => void
@@ -159,4 +170,3 @@ export default function BattleEquipmentOverlay({ onClose, title }: Props) {
         </div>
     )
 }
-

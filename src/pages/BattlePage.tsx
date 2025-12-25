@@ -1,6 +1,7 @@
 import { useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { DreyzabBattle } from '@/features/dreyzab-combat-simulator'
+import { BattleEquipmentOverlay } from '@/widgets/battle-equipment'
 import { Routes } from '@/shared/lib/utils/navigation'
 
 export default function BattlePage() {
@@ -34,7 +35,10 @@ export default function BattlePage() {
           Exit
         </button>
       )}
-      <DreyzabBattle onBattleEnd={shouldAutoReturn ? handleBattleEnd : undefined} />
+      <DreyzabBattle
+        onBattleEnd={shouldAutoReturn ? handleBattleEnd : undefined}
+        renderEquipmentOverlay={(props) => <BattleEquipmentOverlay {...props} />}
+      />
     </div>
   )
 }

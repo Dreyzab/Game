@@ -13,7 +13,7 @@ import { DEFAULT_VN_SCENE_ID } from '@/entities/visual-novel/model/scenes'
 import { useVisualNovelSessionStore, useVisualNovelViewModel } from '@/features/visual-novel/model'
 import { Routes } from '@/shared/lib/utils/navigation'
 import type { VisualNovelChoice, VisualNovelChoiceEffect } from '@/shared/types/visualNovel'
-import type { FloatingTextEvent } from '@/features/dreyzab-combat-simulator/ui/components/FloatingText'
+import type { FloatingTextEvent } from '@/features/dreyzab-combat-simulator'
 
 export type VisualNovelExperienceProps = {
   lockedSceneId?: string
@@ -330,18 +330,8 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
     )
   }
 
-  if (false) {
-    return (
-      <Layout>
-        <div className="min-h-[60vh] flex flex-col items-center justify-center text-center space-y-3">
-          <Heading level={2}>{headerLabel ?? 'Нужен вход'}</Heading>
-          <Text variant="muted" size="sm">
-            Авторизуйтесь, чтобы продолжить прогресс визуальной новеллы.
-          </Text>
-        </div>
-      </Layout>
-    )
-  }
+  // Note: Previous auth check block removed as auth is handled above via isLoaded and handled by API
+  // The block was unreachable (if (false) {...}) and caused ESLint no-constant-condition error
 
   if (vnStateQuery.isLoading) {
     return (

@@ -4,8 +4,7 @@ const TRAIN_CIGAR_BACKGROUND = '/images/trainCigar.png'
 const TRAIN_CARDS_BACKGROUND = '/images/trainCards.png'
 const TRAIN_KNIFE_BACKGROUND = '/images/trainKnife.png'
 const COUPE_BACKGROUND = '/video/Анимация_пейзажа_и_планшета.mp4'
-const TAMBOUR_BACKGROUND = '/images/trainCigar.png'
-const CORRIDOR_BACKGROUND = '/images/trainCigar.png' // Placeholder
+const TAMBOUR_BACKGROUND = '/images/trainCigar.png'// Placeholder
 
 /**
  * Cinematic Prologue: Coupe interaction -> Tambour choices -> Creature Attack -> Tutorials
@@ -22,7 +21,7 @@ export const scenarios: Record<string, Scene> = {
     characters: [
       { id: 'bruno', name: 'Бруно Вебер', position: 'left', emotion: { primary: 'nervous' } },
       { id: 'lena', name: 'Лена Рихтер', position: 'right', emotion: { primary: 'tired' } },
-      { id: 'adele', name: 'Адель', position: 'center', emotion: { primary: 'calm' } },
+      { id: 'adele', name: 'Адель', position: 'right', emotion: { primary: 'calm' } },
       { id: 'otto', name: 'Отто Кляйн', position: 'left', emotion: { primary: 'grim' } },
     ],
     dialogue: [
@@ -152,7 +151,7 @@ export const scenarios: Record<string, Scene> = {
   prologue_coupe_adele: {
     id: 'prologue_coupe_adele',
     background: COUPE_BACKGROUND,
-    characters: [{ id: 'adele', name: 'Адель', position: 'center' }],
+    characters: [{ id: 'adele', name: 'Адель', position: 'right' }],
     dialogue: [
       {
         speaker: 'Рассказчик',

@@ -7,9 +7,10 @@ import {
   DialogueBox,
   VFXOverlay,
 } from '@/entities/visual-novel/ui'
-import FloatingText, {
+import {
+  FloatingText,
   type FloatingTextEvent,
-} from '@/features/dreyzab-combat-simulator/ui/components/FloatingText'
+} from '@/features/dreyzab-combat-simulator'
 import { cn } from '@/shared/lib/utils/cn'
 import type {
   VisualNovelChoiceView,
@@ -79,8 +80,8 @@ export const VNScreen: React.FC<VNScreenProps> = ({
   }, [currentLine?.speakerId, scene.id])
 
   const backgroundImage = currentLine?.backgroundOverride ?? scene.background
-  const isVideoBackground = backgroundImage.toLowerCase().endsWith('.mp4') || 
-                          backgroundImage.toLowerCase().endsWith('.webm')
+  const isVideoBackground = backgroundImage.toLowerCase().endsWith('.mp4') ||
+    backgroundImage.toLowerCase().endsWith('.webm')
 
   const backgroundPanClass = useMemo(() => {
     if (backgroundFocus === 'right') return 'vn-bg-pan-right'
@@ -346,7 +347,7 @@ export const VNScreen: React.FC<VNScreenProps> = ({
               disabled={false}
               isPending={false}
               onAdvance={exitConsultation}
-              onRevealComplete={() => {}}
+              onRevealComplete={() => { }}
               style={{
                 borderLeft: `4px solid ${activeVoice.color}`,
                 boxShadow: `inset 10px 0 20px -10px ${activeVoice.color}22`,

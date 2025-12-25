@@ -1,5 +1,4 @@
 import React from 'react'
-import { cn } from '@/shared/lib/utils/cn'
 import type { VisualNovelCharacter } from '@/shared/types/visualNovel'
 
 export interface CharacterGroupProps {

@@ -17,8 +17,8 @@ export interface DialogueBoxProps {
 }
 
 export const DialogueBox: React.FC<DialogueBoxProps> = ({
-  speakerName,
-  speakerTitle,
+  speakerName: _speakerName,
+  speakerTitle: _speakerTitle,
   text,
   stageDirection,
   disabled,
@@ -29,6 +29,10 @@ export const DialogueBox: React.FC<DialogueBoxProps> = ({
   onTypingStatusChange,
   forceShow,
 }) => {
+  // Note: _speakerName and _speakerTitle are received as props but not displayed
+  // in this version of the component. They're kept for API compatibility.
+  void _speakerName
+  void _speakerTitle
   const sanitizeText = useCallback((value: string) => {
     if (!value) return value
 

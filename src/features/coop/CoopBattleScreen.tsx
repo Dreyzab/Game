@@ -22,7 +22,7 @@ export const CoopBattleScreen: React.FC<CoopBattleScreenProps> = ({ roomCode }) 
       const token = await getToken()
       const client = authenticatedClient(token ?? undefined)
 
-      // @ts-ignore - dynamic route typing in Eden
+      // @ts-expect-error - dynamic route typing in Eden
       const { data, error } = await client.coop.rooms[roomCode].get()
       if (error) throw error
 
@@ -38,7 +38,7 @@ export const CoopBattleScreen: React.FC<CoopBattleScreenProps> = ({ roomCode }) 
       const token = await getToken()
       const client = authenticatedClient(token ?? undefined)
 
-      // @ts-ignore - dynamic route typing in Eden
+      // @ts-expect-error - dynamic route typing in Eden
       const { data, error } = await client.coop.rooms[roomCode].quest.post({ choiceId })
       if (error) throw error
 

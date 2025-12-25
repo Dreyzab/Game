@@ -73,7 +73,7 @@ export const useCoopStore = create<CoopStore>((set, get) => ({
 
     joinRoom: async (code, role) => {
         set({ isLoading: true, error: null });
-        // @ts-ignore - dynamic route access issue with Eden
+        // @ts-expect-error - dynamic route access issue with Eden
         const { data, error } = await authenticatedClient().coop.rooms[code].join.post({ role });
 
         if (error) {
@@ -99,7 +99,7 @@ export const useCoopStore = create<CoopStore>((set, get) => ({
     leaveRoom: async () => {
         const { room } = get();
         if (!room) return;
-        // @ts-ignore
+        // @ts-expect-error - dynamic route access issue with Eden
         const { data, error } = await authenticatedClient().coop.rooms[room.code].leave.post();
         if (error) {
             set({ error: (error as any)?.value ? String((error as any).value) : 'Unknown error' });
@@ -120,7 +120,7 @@ export const useCoopStore = create<CoopStore>((set, get) => ({
     setReady: async (ready) => {
         const { room } = get();
         if (!room) return;
-        // @ts-ignore - dynamic route access issue
+        // @ts-expect-error - dynamic route access issue
         const { data, error } = await authenticatedClient().coop.rooms[room.code].ready.post({ ready });
         if (error) {
             set({ error: (error as any)?.value ? String((error as any).value) : 'Unknown error' });
@@ -139,7 +139,7 @@ export const useCoopStore = create<CoopStore>((set, get) => ({
     startGame: async () => {
         const { room } = get();
         if (!room) return;
-        // @ts-ignore - dynamic route access issue
+        // @ts-expect-error - dynamic route access issue
         const { data, error } = await authenticatedClient().coop.rooms[room.code].start.post();
         if (error) {
             set({ error: (error as any)?.value ? String((error as any).value) : 'Unknown error' });
@@ -158,7 +158,7 @@ export const useCoopStore = create<CoopStore>((set, get) => ({
     castVote: async (choiceId) => {
         const { room } = get();
         if (!room) return;
-        // @ts-ignore - dynamic route access issue
+        // @ts-expect-error - dynamic route access issue
         const { data, error } = await authenticatedClient().coop.rooms[room.code].quest.post({ choiceId });
         if (error) {
             set({ error: (error as any)?.value ? String((error as any).value) : 'Unknown error' });

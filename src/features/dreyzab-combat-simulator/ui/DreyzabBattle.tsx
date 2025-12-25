@@ -19,7 +19,6 @@ import RankLane from './components/RankLane'
 import type { FloatingTextEvent } from './components/FloatingText'
 import { sortTurnQueue, canPlayCard, rollAttack } from '../model/utils'
 import CombatCardUI from './components/CombatCardUI'
-import BattleEquipmentOverlay from './components/BattleEquipmentOverlay'
 import DraggableCombatCard from './components/DraggableCombatCard'
 import GaugeUI from './components/GaugeUI'
 
@@ -28,6 +27,7 @@ type DreyzabBattleResult = 'victory' | 'defeat'
 type DreyzabBattleProps = {
     onBattleEnd?: (result: DreyzabBattleResult) => void
     scenarioId?: ScenarioId
+    renderEquipmentOverlay?: (props: { onClose: () => void; title?: string }) => ReactNode
 }
 
 type BattleDropZoneProps = {
@@ -130,7 +130,7 @@ const createInitialSession = (scenarioId: ScenarioId = 'default'): { session: Ba
 }
 
 // Battle component
-export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default' }: DreyzabBattleProps) {
+export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default', renderEquipmentOverlay }: DreyzabBattleProps) {
     const [initial] = useState(() => createInitialSession(scenarioId))
     const [battle, setBattle] = useState<BattleSession>(initial.session)
     const [selectedTargetId, setSelectedTargetId] = useState<string | null>(initial.defaultTargetId)
@@ -1039,11 +1039,11 @@ export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default' }: D
                     </div>
                 </div>
 
-                {showEquipment && (
-                    <BattleEquipmentOverlay
-                        onClose={() => setShowEquipment(false)}
-                        title={activePlayer?.name}
-                    />
+                {showEquipment && renderEquipmentOverlay && (
+                    renderEquipmentOverlay({
+                        onClose: () => setShowEquipment(false),
+                        title: activePlayer?.name
+                    })
                 )}
 
                 {showAchievements && (

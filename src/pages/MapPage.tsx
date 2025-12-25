@@ -8,8 +8,6 @@
 
 import React, { useEffect, useState } from 'react'
 import { Menu, X } from 'lucide-react'
-import { Heading } from '@/shared/ui/components/Heading'
-import { Text } from '@/shared/ui/components/Text'
 import { MapView, MapFilters, MapLegend, PointsListPanel, type MapFilterType } from '@/widgets/map/map-view'
 import { ErrorBoundary } from '@/shared/ui/ErrorBoundary'
 import type { BBox } from '@/shared/types/map'
