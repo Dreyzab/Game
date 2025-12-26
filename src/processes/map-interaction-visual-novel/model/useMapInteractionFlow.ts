@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useAuth } from '@clerk/clerk-react'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import type { MapPoint } from '@/shared/types/map'
@@ -10,6 +9,7 @@ import { useDeviceId } from '@/shared/hooks/useDeviceId'
 import type { InteractionKey } from '@/entities/map-point/model/useMapPointInteraction'
 import { resolveSceneFromPoint } from '@/features/map'
 import { buildInteractionsForPoint, findInteractionByKey, type MapPointInteraction } from '@/features/interaction'
+import { useAppAuth } from '@/shared/auth'
 
 type ActiveInteraction = {
   point: MapPoint
@@ -31,7 +31,7 @@ export function useMapInteractionFlow(options: MapInteractionFlowOptions = {}) {
 
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const { getToken, isLoaded } = useAuth()
+  const { getToken, isLoaded } = useAppAuth()
   const { deviceId } = useDeviceId()
   const { progress } = usePlayerProgress()
 

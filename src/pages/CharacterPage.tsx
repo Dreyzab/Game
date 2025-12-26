@@ -1,10 +1,10 @@
 import React from 'react'
-import { useAuth } from '@clerk/clerk-react'
 import { useMyPlayer } from '@/shared/hooks/useMyPlayer'
 import { useMySkills } from '@/shared/hooks/useMySkills'
 import { Layout } from '@/widgets/layout'
 import { Heading, Text } from '@/shared/ui/components'
 import { ParliamentPanel } from '@/entities/parliament/ui/ParliamentPanel'
+import { isAuthDisabled, useAppAuth } from '@/shared/auth'
 
 
 // Локализация фракций
@@ -60,7 +60,7 @@ const StatCard: React.FC<{
 
 
 const CharacterPage: React.FC = () => {
-  const { isLoaded: isAuthLoaded, isSignedIn } = useAuth()
+  const { isLoaded: isAuthLoaded, isSignedIn } = useAppAuth()
   const { data: playerData, isLoading: playerLoading, error: playerError } = useMyPlayer()
   const { tree: skillTree, subclasses, isLoading: skillsLoading } = useMySkills()
 
@@ -77,7 +77,7 @@ const CharacterPage: React.FC = () => {
     )
   }
 
-  if (!isSignedIn) {
+  if (!isSignedIn && !isAuthDisabled) {
     return (
       <Layout>
         <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6">

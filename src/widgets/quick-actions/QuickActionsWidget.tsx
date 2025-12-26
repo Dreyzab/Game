@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react'
-import { SignInButton, useClerk, useAuth, useUser } from '@clerk/clerk-react'
+import { SignInButton } from '@clerk/clerk-react'
 import { useNavigate } from 'react-router-dom'
 import { BookOpen, FileText, Map, Package, QrCode, RefreshCw, Settings, User, UserPlus, Users } from 'lucide-react'
 import { MotionContainer } from '@/shared/ui/components/MotionContainer'
 import { Routes } from '@/shared/lib/utils/navigation'
 import { cn } from '@/shared/lib/utils/cn'
 import { generateDeviceId, getDeviceId, setDeviceId } from '@/shared/lib/utils/deviceId'
+import { isClerkEnabled, useAppAuth } from '@/shared/auth'
 
 export interface QuickActionsWidgetProps {
   className?: string
@@ -71,9 +72,7 @@ const upsertAccount = (accounts: StoredAccount[], profile: StoredAccount): Store
 
 export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({ className }) => {
   const navigate = useNavigate()
-  const { signOut } = useClerk()
-  const { isSignedIn, isLoaded: isAuthLoaded } = useAuth()
-  const { user } = useUser()
+  const { signOut, isSignedIn, isLoaded: isAuthLoaded, user } = useAppAuth()
   const [accounts, setAccounts] = useState<StoredAccount[]>(() => readStoredAccounts())
   const [activeDeviceId, setActiveDeviceId] = useState<string>(() => getDeviceId())
   const [busyAction, setBusyAction] = useState<string | null>(null)
@@ -209,35 +208,44 @@ export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({ classNam
           <div className="text-xs text-slate-400">
             {isAuthLoaded
               ? isSignedIn
-                ? `В сети: ${user?.fullName ?? user?.emailAddresses?.[0]?.emailAddress ?? 'Clerk'}`
-                : 'Не в сети'
+                ? `В сети: ${user?.fullName ?? user?.email ?? user?.username ?? (isClerkEnabled ? 'Clerk' : 'Гость')}`
+                : isClerkEnabled
+                  ? 'Не в сети'
+                  : 'Гость'
               : 'Проверка...'}
           </div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {isSignedIn ? (
-            <button className="btn btn--secondary btn--full-width" disabled>
-              Войти через Clerk
-            </button>
-          ) : (
-            <SignInButton mode="modal">
-              <button className="btn btn--secondary btn--full-width" disabled={!isAuthLoaded}>
+          {isClerkEnabled ? (
+            isSignedIn ? (
+              <button className="btn btn--secondary btn--full-width" disabled>
                 Войти через Clerk
               </button>
-            </SignInButton>
+            ) : (
+              <SignInButton mode="modal">
+                <button className="btn btn--secondary btn--full-width" disabled={!isAuthLoaded}>
+                  Войти через Clerk
+                </button>
+              </SignInButton>
+            )
+          ) : (
+            <button className="btn btn--secondary btn--full-width" disabled title="Clerk отключён (режим гостя)">
+              Гостевой режим
+            </button>
           )}
           <button
             className="btn btn--secondary btn--full-width"
             onClick={() => {
+              if (!isClerkEnabled) return
               signOut({ redirectUrl: '/' })
               setMessage('Вы вышли из Clerk')
             }}
-            disabled={!isAuthLoaded || !isSignedIn}
+            disabled={!isClerkEnabled || !isAuthLoaded || !isSignedIn}
           >
             Выйти
           </button>
         </div>
-        {!isAuthLoaded && (
+        {!isAuthLoaded && isClerkEnabled && (
           <div className="mt-2 text-[11px] text-slate-500">
             Если это «Проверка...» не проходит — проверь `VITE_CLERK_PUBLISHABLE_KEY` и доступ к доменам Clerk (adblock/файрвол).
           </div>

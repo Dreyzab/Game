@@ -1,17 +1,17 @@
 import React, { useCallback } from 'react'
-import { useAuth } from '@clerk/clerk-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { authenticatedClient } from '@/shared/api/client'
 import { Heading } from '@/shared/ui/components/Heading'
 import { Text } from '@/shared/ui/components/Text'
 import { Button } from '@/shared/ui/components/Button'
+import { useAppAuth } from '@/shared/auth'
 
 type CoopBattleScreenProps = {
   roomCode: string
 }
 
 export const CoopBattleScreen: React.FC<CoopBattleScreenProps> = ({ roomCode }) => {
-  const { getToken } = useAuth()
+  const { getToken } = useAppAuth()
   const queryClient = useQueryClient()
 
   const roomQuery = useQuery({

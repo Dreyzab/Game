@@ -1,9 +1,9 @@
-import { useAuth } from "@clerk/clerk-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { authenticatedClient } from "@/shared/api/client";
+import { useAppAuth } from "@/shared/auth";
 
 export const useMyQuests = () => {
-    const { getToken, isLoaded, isSignedIn } = useAuth();
+    const { getToken, isLoaded, isSignedIn } = useAppAuth();
     const queryClient = useQueryClient();
 
     // Fetch Quests

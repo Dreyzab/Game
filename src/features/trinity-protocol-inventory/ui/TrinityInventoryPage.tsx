@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useAuth } from '@clerk/clerk-react'
 import {
   DndContext,
   DragOverlay,
@@ -19,6 +18,7 @@ import { GridContainer } from './components/GridContainer'
 import InventoryItem from './components/InventoryItem'
 import { ItemDetailsModal } from './components/ItemDetailsModal'
 import { StatusPanel } from './components/StatusPanel'
+import { useAppAuth } from '@/shared/auth'
 
 export function TrinityInventoryPage() {
   const { initialize, moveItemToGrid, equipItem, unequipAll, items, templates, equipment } = useTrinityInventoryStore()
@@ -34,7 +34,7 @@ export function TrinityInventoryPage() {
     })
   )
 
-  const { getToken } = useAuth()
+  const { getToken } = useAppAuth()
 
   useEffect(() => {
     const init = async () => {

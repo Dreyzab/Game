@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
 import { Scanner } from '@yudiel/react-qr-scanner'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '@clerk/clerk-react'
+import { useAppAuth } from '@/shared/auth'
 import { useQueryClient } from '@tanstack/react-query'
 import { cn } from '@/shared/lib/utils/cn'
 import { authenticatedClient } from '@/shared/api/client'
@@ -31,7 +31,7 @@ function getErrorMessage(err: unknown): string {
 export default function QRScannerPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const { getToken, isLoaded } = useAuth()
+  const { getToken, isLoaded } = useAppAuth()
   const { deviceId } = useDeviceId()
 
   const [error, setError] = useState<string | null>(null)

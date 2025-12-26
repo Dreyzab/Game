@@ -1,9 +1,9 @@
-import { useAuth } from "@clerk/clerk-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { authenticatedClient } from "../api/client";
+import { useAppAuth } from "@/shared/auth";
 
 export const useMySkills = () => {
-    const { getToken, isLoaded, isSignedIn } = useAuth();
+    const { getToken, isLoaded, isSignedIn } = useAppAuth();
     const queryClient = useQueryClient();
 
     // Fetch Skill Tree

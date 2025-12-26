@@ -5,9 +5,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ClerkProvider } from '@clerk/clerk-react'
 import './index.css'
 import App from './App.tsx'
+import { ClerkAuthBridge, GuestAuthProvider, clerkPublishableKey, isClerkEnabled } from '@/shared/auth'
 
-const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined
-const isAuthDisabled = import.meta.env.VITE_DISABLE_AUTH === 'true'
 const queryClient = new QueryClient()
 
 console.log('[App] Initialization starting...')
@@ -28,13 +27,17 @@ export const MissingClerkConfig = () => (
 const appTree = (
   <QueryClientProvider client={queryClient}>
     <BrowserRouter>
-      {clerkPublishableKey && !isAuthDisabled ? (
-        <ClerkProvider publishableKey={clerkPublishableKey} afterSignOutUrl="/">
-          <App />
+      {isClerkEnabled ? (
+        <ClerkProvider publishableKey={clerkPublishableKey!} afterSignOutUrl="/">
+          <ClerkAuthBridge>
+            <App />
+          </ClerkAuthBridge>
         </ClerkProvider>
       ) : (
-        /* Clerk is disabled or missing key - Render App directly for Guest/Dev mode */
-        <App />
+        /* Guest/Dev mode: provide stable auth stubs so app code doesn't call Clerk hooks */
+        <GuestAuthProvider>
+          <App />
+        </GuestAuthProvider>
       )}
     </BrowserRouter>
   </QueryClientProvider>

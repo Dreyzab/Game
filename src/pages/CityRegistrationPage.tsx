@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { SignInButton, useAuth, useUser } from '@clerk/clerk-react'
+import { SignInButton } from '@clerk/clerk-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { Layout } from '@/widgets/layout'
@@ -10,11 +10,13 @@ import { useMyPlayer } from '@/shared/hooks/useMyPlayer'
 import { useDeviceId } from '@/shared/hooks/useDeviceId'
 import { authenticatedClient } from '@/shared/api/client'
 import { Routes } from '@/shared/lib/utils/navigation'
+import { isClerkEnabled, useAppAuth } from '@/shared/auth'
 
 type RegistrationMethod = 'clerk' | 'password'
 
-const normalizeMethod = (value: string | null): RegistrationMethod | null => {
-  if (value === 'clerk' || value === 'password') return value
+const normalizeMethod = (value: string | null, allowClerk: boolean): RegistrationMethod | null => {
+  if (value === 'password') return 'password'
+  if (value === 'clerk') return allowClerk ? 'clerk' : null
   return null
 }
 
@@ -33,15 +35,16 @@ const CityRegistrationPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const { getToken, isLoaded, isSignedIn } = useAuth()
-  const { user } = useUser()
+  const { getToken, isLoaded, isSignedIn, user } = useAppAuth()
   const { deviceId } = useDeviceId()
   const { data: playerData, isLoading: isPlayerLoading } = useMyPlayer()
 
+  const allowClerk = isClerkEnabled
+
   const method = useMemo<RegistrationMethod>(() => {
-    const fromQuery = normalizeMethod(searchParams.get('method'))
+    const fromQuery = normalizeMethod(searchParams.get('method'), allowClerk)
     return fromQuery ?? 'password'
-  }, [searchParams])
+  }, [allowClerk, searchParams])
 
   const returnSceneId = useMemo(() => safeSceneId(searchParams.get('returnScene')), [searchParams])
 
@@ -59,6 +62,7 @@ const CityRegistrationPage: React.FC = () => {
   }, [playerData])
 
   const setMethod = (next: RegistrationMethod) => {
+    if (next === 'clerk' && !allowClerk) return
     const nextParams = new URLSearchParams(searchParams)
     nextParams.set('method', next)
     setSearchParams(nextParams, { replace: true })
@@ -172,7 +176,8 @@ const CityRegistrationPage: React.FC = () => {
             <Button
               variant={method === 'clerk' ? 'primary' : 'secondary'}
               onClick={() => setMethod('clerk')}
-              disabled={isSubmitting}
+              disabled={isSubmitting || !allowClerk}
+              title={!allowClerk ? 'Clerk отключён (VITE_DISABLE_AUTH=true или нет publishable key)' : undefined}
             >
               Через Clerk
             </Button>
@@ -233,11 +238,11 @@ const CityRegistrationPage: React.FC = () => {
             </div>
           )}
 
-          {method === 'clerk' && (
+          {method === 'clerk' && allowClerk && (
             <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-2">
               {isSignedIn ? (
                 <Text variant="muted" size="sm">
-                  Вы вошли как {user?.primaryEmailAddress?.emailAddress ?? user?.username ?? 'пользователь'}.
+                  Вы вошли как {user?.email ?? user?.username ?? 'пользователь'}.
                 </Text>
               ) : (
                 <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -251,6 +256,14 @@ const CityRegistrationPage: React.FC = () => {
                   </SignInButton>
                 </div>
               )}
+            </div>
+          )}
+
+          {method === 'clerk' && !allowClerk && (
+            <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-2">
+              <Text variant="muted" size="sm">
+                Clerk сейчас отключён (режим гостя). Выберите регистрацию по паролю.
+              </Text>
             </div>
           )}
 

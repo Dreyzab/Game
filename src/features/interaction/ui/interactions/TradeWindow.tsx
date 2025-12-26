@@ -1,12 +1,12 @@
 import React, { useMemo, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useAuth } from '@clerk/clerk-react'
 import type { TradeInteraction, TradeItem } from '../../model/mapPointInteractions'
 import { useInventoryStore } from '@/entities/inventory'
 import { ITEM_TEMPLATES } from '@/entities/item/model/templates'
 import type { ItemState } from '@/entities/item/model/types'
 import { authenticatedClient } from '@/shared/api/client'
 import { calculateVendorBuyPrice, calculateVendorSellPrice } from '@/shared/lib/itemPricing'
+import { useAppAuth } from '@/shared/auth'
 
 interface TradeWindowProps {
   interaction: TradeInteraction
@@ -29,7 +29,7 @@ const getPlayerItemPrice = (item: ItemState): number => {
 }
 
 export const TradeWindow: React.FC<TradeWindowProps> = ({ interaction, onClose }) => {
-  const { getToken } = useAuth()
+  const { getToken } = useAppAuth()
   const queryClient = useQueryClient()
   const { items: playerItemsMap, isQuestItem } = useInventoryStore()
   const playerItems = useMemo(() => Object.values(playerItemsMap), [playerItemsMap])

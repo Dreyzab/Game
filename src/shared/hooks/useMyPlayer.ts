@@ -1,10 +1,10 @@
-import { useAuth } from "@clerk/clerk-react";
 import { useQuery } from "@tanstack/react-query";
 import { authenticatedClient } from "../api/client";
 import { useDeviceId } from "./useDeviceId";
+import { useAppAuth } from "@/shared/auth";
 
 export const useMyPlayer = () => {
-    const { getToken, isLoaded } = useAuth();
+    const { getToken, isLoaded } = useAppAuth();
     const { deviceId } = useDeviceId();
 
     return useQuery({

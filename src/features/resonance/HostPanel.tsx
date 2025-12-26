@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react'
-import { useAuth } from '@clerk/clerk-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { authenticatedClient } from '@/shared/api/client'
+import { useAppAuth } from '@/shared/auth'
 import type { SceneNode } from '@/shared/types/resonance'
 import { Button } from '@/shared/ui/components/Button'
 import { Heading } from '@/shared/ui/components/Heading'
@@ -12,7 +12,7 @@ type HostPanelProps = {
 }
 
 export const HostPanel: React.FC<HostPanelProps> = ({ initialName }) => {
-  const { getToken } = useAuth()
+  const { getToken } = useAppAuth()
   const queryClient = useQueryClient()
   const [hostName, setHostName] = useState(initialName ?? 'Хост')
   const [sessionCode, setSessionCode] = useState<string>('')

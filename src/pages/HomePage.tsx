@@ -1,6 +1,5 @@
 import { Suspense, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '@clerk/clerk-react'
 import { LoadingSpinner } from '@/shared/ui/components/LoadingSpinner'
 import { HeroSection } from '@/widgets/hero/HeroSection.tsx'
 import { AuthActions } from '@/features/auth'
@@ -16,10 +15,11 @@ import { usePlayerProgress, useCreatePlayer } from '@/shared/hooks/usePlayer'
 import { authenticatedClient } from '@/shared/api/client'
 import { useDeviceId } from '@/shared/hooks/useDeviceId'
 import { getStartDestination, Routes } from '@/shared/lib/utils/navigation'
+import { useAppAuth } from '@/shared/auth'
 
 export function ModernHomePage() {
   const navigate = useNavigate()
-  const { getToken, isLoaded } = useAuth()
+  const { getToken, isLoaded } = useAppAuth()
   const { deviceId } = useDeviceId()
   const { progress } = usePlayerProgress()
   const { createPlayer, isCreating } = useCreatePlayer()

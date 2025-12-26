@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react'
-import { useAuth } from '@clerk/clerk-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { authenticatedClient, type ApiClient } from '@/shared/api/client'
+import { useAppAuth } from '@/shared/auth'
 import { useQuestOutbox } from '@/entities/quest/model/outbox'
 
 type QuestOutboxSyncOptions = {
@@ -101,7 +101,7 @@ async function flushQuestOutbox(client: ApiClient): Promise<QuestSyncResult> {
 export function useQuestOutboxSync(options: QuestOutboxSyncOptions = {}) {
   const { enabled = true, intervalMs = 30000 } = options
   const queryClient = useQueryClient()
-  const { getToken, isLoaded, isSignedIn } = useAuth()
+  const { getToken, isLoaded, isSignedIn } = useAppAuth()
   const pendingCount = useQuestOutbox((state) => state.outbox.length)
 
   const syncInFlightRef = useRef<Promise<QuestSyncResult> | null>(null)

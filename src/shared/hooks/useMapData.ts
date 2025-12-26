@@ -1,8 +1,8 @@
-import { useAuth } from "@clerk/clerk-react";
 import { useQuery, useMutation, keepPreviousData } from "@tanstack/react-query";
 import { authenticatedClient } from "../api/client";
 import { useEffect, useState } from "react";
 import type { BBox, MapPointMetadata } from "../types/map";
+import { useAppAuth } from "@/shared/auth";
 
 type ApiPoint = {
   id: string;
@@ -51,7 +51,7 @@ type ApiDangerZone = {
 type ZonesResponse = { zones: ApiZone[]; safeZones: ApiSafeZone[]; dangerZones: ApiDangerZone[] };
 
 export const useMapData = (bbox?: { minLat: number; maxLat: number; minLng: number; maxLng: number }) => {
-  const { getToken, isLoaded } = useAuth();
+  const { getToken, isLoaded } = useAppAuth();
 
   // Fetch Points
   const pointsQuery = useQuery<PointsResponse>({
@@ -273,7 +273,7 @@ export const useCenterOnUser = ({
 /**
  * Конвертация bbox Mapbox в тип BBox (для запросов к API)
  */
-export const convertBBoxToConvex = (bounds: {
+export const convertBoundsToBBox = (bounds: {
   getNorthEast: () => { lat: number; lng: number };
   getSouthWest: () => { lat: number; lng: number };
 }) => {

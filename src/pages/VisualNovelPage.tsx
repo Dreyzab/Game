@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useAuth } from '@clerk/clerk-react'
+import { useAppAuth } from '@/shared/auth'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Layout } from '@/widgets/layout'
 import { Heading } from '@/shared/ui/components/Heading'
@@ -24,7 +24,7 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
   lockedSceneId,
   headerLabel,
 }) => {
-  const { getToken, isLoaded } = useAuth()
+  const { getToken, isLoaded } = useAppAuth()
   const { deviceId } = useDeviceId()
   const queryClient = useQueryClient()
   const { sceneId: routeSceneId } = useParams<{ sceneId?: string }>()

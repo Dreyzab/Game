@@ -1,9 +1,9 @@
-import { useAuth } from "@clerk/clerk-react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { authenticatedClient } from "../api/client"
+import { useAppAuth } from "@/shared/auth"
 
 export const useWorkshop = () => {
-  const { getToken } = useAuth()
+  const { getToken } = useAppAuth()
   const queryClient = useQueryClient()
 
   const repair = useMutation({

@@ -1,13 +1,13 @@
 import React, { useState } from 'react'
-import { useAuth } from '@clerk/clerk-react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { authenticatedClient } from '@/shared/api/client'
 import { Button } from '@/shared/ui/components/Button'
 import { Heading } from '@/shared/ui/components/Heading'
 import { Text } from '@/shared/ui/components/Text'
+import { isAuthDisabled, useAppAuth } from '@/shared/auth'
 
 const PvPPage: React.FC = () => {
-  const { getToken, isLoaded, isSignedIn } = useAuth()
+  const { getToken, isLoaded, isSignedIn } = useAppAuth()
   const [matchId, setMatchId] = useState<string | null>(null)
 
   const matchQuery = useQuery({
@@ -55,7 +55,7 @@ const PvPPage: React.FC = () => {
     onSuccess: (match) => setMatchId(match.id),
   })
 
-  if (!isLoaded || !isSignedIn) {
+  if (!isLoaded || (!isSignedIn && !isAuthDisabled)) {
     return (
       <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center p-6">
         <div className="max-w-xl text-center space-y-3">

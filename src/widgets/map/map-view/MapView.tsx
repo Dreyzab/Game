@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import type { Map, LngLatBounds } from 'mapbox-gl'
-import { useAuth } from '@clerk/clerk-react'
 import { MapboxMap } from '@/shared/ui/MapboxMap'
+import { useAppAuth } from '@/shared/auth'
 import {
   useVisibleMapPoints,
   useSafeZones,
@@ -84,7 +84,7 @@ export const MapView: React.FC<MapViewProps> = ({
   onBoundsChange,
 }) => {
   const { deviceId } = useDeviceId()
-  const { getToken } = useAuth()
+  const { getToken } = useAppAuth()
 
   // Состояние карты
   const [map, setMap] = useState<Map | null>(null)
