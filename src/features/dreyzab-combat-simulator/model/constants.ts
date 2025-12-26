@@ -171,5 +171,21 @@ export const ENEMY_TEMPLATES = [
         initBase: 15,
         description: 'Skittish but dangerous from a distance.',
     },
+    {
+        name: 'Малый Скорпион',
+        hp: 45,
+        armor: 2,
+        rank: 2,
+        initBase: 16,
+        description: 'Небольшой разломный падальщик. Бьёт клешнёй на ближней дистанции.',
+    },
+    {
+        name: 'Средний Скорпион',
+        hp: 80,
+        armor: 3,
+        rank: 3,
+        initBase: 14,
+        description: 'Опаснее малого: бьёт клешнёй и жалит хвостом, цепляя сразу двоих.',
+    },
 ]
 

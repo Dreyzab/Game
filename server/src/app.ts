@@ -12,6 +12,7 @@ import { pvpRoutes } from "./api/routes/pvp";
 import { presenceRoutes } from "./api/routes/presence";
 import { masteryRoutes } from "./api/routes/mastery";
 import { resonanceRoutes } from "./api/routes/resonance";
+import { adminRoutes } from "./api/routes/admin";
 import { wsRoutes } from "./sockets";
 
 export const app = new Elysia()
@@ -28,6 +29,7 @@ export const app = new Elysia()
     .use(pvpRoutes)
     .use(presenceRoutes)
     .use(masteryRoutes)
+    .use(adminRoutes)
     .use(wsRoutes)
     .get("/", () => "Hello form Grezwanderer Backend (Bun + Elysia)");
 

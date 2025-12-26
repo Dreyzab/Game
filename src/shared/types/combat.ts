@@ -259,6 +259,7 @@ export type EnemyAIType =
   | 'scavenger'    // T1: Трусливый, стайный
   | 'enforcer'     // T2: Дисциплинированный, щиты
   | 'feral_drone'  // T3: Летающий, игнорирует укрытия
+  | 'scorpion'     // Rift fauna: быстрый укол/клешни
   | 'boss'         // T4: Фазовый, иммунен к контролю
 
 export interface EnemyTemplate {

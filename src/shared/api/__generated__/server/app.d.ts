@@ -216,6 +216,47 @@ export declare const app: Elysia<"", {
         };
     };
 } & {
+    player: {
+        "reset-self": {
+            post: {
+                body: unknown;
+                params: {};
+                query: unknown;
+                headers: unknown;
+                response: {
+                    200: {
+                        ok: boolean;
+                        error: string;
+                        status: number;
+                        reset?: undefined;
+                        result?: undefined;
+                    } | {
+                        ok: boolean;
+                        reset: boolean;
+                        error?: undefined;
+                        status?: undefined;
+                        result?: undefined;
+                    } | {
+                        ok: boolean;
+                        reset: boolean;
+                        result: import("./services/playerReset").ResetSelfResult;
+                        error?: undefined;
+                        status?: undefined;
+                    };
+                    422: {
+                        type: "validation";
+                        on: string;
+                        summary?: string;
+                        message?: string;
+                        found?: unknown;
+                        property?: string;
+                        expected?: string;
+                    };
+                };
+            };
+        };
+    };
+} & {
     inventory: {
         get: {
             body: unknown;
@@ -1767,6 +1808,7 @@ export declare const app: Elysia<"", {
                 quest: {
                     post: {
                         body: {
+                            asPlayerId?: number | undefined;
                             choiceId: string;
                         };
                         params: {
@@ -1871,6 +1913,65 @@ export declare const app: Elysia<"", {
                                 found?: unknown;
                                 property?: string;
                                 expected?: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+    };
+} & {
+    coop: {
+        rooms: {
+            ":code": {
+                debug: {
+                    add_bot: {
+                        post: {
+                            body: unknown;
+                            params: {
+                                code: string;
+                            } & {};
+                            query: unknown;
+                            headers: unknown;
+                            response: {
+                                200: {
+                                    room: {
+                                        code: string;
+                                        status: string | null;
+                                        hostId: number;
+                                        sceneId: string | null;
+                                        questNode: import("./shared/types/coop").CoopQuestNode;
+                                        participants: {
+                                            id: number;
+                                            name: string;
+                                            role: string | null;
+                                            ready: boolean | null;
+                                        }[];
+                                        votes: {
+                                            id: number;
+                                            createdAt: number;
+                                            sessionId: number;
+                                            sceneId: string;
+                                            choiceId: string;
+                                            voterId: number;
+                                        }[];
+                                    } | null;
+                                    error?: undefined;
+                                    status?: undefined;
+                                } | {
+                                    error: any;
+                                    status: number;
+                                    room?: undefined;
+                                };
+                                422: {
+                                    type: "validation";
+                                    on: string;
+                                    summary?: string;
+                                    message?: string;
+                                    found?: unknown;
+                                    property?: string;
+                                    expected?: string;
+                                };
                             };
                         };
                     };
@@ -2686,6 +2787,77 @@ export declare const app: Elysia<"", {
                         found?: unknown;
                         property?: string;
                         expected?: string;
+                    };
+                };
+            };
+        };
+    };
+} & {
+    admin: {
+        db: {
+            "reset-all": {
+                post: {
+                    body: Partial<{}> | null;
+                    params: {};
+                    query: unknown;
+                    headers: unknown;
+                    response: {
+                        200: {
+                            error: string;
+                            ok?: undefined;
+                            result?: undefined;
+                        } | {
+                            ok: boolean;
+                            result: import("./services/adminDbReset").ResetResult;
+                            error?: undefined;
+                        };
+                        422: {
+                            type: "validation";
+                            on: string;
+                            summary?: string;
+                            message?: string;
+                            found?: unknown;
+                            property?: string;
+                            expected?: string;
+                        };
+                    };
+                };
+            };
+        };
+    };
+} & {
+    admin: {
+        db: {
+            "reset-multiplayer": {
+                post: {
+                    body: Partial<{}> | null;
+                    params: {};
+                    query: unknown;
+                    headers: unknown;
+                    response: {
+                        200: {
+                            error: string;
+                            ok?: undefined;
+                            result?: undefined;
+                            runtime?: undefined;
+                        } | {
+                            ok: boolean;
+                            result: import("./services/adminDbReset").ResetResult;
+                            runtime: {
+                                presence: string;
+                                pvp: string;
+                            };
+                            error?: undefined;
+                        };
+                        422: {
+                            type: "validation";
+                            on: string;
+                            summary?: string;
+                            message?: string;
+                            found?: unknown;
+                            property?: string;
+                            expected?: string;
+                        };
                     };
                 };
             };

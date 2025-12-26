@@ -350,6 +350,14 @@ export function getPvpMatch(matchId: string): PvpMatch | undefined {
     return pvpMatches.get(matchId);
 }
 
+export function resetPvpRuntime() {
+    pvpMatches.clear();
+}
+
+export function resetCoopRuntime() {
+    coopRooms.clear();
+}
+
 
 
 

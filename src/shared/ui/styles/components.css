@@ -526,6 +526,28 @@
   }
 }
 
+/* Coop VN background pan (fast left-to-right with slight upward drift) */
+@keyframes coop-bg-pan-fast {
+  0% {
+    transform: translate3d(-10%, 2%, 0) scale(1.14);
+  }
+  100% {
+    transform: translate3d(10%, -2%, 0) scale(1.14);
+  }
+}
+
+.coop-vn-bg-pan {
+  will-change: transform;
+  animation: coop-bg-pan-fast 10s linear infinite alternate;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .coop-vn-bg-pan {
+    animation: none !important;
+    transform: translate3d(0, 0, 0) scale(1.08);
+  }
+}
+
 @media (min-width: 768px) {
   .choice-panel {
     bottom: clamp(72px, 10vh, 240px);

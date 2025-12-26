@@ -7,6 +7,7 @@ import { Routes } from '@/shared/lib/utils/navigation'
 import { cn } from '@/shared/lib/utils/cn'
 import { generateDeviceId, getDeviceId, setDeviceId } from '@/shared/lib/utils/deviceId'
 import { isClerkEnabled, useAppAuth } from '@/shared/auth'
+import { API_BASE_URL, authenticatedClient } from '@/shared/api/client'
 
 export interface QuickActionsWidgetProps {
   className?: string
@@ -72,11 +73,56 @@ const upsertAccount = (accounts: StoredAccount[], profile: StoredAccount): Store
 
 export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({ className }) => {
   const navigate = useNavigate()
-  const { signOut, isSignedIn, isLoaded: isAuthLoaded, user } = useAppAuth()
+  const { signOut, isSignedIn, isLoaded: isAuthLoaded, user, getToken } = useAppAuth()
   const [accounts, setAccounts] = useState<StoredAccount[]>(() => readStoredAccounts())
   const [activeDeviceId, setActiveDeviceId] = useState<string>(() => getDeviceId())
   const [busyAction, setBusyAction] = useState<string | null>(null)
   const [message, setMessage] = useState<string>('')
+
+  const getOrAskAdminToken = () => {
+    if (typeof window === 'undefined') return null
+    const key = 'gw3_admin_token_v1'
+    const existing = window.sessionStorage.getItem(key)
+    if (existing && existing.trim().length > 0) return existing.trim()
+    const next = window.prompt('Введите ADMIN_TOKEN (server env) для админ-операций:')
+    if (!next || !next.trim()) return null
+    window.sessionStorage.setItem(key, next.trim())
+    return next.trim()
+  }
+
+  const callAdminReset = async (kind: 'all' | 'multiplayer') => {
+    if (!API_BASE_URL) {
+      setMessage('VITE_API_URL / API_BASE_URL не настроен — запрос некуда отправить.')
+      return
+    }
+
+    const token = isClerkEnabled ? await getToken() : undefined
+    const adminToken = getOrAskAdminToken()
+    if (!adminToken) {
+      setMessage('ADMIN_TOKEN не задан. Операция отменена.')
+      return
+    }
+
+    const endpoint = kind === 'all' ? '/admin/db/reset-all' : '/admin/db/reset-multiplayer'
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'x-device-id': getDeviceId(),
+      'x-admin-token': adminToken,
+    }
+    if (token) headers.Authorization = `Bearer ${token}`
+
+    const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: 'POST',
+      headers,
+      body: '{}',
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok || (data as any)?.ok !== true) {
+      const err = (data as any)?.error ? String((data as any).error) : `HTTP ${res.status}`
+      throw new Error(err)
+    }
+    return data
+  }
 
   const currentTime = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', hour12: false })
 
@@ -119,6 +165,27 @@ export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({ classNam
     })
   }
 
+  const resetSelfProgress = async () => {
+    const ok = window.confirm('Сбросить ВАШ прогресс и инвентарь? Это действие необратимо.')
+    if (!ok) return
+    const phrase = window.prompt('Для подтверждения введите: RESET ME')
+    if (phrase !== 'RESET ME') return
+
+    try {
+      const token = isClerkEnabled ? await getToken() : undefined
+      const client = authenticatedClient(token ?? undefined, getDeviceId()) as any
+      const { data, error } = await client.player['reset-self'].post()
+      if (error) throw error
+      const payload = (data ?? {}) as any
+      if (payload.ok !== true) throw new Error(payload.error ?? 'Reset failed')
+      setMessage('Ваш прогресс сброшен. Перезагружаю страницу...')
+      setTimeout(() => window.location.reload(), 800)
+    } catch (e) {
+      console.error(e)
+      setMessage('Не удалось сбросить прогресс. Проверьте соединение с сервером.')
+    }
+  }
+
   const actions: QuickAction[] = [
     { id: 'home', icon: <User className="w-4 h-4" />, label: 'Домой', route: Routes.HOME },
     { id: 'map', icon: <Map className="w-4 h-4" />, label: 'Карта', route: Routes.MAP },
@@ -150,6 +217,39 @@ export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({ classNam
         const id = getDeviceId()
         setActive(id, 'admin', 'Админ')
         setMessage(`Текущий deviceId отмечен как админ: ${shortDeviceId(id)}`)
+      },
+    },
+    {
+      id: 'db-reset-mp',
+      icon: <RefreshCw className="w-4 h-4" />,
+      label: 'Сбросить мультиплеер',
+      description: 'Очистить coop/resonance + runtime (presence/pvp)',
+      busyId: 'db-reset-mp',
+      onClick: async () => {
+        const ok = window.confirm('Сбросить только мультиплеерные данные? Это удалит coop/resonance сессии и очистит runtime.')
+        if (!ok) return
+        const phrase = window.prompt('Для подтверждения введите: RESET MP')
+        if (phrase !== 'RESET MP') return
+
+        const result = await callAdminReset('multiplayer')
+        setMessage(`Мультиплеер сброшен. ${JSON.stringify((result as any)?.result ?? {})}`)
+      },
+    },
+    {
+      id: 'db-reset-all',
+      icon: <RefreshCw className="w-4 h-4" />,
+      label: 'Сбросить БД (ВСЁ)',
+      description: 'Полный TRUNCATE всех таблиц (кроме __drizzle_migrations)',
+      busyId: 'db-reset-all',
+      onClick: async () => {
+        const ok = window.confirm('ПОЛНЫЙ СБРОС БД. Это удалит ВСЕ данные. Продолжить?')
+        if (!ok) return
+        const phrase = window.prompt('Для подтверждения введите: RESET ALL')
+        if (phrase !== 'RESET ALL') return
+
+        const result = await callAdminReset('all')
+        setMessage(`БД очищена. ${JSON.stringify((result as any)?.result ?? {})}. Обновляю страницу...`)
+        setTimeout(() => window.location.reload(), 800)
       },
     },
   ]
@@ -278,6 +378,21 @@ export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({ classNam
         </div>
       </div>
 
+      <div className="mt-4 pt-4 border-t border-white/5">
+        <div className="text-xs uppercase tracking-[0.28em] text-slate-500 mb-2">Личные действия</div>
+        <div className="grid grid-cols-1 gap-2">
+          <button
+            onClick={handleNavigate(undefined, resetSelfProgress, 'reset-self')}
+            className="btn btn--secondary btn--full-width"
+          >
+            Сбросить мой прогресс
+          </button>
+          <div className="text-[11px] text-slate-500">
+            Удалит ваш прогресс/инвентарь/логи/VN, выйдет из кооп-комнат и вернёт стартовый сценарий.
+          </div>
+        </div>
+      </div>
+
       {message && (
         <div className="mt-3 text-xs text-emerald-300 bg-emerald-900/30 border border-emerald-500/40 rounded-lg px-3 py-2">
           {message}
@@ -343,6 +458,5 @@ export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({ classNam
     </MotionContainer>
   )
 }
-
 
 

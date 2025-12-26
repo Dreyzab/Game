@@ -1,4 +1,4 @@
-import { Suspense, useState } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { LoadingSpinner } from '@/shared/ui/components/LoadingSpinner'
 import { HeroSection } from '@/widgets/hero/HeroSection.tsx'
@@ -16,6 +16,7 @@ import { authenticatedClient } from '@/shared/api/client'
 import { useDeviceId } from '@/shared/hooks/useDeviceId'
 import { getStartDestination, Routes } from '@/shared/lib/utils/navigation'
 import { useAppAuth } from '@/shared/auth'
+import { clearLastCoopRoomCode, getLastCoopRoomCode } from '@/features/coop'
 
 export function ModernHomePage() {
   const navigate = useNavigate()
@@ -28,8 +29,43 @@ export function ModernHomePage() {
   const [qrSimError, setQrSimError] = useState<string | null>(null)
   const [isSimulatingQr, setSimulatingQr] = useState(false)
 
+  const [coopRoomStatus, setCoopRoomStatus] = useState<'idle' | 'loading' | 'active' | 'waiting' | 'missing'>('idle')
+  const [coopRoomCode, setCoopRoomCode] = useState<string | null>(() => getLastCoopRoomCode())
+
   const isSignedIn = progress !== null
   const hasUnallocatedSkills = progress?.skillPoints ? progress.skillPoints > 0 : false
+
+  const hasKnownCoopRoom = useMemo(() => Boolean(coopRoomCode), [coopRoomCode])
+  const canStartNewCoop = coopRoomStatus === 'active' || coopRoomStatus === 'waiting'
+
+  const refreshCoopRoomStatus = useCallback(async () => {
+    const code = getLastCoopRoomCode()
+    setCoopRoomCode(code)
+    if (!code) {
+      setCoopRoomStatus('missing')
+      return
+    }
+
+    setCoopRoomStatus('loading')
+    try {
+      const client = authenticatedClient() as any
+      const { data, error } = await client.coop.rooms[code].get()
+      if (error) throw error
+      const room = (data as any)?.room
+      const status = String(room?.status ?? '')
+      if (status === 'active') setCoopRoomStatus('active')
+      else if (status === 'waiting') setCoopRoomStatus('waiting')
+      else setCoopRoomStatus('missing')
+    } catch {
+      setCoopRoomStatus('missing')
+    }
+  }, [])
+
+  useEffect(() => {
+    refreshCoopRoomStatus().catch(() => {
+      // ignore
+    })
+  }, [refreshCoopRoomStatus])
 
   const handleStartGame = async () => {
     // Просто отправляем на стартовый роут согласно прогрессу
@@ -55,6 +91,25 @@ export function ModernHomePage() {
   const handleRegisterAdmin = async () => {
     setCreateMsg('Регистрация админа доступна через серверную консоль.')
   }
+
+  const handleStartNewCoop = useCallback(async () => {
+    // best-effort: leave previous room (if still exists), then auto-create a new one
+    const code = getLastCoopRoomCode()
+    try {
+      const token = await getToken()
+      const client = authenticatedClient(token ?? undefined, deviceId) as any
+      if (code) {
+        await client.coop.rooms[code].leave.post()
+      }
+    } catch {
+      // ignore — we still proceed to create a new room
+    } finally {
+      clearLastCoopRoomCode()
+      setCoopRoomCode(null)
+      setCoopRoomStatus('missing')
+      navigate(`${Routes.COOP}?mode=create&autocreate=1`)
+    }
+  }, [deviceId, getToken, navigate])
 
   const handleSimulateRathausQr = async () => {
     if (!isLoaded) {
@@ -137,7 +192,28 @@ export function ModernHomePage() {
                 <Button variant="outline" size="lg" onClick={() => navigate(`${Routes.COOP}?mode=join`)}>
                   Присоединиться
                 </Button>
+                {canStartNewCoop && (
+                  <Button variant="secondary" size="lg" onClick={handleStartNewCoop}>
+                    Начать новую совместную игру
+                  </Button>
+                )}
               </div>
+
+              {hasKnownCoopRoom && (
+                <div className="mt-3 text-xs text-slate-400 flex items-center justify-between gap-3">
+                  <span>
+                    Последняя комната: <span className="font-mono text-slate-200">{coopRoomCode}</span>{' '}
+                    {coopRoomStatus === 'loading' ? '(проверяем...)' : coopRoomStatus === 'active' ? '(игра идёт)' : coopRoomStatus === 'waiting' ? '(ожидает игроков)' : ''}
+                  </span>
+                  <button
+                    className="underline hover:text-slate-200"
+                    onClick={() => refreshCoopRoomStatus()}
+                    type="button"
+                  >
+                    Обновить
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

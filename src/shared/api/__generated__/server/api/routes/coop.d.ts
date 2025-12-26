@@ -361,6 +361,7 @@ export declare const coopRoutes: (app: Elysia) => Elysia<"", {
                 quest: {
                     post: {
                         body: {
+                            asPlayerId?: number | undefined;
                             choiceId: string;
                         };
                         params: {
@@ -465,6 +466,65 @@ export declare const coopRoutes: (app: Elysia) => Elysia<"", {
                                 found?: unknown;
                                 property?: string;
                                 expected?: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+    };
+} & {
+    coop: {
+        rooms: {
+            ":code": {
+                debug: {
+                    add_bot: {
+                        post: {
+                            body: unknown;
+                            params: {
+                                code: string;
+                            } & {};
+                            query: unknown;
+                            headers: unknown;
+                            response: {
+                                200: {
+                                    room: {
+                                        code: string;
+                                        status: string | null;
+                                        hostId: number;
+                                        sceneId: string | null;
+                                        questNode: import("../../shared/types/coop").CoopQuestNode;
+                                        participants: {
+                                            id: number;
+                                            name: string;
+                                            role: string | null;
+                                            ready: boolean | null;
+                                        }[];
+                                        votes: {
+                                            id: number;
+                                            createdAt: number;
+                                            sessionId: number;
+                                            sceneId: string;
+                                            choiceId: string;
+                                            voterId: number;
+                                        }[];
+                                    } | null;
+                                    error?: undefined;
+                                    status?: undefined;
+                                } | {
+                                    error: any;
+                                    status: number;
+                                    room?: undefined;
+                                };
+                                422: {
+                                    type: "validation";
+                                    on: string;
+                                    summary?: string;
+                                    message?: string;
+                                    found?: unknown;
+                                    property?: string;
+                                    expected?: string;
+                                };
                             };
                         };
                     };

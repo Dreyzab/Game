@@ -3,7 +3,7 @@ import type { Combatant, BattleSession } from './types'
 import { INITIAL_PLAYER_HAND, NPC_CARDS, ENEMY_TEMPLATES } from './constants'
 import { sortTurnQueue } from './utils'
 
-export type ScenarioId = 'default' | 'prologue_tutorial_1' | 'boss_train_prologue'
+export type ScenarioId = 'default' | 'prologue_tutorial_1' | 'boss_train_prologue' | 'scorpion_nest'
 
 export const SCENARIOS: Record<ScenarioId, (baseSession?: Partial<BattleSession>) => BattleSession> = {
     default: () => createDefaultSession(),
@@ -39,7 +39,24 @@ export const SCENARIOS: Record<ScenarioId, (baseSession?: Partial<BattleSession>
         ]
 
         return finalizeSession(players, enemies)
-    }
+    },
+
+    scorpion_nest: () => {
+        const players = [
+            createPlayer('p1', 'Ева «Валькирия»', 2),
+            createPlayer('p2', 'Йоханн «Vorschlag»', 3),
+            createPlayer('p3', 'Дитрих «Ghost»', 4),
+            createPlayer('p4', 'Агата «Шустрая»', 1),
+        ]
+
+        const enemies = [
+            createEnemy('e_small_1', 1, 2),
+            createEnemy('e_small_2', 2, 2),
+            createEnemy('e_medium', 3, 3),
+        ]
+
+        return finalizeSession(players, enemies)
+    },
 }
 
 // Helpers
@@ -84,25 +101,35 @@ function createDefaultSession(): BattleSession {
 function finalizeSession(players: Combatant[], enemies: Combatant[]): BattleSession {
     const turnQueue = sortTurnQueue(players, enemies)
 
+    const withOwner = (card: (typeof INITIAL_PLAYER_HAND)[number], ownerId: string) => ({
+        ...card,
+        id: `${ownerId}_${card.id}`,
+        ownerId,
+    })
+
     const playerHand = [
-        ...INITIAL_PLAYER_HAND.map(c => ({ ...c, ownerId: 'p1' })),
-        ...NPC_CARDS.filter(c => players.some(p =>
-            (p.id.includes('cond') && c.id.startsWith('cond')) ||
-            (p.id.includes('lena') && c.id.startsWith('lena')) ||
-            (p.id.includes('otto') && c.id.startsWith('otto'))
-        )).map(c => {
+        ...players
+            .filter((p) => p.id.startsWith('p'))
+            .flatMap((p) => INITIAL_PLAYER_HAND.map((card) => withOwner(card, p.id))),
+        ...NPC_CARDS.filter((c) =>
+            players.some(
+                (p) =>
+                    (p.id.includes('cond') && c.id.startsWith('cond')) ||
+                    (p.id.includes('lena') && c.id.startsWith('lena')) ||
+                    (p.id.includes('otto') && c.id.startsWith('otto'))
+            )
+        ).flatMap((c) => {
             let ownerId = ''
             if (c.id.startsWith('cond')) ownerId = 'npc_cond'
             if (c.id.startsWith('lena')) ownerId = 'npc_lena'
             if (c.id.startsWith('otto')) ownerId = 'npc_otto'
-            // Fallback for dynamic NPCs if IDs match pattern
             if (!ownerId) {
-                // Try to find matching player
-                const p = players.find(p => c.id.startsWith(p.id.replace('npc_', '')))
+                const p = players.find((p) => c.id.startsWith(p.id.replace('npc_', '')))
                 if (p) ownerId = p.id
             }
-            return { ...c, ownerId }
-        })
+            if (!ownerId) return []
+            return [withOwner(c, ownerId)]
+        }),
     ]
 
     return {

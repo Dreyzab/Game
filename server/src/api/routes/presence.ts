@@ -3,6 +3,10 @@ import { auth } from "../auth";
 
 const lastSeen = new Map<string, number>();
 
+export function resetPresenceRuntime() {
+    lastSeen.clear();
+}
+
 export const presenceRoutes = (app: Elysia) =>
     app
         .use(auth)

@@ -105,7 +105,7 @@ export declare const coopService: {
             voterId: number;
         }[];
     } | null>;
-    castVote(code: string, playerId: number, choiceId: string): Promise<{
+    castVote(code: string, requesterPlayerId: number, choiceId: string, asPlayerId?: number): Promise<{
         code: string;
         status: string | null;
         hostId: number;
@@ -148,6 +148,27 @@ export declare const coopService: {
         }[];
     } | null>;
     forceScene(code: string, nodeId: string): Promise<{
+        code: string;
+        status: string | null;
+        hostId: number;
+        sceneId: string | null;
+        questNode: import("../shared/types/coop").CoopQuestNode;
+        participants: {
+            id: number;
+            name: string;
+            role: string | null;
+            ready: boolean | null;
+        }[];
+        votes: {
+            id: number;
+            createdAt: number;
+            sessionId: number;
+            sceneId: string;
+            choiceId: string;
+            voterId: number;
+        }[];
+    } | null>;
+    addBotToRoom(code: string): Promise<{
         code: string;
         status: string | null;
         hostId: number;

@@ -64,6 +64,7 @@ export interface CoopQuestChoice {
 export interface CoopQuestNode {
   id: string
   title: string
+  background?: string
   description: string // Markdown supported
   privateText?: Partial<Record<CoopRoleId, string>> // Secret text for specific roles
   interactionType: CoopQuestNodeInteraction

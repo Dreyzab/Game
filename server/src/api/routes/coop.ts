@@ -5,6 +5,7 @@ import { db } from "../../db";
 import { players } from "../../db/schema";
 import { eq } from "drizzle-orm";
 import type { CoopRoleId } from "../../shared/types/coop";
+import { COOP_PROLOGUE_NODES } from "../../lib/coopContent";
 
 // Helper to get internal player ID from auth user
 async function getPlayerId(user: { id: string; type: 'clerk' | 'guest' }): Promise<number | null> {
@@ -101,7 +102,7 @@ export const coopRoutes = (app: Elysia) =>
                     if (!playerId) return { error: "Player profile not found", status: 404 };
 
                     try {
-                        const room = await coopService.castVote(params.code, playerId, body.choiceId);
+                        const room = await coopService.castVote(params.code, playerId, body.choiceId, body.asPlayerId);
                         return { room };
                     } catch (e: any) {
                         return { error: e.message, status: 400 };
@@ -109,7 +110,31 @@ export const coopRoutes = (app: Elysia) =>
                 }, {
                     body: t.Object({
                         choiceId: t.String(),
+                        asPlayerId: t.Optional(t.Number()),
                     })
+                })
+
+                .post("/rooms/:code/reach", async ({ user, params, body }) => {
+                    if (!user) return { error: "Unauthorized", status: 401 };
+                    const playerId = await getPlayerId(user as any);
+                    if (!playerId) return { error: "Player profile not found", status: 404 };
+
+                    try {
+                        const room = await coopService.markReached(params.code, playerId, body.nodeId);
+                        return { room };
+                    } catch (e: any) {
+                        return { error: e.message, status: 400 };
+                    }
+                }, {
+                    body: t.Object({
+                        nodeId: t.String(),
+                    })
+                })
+
+                .get("/nodes/:id", async ({ params }) => {
+                    const node = (COOP_PROLOGUE_NODES as any)[params.id];
+                    if (!node) return { error: "Node not found", status: 404 };
+                    return { node };
                 })
 
                 // Debug tool
@@ -120,5 +145,15 @@ export const coopRoutes = (app: Elysia) =>
                     return { room };
                 }, {
                     body: t.Object({ nodeId: t.String() })
+                })
+
+                .post("/rooms/:code/debug/add_bot", async ({ user, params }) => {
+                    if (!user) return { error: "Unauthorized", status: 401 };
+                    try {
+                        const room = await coopService.addBotToRoom(params.code);
+                        return { room };
+                    } catch (e: any) {
+                        return { error: e.message, status: 400 };
+                    }
                 })
         );

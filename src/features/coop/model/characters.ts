@@ -19,7 +19,7 @@ export const COOP_CHARACTERS: CoopCharacterTemplate[] = [
   {
     id: 'valkyrie',
     title: 'Адель',
-    subtitle: 'Валькирия · штурм',
+    subtitle: 'Валькирия · разведка',
     portraitUrl: '/images/characters/Adel.png',
     accentClass: 'from-cyan-400/30 to-blue-700/10',
     loadout: [
@@ -45,7 +45,7 @@ export const COOP_CHARACTERS: CoopCharacterTemplate[] = [
   {
     id: 'ghost',
     title: 'Отто',
-    subtitle: 'Ghost · разведка',
+    subtitle: 'Ghost · штурм',
     portraitUrl: '/images/characters/Otto.png',
     accentClass: 'from-fuchsia-400/30 to-purple-700/10',
     loadout: [

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { Scanner } from '@yudiel/react-qr-scanner'
 import QRCode from 'react-qr-code'
 import { Button } from '@/shared/ui/components/Button'
@@ -9,8 +9,8 @@ import { Badge } from '@/shared/ui/components/Badge'
 import { LoadingSpinner } from '@/shared/ui/components/LoadingSpinner'
 import { cn } from '@/shared/lib/utils/cn'
 import { useMyPlayer } from '@/shared/hooks/useMyPlayer'
-import { Routes } from '@/shared/lib/utils/navigation'
 import type { CoopRoleId } from '@/shared/types/coop'
+import { ITEM_TEMPLATES } from '@/shared/data/itemTemplates'
 import { COOP_CHARACTERS, formatLoadoutItem } from './model/characters'
 import { useCoopStore } from './model/store'
 
@@ -52,7 +52,6 @@ function initialLetter(name: string): string {
 }
 
 export const CoopLobby: React.FC = () => {
-  const navigate = useNavigate()
   const myPlayerQuery = useMyPlayer()
   const [searchParams, setSearchParams] = useSearchParams()
 
@@ -67,16 +66,35 @@ export const CoopLobby: React.FC = () => {
     selectRole,
     leaveRoom,
     startGame,
+    addBot,
   } = useCoopStore()
 
   const mode = searchParams.get('mode')
   const codeParam = searchParams.get('code')
+  const autoCreate = searchParams.get('autocreate') === '1'
   const [joinCodeDraft, setJoinCodeDraft] = useState<string>(codeParam ?? '')
   const [isScannerOpen, setScannerOpen] = useState(false)
   const lastAutoJoinCode = useRef<string | null>(null)
+  const lastAutoCreate = useRef<boolean>(false)
 
   const myId = (myPlayerQuery.data as any)?.player?.id as number | undefined
   const isProfileReady = Boolean(myId)
+
+  useEffect(() => {
+    if (room) return
+    if (mode !== 'create') return
+    if (!autoCreate) return
+    if (!isProfileReady) return
+    if (isLoading) return
+    if (lastAutoCreate.current) return
+
+    lastAutoCreate.current = true
+    createRoom().finally(() => {
+      const params = new URLSearchParams(searchParams)
+      params.delete('autocreate')
+      setSearchParams(params, { replace: true })
+    })
+  }, [autoCreate, createRoom, isLoading, isProfileReady, mode, room, searchParams, setSearchParams])
 
   useEffect(() => {
     if (!codeParam) return
@@ -94,12 +112,6 @@ export const CoopLobby: React.FC = () => {
       // errors are exposed via the store
     })
   }, [codeParam, isLoading, isProfileReady, joinRoom, room?.code])
-
-  useEffect(() => {
-    if (!room) return
-    if (room.status !== 'active') return
-    navigate(`${Routes.VISUAL_NOVEL}/coop_briefing_intro`, { replace: true })
-  }, [navigate, room])
 
   const setMode = useCallback(
     (nextMode: 'create' | 'join' | null) => {
@@ -155,6 +167,7 @@ export const CoopLobby: React.FC = () => {
   const allReady = participants.length > 0 && participants.every((p) => Boolean(p?.ready))
   const uniqueRoles = participants.length > 0 ? new Set(pickedRoles).size === pickedRoles.length : false
   const canStart = Boolean(room && amHost && participants.length >= 2 && allPicked && allReady && uniqueRoles)
+  const canFillWithBots = Boolean(amHost && room && room.status === 'waiting' && participants.length < 4)
 
   if (isLoading) {
     return (
@@ -283,6 +296,24 @@ export const CoopLobby: React.FC = () => {
             <Button variant="outline" onClick={() => leaveRoom()}>
               Выйти
             </Button>
+            {canFillWithBots && (
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  // Fill the room with bots up to 4 participants total
+                  const missing = Math.max(0, 4 - (room?.participants?.length ?? 0))
+                  for (let i = 0; i < missing; i++) {
+                    try {
+                      await addBot()
+                    } catch {
+                      break
+                    }
+                  }
+                }}
+              >
+                Заполнить ботами
+              </Button>
+            )}
             {amHost ? (
               <Button variant="primary" onClick={() => startGame()} disabled={!canStart}>
                 Начать
@@ -330,7 +361,19 @@ export const CoopLobby: React.FC = () => {
             </div>
 
             <div className="glass-panel p-5 border border-white/5 space-y-3">
-              <Heading level={4}>Игроки</Heading>
+              <div className="flex items-center justify-between">
+                <Heading level={4}>Игроки</Heading>
+                {amHost && room.participants.length < 4 && !room.participants.some(p => p.name.startsWith('Bot-')) && (
+                  <Button variant="ghost" size="sm" onClick={() => addBot()} className="text-[10px] h-6 px-2 text-slate-500 hover:text-white">
+                    + Бот
+                  </Button>
+                )}
+                {amHost && room.participants.length < 4 && room.participants.some(p => p.name.startsWith('Bot-')) && (
+                  <Button variant="ghost" size="sm" onClick={() => addBot()} className="text-[10px] h-6 px-2 text-slate-500 hover:text-white">
+                    + Еще Бот
+                  </Button>
+                )}
+              </div>
               <div className="space-y-2">
                 {room.participants.map((p) => (
                   <div
@@ -369,6 +412,7 @@ export const CoopLobby: React.FC = () => {
 
           <div className="lg:col-span-8 space-y-4">
             <Heading level={4}>Выбор персонажа</Heading>
+
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {COOP_CHARACTERS.map((character) => {
@@ -440,6 +484,74 @@ export const CoopLobby: React.FC = () => {
               })}
             </div>
 
+            {myRole && (
+              <div className="pt-6 animate-in slide-in-from-bottom-2 fade-in duration-500">
+                <Heading level={4} className="mb-4 flex items-center gap-2">
+                  <span>Инвентарь</span>
+                  <Badge variant="outline" className="text-[10px] py-0 h-5">
+                    {COOP_CHARACTERS.find(c => c.id === myRole)?.title}
+                  </Badge>
+                </Heading>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {COOP_CHARACTERS.find(c => c.id === myRole)?.loadout.map((entry, idx) => {
+                    const item = ITEM_TEMPLATES[entry.itemId]
+                    if (!item) return null
+
+                    const imagePath = ITEM_IMAGES[entry.itemId]
+
+                    return (
+                      <div
+                        key={`${myRole}-item-${idx}`}
+                        className="group relative flex flex-col items-center gap-3 p-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-cyan-500/30 transition-all"
+                      >
+                        <div className="relative h-16 w-full flex items-center justify-center">
+                          {imagePath ? (
+                            <img
+                              src={imagePath}
+                              alt={item.name}
+                              className="max-h-full max-w-full object-contain drop-shadow-md group-hover:scale-110 transition-transform duration-300"
+                            />
+                          ) : (
+                            <div className="text-4xl opacity-70 group-hover:scale-110 transition-transform">{item.icon}</div>
+                          )}
+
+                          {entry.qty && entry.qty > 1 && (
+                            <div className="absolute -bottom-1 -right-1 bg-black/80 border border-white/20 text-white text-[10px] px-1.5 py-0.5 rounded-md font-mono">
+                              x{entry.qty}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="text-center w-full">
+                          <div className="text-xs font-medium truncate text-slate-200 group-hover:text-cyan-400 transition-colors">
+                            {item.name}
+                          </div>
+                          <div className="mt-1 text-[10px] text-slate-500 line-clamp-2 leading-tight">
+                            {item.description}
+                          </div>
+                        </div>
+
+                        {/* Hover Stats Popover - Simplified as overlay for now */}
+                        <div className="absolute inset-0 bg-black/90 p-3 flex flex-col justify-center items-center text-center opacity-0 group-hover:opacity-100 transition-opacity rounded-xl pointer-events-none z-10">
+                          <div className="text-xs font-bold text-cyan-400 mb-1">{item.name}</div>
+                          <div className="space-y-1">
+                            {item.baseStats?.damage && (
+                              <div className="text-[10px] text-slate-300">Урон: <span className="text-white">{item.baseStats.damage}</span></div>
+                            )}
+                            {item.baseStats?.defense && (
+                              <div className="text-[10px] text-slate-300">Защита: <span className="text-white">{item.baseStats.defense}</span></div>
+                            )}
+                            <div className="text-[10px] text-slate-300">Вес: <span className="text-white">{item.baseStats?.weight ?? 0}кг</span></div>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
             {error && (
               <div className="bg-red-500/10 border border-red-500/40 text-red-200 p-4 rounded-xl text-sm">
                 {error}
@@ -452,3 +564,17 @@ export const CoopLobby: React.FC = () => {
   )
 }
 
+const ITEM_IMAGES: Record<string, string> = {
+  // Weapons
+  'pistol_pm': '/images/weapons/makarov.png',
+  'glock_19': '/images/weapons/glock_19.png',
+  'sawed_off_shotgun': '/images/weapons/sawed_off.png',
+  'rifle_ak74': '/images/weapons/Автомат 2.png',
+
+  // Armor/Gear - Mapping based on best guess from available files
+  'vest_police': '/images/снаряга/Бронижилет1Класса.png',
+  'helmet_police': '/images/снаряга/шлем.png',
+  'field_medkit': '/images/снаряга/медицинская аптечка.png',
+  'medkit': '/images/снаряга/медицинская аптечка.png',
+  'bandage': '/images/снаряга/медицинская аптечка.png', // Fallback or maybe abstract
+}

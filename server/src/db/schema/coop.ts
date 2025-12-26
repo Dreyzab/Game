@@ -38,6 +38,8 @@ export const coopParticipants = pgTable('coop_participants', {
 
     role: text('role'), // 'leader', 'medic', 'scout', etc.
     isReady: boolean('is_ready').default(false),
+    // Per-player reading/progress cursor (used to allow async reading between checkpoints)
+    currentScene: text('current_scene'),
     joinedAt: bigint('joined_at', { mode: 'number' }).notNull(),
 }, (table) => ({
     sessionIdx: index('part_session_idx').on(table.sessionId),

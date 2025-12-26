@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo } from 'react'
 import { motion } from 'framer-motion'
+import { Menu } from 'lucide-react'
 import { cn } from '@/shared/lib/utils/cn'
 
 export interface DialogueBoxProps {
@@ -14,6 +15,7 @@ export interface DialogueBoxProps {
   onRevealComplete?: () => void
   onTypingStatusChange?: (isTyping: boolean) => void
   forceShow?: boolean
+  onOpenMenu?: () => void
 }
 
 export const DialogueBox: React.FC<DialogueBoxProps> = ({
@@ -28,6 +30,7 @@ export const DialogueBox: React.FC<DialogueBoxProps> = ({
   onRevealComplete,
   onTypingStatusChange,
   forceShow,
+  onOpenMenu,
 }) => {
   // Note: _speakerName and _speakerTitle are received as props but not displayed
   // in this version of the component. They're kept for API compatibility.
@@ -106,6 +109,14 @@ export const DialogueBox: React.FC<DialogueBoxProps> = ({
     [disabled, displayedText.length, isTyping, onAdvance, onRevealComplete]
   )
 
+  const handleOpenMenu = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation()
+      onOpenMenu?.()
+    },
+    [onOpenMenu]
+  )
+
   return (
     <motion.div
       onClick={handleAdvance}
@@ -139,13 +150,27 @@ export const DialogueBox: React.FC<DialogueBoxProps> = ({
         )}
 
         {!disabled && !isTyping && (
-          <div className="absolute bottom-4 right-10 flex items-center gap-2 animate-pulse-soft">
+          <div className="absolute bottom-4 right-14 flex items-center gap-2 animate-pulse-soft">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
               {isPending ? 'Tap / Click to skip' : 'Tap / Click to continue'}
             </span>
             <div className="w-1.5 h-1.5 bg-slate-400 rounded-full" />
           </div>
         )}
+
+        <button
+          type="button"
+          onClick={handleOpenMenu}
+          className={cn(
+            'absolute bottom-3 right-3 h-9 w-9 rounded-xl border border-white/15 bg-black/30 backdrop-blur-md',
+            'flex items-center justify-center text-white/90 hover:bg-black/45 hover:border-white/25 transition',
+            disabled && 'opacity-60 pointer-events-none'
+          )}
+          aria-label="Меню"
+          title="Меню"
+        >
+          <Menu className="h-4 w-4" />
+        </button>
       </div>
     </motion.div>
   )

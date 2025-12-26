@@ -1,6 +1,6 @@
 import { db } from '../db';
-import { coopSessions, coopParticipants, coopVotes } from '../db/schema';
-import { eq, and } from 'drizzle-orm';
+import { coopSessions, coopParticipants, coopVotes, players } from '../db/schema';
+import { eq, and, inArray } from 'drizzle-orm';
 import { COOP_PROLOGUE_NODES } from '../lib/coopContent';
 import type { CoopRoleId } from '../shared/types/coop';
 import { broadcastCoopUpdate } from '../lib/bus';
@@ -28,6 +28,7 @@ export const coopService = {
             playerId: hostId,
             role: initialRole,
             isReady: Boolean(initialRole),
+            currentScene: session.currentScene ?? 'prologue_start',
             joinedAt: Date.now(),
         });
 
@@ -98,6 +99,13 @@ export const coopService = {
                     .set({ role, isReady: true })
                     .where(and(eq(coopParticipants.sessionId, session.id), eq(coopParticipants.playerId, playerId)));
             }
+            // Keep cursor in sync with current session scene if it was never set.
+            if (!(existing as any).currentScene) {
+                await db
+                    .update(coopParticipants)
+                    .set({ currentScene: session.currentScene ?? 'prologue_start' })
+                    .where(and(eq(coopParticipants.sessionId, session.id), eq(coopParticipants.playerId, playerId)));
+            }
             const state = await this.getRoomState(code);
             broadcastCoopUpdate(code, state);
             return state;
@@ -111,6 +119,7 @@ export const coopService = {
             playerId,
             role: desiredRole,
             isReady: Boolean(desiredRole),
+            currentScene: session.currentScene ?? 'prologue_start',
             joinedAt: Date.now(),
         });
 
@@ -156,24 +165,80 @@ export const coopService = {
             .set({ status: 'active', startedAt: Date.now() })
             .where(eq(coopSessions.id, session.id));
 
+        // Initialize per-player cursors to the starting scene for async reading.
+        const startScene = session.currentScene ?? 'prologue_start';
+        const participantIds = session.participants.map((p) => p.playerId);
+        if (participantIds.length > 0) {
+            await db
+                .update(coopParticipants)
+                .set({ currentScene: startScene })
+                .where(and(eq(coopParticipants.sessionId, session.id), inArray(coopParticipants.playerId, participantIds)));
+        }
+
         const state = await this.getRoomState(code);
         broadcastCoopUpdate(code, state);
         return state;
     },
 
-    async castVote(code: string, playerId: number, choiceId: string) {
+    async markReached(code: string, playerId: number, nodeId: string) {
         const session = await db.query.coopSessions.findFirst({
             where: eq(coopSessions.inviteCode, code),
-            with: { participants: true }
+            with: { participants: true },
+        });
+        if (!session) throw new Error('Room not found');
+        if (session.status !== 'active') throw new Error('Session not active');
+
+        const participant = session.participants.find((p) => p.playerId === playerId);
+        if (!participant) throw new Error('Not a participant');
+
+        await db.update(coopParticipants)
+            .set({ currentScene: nodeId })
+            .where(and(eq(coopParticipants.sessionId, session.id), eq(coopParticipants.playerId, playerId)));
+
+        // If majority reached this node, promote it to the shared checkpoint.
+        const threshold = Math.floor(session.participants.length / 2) + 1;
+        const reached = await db.query.coopParticipants.findMany({
+            where: and(eq(coopParticipants.sessionId, session.id), eq(coopParticipants.currentScene, nodeId)),
+            columns: { id: true },
+        });
+
+        if (reached.length >= threshold && session.currentScene !== nodeId) {
+            await db.update(coopSessions)
+                .set({ currentScene: nodeId })
+                .where(eq(coopSessions.id, session.id));
+        }
+
+        const state = await this.getRoomState(code);
+        broadcastCoopUpdate(code, state);
+        return state;
+    },
+
+    async castVote(code: string, requesterPlayerId: number, choiceId: string, asPlayerId?: number) {
+        const session = await db.query.coopSessions.findFirst({
+            where: eq(coopSessions.inviteCode, code),
+            with: { participants: { with: { player: true } } }
         });
         if (!session) throw new Error('Room not found');
         if (session.status !== 'active') throw new Error('Session not active');
         if (!session.currentScene) throw new Error('Invalid scene');
 
+        const actorPlayerId = typeof asPlayerId === 'number' ? asPlayerId : requesterPlayerId;
+
+        if (actorPlayerId !== requesterPlayerId) {
+            if (session.hostId !== requesterPlayerId) {
+                throw new Error('Only host can act for bots');
+            }
+            const target = session.participants.find((p) => p.playerId === actorPlayerId);
+            const targetName = target?.player?.name ?? '';
+            if (!target || !targetName.startsWith('Bot-')) {
+                throw new Error('Can only act for bots');
+            }
+        }
+
         const currentNode = COOP_PROLOGUE_NODES[session.currentScene];
         if (!currentNode) throw new Error('Invalid scene');
 
-        const participant = session.participants.find((p) => p.playerId === playerId);
+        const participant = session.participants.find((p) => p.playerId === actorPlayerId);
         if (!participant) throw new Error('Not a participant');
 
         // Validate choice exists
@@ -189,7 +254,7 @@ export const coopService = {
         await db.delete(coopVotes).where(and(
             eq(coopVotes.sessionId, session.id),
             eq(coopVotes.sceneId, session.currentScene),
-            eq(coopVotes.voterId, playerId),
+            eq(coopVotes.voterId, actorPlayerId),
         ));
 
         // Record vote/choice
@@ -197,9 +262,16 @@ export const coopService = {
             sessionId: session.id,
             sceneId: session.currentScene,
             choiceId,
-            voterId: playerId,
+            voterId: actorPlayerId,
             createdAt: Date.now(),
         });
+
+        // Individual choices are personal: they should not block others and should not advance the shared checkpoint.
+        if (currentNode.interactionType === 'individual') {
+            const state = await this.getRoomState(code);
+            broadcastCoopUpdate(code, state);
+            return state;
+        }
 
         // Check if we should advance
         const allVotes = await db.query.coopVotes.findMany({
@@ -213,7 +285,9 @@ export const coopService = {
         const relevantVotes = allVotes.filter((vote) => activeParticipantIds.has(vote.voterId));
         const activeParticipants = session.participants.length;
 
-        if (relevantVotes.length >= activeParticipants) {
+        // Majority threshold: > half of active participants.
+        const threshold = Math.floor(activeParticipants / 2) + 1;
+        if (relevantVotes.length >= threshold) {
             // Tally votes
             const counts: Record<string, number> = {};
             for (const v of relevantVotes) {
@@ -222,21 +296,22 @@ export const coopService = {
 
             let nextNodeId: string | undefined;
 
-            if (currentNode.interactionType === 'vote') {
+            // Special-case branching: in the briefing scene, Ghost can reveal an eavesdropper.
+            // That choice should override the default "converge" rule and advance to the intruder scene.
+            if (session.currentScene === 'outpost_tent') {
+                const hasIntruderReveal = relevantVotes.some((vote) => vote.choiceId === 'ghost_intruder');
+                if (hasIntruderReveal) {
+                    nextNodeId = 'briefing_intruder';
+                }
+            }
+
+            if (nextNodeId) {
+                // Skip generic resolution below
+            } else if (currentNode.interactionType === 'vote' || currentNode.interactionType === 'sync') {
                 const winnerId = Object.entries(counts).reduce((a, b) => (a[1] > b[1] ? a : b))[0];
                 const winningChoice = currentNode.choices.find(c => c.id === winnerId);
                 if (winningChoice?.nextNodeId) {
                     nextNodeId = winningChoice.nextNodeId;
-                }
-            } else {
-                // For sync/individual: advance only if all picks converge to one next node.
-                const candidates = new Set<string>();
-                for (const v of relevantVotes) {
-                    const picked = currentNode.choices.find((c) => c.id === v.choiceId);
-                    if (picked?.nextNodeId) candidates.add(picked.nextNodeId);
-                }
-                if (candidates.size === 1) {
-                    nextNodeId = Array.from(candidates)[0];
                 }
             }
 
@@ -286,6 +361,48 @@ export const coopService = {
         await db.update(coopSessions)
             .set({ currentScene: nodeId })
             .where(eq(coopSessions.inviteCode, code));
+
+        const state = await this.getRoomState(code);
+        broadcastCoopUpdate(code, state);
+        return state;
+    }
+    ,
+
+    async addBotToRoom(code: string) {
+        const session = await db.query.coopSessions.findFirst({
+            where: eq(coopSessions.inviteCode, code),
+            with: { participants: true },
+        });
+
+        if (!session) throw new Error('Room not found');
+        if (session.status !== 'waiting') throw new Error('Game already started');
+
+        if (session.participants.length >= (session.maxPlayers ?? 4)) throw new Error('Room is full');
+
+        const botName = `Bot-${Math.floor(Math.random() * 1000)}`;
+        const [dummyPlayer] = await db.insert(players).values({
+            name: botName,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            deviceId: `bot-${Date.now()}-${Math.random()}`, // Fake device ID
+        }).returning();
+
+        // Pick a random available role
+        const takenRoles = new Set(session.participants.map(p => p.role).filter(Boolean));
+        const availableRoles = COOP_ROLE_IDS.filter(r => !takenRoles.has(r));
+
+        let role: CoopRoleId | null = null;
+        if (availableRoles.length > 0) {
+            role = availableRoles[Math.floor(Math.random() * availableRoles.length)];
+        }
+
+        await db.insert(coopParticipants).values({
+            sessionId: session.id,
+            playerId: dummyPlayer.id,
+            role,
+            isReady: true, // Bots are always ready
+            joinedAt: Date.now(),
+        });
 
         const state = await this.getRoomState(code);
         broadcastCoopUpdate(code, state);

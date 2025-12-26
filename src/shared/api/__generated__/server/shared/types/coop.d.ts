@@ -21,6 +21,7 @@ export interface CoopQuestChoice {
 export interface CoopQuestNode {
     id: string;
     title: string;
+    background?: string;
     description: string;
     privateText?: Partial<Record<CoopRoleId, string>>;
     interactionType: CoopQuestNodeInteraction;

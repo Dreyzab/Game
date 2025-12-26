@@ -12,8 +12,8 @@ export const ITEM_TEMPLATES: Record<string, ItemTemplate> = {
     // ============ WEAPONS - MELEE ============
     rusty_sword: {
         id: 'rusty_sword',
-        name: 'Rusty Sword',
-        description: 'An old iron sword, chipped and dull. Better than bare hands.',
+        name: 'Ржавый меч',
+        description: 'Старый железный меч, зазубренный и тупой. Лучше, чем голыми руками.',
         kind: 'weapon',
         rarity: 'common',
         icon: '⚔️',
@@ -22,8 +22,8 @@ export const ITEM_TEMPLATES: Record<string, ItemTemplate> = {
     },
     rusty_pipe: {
         id: 'rusty_pipe',
-        name: 'Rusty Pipe',
-        description: 'A heavy, corroded iron pipe. Crude but effective.',
+        name: 'Ржавая труба',
+        description: 'Тяжелая, корродированная железная труба. Грубо, но эффективно.',
         kind: 'weapon',
         rarity: 'common',
         icon: 'pipe',
@@ -33,8 +33,8 @@ export const ITEM_TEMPLATES: Record<string, ItemTemplate> = {
     },
     lead_pipe: {
         id: 'lead_pipe',
-        name: 'Lead Pipe',
-        description: 'A heavy, corroded iron pipe. Crude but effective.',
+        name: 'Свинцовая труба',
+        description: 'Тяжелая, корродированная свинцовая труба. Грубо, но эффективно.',
         kind: 'weapon',
         rarity: 'common',
         icon: 'pipe',
@@ -43,8 +43,8 @@ export const ITEM_TEMPLATES: Record<string, ItemTemplate> = {
     },
     kitchen_knife: {
         id: 'kitchen_knife',
-        name: 'Kitchen Knife',
-        description: 'Standard kitchen knife. Sharp but fragile.',
+        name: 'Кухонный нож',
+        description: 'Стандартный кухонный нож. Острый, но хрупкий.',
         kind: 'weapon',
         rarity: 'common',
         icon: '🔪',
@@ -53,8 +53,8 @@ export const ITEM_TEMPLATES: Record<string, ItemTemplate> = {
     },
     sledgehammer: {
         id: 'sledgehammer',
-        name: 'Sledgehammer',
-        description: 'Heavy industrial tool. Devastating impact.',
+        name: 'Кувалда',
+        description: 'Тяжелый промышленный инструмент. Разрушительный удар.',
         kind: 'weapon',
         rarity: 'uncommon',
         icon: '🔨',
@@ -63,8 +63,8 @@ export const ITEM_TEMPLATES: Record<string, ItemTemplate> = {
     },
     broken_bottle: {
         id: 'broken_bottle',
-        name: 'Broken Bottle',
-        description: 'Jagged glass. Causes bleeding.',
+        name: 'Разбитая бутылка',
+        description: 'Острые осколки стекла. Вызывает кровотечение.',
         kind: 'weapon',
         rarity: 'common',
         icon: '🍾',
@@ -73,8 +73,8 @@ export const ITEM_TEMPLATES: Record<string, ItemTemplate> = {
     },
     knife: {
         id: 'knife',
-        name: 'Switchblade',
-        description: 'Concealable and sharp.',
+        name: 'Выкидной нож',
+        description: 'Скрытный и острый.',
         kind: 'weapon',
         rarity: 'common',
         icon: '🗡',
@@ -84,8 +84,8 @@ export const ITEM_TEMPLATES: Record<string, ItemTemplate> = {
     },
     wrench: {
         id: 'wrench',
-        name: 'Heavy Wrench',
-        description: 'Good for fixing things, or breaking them.',
+        name: 'Разводной ключ',
+        description: 'Хорош для ремонта, или чтобы что-нибудь сломать.',
         kind: 'weapon',
         rarity: 'common',
         icon: '🔧',
@@ -98,7 +98,7 @@ export const ITEM_TEMPLATES: Record<string, ItemTemplate> = {
     glock_19: {
         id: 'glock_19',
         name: 'Glock 19',
-        description: 'Reliable 9mm pistol. Standard issue.',
+        description: 'Надежный 9мм пистолет. Стандартное вооружение.',
         kind: 'weapon',
         rarity: 'rare',
         icon: '🔫',
@@ -108,8 +108,8 @@ export const ITEM_TEMPLATES: Record<string, ItemTemplate> = {
     },
     pistol_pm: {
         id: 'pistol_pm',
-        name: 'PM Pistol',
-        description: 'Makarov pistol. Reliable sidearm.',
+        name: 'Пистолет ПМ',
+        description: 'Пистолет Макарова. Надежное личное оружие.',
         kind: 'weapon',
         rarity: 'common',
         icon: '🔫',
@@ -119,8 +119,8 @@ export const ITEM_TEMPLATES: Record<string, ItemTemplate> = {
     },
     sawed_off_shotgun: {
         id: 'sawed_off_shotgun',
-        name: 'Sawed-off Shotgun',
-        description: 'Modified for close quarters. High spread.',
+        name: 'Обрез',
+        description: 'Модифицирован для ближнего боя. Большой разброс.',
         kind: 'weapon',
         rarity: 'rare',
         icon: '💥',
@@ -131,7 +131,7 @@ export const ITEM_TEMPLATES: Record<string, ItemTemplate> = {
     rifle_ak74: {
         id: 'rifle_ak74',
         name: 'AK-74',
-        description: 'Reliable assault rifle. 5.45mm.',
+        description: 'Надежная штурмовая винтовка. Калибр 5.45мм.',
         kind: 'weapon',
         rarity: 'rare',
         icon: '🔫',
@@ -143,8 +143,8 @@ export const ITEM_TEMPLATES: Record<string, ItemTemplate> = {
     // ============ ARMOR ============
     vest_police: {
         id: 'vest_police',
-        name: 'Police Vest',
-        description: 'Standard issue kevlar vest. Offers decent protection.',
+        name: 'Полицейский жилет',
+        description: 'Стандартный кевларовый жилет. Обеспечивает неплохую защиту.',
         kind: 'armor',
         rarity: 'uncommon',
         icon: '🦺',
@@ -153,8 +153,8 @@ export const ITEM_TEMPLATES: Record<string, ItemTemplate> = {
     },
     helmet_police: {
         id: 'helmet_police',
-        name: 'Riot Helmet',
-        description: 'Heavy helmet with visor.',
+        name: 'Шлем спецназа',
+        description: 'Тяжелый шлем с забралом.',
         kind: 'armor',
         rarity: 'uncommon',
         icon: '⛑',
@@ -163,8 +163,8 @@ export const ITEM_TEMPLATES: Record<string, ItemTemplate> = {
     },
     jacket_hidden: {
         id: 'jacket_hidden',
-        name: 'Smuggler Jacket',
-        description: 'Jacket with a hidden lining.',
+        name: 'Куртка контрабандиста',
+        description: 'Куртка со скрытой подкладкой.',
         kind: 'armor',
         rarity: 'uncommon',
         icon: '🧥',
@@ -175,8 +175,8 @@ export const ITEM_TEMPLATES: Record<string, ItemTemplate> = {
     // ============ CLOTHING ============
     scout_jacket: {
         id: 'scout_jacket',
-        name: 'Scout Jacket',
-        description: 'Lightweight jacket with hidden pockets. Favored by runners.',
+        name: 'Куртка разведчика',
+        description: 'Легкая куртка со скрытыми карманами. Любима бегунами.',
         kind: 'clothing',
         rarity: 'rare',
         icon: '🧥',
@@ -185,8 +185,8 @@ export const ITEM_TEMPLATES: Record<string, ItemTemplate> = {
     },
     clothing_basic: {
         id: 'clothing_basic',
-        name: 'Worn Clothes',
-        description: 'Simple, comfortable clothing. Seen better days.',
+        name: 'Поношенная одежда',
+        description: 'Простая, удобная одежда. Видала виды.',
         kind: 'clothing',
         rarity: 'common',
         icon: '👕',
@@ -195,8 +195,8 @@ export const ITEM_TEMPLATES: Record<string, ItemTemplate> = {
     },
     trousers_basic: {
         id: 'trousers_basic',
-        name: 'Cargo Pants',
-        description: 'Durable pants with plenty of pockets.',
+        name: 'Штаны карго',
+        description: 'Прочные штаны с множеством карманов.',
         kind: 'clothing',
         rarity: 'common',
         icon: '👖',
@@ -207,8 +207,8 @@ export const ITEM_TEMPLATES: Record<string, ItemTemplate> = {
     // ============ BACKPACKS / RIGS ============
     backpack_medic: {
         id: 'backpack_medic',
-        name: 'Medic Bag',
-        description: 'Specialized backpack with compartments for medical supplies.',
+        name: 'Медицинская сумка',
+        description: 'Специализированный рюкзак с отсеками для медикаментов.',
         kind: 'backpack',
         rarity: 'uncommon',
         icon: '🎒',
@@ -223,8 +223,8 @@ export const ITEM_TEMPLATES: Record<string, ItemTemplate> = {
     },
     belt_tool: {
         id: 'belt_tool',
-        name: 'Tool Belt',
-        description: 'Keeps your tools within reach.',
+        name: 'Пояс с инструментами',
+        description: 'Держит инструменты под рукой.',
         kind: 'rig',
         rarity: 'common',
         icon: '🛠',
@@ -241,8 +241,8 @@ export const ITEM_TEMPLATES: Record<string, ItemTemplate> = {
     // ============ CONSUMABLES ============
     field_medkit: {
         id: 'field_medkit',
-        name: 'Field Medkit',
-        description: 'Standard issue medical kit. Restores HP and stops bleeding.',
+        name: 'Полевая аптечка',
+        description: 'Стандартный медицинский набор. Восстанавливает HP и останавливает кровотечение.',
         kind: 'consumable',
         rarity: 'uncommon',
         icon: '⛑',
@@ -251,8 +251,8 @@ export const ITEM_TEMPLATES: Record<string, ItemTemplate> = {
     },
     medkit: {
         id: 'medkit',
-        name: 'First Aid Kit',
-        description: 'Essential for treating wounds.',
+        name: 'Аптечка первой помощи',
+        description: 'Необходима для лечения ран.',
         kind: 'consumable',
         rarity: 'uncommon',
         icon: '⛑',
@@ -261,8 +261,8 @@ export const ITEM_TEMPLATES: Record<string, ItemTemplate> = {
     },
     bandage: {
         id: 'bandage',
-        name: 'Dirty Bandage',
-        description: 'Better than nothing, but risks infection.',
+        name: 'Грязный бинт',
+        description: 'Лучше, чем ничего, но есть риск инфекции.',
         kind: 'consumable',
         rarity: 'common',
         icon: 'bandage',
@@ -271,8 +271,8 @@ export const ITEM_TEMPLATES: Record<string, ItemTemplate> = {
     },
     pills: {
         id: 'pills',
-        name: 'Painkillers',
-        description: 'Temporary relief from pain.',
+        name: 'Обезболивающее',
+        description: 'Временное облегчение боли.',
         kind: 'consumable',
         rarity: 'common',
         icon: '💊',
@@ -281,8 +281,8 @@ export const ITEM_TEMPLATES: Record<string, ItemTemplate> = {
     },
     ration_pack: {
         id: 'ration_pack',
-        name: 'Ration Pack',
-        description: 'Keeps you fed for a day on the frontier. Tastes like cardboard.',
+        name: 'Сухпаек',
+        description: 'Позволит продержаться день на границе. На вкус как картон.',
         kind: 'consumable',
         rarity: 'common',
         icon: '🍞',
@@ -291,8 +291,8 @@ export const ITEM_TEMPLATES: Record<string, ItemTemplate> = {
     },
     canned_food: {
         id: 'canned_food',
-        name: 'Canned Beans',
-        description: 'Expired in 2012. Edible, probably.',
+        name: 'Консервированные бобы',
+        description: 'Истек срок годности в 2012. Съедобно, наверное.',
         kind: 'consumable',
         rarity: 'common',
         icon: 'can',
@@ -303,8 +303,8 @@ export const ITEM_TEMPLATES: Record<string, ItemTemplate> = {
     // ============ ARTIFACTS ============
     mica_shard: {
         id: 'mica_shard',
-        name: 'Mica Shard',
-        description: 'Glows faintly when anomalies are near. Warm to the touch.',
+        name: 'Осколок слюды',
+        description: 'Слабо светится при приближении аномалий. Теплый на ощупь.',
         kind: 'artifact',
         rarity: 'epic',
         icon: '🜁',
@@ -315,8 +315,8 @@ export const ITEM_TEMPLATES: Record<string, ItemTemplate> = {
     // ============ MISC / MATERIALS ============
     badge: {
         id: 'badge',
-        name: 'Police Badge',
-        description: 'A tarnished badge. Authority is a memory.',
+        name: 'Полицейский значок',
+        description: 'Потускневший значок. Власть осталась в прошлом.',
         kind: 'misc',
         rarity: 'common',
         icon: '👮',
@@ -325,8 +325,8 @@ export const ITEM_TEMPLATES: Record<string, ItemTemplate> = {
     },
     scrap: {
         id: 'scrap',
-        name: 'Scrap Metal',
-        description: 'Useful for crafting and repairs.',
+        name: 'Металлолом',
+        description: 'Полезен для крафта и ремонта.',
         kind: 'misc',
         rarity: 'common',
         icon: '⚙️',
@@ -335,8 +335,8 @@ export const ITEM_TEMPLATES: Record<string, ItemTemplate> = {
     },
     cash: {
         id: 'cash',
-        name: 'Credits',
-        description: 'Old world currency. Still has value to some.',
+        name: 'Кредиты',
+        description: 'Валюта старого мира. Все еще имеет ценность для некоторых.',
         kind: 'misc',
         rarity: 'common',
         icon: '💵',

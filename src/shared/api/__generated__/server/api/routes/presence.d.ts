@@ -1,4 +1,5 @@
 import { Elysia } from "elysia";
+export declare function resetPresenceRuntime(): void;
 export declare const presenceRoutes: (app: Elysia) => Elysia<"", {
     decorator: {};
     store: {};

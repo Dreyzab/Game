@@ -71,4 +71,6 @@ export declare function applyCoopQuestChoice(code: string, userId: string, choic
 export declare function createPvpMatch(userId: string): PvpMatch;
 export declare function joinPvpMatch(matchId: string, userId: string): PvpMatch | null;
 export declare function getPvpMatch(matchId: string): PvpMatch | undefined;
+export declare function resetPvpRuntime(): void;
+export declare function resetCoopRuntime(): void;
 export {};

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+import { useNavigate } from 'react-router-dom'
 import {
   CharacterGroup,
   CharacterSprites,
@@ -19,6 +20,7 @@ import type {
 } from '@/shared/types/visualNovel'
 import type { VoiceId } from '@/shared/types/parliament'
 import { getVoiceDefinition, useConsultationMode } from '@/features/visual-novel/consultation'
+import { Routes } from '@/shared/lib/utils/navigation'
 
 export interface VNScreenProps {
   scene: VisualNovelSceneDefinition
@@ -62,6 +64,7 @@ export const VNScreen: React.FC<VNScreenProps> = ({
   onAdviceViewed,
   isCommitting = false,
 }) => {
+  const navigate = useNavigate()
   const speaker = useMemo(() => {
     if (!currentLine?.speakerId) return undefined
     return (
@@ -97,6 +100,7 @@ export const VNScreen: React.FC<VNScreenProps> = ({
 
   const [isLineRevealed, setLineRevealed] = useState(false)
   const [forceShowText, setForceShowText] = useState(false)
+  const [isMenuOpen, setMenuOpen] = useState(false)
 
   const shouldShowHp = typeof hp === 'number' && typeof maxHp === 'number'
   const [hpHudPulseKey, setHpHudPulseKey] = useState(0)
@@ -365,6 +369,7 @@ export const VNScreen: React.FC<VNScreenProps> = ({
               onAdvance={onAdvance}
               onRevealComplete={() => setLineRevealed(true)}
               forceShow={forceShowText}
+              onOpenMenu={() => setMenuOpen((v) => !v)}
             />
           )}
         </AnimatePresence>
@@ -386,6 +391,71 @@ export const VNScreen: React.FC<VNScreenProps> = ({
           </div>
         )}
       </div>
+
+      <AnimatePresence>
+        {isMenuOpen ? (
+          <motion.div
+            className="absolute inset-0 z-50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setMenuOpen(false)}
+          >
+            <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" />
+            <motion.div
+              className="absolute bottom-6 right-6 w-[260px] rounded-2xl border border-white/15 bg-slate-950/80 backdrop-blur-xl shadow-2xl p-3"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 12 }}
+              transition={{ duration: 0.18 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="text-[10px] uppercase tracking-[0.28em] text-slate-400 px-2 py-1">
+                Меню
+              </div>
+              <div className="grid gap-2 mt-2">
+                <button
+                  type="button"
+                  className="w-full px-4 py-3 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-left text-sm text-white transition"
+                  onClick={() => {
+                    setMenuOpen(false)
+                    navigate(Routes.HOME)
+                  }}
+                >
+                  Домой
+                </button>
+                <button
+                  type="button"
+                  className="w-full px-4 py-3 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-left text-sm text-white transition"
+                  onClick={() => {
+                    setMenuOpen(false)
+                    navigate(Routes.MAP)
+                  }}
+                >
+                  На карту
+                </button>
+                <button
+                  type="button"
+                  className="w-full px-4 py-3 rounded-xl border border-rose-400/30 bg-rose-500/10 hover:bg-rose-500/15 text-left text-sm text-rose-100 transition"
+                  onClick={() => {
+                    setMenuOpen(false)
+                    onExit()
+                  }}
+                >
+                  Выйти
+                </button>
+                <button
+                  type="button"
+                  className="w-full px-4 py-3 rounded-xl border border-white/10 bg-black/20 hover:bg-black/30 text-left text-sm text-slate-200 transition"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Закрыть
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </div>
   )
 }

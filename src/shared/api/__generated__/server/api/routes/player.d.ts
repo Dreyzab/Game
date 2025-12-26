@@ -170,6 +170,47 @@ export declare const playerRoutes: (app: Elysia) => Elysia<"", {
             };
         };
     };
+} & {
+    player: {
+        "reset-self": {
+            post: {
+                body: unknown;
+                params: {};
+                query: unknown;
+                headers: unknown;
+                response: {
+                    200: {
+                        ok: boolean;
+                        error: string;
+                        status: number;
+                        reset?: undefined;
+                        result?: undefined;
+                    } | {
+                        ok: boolean;
+                        reset: boolean;
+                        error?: undefined;
+                        status?: undefined;
+                        result?: undefined;
+                    } | {
+                        ok: boolean;
+                        reset: boolean;
+                        result: import("../../services/playerReset").ResetSelfResult;
+                        error?: undefined;
+                        status?: undefined;
+                    };
+                    422: {
+                        type: "validation";
+                        on: string;
+                        summary?: string;
+                        message?: string;
+                        found?: unknown;
+                        property?: string;
+                        expected?: string;
+                    };
+                };
+            };
+        };
+    };
 }, {
     derive: {};
     resolve: {};

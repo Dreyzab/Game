@@ -7,6 +7,7 @@
 export { CoopLobby } from './CoopLobby';
 export { CoopBattleScreen } from './CoopBattleScreen';
 export { useCoopStore } from './model/store';
+export { clearLastCoopRoomCode, getLastCoopRoomCode, setLastCoopRoomCode } from './model/persistence';
 
 
 

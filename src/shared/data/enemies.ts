@@ -239,6 +239,56 @@ export const ENEMY_TEMPLATES: Record<string, EnemyTemplate> = {
     lootTable: 'drone_heavy_loot'
   },
 
+  // ============ RIFT FAUNA: SCORPIONS (СКОРПИОНЫ) ============
+  // Логика: агрессивные падальщики Разлома. Держатся ближе, рвут клешнями.
+  // Средний скорпион дополнительно колет хвостом по нескольким целям.
+
+  small_scorpion: {
+    id: 'small_scorpion',
+    name: 'Small Rift Scorpion',
+    nameRu: 'Малый Скорпион',
+    threatLevel: 'T1',
+    aiType: 'scorpion',
+
+    hp: 35,
+    morale: 100,
+    armor: 8,
+
+    preferredRanks: [1, 2],
+    retreatThreshold: 0,
+    immunities: ['fear', 'poison'],
+
+    availableActions: ['scorpion_claw_strike'],
+
+    aggroRadius: 25,
+
+    xpReward: 35,
+    lootTable: 'scorpion_basic_loot',
+  },
+
+  medium_scorpion: {
+    id: 'medium_scorpion',
+    name: 'Medium Rift Scorpion',
+    nameRu: 'Средний Скорпион',
+    threatLevel: 'T2',
+    aiType: 'scorpion',
+
+    hp: 70,
+    morale: 100,
+    armor: 14,
+
+    preferredRanks: [1, 2, 3],
+    retreatThreshold: 0,
+    immunities: ['fear', 'poison', 'morale_damage'],
+
+    availableActions: ['scorpion_tail_sting', 'scorpion_claw_strike'],
+
+    aggroRadius: 30,
+
+    xpReward: 85,
+    lootTable: 'scorpion_medium_loot',
+  },
+
   // ============ T4: BOSS (БОССЫ) ============
   // Логика: Фазовая структура боя. Иммунитет к контролю.
   // Меняет условия арены.
@@ -618,6 +668,37 @@ export const ENEMY_ACTIONS: Record<string, EnemyAction> = {
       { type: 'push', value: 1, chance: 80, description: '80% шанс отбросить' }
     ],
     aiPriority: 6
+  },
+
+  // ============ SCORPION ACTIONS ============
+  scorpion_claw_strike: {
+    id: 'scorpion_claw_strike',
+    name: 'Claw Strike',
+    nameRu: 'Удар клешнёй',
+    staminaCost: 12,
+    cooldown: 0,
+    targetType: 'single',
+    targetRanks: [1, 2],
+    damage: '2d4+1',
+    damageType: 'slashing',
+    effects: [],
+    aiPriority: 7,
+  },
+
+  scorpion_tail_sting: {
+    id: 'scorpion_tail_sting',
+    name: 'Tail Sting',
+    nameRu: 'Укол хвостом',
+    staminaCost: 18,
+    cooldown: 2,
+    targetType: 'area',
+    targetRanks: [1, 2],
+    damage: '1d6+2',
+    damageType: 'piercing',
+    effects: [
+      { type: 'paralysis', value: 1, chance: 20, duration: 1, description: '20% шанс паралича на 1 ход' },
+    ],
+    aiPriority: 8,
   },
 
   // ============ T4 BOSS ACTIONS ============

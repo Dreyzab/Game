@@ -6,6 +6,7 @@ import { auth } from "../auth";
 import { needsSkillsNormalization, normalizeSkills, STARTING_SKILLS } from "../../lib/gameProgress";
 import { deriveOnboardingSkills, ONBOARDING_SKILLS_APPLIED_FLAG } from "../../lib/onboarding";
 import { randomBytes, scryptSync } from "node:crypto";
+import { resetSelf } from "../../services/playerReset";
 
 const DEFAULT_SCENE_ID = 'prologue_coupe_start';
 const NICKNAME_FLAG = 'nickname_set';
@@ -437,5 +438,22 @@ export const playerRoutes = (app: Elysia) =>
                         password: t.Optional(t.String()),
                         returnScene: t.Optional(t.String()),
                     })
+                })
+
+                .post("/reset-self", async ({ user }) => {
+                    if (!user) return { ok: false, error: "Unauthorized", status: 401 };
+
+                    const player = await db.query.players.findFirst({
+                        where: user.type === 'clerk'
+                            ? eq(players.userId, user.id)
+                            : eq(players.deviceId, user.id)
+                    });
+
+                    if (!player) {
+                        return { ok: true, reset: false };
+                    }
+
+                    const result = await resetSelf(user as any, player.id);
+                    return { ok: true, reset: true, result };
                 })
          );

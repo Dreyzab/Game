@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { API_BASE_URL, authenticatedClient } from '@/shared/api/client';
 import type { CoopQuestNode } from '@/shared/types/coop';
+import { clearLastCoopRoomCode, setLastCoopRoomCode } from './persistence';
 
 // Define the state shape matching the backend response
 export interface CoopParticipant {
@@ -35,7 +36,8 @@ interface CoopStore {
     leaveRoom: () => Promise<void>;
     setReady: (ready: boolean) => Promise<void>;
     startGame: () => Promise<void>;
-    castVote: (choiceId: string) => Promise<void>;
+    castVote: (choiceId: string, asPlayerId?: number) => Promise<void>;
+    addBot: () => Promise<void>;
     clearError: () => void;
 
     // Updates
@@ -67,8 +69,10 @@ export const useCoopStore = create<CoopStore>((set, get) => ({
         }
 
         if (payload?.room) {
-            set({ room: payload.room as any, isLoading: false }); // Type mapping loose for now
-            get().connectSocket(payload.room.code);
+            const nextRoom = payload.room as any;
+            setLastCoopRoomCode(String(nextRoom.code ?? ''));
+            set({ room: nextRoom, isLoading: false }); // Type mapping loose for now
+            get().connectSocket(nextRoom.code);
             return;
         }
 
@@ -92,8 +96,10 @@ export const useCoopStore = create<CoopStore>((set, get) => ({
         }
 
         if (payload?.room) {
-            set({ room: payload.room as any, isLoading: false });
-            get().connectSocket(payload.room.code);
+            const nextRoom = payload.room as any;
+            setLastCoopRoomCode(String(nextRoom.code ?? code));
+            set({ room: nextRoom, isLoading: false });
+            get().connectSocket(nextRoom.code ?? code);
             return;
         }
 
@@ -121,7 +127,9 @@ export const useCoopStore = create<CoopStore>((set, get) => ({
             }
 
             if (payload?.room) {
-                set({ room: payload.room as any });
+                const nextRoom = payload.room as any;
+                setLastCoopRoomCode(String(nextRoom.code ?? room.code));
+                set({ room: nextRoom });
             }
         } finally {
             set({ isUpdating: false });
@@ -146,6 +154,7 @@ export const useCoopStore = create<CoopStore>((set, get) => ({
             }
             coopSocket = null;
         }
+        clearLastCoopRoomCode();
         set({ room: null });
     },
 
@@ -164,7 +173,9 @@ export const useCoopStore = create<CoopStore>((set, get) => ({
             return;
         }
         if (payload?.room) {
-            set({ room: payload.room as any });
+            const nextRoom = payload.room as any;
+            setLastCoopRoomCode(String(nextRoom.code ?? room.code));
+            set({ room: nextRoom });
         }
     },
 
@@ -183,15 +194,20 @@ export const useCoopStore = create<CoopStore>((set, get) => ({
             return;
         }
         if (payload?.room) {
-            set({ room: payload.room as any });
+            const nextRoom = payload.room as any;
+            setLastCoopRoomCode(String(nextRoom.code ?? room.code));
+            set({ room: nextRoom });
         }
     },
 
-    castVote: async (choiceId) => {
+    castVote: async (choiceId, asPlayerId) => {
         const { room } = get();
         if (!room) return;
         // @ts-expect-error - dynamic route access issue
-        const { data, error } = await authenticatedClient().coop.rooms[room.code].quest.post({ choiceId });
+        const { data, error } = await authenticatedClient().coop.rooms[room.code].quest.post({
+            choiceId,
+            asPlayerId: typeof asPlayerId === 'number' ? asPlayerId : undefined,
+        });
         if (error) {
             set({ error: (error as any)?.value ? String((error as any).value) : 'Unknown error' });
             return;
@@ -202,13 +218,53 @@ export const useCoopStore = create<CoopStore>((set, get) => ({
             return;
         }
         if (payload?.room) {
-            set({ room: payload.room as any });
+            const nextRoom = payload.room as any;
+            setLastCoopRoomCode(String(nextRoom.code ?? room.code));
+            set({ room: nextRoom });
+        }
+    },
+
+    addBot: async () => {
+        const { room } = get();
+        if (!room) return;
+
+        // Manual fetch because Eden type inference might not have picked up the new route yet
+        // or it's just easier to use fetch for a debug endpoint
+
+        // We can try to use authenticatedClient if the types are updated, but let's use a safe fallback if needed.
+        // Given we just updated the backend, the client types might not be regenerated yet.
+        // We'll treat it as 'any' to bypass TS check on the new route.
+        const client = authenticatedClient() as any;
+
+        try {
+            const { data, error } = await client.coop.rooms[room.code].debug.add_bot.post();
+
+            if (error) {
+                set({ error: (error as any)?.value ? String((error as any).value) : 'Unknown error' });
+                return;
+            }
+            const payload = data as any;
+            if (payload?.room) {
+                const nextRoom = payload.room as any;
+                setLastCoopRoomCode(String(nextRoom.code ?? room.code));
+                set({ room: nextRoom });
+            }
+        } catch (e) {
+            console.error(e);
+            set({ error: 'Failed to add bot' });
         }
     },
 
     clearError: () => set({ error: null }),
 
-    updateRoom: (room) => set({ room }),
+    updateRoom: (room) => {
+        if (room?.code) {
+            setLastCoopRoomCode(String(room.code));
+        } else {
+            clearLastCoopRoomCode();
+        }
+        set({ room });
+    },
 
     connectSocket: (code) => {
         if (coopSocket) {

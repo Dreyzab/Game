@@ -63,6 +63,26 @@ type CardPlayTarget =
     | { type: 'enemy'; enemyId: string }
     | { type: 'player-rank'; rank: number }
 
+const MAX_RANK = 4
+
+const fillEmptyRanks = (units: Combatant[]): Combatant[] => {
+    const living = [...units]
+        .filter((unit) => !unit.isDead)
+        .sort((a, b) => a.rank - b.rank || a.id.localeCompare(b.id))
+
+    const nextRankById = new Map<string, number>()
+    living.forEach((unit, index) => {
+        nextRankById.set(unit.id, Math.min(MAX_RANK, index + 1))
+    })
+
+    return units.map((unit) => {
+        if (unit.isDead) return unit
+        const nextRank = nextRankById.get(unit.id)
+        if (!nextRank || nextRank === unit.rank) return unit
+        return { ...unit, rank: nextRank }
+    })
+}
+
 const INITIAL_ACHIEVEMENTS: Achievement[] = [
     {
         id: 'first_win',
@@ -376,49 +396,84 @@ export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default', ren
                 const alivePlayers = players.filter((p) => !p.isDead)
                 if (alivePlayers.length === 0) return prev
 
-                const target = [...alivePlayers].sort(
-                    (a, b) => (a.rank + enemy.rank - 1) - (b.rank + enemy.rank - 1)
-                )[0]
+                const distanceTo = (player: Combatant) => enemy.rank + player.rank - 1
+                const sortedTargets = [...alivePlayers].sort((a, b) => distanceTo(a) - distanceTo(b))
+                const target = sortedTargets[0]
+
+                const enemyName = enemy.name.toLowerCase()
+                const isSmallScorpion = enemyName.includes('мал') && enemyName.includes('скор')
+                const isMediumScorpion = enemyName.includes('сред') && enemyName.includes('скор')
+
+                const applyDamage = (
+                    playerId: string,
+                    opts: { accuracy: number; baseDamage: number; label: string; ignoreArmor?: boolean }
+                ) => {
+                    const targetIndex = players.findIndex((p) => p.id === playerId)
+                    if (targetIndex < 0) return 0
+
+                    const defender = players[targetIndex]
+                    if (defender.isDead) return 0
+
+                    const attackResult = rollAttack(enemy, defender, opts.accuracy)
+                    if (!attackResult.hit) {
+                        nextLogs.push(
+                            `${defender.name} dodges ${enemy.name}'s ${opts.label}! (${attackResult.dodgeChance}% dodge from ${defender.resources.ap} unused AP)`
+                        )
+                        addCombatEvent(defender.id, 'DODGE!', 'miss')
+                        return 0
+                    }
+
+                    const dmg = Math.max(1, opts.ignoreArmor ? opts.baseDamage : opts.baseDamage - defender.armor)
+                    const nextHp = Math.max(0, defender.resources.hp - dmg)
+                    players[targetIndex] = {
+                        ...defender,
+                        resources: { ...defender.resources, hp: nextHp },
+                        isDead: nextHp <= 0,
+                    }
+                    nextLogs.push(
+                        `${enemy.name} uses ${opts.label}: ${dmg} DMG to ${defender.name}! (roll: ${attackResult.roll}/${attackResult.needed})`
+                    )
+                    addCombatEvent(defender.id, `-${dmg}`, 'damage')
+                    if (nextHp <= 0) nextLogs.push(`${defender.name} offline.`)
+                    return dmg
+                }
 
                 let damageDealt = 0
-                // Correct distance for mirrored lanes: (Enemy Rank) + (Player Rank) - 1
-                // Assuming R1 vs R1 is distance 1
-                const distance = enemy.rank + target.rank - 1
+                const distance = distanceTo(target)
 
-                if (distance > 2) {
+                if (isMediumScorpion && distance <= 3) {
+                    const inRange = sortedTargets.filter((p) => distanceTo(p) <= 3).slice(0, 2)
+                    if (inRange.length === 1) {
+                        damageDealt += applyDamage(inRange[0].id, { accuracy: 70, baseDamage: 12, label: 'Tail Sting' })
+                    } else {
+                        nextLogs.push(`${enemy.name} lashes out with its tail!`)
+                        damageDealt += applyDamage(inRange[0].id, { accuracy: 70, baseDamage: 12, label: 'Tail Sting' })
+                        damageDealt += applyDamage(inRange[1].id, { accuracy: 70, baseDamage: 12, label: 'Tail Sting' })
+                    }
+                } else if ((isSmallScorpion || isMediumScorpion) && distance <= 2) {
+                    damageDealt += applyDamage(target.id, { accuracy: 75, baseDamage: isMediumScorpion ? 14 : 12, label: 'Claw Strike' })
+                } else if (distance > 2) {
                     enemies[enemyIndex] = { ...enemies[enemyIndex], rank: Math.max(1, enemy.rank - 1) }
                     nextLogs.push(`${enemy.name} advances to rank ${enemies[enemyIndex].rank}.`)
                 } else {
-                    // Perform hit roll with dodge system
-                    const targetIndex = players.findIndex((p) => p.id === target.id)
-                    const attackResult = rollAttack(enemy, target, 70) // Enemy base accuracy 70%
-
-                    if (attackResult.hit) {
-                        // Hit - deal damage
-                        const dmg = enemy.name === 'Mutant Marauder' ? 10 : Math.max(1, 10 - target.armor)
-                        const nextHp = Math.max(0, players[targetIndex].resources.hp - dmg)
-                        players[targetIndex] = {
-                            ...players[targetIndex],
-                            resources: { ...players[targetIndex].resources, hp: nextHp },
-                            isDead: nextHp <= 0,
-                        }
-                        damageDealt = dmg
-                        nextLogs.push(`${enemy.name} strikes ${target.name} for ${dmg} DMG! (roll: ${attackResult.roll}/${attackResult.needed})`)
-                        addCombatEvent(target.id, `-${dmg}`, 'damage')
-                        if (nextHp <= 0) nextLogs.push(`${target.name} offline.`)
-                    } else {
-                        // Miss - target dodged
-                        nextLogs.push(`${target.name} dodges ${enemy.name}'s attack! (${attackResult.dodgeChance}% dodge from ${target.resources.ap} unused AP)`)
-                        addCombatEvent(target.id, 'DODGE!', 'miss')
-                    }
+                    // Default enemy strike
+                    damageDealt += applyDamage(target.id, {
+                        accuracy: 70,
+                        baseDamage: 10,
+                        label: 'Strike',
+                        ignoreArmor: enemy.name === 'Mutant Marauder',
+                    })
                 }
 
-                const allPlayersDead = players.every((p) => p.isDead)
+                const nextPlayers = fillEmptyRanks(players)
+                const nextEnemies = fillEmptyRanks(enemies)
+
+                const allPlayersDead = nextPlayers.every((p) => p.isDead)
 
                 return {
                     ...prev,
-                    players,
-                    enemies,
+                    players: nextPlayers,
+                    enemies: nextEnemies,
                     logs: nextLogs,
                     stats: { ...prev.stats, damageTaken: prev.stats.damageTaken + damageDealt },
                     phase: allPlayersDead ? 'DEFEAT' : prev.phase,
@@ -587,7 +642,9 @@ export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default', ren
                     return { ...prev, logs: nextLogs }
                 }
 
-                const allDead = enemies.every((e) => e.isDead)
+                const nextPlayers = fillEmptyRanks(players)
+                const nextEnemies = fillEmptyRanks(enemies)
+                const allDead = nextEnemies.every((e) => e.isDead)
 
                 if (allDead) {
                     unlockAchievement('first_win')
@@ -596,8 +653,8 @@ export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default', ren
 
                 return {
                     ...prev,
-                    players,
-                    enemies,
+                    players: nextPlayers,
+                    enemies: nextEnemies,
                     logs: nextLogs,
                     phase: allDead ? 'VICTORY' : prev.phase,
                     stats: { ...prev.stats, attacksInOneTurn: nextAttacksInTurn },
@@ -665,6 +722,11 @@ export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default', ren
 
     const activePlayer = activeUnit?.side === Side.PLAYER ? activeUnit : null
 
+    const activeHandCards = useMemo(
+        () => battle.playerHand.filter((card) => card.ownerId === battle.activeUnitId),
+        [battle.activeUnitId, battle.playerHand]
+    )
+
     const resolveLocalPortrait = useCallback((unit: Combatant): string | null => {
         const id = unit.id.toLowerCase()
         const name = unit.name.toLowerCase()
@@ -687,6 +749,9 @@ export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default', ren
 
         // Enemies
         if (unit.side === Side.ENEMY && name.includes('mutant marauder')) return '/images/enemy/melkiyShuk.png'
+        if (unit.side === Side.ENEMY && name.includes('rail scorpion')) return '/images/enemy/БолСкор.png'
+        if (unit.side === Side.ENEMY && name.includes('мал') && name.includes('скор')) return '/images/enemy/МалСкор.png'
+        if (unit.side === Side.ENEMY && name.includes('сред') && name.includes('скор')) return '/images/enemy/СредСкор.png'
         if (unit.side === Side.ENEMY && (id === 'boss' || name.includes('executioner'))) return '/images/enemy/BossPalach.png'
 
         return null
@@ -999,15 +1064,15 @@ export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default', ren
                                             key={card.id}
                                             card={card}
                                             disabled={!canPlayCard({ session: battle, card })}
-                                            onClick={() => playCard(card)}
-                                            style={{
-                                                transform: `rotate(${(i - (battle.playerHand.length - 1) / 2) * 5}deg) scale(1.0) translateY(${Math.abs(i - (battle.playerHand.length - 1) / 2) * 2}px)`,
+                                             onClick={() => playCard(card)}
+                                             style={{
+                                                transform: `rotate(${(i - (activeHandCards.length - 1) / 2) * 5}deg) scale(1.0) translateY(${Math.abs(i - (activeHandCards.length - 1) / 2) * 2}px)`,
                                                 margin: '0 -10px'
-                                            }}
-                                            className="cursor-grab active:cursor-grabbing hover:z-100 transition-all duration-300 hover:-translate-y-12 md:hover:-translate-y-16"
-                                        />
-                                    )
-                                })}
+                                             }}
+                                             className="cursor-grab active:cursor-grabbing hover:z-100 transition-all duration-300 hover:-translate-y-12 md:hover:-translate-y-16"
+                                         />
+                                     )
+                                 })}
                         </div>
                     </div>
 
