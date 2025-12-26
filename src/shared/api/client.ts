@@ -5,16 +5,27 @@ import { getDeviceId } from '@/shared/lib/utils/deviceId'
 const resolveBaseUrl = (): string => {
   const envUrl = import.meta.env.VITE_API_URL as string | undefined
 
+  if (import.meta.env.DEV) {
+    console.log('[API] Runtime Environment: DEVELOPMENT')
+    console.log('[API] VITE_API_URL from env:', envUrl)
+  }
+
   // 1. Strict Production Mode: Must have VITE_API_URL
   if (import.meta.env.PROD) {
     if (!envUrl) {
       console.error('[API] VITE_API_URL is missing in PRODUCTION! Requests will fail.')
-      return '' // Better to fail relatively than produce Mixed Content
+      return ''
     }
-    // Ensure HTTPS for external URLs
-    if (envUrl.startsWith('http://') && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
-      return envUrl.replace('http://', 'https://')
+
+    // Ensure HTTPS for production URLs unless it's a local address (unlikely in prod build)
+    const isLocal = envUrl.includes('localhost') || envUrl.includes('127.0.0.1')
+    if (envUrl.startsWith('http://') && !isLocal) {
+      const httpsUrl = envUrl.replace('http://', 'https://')
+      console.log(`[API] Production URL forced to HTTPS: ${httpsUrl}`)
+      return httpsUrl
     }
+
+    console.log(`[API] Production API URL: ${envUrl}`)
     return envUrl
   }
 
@@ -27,9 +38,6 @@ const resolveBaseUrl = (): string => {
   // 3. Development / LAN Mode
   if (!envUrl) {
     if (isLocalhost) return 'http://localhost:3000'
-
-    // Remote host but no API URL?
-    // DO NOT fallback to :3000 on web.app (Firebase) because it causes Mixed Content (https page -> http port).
     console.error('[API] VITE_API_URL missing on remote host. API calls will likely fail.')
     return ''
   }

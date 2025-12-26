@@ -13,7 +13,7 @@ env:
   # Artifact Registry Repo Name including location
   # e.g. europe-west1-docker.pkg.dev/my-project/my-repo
   GAR_LOCATION: europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/grezwanderer-repo
-  SERVICE_NAME: grezwanderer-backend
+  SERVICE_NAME: grewanderer-backend
 
 jobs:
   deploy-backend:
