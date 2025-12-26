@@ -60,7 +60,9 @@ jobs:
             artifactregistry.googleapis.com \
             sqladmin.googleapis.com \
             iamcredentials.googleapis.com \
-            cloudresourcemanager.googleapis.com
+            cloudresourcemanager.googleapis.com \
+            --project="${{ env.PROJECT_ID }}" \
+            --quiet
 
       - name: Configure Docker
         run: |
