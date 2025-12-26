@@ -25,18 +25,21 @@ let coopSocket: WebSocket | null = null;
 interface CoopStore {
     room: CoopRoomState | null;
     isLoading: boolean;
+    isUpdating: boolean;
     error: string | null;
 
     // Actions
     createRoom: (role?: string) => Promise<void>;
     joinRoom: (code: string, role?: string) => Promise<void>;
+    selectRole: (role: string) => Promise<void>;
     leaveRoom: () => Promise<void>;
     setReady: (ready: boolean) => Promise<void>;
     startGame: () => Promise<void>;
     castVote: (choiceId: string) => Promise<void>;
+    clearError: () => void;
 
     // Updates
-    updateRoom: (room: CoopRoomState) => void;
+    updateRoom: (room: CoopRoomState | null) => void;
 
     // Socket
     connectSocket: (code: string) => void;
@@ -45,6 +48,7 @@ interface CoopStore {
 export const useCoopStore = create<CoopStore>((set, get) => ({
     room: null,
     isLoading: false,
+    isUpdating: false,
     error: null,
 
     createRoom: async (role) => {
@@ -94,6 +98,34 @@ export const useCoopStore = create<CoopStore>((set, get) => ({
         }
 
         set({ isLoading: false, error: 'Unknown error' });
+    },
+
+    selectRole: async (role) => {
+        const { room } = get();
+        if (!room) return;
+
+        set({ isUpdating: true, error: null });
+
+        try {
+            // @ts-expect-error - dynamic route access issue with Eden
+            const { data, error } = await authenticatedClient().coop.rooms[room.code].join.post({ role });
+            if (error) {
+                set({ error: (error as any)?.value ? String((error as any).value) : 'Unknown error' });
+                return;
+            }
+
+            const payload = data as any;
+            if (typeof payload?.error === 'string' && payload.error) {
+                set({ error: payload.error });
+                return;
+            }
+
+            if (payload?.room) {
+                set({ room: payload.room as any });
+            }
+        } finally {
+            set({ isUpdating: false });
+        }
     },
 
     leaveRoom: async () => {
@@ -173,6 +205,8 @@ export const useCoopStore = create<CoopStore>((set, get) => ({
             set({ room: payload.room as any });
         }
     },
+
+    clearError: () => set({ error: null }),
 
     updateRoom: (room) => set({ room }),
 

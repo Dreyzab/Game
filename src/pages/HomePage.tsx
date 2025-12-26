@@ -9,6 +9,9 @@ import { PlayerStatusWidget } from '@/widgets/player-status'
 import { QuickActionsWidget } from '@/widgets/quick-actions'
 import { ActiveQuestsWidget } from '@/widgets/active-quests'
 import { SystemStatusWidget } from '@/widgets/system-status'
+import { Button } from '@/shared/ui/components/Button'
+import { Heading } from '@/shared/ui/components/Heading'
+import { Text } from '@/shared/ui/components/Text'
 import { usePlayerProgress, useCreatePlayer } from '@/shared/hooks/usePlayer'
 import { authenticatedClient } from '@/shared/api/client'
 import { useDeviceId } from '@/shared/hooks/useDeviceId'
@@ -115,6 +118,30 @@ export function ModernHomePage() {
       />
 
       <Suspense fallback={<LoadingSpinner text="Загрузка" />}>
+        <div className="panel-grid mb-6">
+          <div className="panel-span-12">
+            <div className="glass-panel p-5 border border-white/5">
+              <div className="flex flex-col gap-1">
+                <Heading level={3} className="text-white">
+                  Совместная игра
+                </Heading>
+                <Text size="sm" variant="muted">
+                  Создай команду и покажи QR-код друзьям — или присоединись по коду.
+                </Text>
+              </div>
+
+              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Button variant="primary" size="lg" onClick={() => navigate(`${Routes.COOP}?mode=create`)}>
+                  Совместная игра
+                </Button>
+                <Button variant="outline" size="lg" onClick={() => navigate(`${Routes.COOP}?mode=join`)}>
+                  Присоединиться
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="panel-grid mb-10">
           <div className="panel-span-7">
             <PlayerStatusWidget />

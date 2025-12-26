@@ -7,9 +7,9 @@ import { eq } from "drizzle-orm";
 import type { CoopRoleId } from "../../shared/types/coop";
 
 // Helper to get internal player ID from auth user
-async function getPlayerId(userId: string): Promise<number | null> {
+async function getPlayerId(user: { id: string; type: 'clerk' | 'guest' }): Promise<number | null> {
     const player = await db.query.players.findFirst({
-        where: eq(players.userId, userId),
+        where: user.type === 'clerk' ? eq(players.userId, user.id) : eq(players.deviceId, user.id),
         columns: { id: true }
     });
     return player?.id ?? null;
@@ -28,7 +28,7 @@ export const coopRoutes = (app: Elysia) =>
             app
                 .post("/rooms", async ({ user, body }) => {
                     if (!user) return { error: "Unauthorized", status: 401 };
-                    const playerId = await getPlayerId((user as any).id);
+                    const playerId = await getPlayerId(user as any);
                     if (!playerId) return { error: "Player profile not found", status: 404 };
 
                     const room = await coopService.createRoom(playerId, normalizeRole(body.role));
@@ -47,7 +47,7 @@ export const coopRoutes = (app: Elysia) =>
 
                 .post("/rooms/:code/join", async ({ user, params, body }) => {
                     if (!user) return { error: "Unauthorized", status: 401 };
-                    const playerId = await getPlayerId((user as any).id);
+                    const playerId = await getPlayerId(user as any);
                     if (!playerId) return { error: "Player profile not found", status: 404 };
 
                     try {
@@ -64,7 +64,7 @@ export const coopRoutes = (app: Elysia) =>
 
                 .post("/rooms/:code/leave", async ({ user, params }) => {
                     if (!user) return { error: "Unauthorized", status: 401 };
-                    const playerId = await getPlayerId((user as any).id);
+                    const playerId = await getPlayerId(user as any);
                     if (!playerId) return { error: "Player profile not found", status: 404 };
 
                     const room = await coopService.leaveRoom(params.code, playerId);
@@ -73,7 +73,7 @@ export const coopRoutes = (app: Elysia) =>
 
                 .post("/rooms/:code/ready", async ({ user, params, body }) => {
                     if (!user) return { error: "Unauthorized", status: 401 };
-                    const playerId = await getPlayerId((user as any).id);
+                    const playerId = await getPlayerId(user as any);
                     if (!playerId) return { error: "Player profile not found", status: 404 };
 
                     const room = await coopService.setReady(params.code, playerId, body.ready);
@@ -84,7 +84,7 @@ export const coopRoutes = (app: Elysia) =>
 
                 .post("/rooms/:code/start", async ({ user, params }) => {
                     if (!user) return { error: "Unauthorized", status: 401 };
-                    const playerId = await getPlayerId((user as any).id);
+                    const playerId = await getPlayerId(user as any);
                     if (!playerId) return { error: "Player profile not found", status: 404 };
 
                     try {
@@ -97,7 +97,7 @@ export const coopRoutes = (app: Elysia) =>
 
                 .post("/rooms/:code/quest", async ({ user, params, body }) => {
                     if (!user) return { error: "Unauthorized", status: 401 };
-                    const playerId = await getPlayerId((user as any).id);
+                    const playerId = await getPlayerId(user as any);
                     if (!playerId) return { error: "Player profile not found", status: 404 };
 
                     try {

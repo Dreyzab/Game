@@ -22,11 +22,12 @@ export const coopService = {
         }).returning();
 
         // Add host as participant
+        const initialRole = role ?? null;
         await db.insert(coopParticipants).values({
             sessionId: session.id,
             playerId: hostId,
-            role: role ?? COOP_ROLE_IDS[0], // Default role
-            isReady: false,
+            role: initialRole,
+            isReady: Boolean(initialRole),
             joinedAt: Date.now(),
         });
 
@@ -78,8 +79,7 @@ export const coopService = {
         if (!session) throw new Error('Room not found');
         if (session.status !== 'waiting') throw new Error('Game already started');
 
-        const desiredRole = role ?? (COOP_ROLE_IDS.find((id) => !session.participants.some((p) => p.role === id)) ?? null);
-        if (!desiredRole) throw new Error('No roles available');
+        const desiredRole = role ?? null;
 
         const existing = await db.query.coopParticipants.findFirst({
             where: and(
@@ -95,7 +95,7 @@ export const coopService = {
 
                 await db
                     .update(coopParticipants)
-                    .set({ role })
+                    .set({ role, isReady: true })
                     .where(and(eq(coopParticipants.sessionId, session.id), eq(coopParticipants.playerId, playerId)));
             }
             const state = await this.getRoomState(code);
@@ -104,12 +104,13 @@ export const coopService = {
         }
 
         if (session.participants.length >= (session.maxPlayers ?? 4)) throw new Error('Room is full');
-        if (session.participants.some((p) => p.role === desiredRole)) throw new Error('Role already taken');
+        if (desiredRole && session.participants.some((p) => p.role === desiredRole)) throw new Error('Role already taken');
 
         await db.insert(coopParticipants).values({
             sessionId: session.id,
             playerId,
             role: desiredRole,
+            isReady: Boolean(desiredRole),
             joinedAt: Date.now(),
         });
 
@@ -145,6 +146,11 @@ export const coopService = {
         if (session.hostId !== hostId) throw new Error('Only host can start');
         if (session.participants.length < 2) throw new Error('Need at least 2 players');
         if (session.participants.some((p) => !p.isReady)) throw new Error('All players must be ready');
+        if (session.participants.some((p) => !p.role)) throw new Error('All players must select a character');
+
+        const pickedRoles = session.participants.map((p) => p.role).filter(Boolean) as string[];
+        const uniqueRoles = new Set(pickedRoles);
+        if (uniqueRoles.size !== pickedRoles.length) throw new Error('Each character can only be picked once');
 
         await db.update(coopSessions)
             .set({ status: 'active', startedAt: Date.now() })

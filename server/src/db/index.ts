@@ -18,24 +18,22 @@ let client;
 if (cloudSqlInstance && connectionString) {
     console.log(`[DB] Cloud Run environment. Connecting via Unix socket: /cloudsql/${cloudSqlInstance}`);
 
-    // Parse connection string manually to avoid URL parsing issues with postgres://
-    // Format: postgres://user:password@host:port/database
-    const match = connectionString.match(/postgres:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+)/);
-
-    if (match) {
-        const [, user, password, , , database] = match;
+    // Parse connection string to get credentials
+    try {
+        const url = new URL(connectionString);
         client = postgres({
             host: `/cloudsql/${cloudSqlInstance}`,
-            user,
-            password,
-            database,
+            user: url.username,
+            password: url.password,
+            database: url.pathname.split('/')[1],
             ...sqlOptions,
         });
-    } else {
-        // Fallback to previous attempt if regex fails (unlikely for standard strings)
+    } catch (e) {
+        console.error('[DB] Failed to parse DATABASE_URL for socket connection. Falling back to override.', e);
+        // Fallback: postgres-js should prefer host in options even if connectionString has another host
         client = postgres(connectionString, {
-            ...sqlOptions,
             host: `/cloudsql/${cloudSqlInstance}`,
+            ...sqlOptions,
         });
     }
 } else {
