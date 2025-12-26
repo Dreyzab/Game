@@ -69,6 +69,8 @@ jobs:
             DATABASE_URL=${{ secrets.DATABASE_URL }}
             NODE_ENV=production
             CLOUD_SQL_CONNECTION_NAME=grezwanderer:europe-west1:grezwanderer
+          # Add explicit project ID
+          project_id: ${{ env.PROJECT_ID }}
 
   build-frontend:
     runs-on: ubuntu-latest
