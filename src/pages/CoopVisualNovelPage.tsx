@@ -9,6 +9,15 @@ import { DialogueBox, ChoicePanel } from '@/entities/visual-novel/ui';
 import type { VisualNovelChoiceView } from '@/shared/types/visualNovel';
 
 const EMPTY_LIST: any[] = [];
+const FALLBACK_NODE: any = {
+    id: '',
+    title: '',
+    description: '',
+    background: '/images/backgrounds/default_dark.jpg',
+    interactionType: 'sync',
+    choices: [],
+    privateText: {},
+};
 
 export const CoopVisualNovelPage: React.FC = () => {
     const { room, castVote } = useCoopStore();
@@ -46,22 +55,11 @@ export const CoopVisualNovelPage: React.FC = () => {
 
     const controlledRole = (controlledParticipant?.role ?? undefined) as CoopRoleId | undefined;
 
-    if (!room || !questNode) {
-        return (
-            <div className="vn-chronicles relative w-screen h-screen overflow-hidden bg-[#020617] flex items-center justify-center">
-                <div className="text-white text-center">
-                    <div className="text-2xl font-cinzel tracking-wider mb-2">Loading...</div>
-                    <div className="text-sm text-slate-400">Preparing scenario</div>
-                </div>
-            </div>
-        );
-    }
-
     const isCheckpointNode = (node: any) =>
         node?.interactionType === 'vote' || (node?.interactionType === 'sync' && Array.isArray(node?.choices) && node.choices.length > 1);
 
     const [localNodeId, setLocalNodeId] = useState<string>(sceneId);
-    const [localNode, setLocalNode] = useState<any>(questNode);
+    const [localNode, setLocalNode] = useState<any>(questNode ?? FALLBACK_NODE);
     const nodeCache = useRef<Map<string, any>>(new Map([[sceneId, questNode]]));
 
     useEffect(() => {
@@ -83,6 +81,7 @@ export const CoopVisualNovelPage: React.FC = () => {
     };
 
     const markReached = async (nodeId: string) => {
+        if (!room?.code) return;
         const client = authenticatedClient() as any;
         await client.coop.rooms[room.code].reach.post({ nodeId });
     };
@@ -113,14 +112,16 @@ export const CoopVisualNovelPage: React.FC = () => {
         : localSelections[localNodeId];
 
     const isVoteNode = localNode.interactionType === 'vote' && isAtSharedCheckpoint;
-    const voteCounts: Record<string, number> = {};
-    if (isVoteNode) {
+    const voteCounts = useMemo<Record<string, number>>(() => {
+        if (!isVoteNode) return {};
+        const counts: Record<string, number> = {};
         votes
             .filter((v: any) => v.sceneId === sceneId)
             .forEach((v: any) => {
-                voteCounts[v.choiceId] = (voteCounts[v.choiceId] || 0) + 1;
+                counts[v.choiceId] = (counts[v.choiceId] || 0) + 1;
             });
-    }
+        return counts;
+    }, [isVoteNode, votes, sceneId]);
 
     const rawChoices = localNode.choices.filter((choice: any) => !choice.requiredRole || choice.requiredRole === controlledRole);
     const sortedVotes = [...votes].sort((a: any, b: any) => (a.createdAt ?? 0) - (b.createdAt ?? 0));
@@ -214,6 +215,18 @@ export const CoopVisualNovelPage: React.FC = () => {
             }
         }
     };
+
+    const isScenarioReady = Boolean(room && questNode);
+    if (!isScenarioReady) {
+        return (
+            <div className="vn-chronicles relative w-screen h-screen overflow-hidden bg-[#020617] flex items-center justify-center">
+                <div className="text-white text-center">
+                    <div className="text-2xl font-cinzel tracking-wider mb-2">Loading...</div>
+                    <div className="text-sm text-slate-400">Preparing scenario</div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="vn-chronicles relative w-screen h-screen overflow-hidden bg-[#020617]">

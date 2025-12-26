@@ -443,15 +443,18 @@ export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default', ren
 
                 if (isMediumScorpion && distance <= 3) {
                     const inRange = sortedTargets.filter((p) => distanceTo(p) <= 3).slice(0, 2)
-                    if (inRange.length === 1) {
-                        damageDealt += applyDamage(inRange[0].id, { accuracy: 70, baseDamage: 12, label: 'Tail Sting' })
-                    } else {
+                    if (inRange.length >= 2) {
                         nextLogs.push(`${enemy.name} lashes out with its tail!`)
                         damageDealt += applyDamage(inRange[0].id, { accuracy: 70, baseDamage: 12, label: 'Tail Sting' })
                         damageDealt += applyDamage(inRange[1].id, { accuracy: 70, baseDamage: 12, label: 'Tail Sting' })
+                    } else if (distance <= 2) {
+                        damageDealt += applyDamage(target.id, { accuracy: 75, baseDamage: 14, label: 'Claw Strike' })
+                    } else {
+                        enemies[enemyIndex] = { ...enemies[enemyIndex], rank: Math.max(1, enemy.rank - 1) }
+                        nextLogs.push(`${enemy.name} advances to rank ${enemies[enemyIndex].rank}.`)
                     }
-                } else if ((isSmallScorpion || isMediumScorpion) && distance <= 2) {
-                    damageDealt += applyDamage(target.id, { accuracy: 75, baseDamage: isMediumScorpion ? 14 : 12, label: 'Claw Strike' })
+                } else if (isSmallScorpion && distance <= 2) {
+                    damageDealt += applyDamage(target.id, { accuracy: 75, baseDamage: 12, label: 'Claw Strike' })
                 } else if (distance > 2) {
                     enemies[enemyIndex] = { ...enemies[enemyIndex], rank: Math.max(1, enemy.rank - 1) }
                     nextLogs.push(`${enemy.name} advances to rank ${enemies[enemyIndex].rank}.`)
