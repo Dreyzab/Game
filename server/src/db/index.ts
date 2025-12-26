@@ -21,11 +21,16 @@ if (cloudSqlInstance && connectionString) {
     // Parse connection string to get credentials
     try {
         const url = new URL(connectionString);
+        const dbName = url.pathname.split('/')[1];
+        console.log(
+            `[DB] Using DATABASE_URL credentials: user=${url.username || '(empty)'} db=${dbName || '(empty)'} password=${url.password ? '***set***' : '(empty)'
+            }`
+        );
         client = postgres({
             host: `/cloudsql/${cloudSqlInstance}`,
             user: url.username,
-            password: url.password,
-            database: url.pathname.split('/')[1],
+            password: url.password || undefined,
+            database: dbName,
             ...sqlOptions,
         });
     } catch (e) {
