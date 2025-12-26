@@ -186,13 +186,20 @@ export const useCoopStore = create<CoopStore>((set, get) => ({
             coopSocket = null;
         }
 
-        let wsUrl = 'ws://localhost:3000/ws';
+        let wsUrl = '';
         try {
-            const api = new URL(API_BASE_URL);
-            const wsProtocol = api.protocol === 'https:' ? 'wss:' : 'ws:';
-            wsUrl = `${wsProtocol}//${api.host}/ws`;
+            if (API_BASE_URL && API_BASE_URL.startsWith('http')) {
+                const api = new URL(API_BASE_URL);
+                const wsProtocol = api.protocol === 'https:' ? 'wss:' : 'ws:';
+                wsUrl = `${wsProtocol}//${api.host}/ws`;
+            } else {
+                // Fallback to current relative path if no API_BASE_URL
+                const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                wsUrl = `${wsProtocol}//${window.location.host}/ws`;
+            }
         } catch {
-            // ignore invalid URL formats
+            // Last resort fallback
+            wsUrl = (window.location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + window.location.host + '/ws';
         }
 
         const ws = new WebSocket(wsUrl);

@@ -25,7 +25,7 @@ const resolveBaseUrl = (): string => {
       return httpsUrl
     }
 
-    console.log(`[API] Production API URL: ${envUrl}`)
+    console.log(`[API] Using Production API URL: ${envUrl}`)
     return envUrl
   }
 
