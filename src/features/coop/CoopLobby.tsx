@@ -150,11 +150,11 @@ export const CoopLobby: React.FC = () => {
     return room.participants.map((p) => p.role).filter(Boolean) as string[]
   }, [room])
 
-  const participants = room?.participants
-  const allPicked = participants ? participants.length > 0 && participants.every((p) => Boolean(p.role)) : false
-  const allReady = participants ? participants.length > 0 && participants.every((p) => Boolean(p.ready)) : false
-  const uniqueRoles = participants ? new Set(pickedRoles).size === pickedRoles.length : false
-  const canStart = Boolean(room && amHost && (participants?.length ?? 0) >= 2 && allPicked && allReady && uniqueRoles)
+  const participants = room?.participants ?? []
+  const allPicked = participants.length > 0 && participants.every((p) => Boolean(p?.role))
+  const allReady = participants.length > 0 && participants.every((p) => Boolean(p?.ready))
+  const uniqueRoles = participants.length > 0 ? new Set(pickedRoles).size === pickedRoles.length : false
+  const canStart = Boolean(room && amHost && participants.length >= 2 && allPicked && allReady && uniqueRoles)
 
   if (isLoading) {
     return (
