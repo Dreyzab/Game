@@ -64,7 +64,7 @@ jobs:
           service: ${{ env.SERVICE_NAME }}
           region: ${{ env.REGION }}
           image: "${{ env.GAR_LOCATION }}/${{ env.SERVICE_NAME }}:${{ github.sha }}"
-          flags: '--allow-unauthenticated --add-cloudsql-instances=grezwanderer:europe-west1:grezwanderer'
+          flags: '--allow-unauthenticated --add-cloudsql-instances=grezwanderer:europe-west1:grezwanderer --quiet'
           env_vars: |
             DATABASE_URL=${{ secrets.DATABASE_URL }}
             NODE_ENV=production
