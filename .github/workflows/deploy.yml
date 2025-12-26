@@ -13,7 +13,7 @@ env:
   # Artifact Registry Repo Name including location
   # e.g. europe-west1-docker.pkg.dev/my-project/my-repo
   GAR_LOCATION: europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/grezwanderer-repo
-  SERVICE_NAME: grewanderer-backend
+  SERVICE_NAME: grezwanderer-backend
 
 jobs:
   deploy-backend:
@@ -64,7 +64,7 @@ jobs:
           service: ${{ env.SERVICE_NAME }}
           region: ${{ env.REGION }}
           image: "${{ env.GAR_LOCATION }}/${{ env.SERVICE_NAME }}:${{ github.sha }}"
-          flags: '--allow-unauthenticated'
+          flags: '--allow-unauthenticated --add-cloudsql-instances=grezwanderer:europe-west1:grezwanderer'
           env_vars: |
             DATABASE_URL=${{ secrets.DATABASE_URL }}
             NODE_ENV=production
@@ -88,10 +88,16 @@ jobs:
         run: echo "API URL sent to build is ${{ needs.deploy-backend.outputs.backend_url }}"
 
       - name: Build Frontend
-        run: npm run build
+        run: |
+          if [ -z "$VITE_API_URL" ]; then
+            echo "ERROR: VITE_API_URL is empty! Deployment will fail to connect."
+            # Fallback to a common pattern if url is missing for some reason
+            export VITE_API_URL="https://${{ env.SERVICE_NAME }}-692004665228.europe-west1.run.app"
+            echo "Fallback API URL: $VITE_API_URL"
+          fi
+          npm run build
         env:
           # Force HTTPS and ensure URL is correctly formatted
-          # Use the URL from the backend deployment step
           VITE_API_URL: ${{ needs.deploy-backend.outputs.backend_url }}
           VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
           VITE_MAPBOX_TOKEN: ${{ secrets.VITE_MAPBOX_TOKEN }}
