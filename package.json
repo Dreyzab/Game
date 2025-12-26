@@ -29,6 +29,7 @@
     "mapbox-gl": "^3.16.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
+    "react-qr-code": "^2.0.15",
     "react-map-gl": "^8.1.0",
     "react-router-dom": "^7.9.5",
     "tailwind-merge": "^3.3.1",

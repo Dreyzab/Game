@@ -1,6 +1,7 @@
 import { scenarios as prologueScenarios } from '@/entities/visual-novel/scenarios/prolog/scenarioTr-ST'
 import { chapter1Scenes } from '@/entities/visual-novel/scenarios/chapter1'
 import { allTutorialScenes } from '@/entities/visual-novel/scenarios/tutorial'
+import { COOP_BRIEFING_SCENE } from '@/shared/data/visualNovel/coopBriefingScene'
 import { TEST_SCENE_WITH_ADVICES } from '@/shared/data/visualNovel/testSceneWithAdvices'
 import type { Scene, SceneCharacter, SceneChoice } from './types'
 import type { VoiceId } from '@/shared/types/parliament'
@@ -39,6 +40,7 @@ const ALL_SCENES: VisualNovelSceneDefinition[] = [
   ...convertedPrologue,
   ...convertedChapter1,
   ...convertedTutorial,
+  COOP_BRIEFING_SCENE,
   TEST_SCENE_WITH_ADVICES, // Тестовая сцена с системой консультаций
 ]
 
