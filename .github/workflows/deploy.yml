@@ -83,7 +83,7 @@ jobs:
           node-version: '20'
 
       - name: Install Frontend Dependencies
-        run: npm ci
+        run: npm install
 
       - name: Debug API URL
         run: echo "API URL sent to build is ${{ needs.deploy-backend.outputs.backend_url }}"

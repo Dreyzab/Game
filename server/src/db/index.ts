@@ -17,11 +17,27 @@ let client;
 
 if (cloudSqlInstance && connectionString) {
     console.log(`[DB] Cloud Run environment. Connecting via Unix socket: /cloudsql/${cloudSqlInstance}`);
-    // postgres-js: passing host in options overrides the hostname in the connection string
-    client = postgres(connectionString, {
-        ...sqlOptions,
-        host: `/cloudsql/${cloudSqlInstance}`,
-    });
+
+    // Parse connection string manually to avoid URL parsing issues with postgres://
+    // Format: postgres://user:password@host:port/database
+    const match = connectionString.match(/postgres:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+)/);
+
+    if (match) {
+        const [, user, password, , , database] = match;
+        client = postgres({
+            host: `/cloudsql/${cloudSqlInstance}`,
+            user,
+            password,
+            database,
+            ...sqlOptions,
+        });
+    } else {
+        // Fallback to previous attempt if regex fails (unlikely for standard strings)
+        client = postgres(connectionString, {
+            ...sqlOptions,
+            host: `/cloudsql/${cloudSqlInstance}`,
+        });
+    }
 } else {
     console.log('[DB] Connecting via TCP');
     client = postgres(connectionString || 'postgres://postgres:postgres@localhost:5432/grezwanderer', sqlOptions);
