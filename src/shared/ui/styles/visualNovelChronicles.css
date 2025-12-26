@@ -138,10 +138,74 @@
   animation: vn-bg-pan-left 18s ease-in-out infinite alternate;
 }
 
+/* ===== Dynamic pan based on image aspect ratio (portrait mode only) ===== */
+
+/* Narrow images (ratio < 1.5): subtle pan */
+@keyframes vn-bg-pan-narrow {
+  0% { transform: translate3d(-3%, 0, 0) scale(1.05); }
+  100% { transform: translate3d(3%, 0, 0) scale(1.05); }
+}
+
+/* Normal images (ratio 1.5-2): standard pan */
+@keyframes vn-bg-pan-normal {
+  0% { transform: translate3d(-8%, 0, 0) scale(1.08); }
+  100% { transform: translate3d(8%, 0, 0) scale(1.08); }
+}
+
+/* Wide images (ratio 2-2.5): faster pan */
+@keyframes vn-bg-pan-wide {
+  0% { transform: translate3d(-15%, 0, 0) scale(1.12); }
+  100% { transform: translate3d(15%, 0, 0) scale(1.12); }
+}
+
+/* Ultra-wide images (ratio > 2.5): aggressive pan */
+@keyframes vn-bg-pan-ultrawide {
+  0% { transform: translate3d(-25%, 0, 0) scale(1.18); }
+  100% { transform: translate3d(25%, 0, 0) scale(1.18); }
+}
+
+/* Portrait orientation media query */
+@media (orientation: portrait) {
+  .vn-chronicles .vn-bg-pan-narrow {
+    will-change: transform;
+    animation: vn-bg-pan-narrow 22s ease-in-out infinite alternate;
+  }
+
+  .vn-chronicles .vn-bg-pan-normal {
+    will-change: transform;
+    animation: vn-bg-pan-normal 16s ease-in-out infinite alternate;
+  }
+
+  .vn-chronicles .vn-bg-pan-wide {
+    will-change: transform;
+    animation: vn-bg-pan-wide 12s ease-in-out infinite alternate;
+  }
+
+  .vn-chronicles .vn-bg-pan-ultrawide {
+    will-change: transform;
+    animation: vn-bg-pan-ultrawide 9s ease-in-out infinite alternate;
+  }
+}
+
+/* In landscape, use subtle pan for all */
+@media (orientation: landscape) {
+  .vn-chronicles .vn-bg-pan-narrow,
+  .vn-chronicles .vn-bg-pan-normal,
+  .vn-chronicles .vn-bg-pan-wide,
+  .vn-chronicles .vn-bg-pan-ultrawide {
+    will-change: transform;
+    animation: vn-bg-pan-center 18s ease-in-out infinite alternate;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .vn-chronicles .vn-bg-pan,
   .vn-chronicles .vn-bg-pan-right,
-  .vn-chronicles .vn-bg-pan-left {
+  .vn-chronicles .vn-bg-pan-left,
+  .vn-chronicles .vn-bg-pan-narrow,
+  .vn-chronicles .vn-bg-pan-normal,
+  .vn-chronicles .vn-bg-pan-wide,
+  .vn-chronicles .vn-bg-pan-ultrawide {
     animation: none;
     transform: translate3d(0, 0, 0) scale(1.05);
   }

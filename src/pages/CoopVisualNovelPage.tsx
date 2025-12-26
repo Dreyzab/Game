@@ -128,6 +128,35 @@ export const CoopVisualNovelPage: React.FC = () => {
 
     const backgroundUrl = localNode.background ?? '/images/backgrounds/default_dark.jpg';
 
+    // Dynamic background pan based on image aspect ratio (portrait mode only)
+    const [bgPanClass, setBgPanClass] = useState<string>('vn-bg-pan');
+
+    useEffect(() => {
+        if (!backgroundUrl) {
+            setBgPanClass('vn-bg-pan');
+            return;
+        }
+
+        const img = new Image();
+        img.onload = () => {
+            const ratio = img.width / img.height;
+            // Determine pan class based on aspect ratio
+            if (ratio < 1.5) {
+                setBgPanClass('vn-bg-pan-narrow');
+            } else if (ratio < 2.0) {
+                setBgPanClass('vn-bg-pan-normal');
+            } else if (ratio < 2.5) {
+                setBgPanClass('vn-bg-pan-wide');
+            } else {
+                setBgPanClass('vn-bg-pan-ultrawide');
+            }
+        };
+        img.onerror = () => {
+            setBgPanClass('vn-bg-pan');
+        };
+        img.src = backgroundUrl;
+    }, [backgroundUrl]);
+
     const narrativeChunks = useMemo(() => {
         const chunks: string[] = [];
         const base = String(localNode.description ?? '').trim();
@@ -233,7 +262,7 @@ export const CoopVisualNovelPage: React.FC = () => {
             {/* Background */}
             <div className="absolute inset-0 overflow-hidden">
                 <div
-                    className="absolute inset-[-8%] bg-cover vn-bg-pan"
+                    className={`absolute inset-[-8%] bg-cover ${bgPanClass}`}
                     style={{ backgroundImage: `url(${backgroundUrl})`, backgroundPosition: 'center center' }}
                 />
             </div>
