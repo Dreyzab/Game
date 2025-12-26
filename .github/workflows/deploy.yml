@@ -87,7 +87,8 @@ jobs:
       - name: Build Frontend
         run: npm run build
         env:
-          # Automatically use the deployed backend URL
+          # Force HTTPS and ensure URL is correctly formatted
+          # Use the URL from the backend deployment step
           VITE_API_URL: ${{ needs.deploy-backend.outputs.backend_url }}
           VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
           VITE_MAPBOX_TOKEN: ${{ secrets.VITE_MAPBOX_TOKEN }}

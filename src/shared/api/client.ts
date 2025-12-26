@@ -10,8 +10,13 @@ const resolveBaseUrl = (): string => {
   if (import.meta.env.PROD) {
     if (!envUrl) {
       console.error('VITE_API_URL is not defined in production environment!')
+      return ''
     }
-    return envUrl ?? ''
+    // Force HTTPS for production external URLs
+    if (envUrl.startsWith('http://') && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
+      return envUrl.replace('http://', 'https://')
+    }
+    return envUrl
   }
 
   if (typeof window === 'undefined') return envUrl ?? 'http://localhost:3000'
