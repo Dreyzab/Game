@@ -18,6 +18,8 @@ env:
   # e.g. europe-west1-docker.pkg.dev/my-project/my-repo
   GAR_LOCATION: europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/grezwanderer-repo
   SERVICE_NAME: grezwanderer-backend
+  # Service account that Cloud Run will use at runtime (needs Cloud SQL Client at minimum)
+  RUNTIME_SERVICE_ACCOUNT: github-deployier@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com
 
 jobs:
   deploy-backend:
@@ -80,7 +82,7 @@ jobs:
           service: ${{ env.SERVICE_NAME }}
           region: ${{ env.REGION }}
           image: "${{ env.GAR_LOCATION }}/${{ env.SERVICE_NAME }}:${{ github.sha }}"
-          flags: '--allow-unauthenticated --add-cloudsql-instances=grezwanderer:europe-west1:grezwanderer --quiet'
+          flags: '--allow-unauthenticated --add-cloudsql-instances=grezwanderer:europe-west1:grezwanderer --service-account=${{ env.RUNTIME_SERVICE_ACCOUNT }} --quiet'
           env_vars: |
             DATABASE_URL=${{ secrets.DATABASE_URL }}
             NODE_ENV=production
