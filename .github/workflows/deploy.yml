@@ -6,6 +6,10 @@ on:
       - main
   workflow_dispatch:
 
+concurrency:
+  group: deploy-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   # Update region as needed
@@ -18,6 +22,7 @@ env:
 jobs:
   deploy-backend:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     permissions:
       contents: 'read'
       id-token: 'write'
