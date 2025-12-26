@@ -28,7 +28,8 @@ const appTree = (
           <App />
         </ClerkProvider>
       ) : (
-        <MissingClerkConfig />
+        /* Clerk is disabled or missing key - Render App directly for Guest/Dev mode */
+        <App />
       )}
     </BrowserRouter>
   </QueryClientProvider>

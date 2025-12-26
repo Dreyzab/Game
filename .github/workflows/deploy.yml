@@ -84,6 +84,9 @@ jobs:
       - name: Install Frontend Dependencies
         run: npm ci
 
+      - name: Debug API URL
+        run: echo "API URL sent to build is ${{ needs.deploy-backend.outputs.backend_url }}"
+
       - name: Build Frontend
         run: npm run build
         env:

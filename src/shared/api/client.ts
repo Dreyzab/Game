@@ -5,41 +5,33 @@ import { getDeviceId } from '@/shared/lib/utils/deviceId'
 const resolveBaseUrl = (): string => {
   const envUrl = import.meta.env.VITE_API_URL as string | undefined
 
-  // In production, we strictly use the environment variable to avoid
-  // accidental invalid fallbacks (like localhost:3000) that cause Mixed Content errors.
+  // 1. Strict Production Mode: Must have VITE_API_URL
   if (import.meta.env.PROD) {
     if (!envUrl) {
-      console.error('VITE_API_URL is not defined in production environment!')
-      return ''
+      console.error('[API] VITE_API_URL is missing in PRODUCTION! Requests will fail.')
+      return '' // Better to fail relatively than produce Mixed Content
     }
-    // Force HTTPS for production external URLs
+    // Ensure HTTPS for external URLs
     if (envUrl.startsWith('http://') && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
       return envUrl.replace('http://', 'https://')
     }
     return envUrl
   }
 
+  // 2. SSR fallback
   if (typeof window === 'undefined') return envUrl ?? 'http://localhost:3000'
 
   const hostname = window.location.hostname
-  const isRemoteHost = hostname !== 'localhost' && hostname !== '127.0.0.1'
+  const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1'
 
+  // 3. Development / LAN Mode
   if (!envUrl) {
-    if (!isRemoteHost) return 'http://localhost:3000'
-    const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:'
-    return `${protocol}//${hostname}:3000`
-  }
+    if (isLocalhost) return 'http://localhost:3000'
 
-  try {
-    const parsed = new URL(envUrl)
-    const isLocalEnvHost = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1'
-
-    if (isRemoteHost && isLocalEnvHost) {
-      const port = parsed.port?.length ? parsed.port : '3000'
-      return `${parsed.protocol}//${hostname}:${port}`
-    }
-  } catch {
-    // ignore invalid URL formats
+    // Remote host but no API URL?
+    // DO NOT fallback to :3000 on web.app (Firebase) because it causes Mixed Content (https page -> http port).
+    console.error('[API] VITE_API_URL missing on remote host. API calls will likely fail.')
+    return ''
   }
 
   return envUrl
