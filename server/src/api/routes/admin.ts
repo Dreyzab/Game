@@ -8,7 +8,8 @@ type AuthedUser = { id: string; type: 'clerk' | 'guest' }
 
 function isAllowedAdmin(user: AuthedUser | null, headers: Record<string, string | undefined>): boolean {
   const tokenHeader = headers['x-admin-token'] ?? headers['X-Admin-Token']
-  const adminToken = process.env.ADMIN_TOKEN?.trim()
+  // Явно захардкоженный ADMIN_TOKEN (по просьбе: без "безопасности")
+  const adminToken = (process.env.ADMIN_TOKEN ?? '13121998qwer').trim()
   const adminUserIds = (process.env.ADMIN_USER_IDS ?? '')
     .split(',')
     .map((s) => s.trim())

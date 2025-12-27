@@ -36,7 +36,7 @@ interface CoopStore {
     leaveRoom: () => Promise<void>;
     setReady: (ready: boolean) => Promise<void>;
     startGame: () => Promise<void>;
-    castVote: (choiceId: string, asPlayerId?: number) => Promise<void>;
+    castVote: (choiceId: string, asPlayerId?: number, nodeId?: string) => Promise<void>;
     addBot: () => Promise<void>;
     clearError: () => void;
 
@@ -200,13 +200,14 @@ export const useCoopStore = create<CoopStore>((set, get) => ({
         }
     },
 
-    castVote: async (choiceId, asPlayerId) => {
+    castVote: async (choiceId, asPlayerId, nodeId) => {
         const { room } = get();
         if (!room) return;
         // @ts-expect-error - dynamic route access issue
         const { data, error } = await authenticatedClient().coop.rooms[room.code].quest.post({
             choiceId,
             asPlayerId: typeof asPlayerId === 'number' ? asPlayerId : undefined,
+            nodeId: typeof nodeId === 'string' && nodeId.trim().length > 0 ? nodeId : undefined,
         });
         if (error) {
             set({ error: (error as any)?.value ? String((error as any).value) : 'Unknown error' });

@@ -184,8 +184,11 @@ export const CoopVisualNovelPage: React.FC = () => {
         setNarrationDone(false);
     }, [localNodeId]);
 
-    // Only show choices at key moments (checkpoints or when narration is done + it's a decision point)
-    const shouldShowChoices = isNarrationDone && isCheckpoint && isAtSharedCheckpoint;
+    // Show choices at key moments:
+    // - Shared checkpoints (vote/sync branching) when everyone reached the node
+    // - Individual nodes (personal decisions) after narration
+    const shouldShowChoices =
+        isNarrationDone && ((isCheckpoint && isAtSharedCheckpoint) || localNode.interactionType === 'individual');
 
     // Transform raw choices to VisualNovelChoiceView format for ChoicePanel
     const visibleChoices: VisualNovelChoiceView[] = useMemo(() => {
@@ -219,7 +222,7 @@ export const CoopVisualNovelPage: React.FC = () => {
         }
 
         if (localNode.interactionType === 'individual') {
-            await castVote(choiceId, controlledPlayerId ?? undefined);
+            await castVote(choiceId, controlledPlayerId ?? undefined, localNodeId);
             await advanceLocal(choice.nextNodeId);
             return;
         }

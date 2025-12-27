@@ -171,16 +171,29 @@ export const CoopLobby: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-black">
-        <LoadingSpinner size="lg" />
+      <div className="min-h-screen text-white relative overflow-hidden">
+        <div
+          className="absolute inset-0 bg-center bg-cover"
+          style={{ backgroundImage: "url('/images/Мультиплеер/Сцена0.png')" }}
+        />
+        <div className="absolute inset-0 bg-black/70 backdrop-blur-[1px]" />
+        <div className="relative z-10 flex h-screen items-center justify-center">
+          <LoadingSpinner size="lg" />
+        </div>
       </div>
     )
   }
 
   if (!room) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center p-6">
-        <div className="w-full max-w-xl space-y-6">
+      <div className="min-h-screen text-white relative overflow-hidden">
+        <div
+          className="absolute inset-0 bg-center bg-cover"
+          style={{ backgroundImage: "url('/images/Мультиплеер/Сцена0.png')" }}
+        />
+        <div className="absolute inset-0 bg-black/70 backdrop-blur-[1px]" />
+        <div className="relative z-10 flex items-center justify-center p-6 min-h-screen">
+          <div className="w-full max-w-xl space-y-6">
           <div className="text-center space-y-2">
             <Heading level={1} className="text-4xl text-cyan-400">
               Совместная игра
@@ -274,6 +287,7 @@ export const CoopLobby: React.FC = () => {
               {error}
             </div>
           )}
+          </div>
         </div>
       </div>
     )

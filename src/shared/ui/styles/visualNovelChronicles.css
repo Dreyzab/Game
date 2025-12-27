@@ -33,10 +33,12 @@
 }
 
 @keyframes vn-pulse-soft {
+
   0%,
   100% {
     opacity: 0.4;
   }
+
   50% {
     opacity: 0.8;
   }
@@ -51,12 +53,15 @@
     transform: translateY(0) translateX(0);
     opacity: 0;
   }
+
   10% {
     opacity: 1;
   }
+
   90% {
     opacity: 1;
   }
+
   100% {
     transform: translateY(-100vh) translateX(20px);
     opacity: 0;
@@ -72,6 +77,7 @@
     transform: translateY(20px);
     opacity: 0;
   }
+
   to {
     transform: translateY(0);
     opacity: 1;
@@ -86,6 +92,7 @@
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -100,6 +107,7 @@
   0% {
     transform: translate3d(-6%, 0, 0) scale(1.08);
   }
+
   100% {
     transform: translate3d(6%, 0, 0) scale(1.08);
   }
@@ -109,6 +117,7 @@
   0% {
     transform: translate3d(-14%, 0, 0) scale(1.1);
   }
+
   100% {
     transform: translate3d(-6%, 0, 0) scale(1.1);
   }
@@ -118,6 +127,7 @@
   0% {
     transform: translate3d(6%, 0, 0) scale(1.1);
   }
+
   100% {
     transform: translate3d(14%, 0, 0) scale(1.1);
   }
@@ -142,53 +152,74 @@
 
 /* Narrow images (ratio < 1.5): subtle pan */
 @keyframes vn-bg-pan-narrow {
-  0% { transform: translate3d(-3%, 0, 0) scale(1.05); }
-  100% { transform: translate3d(3%, 0, 0) scale(1.05); }
+  0% {
+    transform: translate3d(-3%, 0, 0) scale(1.05);
+  }
+
+  100% {
+    transform: translate3d(3%, 0, 0) scale(1.05);
+  }
 }
 
 /* Normal images (ratio 1.5-2): standard pan */
 @keyframes vn-bg-pan-normal {
-  0% { transform: translate3d(-8%, 0, 0) scale(1.08); }
-  100% { transform: translate3d(8%, 0, 0) scale(1.08); }
+  0% {
+    transform: translate3d(-8%, 0, 0) scale(1.08);
+  }
+
+  100% {
+    transform: translate3d(8%, 0, 0) scale(1.08);
+  }
 }
 
 /* Wide images (ratio 2-2.5): faster pan */
 @keyframes vn-bg-pan-wide {
-  0% { transform: translate3d(-15%, 0, 0) scale(1.12); }
-  100% { transform: translate3d(15%, 0, 0) scale(1.12); }
+  0% {
+    transform: translate3d(-15%, 0, 0) scale(1.12);
+  }
+
+  100% {
+    transform: translate3d(15%, 0, 0) scale(1.12);
+  }
 }
 
 /* Ultra-wide images (ratio > 2.5): aggressive pan */
 @keyframes vn-bg-pan-ultrawide {
-  0% { transform: translate3d(-25%, 0, 0) scale(1.18); }
-  100% { transform: translate3d(25%, 0, 0) scale(1.18); }
+  0% {
+    transform: translate3d(-25%, 0, 0) scale(1.18);
+  }
+
+  100% {
+    transform: translate3d(25%, 0, 0) scale(1.18);
+  }
 }
 
 /* Portrait orientation media query */
 @media (orientation: portrait) {
   .vn-chronicles .vn-bg-pan-narrow {
     will-change: transform;
-    animation: vn-bg-pan-narrow 22s ease-in-out infinite alternate;
+    animation: vn-bg-pan-narrow 18s ease-in-out infinite alternate;
   }
 
   .vn-chronicles .vn-bg-pan-normal {
     will-change: transform;
-    animation: vn-bg-pan-normal 16s ease-in-out infinite alternate;
+    animation: vn-bg-pan-normal 10s ease-in-out infinite alternate;
   }
 
   .vn-chronicles .vn-bg-pan-wide {
     will-change: transform;
-    animation: vn-bg-pan-wide 12s ease-in-out infinite alternate;
+    animation: vn-bg-pan-wide 6s ease-in-out infinite alternate;
   }
 
   .vn-chronicles .vn-bg-pan-ultrawide {
     will-change: transform;
-    animation: vn-bg-pan-ultrawide 9s ease-in-out infinite alternate;
+    animation: vn-bg-pan-ultrawide 4s ease-in-out infinite alternate;
   }
 }
 
 /* In landscape, use subtle pan for all */
 @media (orientation: landscape) {
+
   .vn-chronicles .vn-bg-pan-narrow,
   .vn-chronicles .vn-bg-pan-normal,
   .vn-chronicles .vn-bg-pan-wide,
@@ -199,6 +230,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   .vn-chronicles .vn-bg-pan,
   .vn-chronicles .vn-bg-pan-right,
   .vn-chronicles .vn-bg-pan-left,
@@ -210,4 +242,3 @@
     transform: translate3d(0, 0, 0) scale(1.05);
   }
 }
-

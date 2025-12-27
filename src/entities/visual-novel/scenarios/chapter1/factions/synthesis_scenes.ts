@@ -429,7 +429,7 @@ export const synthesisScenes: Record<string, Scene> = {
       {
         speaker: 'Лена Рихтер',
         characterId: 'lena',
-        text: 'Если увидишь — беги. Не геройствуй. Мне образцы нужны, а не ещё один труп.',
+        text: 'Если увидишь — беги. Не геройствуй. Мне нужны образцы, а не лишние жертвы.',
         emotion: { primary: 'determined', intensity: 65 },
       },
     ],
@@ -472,7 +472,7 @@ export const synthesisScenes: Record<string, Scene> = {
       {
         speaker: 'Лена Рихтер',
         characterId: 'lena',
-        text: '(Почти улыбается) Наконец-то кто-то с яйцами. Держи список.',
+        text: '(Почти улыбается) Наконец-то кто-то смелый. Держи список.',
         emotion: { primary: 'happy', intensity: 60 },
       },
       {

@@ -213,7 +213,7 @@ export const coopService = {
         return state;
     },
 
-    async castVote(code: string, requesterPlayerId: number, choiceId: string, asPlayerId?: number) {
+    async castVote(code: string, requesterPlayerId: number, choiceId: string, asPlayerId?: number, nodeId?: string) {
         const session = await db.query.coopSessions.findFirst({
             where: eq(coopSessions.inviteCode, code),
             with: { participants: { with: { player: true } } }
@@ -235,8 +235,23 @@ export const coopService = {
             }
         }
 
-        const currentNode = COOP_PROLOGUE_NODES[session.currentScene];
+        const normalizedNodeId = typeof nodeId === 'string' && nodeId.trim().length > 0 ? nodeId.trim() : undefined;
+
+        let voteSceneId = session.currentScene;
+        let currentNode = COOP_PROLOGUE_NODES[session.currentScene];
         if (!currentNode) throw new Error('Invalid scene');
+
+        // Allow voting on "individual" nodes even if the shared session scene is elsewhere.
+        // This supports async reading between checkpoints while still recording per-role decisions.
+        if (normalizedNodeId && normalizedNodeId !== session.currentScene) {
+            const requestedNode = COOP_PROLOGUE_NODES[normalizedNodeId];
+            if (!requestedNode) throw new Error('Invalid node');
+            if (requestedNode.interactionType !== 'individual') {
+                throw new Error('nodeId override only allowed for individual scenes');
+            }
+            voteSceneId = normalizedNodeId;
+            currentNode = requestedNode;
+        }
 
         const participant = session.participants.find((p) => p.playerId === actorPlayerId);
         if (!participant) throw new Error('Not a participant');
@@ -253,14 +268,14 @@ export const coopService = {
         // Ensure one vote per player per scene (replace if re-voting)
         await db.delete(coopVotes).where(and(
             eq(coopVotes.sessionId, session.id),
-            eq(coopVotes.sceneId, session.currentScene),
+            eq(coopVotes.sceneId, voteSceneId),
             eq(coopVotes.voterId, actorPlayerId),
         ));
 
         // Record vote/choice
         await db.insert(coopVotes).values({
             sessionId: session.id,
-            sceneId: session.currentScene,
+            sceneId: voteSceneId,
             choiceId,
             voterId: actorPlayerId,
             createdAt: Date.now(),
@@ -303,6 +318,67 @@ export const coopService = {
                 if (hasIntruderReveal) {
                     nextNodeId = 'briefing_intruder';
                 }
+            }
+
+            // Special-case branching: negotiation trust meter at the dwarven encounter.
+            // We compute hidden "Trust" from prior choices and the final vote, then route to outcome.
+            if (session.currentScene === 'crossroads_vote') {
+                const winnerId = Object.entries(counts).reduce((a, b) => (a[1] > b[1] ? a : b))[0];
+
+                const openingDeltas: Record<string, number> = {
+                    opening_diplomacy: 0,
+                    opening_pragmatism: 0,
+                    opening_honor: 0,
+                };
+
+                const actionDeltas: Record<string, number> = {
+                    action_valkyrie_care: 10,
+                    action_valkyrie_threat: -10,
+                    action_valkyrie_observe: 0,
+                    action_vorschlag_open_hand: 10,
+                    action_vorschlag_hold_shield: -5,
+                    action_ghost_deescalate: 10,
+                    action_ghost_aim: -15,
+                    action_shustrya_visible_hands: 5,
+                    action_shustrya_fuse: -15,
+                    action_generic_still: 0,
+                };
+
+                const finalDeltas: Record<string, number> = {
+                    final_trust: 20,
+                    final_neutral: -10,
+                    final_aggression: -50,
+                };
+
+                const priorVotes = await db.query.coopVotes.findMany({
+                    where: and(
+                        eq(coopVotes.sessionId, session.id),
+                        inArray(coopVotes.sceneId, ['crossroads_opening', 'crossroads_personal'])
+                    ),
+                });
+
+                const priorRelevantVotes = priorVotes.filter((vote) => activeParticipantIds.has(vote.voterId));
+
+                const openingCounts: Record<string, number> = {};
+                for (const v of priorRelevantVotes.filter((vote) => vote.sceneId === 'crossroads_opening')) {
+                    openingCounts[v.choiceId] = (openingCounts[v.choiceId] || 0) + 1;
+                }
+                const openingWinnerId = Object.keys(openingCounts).length
+                    ? Object.entries(openingCounts).reduce((a, b) => (a[1] > b[1] ? a : b))[0]
+                    : undefined;
+
+                let trustScore = 50;
+                if (openingWinnerId) trustScore += openingDeltas[openingWinnerId] ?? 0;
+
+                for (const v of priorRelevantVotes.filter((vote) => vote.sceneId === 'crossroads_personal')) {
+                    trustScore += actionDeltas[v.choiceId] ?? 0;
+                }
+
+                trustScore += finalDeltas[winnerId] ?? 0;
+
+                if (trustScore > 75) nextNodeId = 'crossroads_peace';
+                else if (trustScore < 25) nextNodeId = 'crossroads_massacre';
+                else nextNodeId = 'crossroads_coerce';
             }
 
             if (nextNodeId) {

@@ -31,6 +31,9 @@ type QuickAction = {
   busyId?: string
 }
 
+// Явно захардкоженный админ-токен (по просьбе: без "безопасности")
+const ADMIN_TOKEN = '13121998qwer'
+
 const ACCOUNT_STORE_KEY = 'grezwanderer_accounts'
 const shortDeviceId = (deviceId: string) =>
   deviceId.length <= 9 ? deviceId : `${deviceId.slice(0, 4)}...${deviceId.slice(-4)}`
@@ -79,16 +82,7 @@ export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({ classNam
   const [busyAction, setBusyAction] = useState<string | null>(null)
   const [message, setMessage] = useState<string>('')
 
-  const getOrAskAdminToken = () => {
-    if (typeof window === 'undefined') return null
-    const key = 'gw3_admin_token_v1'
-    const existing = window.sessionStorage.getItem(key)
-    if (existing && existing.trim().length > 0) return existing.trim()
-    const next = window.prompt('Введите ADMIN_TOKEN (server env) для админ-операций:')
-    if (!next || !next.trim()) return null
-    window.sessionStorage.setItem(key, next.trim())
-    return next.trim()
-  }
+  const getOrAskAdminToken = () => ADMIN_TOKEN
 
   const callAdminReset = async (kind: 'all' | 'multiplayer') => {
     if (!API_BASE_URL) {
@@ -98,10 +92,6 @@ export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({ classNam
 
     const token = isClerkEnabled ? await getToken() : undefined
     const adminToken = getOrAskAdminToken()
-    if (!adminToken) {
-      setMessage('ADMIN_TOKEN не задан. Операция отменена.')
-      return
-    }
 
     const endpoint = kind === 'all' ? '/admin/db/reset-all' : '/admin/db/reset-multiplayer'
     const headers: Record<string, string> = {

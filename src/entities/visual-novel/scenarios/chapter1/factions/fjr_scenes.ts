@@ -158,7 +158,7 @@ export const fjrScenes: Record<string, Scene> = {
       {
         speaker: 'Сержант Крюгер',
         characterId: 'kruger',
-        text: 'Патрульное. Ага. Знаешь, что это значит, мясо?',
+        text: 'Патрульное. Ага. Знаешь, что это значит, рекрут?',
         emotion: { primary: 'determined', intensity: 70 },
       },
       {
@@ -272,7 +272,7 @@ export const fjrScenes: Record<string, Scene> = {
       {
         speaker: 'Сержант Крюгер',
         characterId: 'kruger',
-        text: '(Ледяным голосом) Ты что-то сказал, мясо? Нет? Вот и молчи.',
+        text: '(Ледяным голосом) Ты что-то сказал, рекрут? Нет? Вот и молчи.',
         emotion: { primary: 'angry', intensity: 85 },
       },
       {
@@ -306,7 +306,7 @@ export const fjrScenes: Record<string, Scene> = {
       {
         speaker: 'Сержант Крюгер',
         characterId: 'kruger',
-        text: 'Твоя задача: пройти маршрут от входа до разрушенной беседки. Отмечать аномалии. Уничтожать мелких тварей. Не сдохнуть.',
+        text: 'Твоя задача: пройти маршрут от входа до разрушенной беседки. Отмечать аномалии. Уничтожать мелких тварей. Выжить.',
         emotion: { primary: 'neutral', intensity: 65 },
       },
       {
@@ -359,7 +359,7 @@ export const fjrScenes: Record<string, Scene> = {
       {
         speaker: 'Сержант Крюгер',
         characterId: 'kruger',
-        text: '(Сплёвывает) Мультитул. Охуеть. Собрался тварей отвёрткой колоть?',
+        text: '(Сплёвывает) Мультитул. Серьёзно? Собрался тварей отвёрткой колоть?',
         emotion: { primary: 'angry', intensity: 70 },
       },
       {
@@ -467,7 +467,7 @@ export const fjrScenes: Record<string, Scene> = {
       {
         speaker: 'Сержант Крюгер',
         characterId: 'kruger',
-        text: 'Последнее. Не геройствуй. Мне не нужен труп, мне нужен отчёт.',
+        text: 'Последнее. Не геройствуй. Мне не нужны потери, мне нужен отчёт.',
         emotion: { primary: 'determined', intensity: 70 },
       },
       {
@@ -934,7 +934,7 @@ export const fjrScenes: Record<string, Scene> = {
       {
         speaker: 'Сержант Крюгер',
         characterId: 'kruger',
-        text: 'И ты их всех? Один? (Неожиданно усмехается) Неплохо, мясо. Неплохо.',
+        text: 'И ты их всех? Один? (Неожиданно усмехается) Неплохо, рекрут. Неплохо.',
         emotion: { primary: 'happy', intensity: 60 },
       },
     ],

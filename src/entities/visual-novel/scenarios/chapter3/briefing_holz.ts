@@ -11,9 +11,9 @@
  * пониманием подтекста, рисков и скрытых возможностей.
  */
 
-import type { 
-  PolyphonicScene, 
-  PolyphonicDialogue, 
+import type {
+  PolyphonicScene,
+  PolyphonicDialogue,
   PrivateInjection,
 } from '../../model/types'
 
@@ -54,7 +54,7 @@ const timeWindowInjections: PrivateInjection[] = [
       unlockHint: 'Дрон под завалами — нужны инструменты',
     },
   },
-  
+
   // ТИТАН — Группа I: ТЕЛО
   {
     id: 'briefing_strength_holz',
@@ -79,7 +79,7 @@ const timeWindowInjections: PrivateInjection[] = [
     priority: 6,
     voiceName: 'ВЫНОСЛИВОСТЬ',
   },
-  
+
   // ЭМПАТ — Группа VI: СОЦИАЛЬНОСТЬ
   {
     id: 'briefing_empathy_fear',
@@ -104,7 +104,7 @@ const timeWindowInjections: PrivateInjection[] = [
     priority: 5,
     voiceName: 'АВТОРИТЕТ',
   },
-  
+
   // ПАРАНОИК — Группа V: ПСИХИКА
   {
     id: 'briefing_perception_shadow',
@@ -135,7 +135,7 @@ const timeWindowInjections: PrivateInjection[] = [
       addFlags: ['suspects_trap'],
     },
   },
-  
+
   // РИТОРИКА — умение читать между строк
   {
     id: 'briefing_rhetoric_subtext',
@@ -150,7 +150,7 @@ const timeWindowInjections: PrivateInjection[] = [
       addFlags: ['understood_yellow_code'],
     },
   },
-  
+
   // ДРАМА — театральность ситуации
   {
     id: 'briefing_drama_performance',
@@ -376,7 +376,7 @@ const dialogues: PolyphonicDialogue[] = [
     ],
     nextDialogue: 'briefing_time_window',
   },
-  
+
   // Диалог 2: Временное окно (основной)
   {
     id: 'briefing_time_window',
@@ -388,7 +388,7 @@ const dialogues: PolyphonicDialogue[] = [
     privateInjections: timeWindowInjections,
     nextDialogue: 'briefing_rules_engagement',
   },
-  
+
   // Диалог 3: Правила вовлечения
   {
     id: 'briefing_rules_engagement',
@@ -421,7 +421,7 @@ const dialogues: PolyphonicDialogue[] = [
     ],
     nextDialogue: 'briefing_golem_warning',
   },
-  
+
   // Диалог 4: Предупреждение о Големах
   {
     id: 'briefing_golem_warning',
@@ -433,7 +433,7 @@ const dialogues: PolyphonicDialogue[] = [
     privateInjections: golemWarningInjections,
     nextDialogue: 'briefing_questions',
   },
-  
+
   // Диалог 5: Вопросы
   {
     id: 'briefing_questions',
@@ -528,7 +528,7 @@ const dialogues: PolyphonicDialogue[] = [
       },
     ],
   },
-  
+
   // Диалог 6: Вызов по времени
   {
     id: 'briefing_time_challenge',
@@ -550,7 +550,7 @@ const dialogues: PolyphonicDialogue[] = [
     ],
     nextDialogue: 'briefing_time_response',
   },
-  
+
   // Диалог 7: Ответ Хольца на вызов по времени
   {
     id: 'briefing_time_response',
@@ -584,7 +584,7 @@ const dialogues: PolyphonicDialogue[] = [
       },
     ],
   },
-  
+
   // Диалог 8: Раскрытие травмы
   {
     id: 'briefing_injury_reveal',
@@ -606,7 +606,7 @@ const dialogues: PolyphonicDialogue[] = [
     ],
     nextDialogue: 'briefing_injury_response',
   },
-  
+
   // Диалог 9: Ответ про травму
   {
     id: 'briefing_injury_response',
@@ -650,7 +650,7 @@ const dialogues: PolyphonicDialogue[] = [
       },
     ],
   },
-  
+
   // Диалог 10: Раскрытие слушателя
   {
     id: 'briefing_listener_reveal',
@@ -672,7 +672,7 @@ const dialogues: PolyphonicDialogue[] = [
     ],
     nextDialogue: 'briefing_listener_response',
   },
-  
+
   // Диалог 11: Ответ про слушателя
   {
     id: 'briefing_listener_response',
@@ -684,7 +684,7 @@ const dialogues: PolyphonicDialogue[] = [
     privateInjections: [],
     nextDialogue: 'briefing_listener_reveal_person',
   },
-  
+
   // Диалог 12: Появление слушателя
   {
     id: 'briefing_listener_reveal_person',
@@ -743,7 +743,7 @@ const dialogues: PolyphonicDialogue[] = [
       },
     ],
   },
-  
+
   // Диалог 13: Детали о Големах
   {
     id: 'briefing_golem_details',
@@ -757,7 +757,7 @@ const dialogues: PolyphonicDialogue[] = [
         voice: 'courage',
         voiceGroup: 'consciousness',
         threshold: 40,
-        text: 'Он видит в нас воинов, а не мясо. Это хорошо.',
+        text: 'Он видит в нас воинов, а не просто расходный материал. Это хорошо.',
         effect: 'pulse',
         priority: 6,
         voiceName: 'ОТВАГА',
@@ -765,7 +765,7 @@ const dialogues: PolyphonicDialogue[] = [
     ],
     nextDialogue: 'briefing_golem_details_2',
   },
-  
+
   // Диалог 14: Детали о Големах (продолжение)
   {
     id: 'briefing_golem_details_2',
@@ -841,7 +841,7 @@ const dialogues: PolyphonicDialogue[] = [
       },
     ],
   },
-  
+
   // Диалог 15: Слабость Мимиков
   {
     id: 'briefing_mimic_weakness',
@@ -863,7 +863,7 @@ const dialogues: PolyphonicDialogue[] = [
     ],
     nextDialogue: 'briefing_mimic_weakness_2',
   },
-  
+
   // Диалог 16: Слабость Мимиков (продолжение)
   {
     id: 'briefing_mimic_weakness_2',
@@ -914,7 +914,7 @@ const dialogues: PolyphonicDialogue[] = [
       },
     ],
   },
-  
+
   // Диалог 17: Снаряжение
   {
     id: 'briefing_equipment',
@@ -925,7 +925,7 @@ const dialogues: PolyphonicDialogue[] = [
     privateInjections: equipmentInjections,
     nextDialogue: 'briefing_equipment_2',
   },
-  
+
   // Диалог 18: Снаряжение (ответ)
   {
     id: 'briefing_equipment_2',
@@ -994,7 +994,7 @@ const dialogues: PolyphonicDialogue[] = [
       },
     ],
   },
-  
+
   // Диалог 19: Термальный сканер
   {
     id: 'briefing_equipment_thermal',
@@ -1016,7 +1016,7 @@ const dialogues: PolyphonicDialogue[] = [
     ],
     nextDialogue: 'briefing_equipment_thermal_2',
   },
-  
+
   // Диалог 20: Термальный сканер (ответ)
   {
     id: 'briefing_equipment_thermal_2',
@@ -1039,7 +1039,7 @@ const dialogues: PolyphonicDialogue[] = [
       },
     ],
   },
-  
+
   // Диалог 21: Взрывчатка
   {
     id: 'briefing_equipment_explosives',
@@ -1061,7 +1061,7 @@ const dialogues: PolyphonicDialogue[] = [
     ],
     nextDialogue: 'briefing_equipment_explosives_2',
   },
-  
+
   // Диалог 22: Взрывчатка (ответ)
   {
     id: 'briefing_equipment_explosives_2',
@@ -1105,7 +1105,7 @@ const dialogues: PolyphonicDialogue[] = [
       },
     ],
   },
-  
+
   // Диалог 23: Артефакты
   {
     id: 'briefing_equipment_artifacts',
@@ -1137,7 +1137,7 @@ const dialogues: PolyphonicDialogue[] = [
     ],
     nextDialogue: 'briefing_equipment_artifacts_2',
   },
-  
+
   // Диалог 24: Артефакты (ответ)
   {
     id: 'briefing_equipment_artifacts_2',
@@ -1181,7 +1181,7 @@ const dialogues: PolyphonicDialogue[] = [
       },
     ],
   },
-  
+
   // Диалог 25: Перебежчица — расширенный диалог
   {
     id: 'briefing_defector_dialogue',
@@ -1192,7 +1192,7 @@ const dialogues: PolyphonicDialogue[] = [
     privateInjections: defectorInjections,
     nextDialogue: 'briefing_defector_story',
   },
-  
+
   // Диалог 26: История перебежчицы
   {
     id: 'briefing_defector_story',
@@ -1283,7 +1283,7 @@ const dialogues: PolyphonicDialogue[] = [
       },
     ],
   },
-  
+
   // Диалог 27: Разведданные от перебежчицы
   {
     id: 'briefing_defector_intel',
@@ -1305,7 +1305,7 @@ const dialogues: PolyphonicDialogue[] = [
     ],
     nextDialogue: 'briefing_defector_intel_2',
   },
-  
+
   // Диалог 28: Разведданные (продолжение)
   {
     id: 'briefing_defector_intel_2',
@@ -1379,7 +1379,7 @@ const dialogues: PolyphonicDialogue[] = [
       },
     ],
   },
-  
+
   // Диалог 29: Разведданные о Секторе 4
   {
     id: 'briefing_defector_intel_sector4',
@@ -1401,7 +1401,7 @@ const dialogues: PolyphonicDialogue[] = [
     ],
     nextDialogue: 'briefing_defector_intel_sector4_2',
   },
-  
+
   // Диалог 30: Разведданные о Секторе 4 (продолжение)
   {
     id: 'briefing_defector_intel_sector4_2',
@@ -1483,10 +1483,10 @@ export const briefingHolzScene: PolyphonicScene = {
   id: 'chapter3_briefing_holz',
   chapterId: 'chapter3',
   questId: 'main_quest_rift_crossing',
-  
+
   background: '/images/backgrounds/bunker_briefing.jpg',
   music: '/audio/ambient/military_briefing.mp3',
-  
+
   characters: [
     {
       id: 'holz',
@@ -1496,10 +1496,10 @@ export const briefingHolzScene: PolyphonicScene = {
       emotion: { primary: 'serious', intensity: 80 },
     },
   ],
-  
+
   dialogues,
   entryDialogueId: 'briefing_intro',
-  
+
   isActive: true,
 }
 

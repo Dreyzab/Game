@@ -102,7 +102,7 @@ export const coopRoutes = (app: Elysia) =>
                     if (!playerId) return { error: "Player profile not found", status: 404 };
 
                     try {
-                        const room = await coopService.castVote(params.code, playerId, body.choiceId, body.asPlayerId);
+                        const room = await coopService.castVote(params.code, playerId, body.choiceId, body.asPlayerId, body.nodeId);
                         return { room };
                     } catch (e: any) {
                         return { error: e.message, status: 400 };
@@ -111,6 +111,7 @@ export const coopRoutes = (app: Elysia) =>
                     body: t.Object({
                         choiceId: t.String(),
                         asPlayerId: t.Optional(t.Number()),
+                        nodeId: t.Optional(t.String()),
                     })
                 })
 

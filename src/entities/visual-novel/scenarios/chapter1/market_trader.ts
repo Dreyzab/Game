@@ -459,7 +459,7 @@ export const marketTraderScenes: Record<string, Scene> = {
       },
       {
         speaker: 'ЦИНИЗМ',
-        text: 'Отлично. Теперь он точно будет помнить тебя как "того мудака".',
+        text: 'Отлично. Теперь он точно будет помнить тебя как "того неприятного типа".',
         emotion: { primary: 'sad', intensity: 50 },
       },
       {
@@ -526,7 +526,7 @@ export const marketTraderScenes: Record<string, Scene> = {
       {
         speaker: 'Элиас',
         characterId: 'elias',
-        text: '(Вздыхает) Ладно, ладно. Я тоже не сахар. День был дерьмовый.',
+        text: '(Вздыхает) Ладно, ладно. Я тоже не сахар. День был тяжёлый.',
         emotion: { primary: 'neutral', intensity: 55 },
       },
       {
@@ -604,7 +604,7 @@ export const marketTraderScenes: Record<string, Scene> = {
       {
         speaker: 'Элиас',
         characterId: 'elias',
-        text: '(Медленно) Ну-ну... Характер есть. Это хорошо. Здесь слабых жрут на завтрак.',
+        text: '(Медленно) Ну-ну... Характер есть. Это хорошо. Здесь слабины не прощают.',
         emotion: { primary: 'neutral', intensity: 65 },
       },
       {
