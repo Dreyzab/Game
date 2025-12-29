@@ -1,7 +1,7 @@
 import { db } from '../db';
 import { coopSessions, coopParticipants, coopVotes, players } from '../db/schema';
-import { eq, and, inArray } from 'drizzle-orm';
-import { COOP_PROLOGUE_NODES } from '../lib/coopContent';
+import { eq, and, inArray, ne, sql } from 'drizzle-orm';
+import { coopGraph } from '../lib/coopGraph';
 import type { CoopRoleId } from '../shared/types/coop';
 import { broadcastCoopUpdate } from '../lib/bus';
 
@@ -52,7 +52,7 @@ export const coopService = {
 
         if (!session) return null;
 
-        const currentQuestNode = COOP_PROLOGUE_NODES[session.currentScene || 'prologue_start'];
+        const currentQuestNode = coopGraph.getNode(session.currentScene || 'prologue_start') ?? null;
         const participantIds = new Set(session.participants.map((p) => p.playerId));
 
         return {
@@ -238,13 +238,13 @@ export const coopService = {
         const normalizedNodeId = typeof nodeId === 'string' && nodeId.trim().length > 0 ? nodeId.trim() : undefined;
 
         let voteSceneId = session.currentScene;
-        let currentNode = COOP_PROLOGUE_NODES[session.currentScene];
+        let currentNode = coopGraph.getNode(session.currentScene);
         if (!currentNode) throw new Error('Invalid scene');
 
         // Allow voting on "individual" nodes even if the shared session scene is elsewhere.
         // This supports async reading between checkpoints while still recording per-role decisions.
         if (normalizedNodeId && normalizedNodeId !== session.currentScene) {
-            const requestedNode = COOP_PROLOGUE_NODES[normalizedNodeId];
+            const requestedNode = coopGraph.getNode(normalizedNodeId);
             if (!requestedNode) throw new Error('Invalid node');
             if (requestedNode.interactionType !== 'individual') {
                 throw new Error('nodeId override only allowed for individual scenes');
@@ -252,6 +252,102 @@ export const coopService = {
             voteSceneId = normalizedNodeId;
             currentNode = requestedNode;
         }
+
+        // --- FLAG / EFFECT HELPERS ---
+        const getChoiceFlags = (cId: string): Record<string, any> => {
+            // Hardcoded effects for the Crossroads scenario to demonstrate modernization
+            // In a full implementation, these would come from c.flags in content
+            const deltas: Record<string, number> = {
+                // Opening
+                opening_diplomacy: 0,
+                opening_pragmatism: 0,
+                opening_honor: 0,
+                // Actions
+                action_valkyrie_care: 10,
+                action_valkyrie_threat: -10,
+                action_valkyrie_observe: 0,
+                action_vorschlag_open_hand: 10,
+                action_vorschlag_hold_shield: -5,
+                action_ghost_deescalate: 10,
+                action_ghost_aim: -15,
+                action_shustrya_visible_hands: 5,
+                action_shustrya_fuse: -15,
+                action_generic_still: 0,
+                // Final
+                final_trust: 20,
+                final_neutral: -10,
+                final_aggression: -50,
+            };
+
+            const nodeChoice = currentNode.choices.find(c => c.id === cId);
+            const contentFlags = nodeChoice?.flags ?? {};
+
+            if (cId in deltas) {
+                return { ...contentFlags, trust_delta: deltas[cId] };
+            }
+            return contentFlags;
+        };
+
+        const applyFlags = async (flagsToApply: Record<string, any>) => {
+            if (Object.keys(flagsToApply).length === 0) return;
+            // Fetch latest flags to be safe
+            const currentSession = await db.query.coopSessions.findFirst({
+                where: eq(coopSessions.id, session.id),
+                columns: { flags: true }
+            });
+            const currentFlags = (currentSession?.flags ?? {}) as Record<string, any>;
+            const nextFlags = { ...currentFlags };
+
+            for (const [k, v] of Object.entries(flagsToApply)) {
+                if (typeof v === 'number') {
+                    nextFlags[k] = (typeof nextFlags[k] === 'number' ? nextFlags[k] : 0) + v;
+                } else {
+                    nextFlags[k] = v;
+                }
+            }
+            await db.update(coopSessions).set({ flags: nextFlags }).where(eq(coopSessions.id, session.id));
+        };
+
+        const updateGraphState = async (
+            updater: (graphState: { stack: string[]; sideQuests: Record<string, { startedAt?: number; completedAt?: number }> }) => void
+        ) => {
+            const currentSession = await db.query.coopSessions.findFirst({
+                where: eq(coopSessions.id, session.id),
+                columns: { flags: true }
+            });
+
+            const flags = (currentSession?.flags ?? {}) as Record<string, any>;
+            const rawGraphState = (flags.__graph ?? {}) as any;
+            const graphState = {
+                stack: Array.isArray(rawGraphState.stack) ? rawGraphState.stack.filter((v: any) => typeof v === 'string') : [],
+                sideQuests: typeof rawGraphState.sideQuests === 'object' && rawGraphState.sideQuests ? rawGraphState.sideQuests : {},
+            };
+
+            updater(graphState);
+
+            flags.__graph = graphState;
+            await db.update(coopSessions).set({ flags }).where(eq(coopSessions.id, session.id));
+        };
+
+        const revertFlags = async (flagsToRevert: Record<string, any>) => {
+            if (Object.keys(flagsToRevert).length === 0) return;
+            const currentSession = await db.query.coopSessions.findFirst({
+                where: eq(coopSessions.id, session.id),
+                columns: { flags: true }
+            });
+            const currentFlags = (currentSession?.flags ?? {}) as Record<string, any>;
+            const nextFlags = { ...currentFlags };
+
+            for (const [k, v] of Object.entries(flagsToRevert)) {
+                if (typeof v === 'number') {
+                    nextFlags[k] = (typeof nextFlags[k] === 'number' ? nextFlags[k] : 0) - v;
+                } else {
+                    // For non-numeric, we can't easily revert without history, so we ignore or reset
+                    // For this implementation, we focus on numeric deltas (Trust)
+                }
+            }
+            await db.update(coopSessions).set({ flags: nextFlags }).where(eq(coopSessions.id, session.id));
+        };
 
         const participant = session.participants.find((p) => p.playerId === actorPlayerId);
         if (!participant) throw new Error('Not a participant');
@@ -265,12 +361,22 @@ export const coopService = {
             throw new Error('Choice locked to role');
         }
 
-        // Ensure one vote per player per scene (replace if re-voting)
-        await db.delete(coopVotes).where(and(
-            eq(coopVotes.sessionId, session.id),
-            eq(coopVotes.sceneId, voteSceneId),
-            eq(coopVotes.voterId, actorPlayerId),
-        ));
+        // Check for existing vote to revert flags if needed (for individual nodes)
+        const existingVote = await db.query.coopVotes.findFirst({
+            where: and(
+                eq(coopVotes.sessionId, session.id),
+                eq(coopVotes.sceneId, voteSceneId),
+                eq(coopVotes.voterId, actorPlayerId),
+            )
+        });
+
+        if (existingVote) {
+            if (currentNode.interactionType === 'individual') {
+                const oldFlags = getChoiceFlags(existingVote.choiceId);
+                await revertFlags(oldFlags);
+            }
+            await db.delete(coopVotes).where(eq(coopVotes.id, existingVote.id));
+        }
 
         // Record vote/choice
         await db.insert(coopVotes).values({
@@ -281,8 +387,11 @@ export const coopService = {
             createdAt: Date.now(),
         });
 
+        const newFlags = getChoiceFlags(choiceId);
+
         // Individual choices are personal: they should not block others and should not advance the shared checkpoint.
         if (currentNode.interactionType === 'individual') {
+            await applyFlags(newFlags);
             const state = await this.getRoomState(code);
             broadcastCoopUpdate(code, state);
             return state;
@@ -309,11 +418,62 @@ export const coopService = {
                 counts[v.choiceId] = (counts[v.choiceId] || 0) + 1;
             }
 
+            // Tie breaking: Find max votes, pick random among leaders
+            const maxVotes = Math.max(...Object.values(counts));
+            const leaders = Object.entries(counts).filter(([_, c]) => c === maxVotes).map(([id]) => id);
+            const winnerId = leaders[Math.floor(Math.random() * leaders.length)];
+            const winningChoice = currentNode.choices.find(c => c.id === winnerId);
+
+            // Apply winner flags
+            if (winningChoice) {
+                const winnerFlags = getChoiceFlags(winningChoice.id);
+                await applyFlags(winnerFlags);
+            }
+
             let nextNodeId: string | undefined;
+            let actionHandled = false;
+
+            // Side-quest graph actions (start/return) are resolved server-side.
+            const winningAction = (winningChoice as any)?.action as string | undefined;
+            const winningQuestId = (winningChoice as any)?.questId as string | undefined;
+
+            if (winningChoice && winningAction === 'start_side_quest') {
+                const entryNodeId = winningChoice.nextNodeId;
+                if (!entryNodeId) throw new Error('Side quest entry node is missing nextNodeId');
+
+                await updateGraphState((graph) => {
+                    graph.stack.push(session.currentScene as string);
+                    if (winningQuestId) {
+                        const existing = graph.sideQuests[winningQuestId] ?? {};
+                        graph.sideQuests[winningQuestId] = {
+                            ...existing,
+                            startedAt: existing.startedAt ?? Date.now(),
+                        };
+                    }
+                });
+
+                nextNodeId = entryNodeId;
+                actionHandled = true;
+            } else if (winningChoice && winningAction === 'return') {
+                let returnNodeId: string | undefined;
+
+                await updateGraphState((graph) => {
+                    returnNodeId = graph.stack.pop();
+                    if (winningQuestId) {
+                        const existing = graph.sideQuests[winningQuestId] ?? {};
+                        graph.sideQuests[winningQuestId] = {
+                            ...existing,
+                            completedAt: existing.completedAt ?? Date.now(),
+                        };
+                    }
+                });
+
+                nextNodeId = returnNodeId ?? winningChoice.nextNodeId;
+                actionHandled = Boolean(nextNodeId);
+            }
 
             // Special-case branching: in the briefing scene, Ghost can reveal an eavesdropper.
-            // That choice should override the default "converge" rule and advance to the intruder scene.
-            if (session.currentScene === 'outpost_tent') {
+            if (!actionHandled && session.currentScene === 'outpost_tent') {
                 const hasIntruderReveal = relevantVotes.some((vote) => vote.choiceId === 'ghost_intruder');
                 if (hasIntruderReveal) {
                     nextNodeId = 'briefing_intruder';
@@ -321,60 +481,15 @@ export const coopService = {
             }
 
             // Special-case branching: negotiation trust meter at the dwarven encounter.
-            // We compute hidden "Trust" from prior choices and the final vote, then route to outcome.
-            if (session.currentScene === 'crossroads_vote') {
-                const winnerId = Object.entries(counts).reduce((a, b) => (a[1] > b[1] ? a : b))[0];
-
-                const openingDeltas: Record<string, number> = {
-                    opening_diplomacy: 0,
-                    opening_pragmatism: 0,
-                    opening_honor: 0,
-                };
-
-                const actionDeltas: Record<string, number> = {
-                    action_valkyrie_care: 10,
-                    action_valkyrie_threat: -10,
-                    action_valkyrie_observe: 0,
-                    action_vorschlag_open_hand: 10,
-                    action_vorschlag_hold_shield: -5,
-                    action_ghost_deescalate: 10,
-                    action_ghost_aim: -15,
-                    action_shustrya_visible_hands: 5,
-                    action_shustrya_fuse: -15,
-                    action_generic_still: 0,
-                };
-
-                const finalDeltas: Record<string, number> = {
-                    final_trust: 20,
-                    final_neutral: -10,
-                    final_aggression: -50,
-                };
-
-                const priorVotes = await db.query.coopVotes.findMany({
-                    where: and(
-                        eq(coopVotes.sessionId, session.id),
-                        inArray(coopVotes.sceneId, ['crossroads_opening', 'crossroads_personal'])
-                    ),
+            if (!actionHandled && session.currentScene === 'crossroads_vote') {
+                // Fetch updated flags locally to check trust
+                const currentSessionCtx = await db.query.coopSessions.findFirst({
+                    where: eq(coopSessions.id, session.id),
+                    columns: { flags: true }
                 });
-
-                const priorRelevantVotes = priorVotes.filter((vote) => activeParticipantIds.has(vote.voterId));
-
-                const openingCounts: Record<string, number> = {};
-                for (const v of priorRelevantVotes.filter((vote) => vote.sceneId === 'crossroads_opening')) {
-                    openingCounts[v.choiceId] = (openingCounts[v.choiceId] || 0) + 1;
-                }
-                const openingWinnerId = Object.keys(openingCounts).length
-                    ? Object.entries(openingCounts).reduce((a, b) => (a[1] > b[1] ? a : b))[0]
-                    : undefined;
-
-                let trustScore = 50;
-                if (openingWinnerId) trustScore += openingDeltas[openingWinnerId] ?? 0;
-
-                for (const v of priorRelevantVotes.filter((vote) => vote.sceneId === 'crossroads_personal')) {
-                    trustScore += actionDeltas[v.choiceId] ?? 0;
-                }
-
-                trustScore += finalDeltas[winnerId] ?? 0;
+                const flags = (currentSessionCtx?.flags ?? {}) as Record<string, any>;
+                // Base trust 50 + accumulated deltas
+                const trustScore = 50 + (Number(flags.trust_delta) || 0);
 
                 if (trustScore > 75) nextNodeId = 'crossroads_peace';
                 else if (trustScore < 25) nextNodeId = 'crossroads_massacre';
@@ -383,9 +498,7 @@ export const coopService = {
 
             if (nextNodeId) {
                 // Skip generic resolution below
-            } else if (currentNode.interactionType === 'vote' || currentNode.interactionType === 'sync') {
-                const winnerId = Object.entries(counts).reduce((a, b) => (a[1] > b[1] ? a : b))[0];
-                const winningChoice = currentNode.choices.find(c => c.id === winnerId);
+            } else if ((currentNode.interactionType === 'vote' || currentNode.interactionType === 'sync') && !actionHandled) {
                 if (winningChoice?.nextNodeId) {
                     nextNodeId = winningChoice.nextNodeId;
                 }
@@ -395,6 +508,13 @@ export const coopService = {
                 await db.update(coopSessions)
                     .set({ currentScene: nextNodeId })
                     .where(eq(coopSessions.id, session.id));
+
+                // Cleanup votes from previous scenes to keep the table size manageable
+                // We keep votes for the NEW currentScene (if any, though usually none yet)
+                await db.delete(coopVotes).where(and(
+                    eq(coopVotes.sessionId, session.id),
+                    ne(coopVotes.sceneId, nextNodeId)
+                ));
             }
         }
 

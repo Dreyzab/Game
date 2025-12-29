@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, boolean, bigint, timestamp, index } from 'drizzle-orm/pg-core';
+import { pgTable, serial, text, integer, boolean, bigint, timestamp, index, json } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 import { players } from './players';
 
@@ -9,6 +9,7 @@ export const coopSessions = pgTable('coop_sessions', {
     inviteCode: text('invite_code').unique().notNull(), // Short code for joining
     status: text('status').default('waiting'), // 'waiting', 'active', 'finished'
     currentScene: text('current_scene').default('prologue_start'), // Syncs narrative
+    flags: json('flags').$type<Record<string, any>>().default({}), // Session flags affecting narrative
 
     // Config
     maxPlayers: integer('max_players').default(4),

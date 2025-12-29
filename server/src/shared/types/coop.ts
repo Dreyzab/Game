@@ -53,12 +53,17 @@ export const COOP_ROLES: Record<CoopRoleId, CoopRoleDefinition> = {
 
 export type CoopQuestNodeInteraction = 'vote' | 'individual' | 'sync'
 
+export type CoopQuestChoiceAction = 'start_side_quest' | 'return'
+
 export interface CoopQuestChoice {
   id: string
   text: string
   nextNodeId?: string // If null, stays on same node (for individual dialogue)
   requiredRole?: CoopRoleId
   effectText?: string // Text shown to the user who picked it (or all if vote)
+  flags?: Record<string, any> // Flags to set in session when this choice is made
+  action?: CoopQuestChoiceAction // Server-resolved graph actions (side quests, returns, etc.)
+  questId?: string // Optional quest identifier for side-quests / quest bookkeeping
 }
 
 export interface CoopQuestNode {

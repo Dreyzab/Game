@@ -5,7 +5,7 @@ import { db } from "../../db";
 import { players } from "../../db/schema";
 import { eq } from "drizzle-orm";
 import type { CoopRoleId } from "../../shared/types/coop";
-import { COOP_PROLOGUE_NODES } from "../../lib/coopContent";
+import { coopGraph } from "../../lib/coopGraph";
 
 // Helper to get internal player ID from auth user
 async function getPlayerId(user: { id: string; type: 'clerk' | 'guest' }): Promise<number | null> {
@@ -133,7 +133,7 @@ export const coopRoutes = (app: Elysia) =>
                 })
 
                 .get("/nodes/:id", async ({ params }) => {
-                    const node = (COOP_PROLOGUE_NODES as any)[params.id];
+                    const node = coopGraph.getNode(params.id);
                     if (!node) return { error: "Node not found", status: 404 };
                     return { node };
                 })
