@@ -85,6 +85,38 @@ export declare const adminRoutes: (app: Elysia) => Elysia<"", {
             };
         };
     };
+} & {
+    admin: {
+        db: {
+            seed: {
+                post: {
+                    body: Partial<{}> | null;
+                    params: {};
+                    query: unknown;
+                    headers: unknown;
+                    response: {
+                        200: {
+                            error: string;
+                        } | {
+                            success: boolean;
+                            stats: any;
+                            ok: boolean;
+                            error?: undefined;
+                        };
+                        422: {
+                            type: "validation";
+                            on: string;
+                            summary?: string;
+                            message?: string;
+                            found?: unknown;
+                            property?: string;
+                            expected?: string;
+                        };
+                    };
+                };
+            };
+        };
+    };
 }, {
     derive: {};
     resolve: {};

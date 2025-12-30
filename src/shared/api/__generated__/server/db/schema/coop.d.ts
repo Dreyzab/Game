@@ -87,6 +87,25 @@ export declare const coopSessions: import("drizzle-orm/pg-core").PgTableWithColu
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
+        flags: import("drizzle-orm/pg-core").PgColumn<{
+            name: "flags";
+            tableName: "coop_sessions";
+            dataType: "json";
+            columnType: "PgJson";
+            data: Record<string, any>;
+            driverParam: unknown;
+            notNull: false;
+            hasDefault: true;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {
+            $type: Record<string, any>;
+        }>;
         maxPlayers: import("drizzle-orm/pg-core").PgColumn<{
             name: "max_players";
             tableName: "coop_sessions";
@@ -248,6 +267,23 @@ export declare const coopParticipants: import("drizzle-orm/pg-core").PgTableWith
             isAutoincrement: false;
             hasRuntimeDefault: false;
             enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        currentScene: import("drizzle-orm/pg-core").PgColumn<{
+            name: "current_scene";
+            tableName: "coop_participants";
+            dataType: "string";
+            columnType: "PgText";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
             baseColumn: never;
             identity: undefined;
             generated: undefined;

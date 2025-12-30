@@ -1,6 +1,6 @@
 import { Elysia, t } from 'elysia'
 import { auth } from '../auth'
-import { resetDatabaseAll, resetDatabaseMultiplayer } from '../../services/adminDbReset'
+import { resetDatabaseAll, resetDatabaseMultiplayer, seedDatabase } from '../../services/adminDbReset'
 import { resetPresenceRuntime } from './presence'
 import { resetPvpRuntime } from '../../lib/roomStore'
 
@@ -65,6 +65,21 @@ export const adminRoutes = (app: Elysia) =>
             resetPvpRuntime()
 
             return { ok: true, result, runtime: { presence: 'cleared', pvp: 'cleared' } }
+          },
+          {
+            body: t.Optional(t.Object({})),
+          }
+        )
+        .post(
+          '/db/seed',
+          async ({ user, headers, set }) => {
+            if (!isAllowedAdmin((user as any) ?? null, headers as any)) {
+              set.status = 403
+              return { error: 'Forbidden' }
+            }
+
+            const result = await seedDatabase()
+            return { ok: true, ...result }
           },
           {
             body: t.Optional(t.Object({})),

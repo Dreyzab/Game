@@ -5,3 +5,7 @@ export type ResetResult = {
 };
 export declare function resetDatabaseAll(): Promise<ResetResult>;
 export declare function resetDatabaseMultiplayer(): Promise<ResetResult>;
+export declare function seedDatabase(): Promise<{
+    success: boolean;
+    stats: any;
+}>;

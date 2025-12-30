@@ -38,6 +38,7 @@ export const ChoicePanel: React.FC<ChoicePanelProps> = ({
             key={choice.id}
             disabled={isLocked}
             onClick={() => onSelect(choice.id)}
+            title={choice.tooltip}
             className={cn(
               'relative group flex flex-col p-3 sm:p-4 rounded-xl text-left border transition-all duration-300',
               isLocked && !isVisited
@@ -103,4 +104,3 @@ export const ChoicePanel: React.FC<ChoicePanelProps> = ({
     </div>
   )
 }
-

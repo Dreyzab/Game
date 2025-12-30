@@ -36,6 +36,13 @@
       "when": 1766759999000,
       "tag": "0004_coop_participants_progress",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1767124670419,
+      "tag": "0005_pink_puff_adder",
+      "breakpoints": true
     }
   ]
 }

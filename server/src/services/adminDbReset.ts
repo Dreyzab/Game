@@ -1,5 +1,10 @@
 import { db } from '../db'
-import { sql } from 'drizzle-orm'
+import { sql, inArray } from 'drizzle-orm'
+import { mapPoints, items, safeZones, dangerZones } from '../db/schema'
+import { SEED_MAP_POINTS } from '../seeds/mapPoints'
+import { ITEM_TEMPLATES } from '../seeds/itemTemplates'
+import { SEED_SAFE_ZONES } from '../seeds/safeZones'
+import { SEED_DANGER_ZONES } from '../seeds/dangerZones'
 
 export type ResetResult = {
   truncatedTables: string[]
@@ -54,6 +59,100 @@ export async function resetDatabaseMultiplayer(): Promise<ResetResult> {
   }
 
   return { truncatedTables, deletedBots, mode: 'multiplayer' }
+}
+
+export async function seedDatabase(): Promise<{ success: boolean; stats: any }> {
+  const stats: any = {};
+  const now = Date.now();
+
+  // 1. Map Points
+  let mpCount = 0;
+  for (const p of SEED_MAP_POINTS) {
+    await db.insert(mapPoints)
+      .values({
+        id: p.id,
+        title: p.title,
+        description: p.description,
+        lat: p.coordinates.lat,
+        lng: p.coordinates.lng,
+        type: p.type,
+        qrCode: p.qrCode ?? (p.metadata as any)?.qrCode,
+        phase: p.phase ?? null,
+        isActive: p.isActive,
+        metadata: { ...(p.metadata ?? {}) },
+      })
+      .onConflictDoUpdate({
+        target: mapPoints.id,
+        set: {
+          title: p.title,
+          description: p.description,
+          lat: p.coordinates.lat,
+          lng: p.coordinates.lng,
+          type: p.type,
+          qrCode: p.qrCode ?? (p.metadata as any)?.qrCode,
+          phase: p.phase ?? null,
+          isActive: p.isActive,
+          metadata: { ...(p.metadata ?? {}) },
+        },
+      });
+    mpCount++;
+  }
+  stats.mapPoints = mpCount;
+
+  // 2. Safe Zones
+  await db.delete(safeZones);
+  let szCount = 0;
+  for (const zone of SEED_SAFE_ZONES) {
+    await db.insert(safeZones).values({
+      title: zone.name,
+      faction: zone.faction,
+      polygon: zone.polygon,
+      isActive: zone.isActive,
+    });
+    szCount++;
+  }
+  stats.safeZones = szCount;
+
+  // 3. Danger Zones
+  await db.delete(dangerZones);
+  let dzCount = 0;
+  for (const zone of SEED_DANGER_ZONES) {
+    await db.insert(dangerZones).values({
+      title: zone.title,
+      dangerLevel: zone.dangerLevel,
+      polygon: zone.polygon,
+      isActive: true,
+    });
+    dzCount++;
+  }
+  stats.dangerZones = dzCount;
+
+  // 4. Item Templates
+  const templateIds = ITEM_TEMPLATES.map((t) => t.id);
+  await db.delete(items).where(inArray(items.templateId, templateIds));
+  let itemCount = 0;
+  for (const tpl of ITEM_TEMPLATES) {
+    await db.insert(items).values({
+      templateId: tpl.id,
+      instanceId: `tpl_${tpl.id}`,
+      name: tpl.name,
+      description: tpl.description,
+      kind: tpl.kind,
+      rarity: tpl.rarity,
+      stats: {
+        ...tpl.baseStats,
+        width: tpl.baseStats.width,
+        height: tpl.baseStats.height,
+        weight: tpl.baseStats.weight,
+      },
+      quantity: 1,
+      createdAt: now,
+    });
+    itemCount++;
+  }
+  stats.itemTemplates = itemCount;
+
+  return { success: true, stats };
 }
 
 

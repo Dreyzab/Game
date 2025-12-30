@@ -25,6 +25,7 @@ const FILES = [
     { src: 'data/itemTypes.ts', dest: 'itemTypes.ts' },
     { src: 'data/itemTemplates.ts', dest: 'itemTemplates.ts' },
     { src: 'lib/itemPricing.ts', dest: 'itemPricing.ts' },
+    { src: 'data/coopScoreConfig.ts', dest: 'coopScoreConfig.ts' },
 ]
 
 for (const file of FILES) {

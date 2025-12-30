@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { API_BASE_URL, authenticatedClient } from '@/shared/api/client';
-import type { CoopQuestNode } from '@/shared/types/coop';
+import type { CoopCampState, CoopQuestNode } from '@/shared/types/coop';
 import { clearLastCoopRoomCode, setLastCoopRoomCode } from './persistence';
 
 // Define the state shape matching the backend response
@@ -11,12 +11,51 @@ export interface CoopParticipant {
     ready: boolean;
 }
 
+export interface CoopQuestScoreState {
+    questId: string;
+    current: number;
+    target: number;
+    history: number[];
+    modifiers: Record<string, number>;
+    playerModifiers: Record<string, Record<string, number>>;
+    statuses: Record<string, number>;
+    playerStatuses: Record<string, Record<string, number>>;
+    stages: number;
+    lastStageTotal: number;
+    lastStageByPlayer: Record<string, number>;
+}
+
+export interface CoopExpeditionState {
+    turnCount: number;
+    maxTurns: number;
+    researchPoints: number;
+    waveNodeId?: string;
+    wavePending?: boolean;
+    deadlineEvents?: Array<{ nodeId: string; kind?: 'enemy' | 'check'; weight?: number }>;
+    pendingNodeId?: string;
+    pendingKind?: 'enemy' | 'check';
+    playerTraits?: Record<string, string[]>;
+    injury?: { targetPlayerId: number; needsTreatment: boolean };
+    lastEvent?: {
+        id: string;
+        at: number;
+        success: boolean;
+        summary: string;
+        perPlayer: Record<string, { pass: boolean; traitsAdded: string[] }>;
+        targetPlayerId?: number;
+        actorPlayerId?: number;
+    };
+}
+
 export interface CoopRoomState {
     code: string;
     status: string;
     hostId: number;
     sceneId: string | null;
     questNode: CoopQuestNode | null;
+    camp?: CoopCampState | null;
+    expedition?: CoopExpeditionState | null;
+    questScore?: CoopQuestScoreState | null;
     participants: CoopParticipant[];
     votes: any[]; // refine if needed
 }
@@ -37,6 +76,10 @@ interface CoopStore {
     setReady: (ready: boolean) => Promise<void>;
     startGame: () => Promise<void>;
     castVote: (choiceId: string, asPlayerId?: number, nodeId?: string) => Promise<void>;
+    callReinforcements: (count?: number) => Promise<void>;
+    buyCampItem: (templateId: string, quantity?: number) => Promise<void>;
+    withdrawCampItem: (templateId: string, quantity?: number) => Promise<void>;
+    fetchCampShop: () => Promise<any | null>;
     addBot: () => Promise<void>;
     clearError: () => void;
 
@@ -223,6 +266,110 @@ export const useCoopStore = create<CoopStore>((set, get) => ({
             setLastCoopRoomCode(String(nextRoom.code ?? room.code));
             set({ room: nextRoom });
         }
+    },
+
+    callReinforcements: async (count) => {
+        const { room } = get();
+        if (!room) return;
+
+        const client = authenticatedClient() as any;
+        const { data, error } = await client.coop.rooms[room.code].camp.reinforce.post({
+            count: typeof count === 'number' ? count : undefined,
+        });
+
+        if (error) {
+            set({ error: (error as any)?.value ? String((error as any).value) : 'Unknown error' });
+            return;
+        }
+
+        const payload = data as any;
+        if (typeof payload?.error === 'string' && payload.error) {
+            set({ error: payload.error });
+            return;
+        }
+
+        if (payload?.room) {
+            const nextRoom = payload.room as any;
+            setLastCoopRoomCode(String(nextRoom.code ?? room.code));
+            set({ room: nextRoom });
+        }
+    },
+
+    buyCampItem: async (templateId, quantity) => {
+        const { room } = get();
+        if (!room) return;
+
+        const client = authenticatedClient() as any;
+        const { data, error } = await client.coop.rooms[room.code].camp.purchase.post({
+            templateId,
+            quantity: typeof quantity === 'number' ? quantity : undefined,
+        });
+
+        if (error) {
+            set({ error: (error as any)?.value ? String((error as any).value) : 'Unknown error' });
+            return;
+        }
+
+        const payload = data as any;
+        if (typeof payload?.error === 'string' && payload.error) {
+            set({ error: payload.error });
+            return;
+        }
+
+        if (payload?.room) {
+            const nextRoom = payload.room as any;
+            setLastCoopRoomCode(String(nextRoom.code ?? room.code));
+            set({ room: nextRoom });
+        }
+    },
+
+    withdrawCampItem: async (templateId, quantity) => {
+        const { room } = get();
+        if (!room) return;
+
+        const client = authenticatedClient() as any;
+        const { data, error } = await client.coop.rooms[room.code].camp.inventory.withdraw.post({
+            templateId,
+            quantity: typeof quantity === 'number' ? quantity : undefined,
+        });
+
+        if (error) {
+            set({ error: (error as any)?.value ? String((error as any).value) : 'Unknown error' });
+            return;
+        }
+
+        const payload = data as any;
+        if (typeof payload?.error === 'string' && payload.error) {
+            set({ error: payload.error });
+            return;
+        }
+
+        if (payload?.room) {
+            const nextRoom = payload.room as any;
+            setLastCoopRoomCode(String(nextRoom.code ?? room.code));
+            set({ room: nextRoom });
+        }
+    },
+
+    fetchCampShop: async () => {
+        const { room } = get();
+        if (!room) return null;
+
+        const client = authenticatedClient() as any;
+        const { data, error } = await client.coop.rooms[room.code].camp.shop.get();
+
+        if (error) {
+            set({ error: (error as any)?.value ? String((error as any).value) : 'Unknown error' });
+            return null;
+        }
+
+        const payload = data as any;
+        if (typeof payload?.error === 'string' && payload.error) {
+            set({ error: payload.error });
+            return null;
+        }
+
+        return payload?.shop ?? null;
     },
 
     addBot: async () => {

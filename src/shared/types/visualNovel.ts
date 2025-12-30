@@ -108,6 +108,10 @@ export interface VisualNovelChoiceView extends VisualNovelChoice {
   disabled?: boolean
   lockReason?: string
   isVisited?: boolean
+  /** Optional UI tooltip (e.g. score breakdown). */
+  tooltip?: string
+  /** Optional right-side badge text (e.g. "~18 pts"). */
+  rightBadge?: string
 }
 
 export interface VisualNovelHistoryEntry {

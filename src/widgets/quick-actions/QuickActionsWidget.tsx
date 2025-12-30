@@ -84,7 +84,7 @@ export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({ classNam
 
   const getOrAskAdminToken = () => ADMIN_TOKEN
 
-  const callAdminReset = async (kind: 'all' | 'multiplayer') => {
+  const callAdminReset = async (kind: 'all' | 'multiplayer' | 'seed') => {
     if (!API_BASE_URL) {
       setMessage('VITE_API_URL / API_BASE_URL не настроен — запрос некуда отправить.')
       return
@@ -93,7 +93,12 @@ export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({ classNam
     const token = isClerkEnabled ? await getToken() : undefined
     const adminToken = getOrAskAdminToken()
 
-    const endpoint = kind === 'all' ? '/admin/db/reset-all' : '/admin/db/reset-multiplayer'
+    const endpoints = {
+      all: '/admin/db/reset-all',
+      multiplayer: '/admin/db/reset-multiplayer',
+      seed: '/admin/db/seed',
+    }
+    const endpoint = endpoints[kind] || endpoints.multiplayer
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'x-device-id': getDeviceId(),
@@ -125,14 +130,14 @@ export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({ classNam
       const next = hasCurrent
         ? base
         : [
-            {
-              deviceId: currentId,
-              role: 'player' as const,
-              label: 'Игрок',
-              createdAt: Date.now(),
-            },
-            ...base,
-          ]
+          {
+            deviceId: currentId,
+            role: 'player' as const,
+            label: 'Игрок',
+            createdAt: Date.now(),
+          },
+          ...base,
+        ]
       persistAccounts(next)
       return next
     })
@@ -240,6 +245,17 @@ export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({ classNam
         const result = await callAdminReset('all')
         setMessage(`БД очищена. ${JSON.stringify((result as any)?.result ?? {})}. Обновляю страницу...`)
         setTimeout(() => window.location.reload(), 800)
+      },
+    },
+    {
+      id: 'db-seed',
+      icon: <Package className="w-4 h-4" />,
+      label: 'Запустить RESEED',
+      description: 'Заполнить БД базовыми данными (точки, предметы)',
+      busyId: 'db-seed',
+      onClick: async () => {
+        const result = await callAdminReset('seed')
+        setMessage(`Ресид выполнен успешно! Статистика: ${JSON.stringify((result as any)?.stats ?? {})}`)
       },
     },
   ]
