@@ -204,9 +204,7 @@
   .vn-chronicles .vn-bg-pan-normal {
     will-change: transform;
     animation: vn-bg-pan-normal 10s ease-in-out infinite alternate;
-  }
-
-  .vn-chronicles .vn-bg-pan-wide {
+  }  .vn-chronicles .vn-bg-pan-wide {
     will-change: transform;
     animation: vn-bg-pan-wide 6s ease-in-out infinite alternate;
   }

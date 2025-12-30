@@ -651,6 +651,31 @@ export const coopService = {
             columns: { id: true },
         });
 
+        // #region agent log (debug)
+        fetch('http://127.0.0.1:7243/ingest/8d2cfb91-eb32-456b-9d58-3c64b19222af', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                sessionId: 'debug-session',
+                runId: 'pre-fix',
+                hypothesisId: 'H4',
+                location: 'server/src/services/coopService.ts:markReached',
+                message: 'markReached: updated participant cursor; may promote shared currentScene',
+                data: {
+                    code,
+                    playerId,
+                    nodeId,
+                    prevSessionScene: session.currentScene ?? null,
+                    reachedCount: reached.length,
+                    threshold,
+                    participants: session.participants.length,
+                    willPromote: reached.length >= threshold && session.currentScene !== nodeId,
+                },
+                timestamp: Date.now(),
+            }),
+        }).catch(() => { });
+        // #endregion
+
         if (reached.length >= threshold && session.currentScene !== nodeId) {
             await db.update(coopSessions)
                 .set({ currentScene: nodeId })
@@ -701,6 +726,31 @@ export const coopService = {
             voteSceneId = normalizedNodeId;
             currentNode = requestedNode;
         }
+
+        // #region agent log (debug)
+        fetch('http://127.0.0.1:7243/ingest/8d2cfb91-eb32-456b-9d58-3c64b19222af', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                sessionId: 'debug-session',
+                runId: 'pre-fix',
+                hypothesisId: 'H1',
+                location: 'server/src/services/coopService.ts:castVote:init',
+                message: 'castVote received',
+                data: {
+                    code,
+                    requesterPlayerId,
+                    actorPlayerId,
+                    sessionCurrentScene: session.currentScene,
+                    normalizedNodeId: normalizedNodeId ?? null,
+                    voteSceneId,
+                    interactionType: (currentNode as any)?.interactionType ?? null,
+                    choiceId,
+                },
+                timestamp: Date.now(),
+            }),
+        }).catch(() => { });
+        // #endregion
 
         // --- FLAG / EFFECT HELPERS ---
         const getChoiceFlags = (cId: string): Record<string, any> => {
@@ -1078,6 +1128,28 @@ export const coopService = {
 
         // Individual choices are personal: they should not block others and should not advance the shared checkpoint.
         if (currentNode.interactionType === 'individual') {
+            // #region agent log (debug)
+            fetch('http://127.0.0.1:7243/ingest/8d2cfb91-eb32-456b-9d58-3c64b19222af', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    sessionId: 'debug-session',
+                    runId: 'pre-fix',
+                    hypothesisId: 'H2',
+                    location: 'server/src/services/coopService.ts:castVote:individual',
+                    message: 'individual choice: applying flags only (no session scene advance)',
+                    data: {
+                        code,
+                        actorPlayerId,
+                        voteSceneId,
+                        sessionCurrentScene: session.currentScene,
+                        choiceId,
+                        flagKeys: Object.keys(newFlags ?? {}).slice(0, 20),
+                    },
+                    timestamp: Date.now(),
+                }),
+            }).catch(() => { });
+            // #endregion
             await applyFlags(newFlags);
             const state = await this.getRoomState(code);
             broadcastCoopUpdate(code, state);

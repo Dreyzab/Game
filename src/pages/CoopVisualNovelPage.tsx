@@ -9,8 +9,7 @@ import { DialogueBox, ChoicePanel } from '@/entities/visual-novel/ui';
 import type { VisualNovelChoiceView } from '@/shared/types/visualNovel';
 import { ITEM_TEMPLATES } from '@/shared/data/itemTemplates';
 import { COOP_STATUSES, ROLE_TAG_MULTS } from '@/shared/data/coopScoreConfig';
-import { ScoreFeedback } from '@/features/coop/ui/ScoreFeedback';
-import { ExpeditionFeedback } from '@/features/coop/ui/ExpeditionFeedback';
+import { ScoreFeedback, ExpeditionFeedback } from '@/features/coop';
 
 const EMPTY_LIST: any[] = [];
 const FALLBACK_NODE: any = {

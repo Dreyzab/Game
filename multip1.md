@@ -58,4 +58,3 @@
 - Aftermath: выбор судьбы данных — `data_copy` или флаги `sanitized`/чистый отчёт; Trust/Strain корректируются.
 - Parley: базово Alert+1; Fight/Peace/Wait с проверками/дельтами, флаг `lever_spotted` раскрывает ловушку.
 - Debrief: Truth/Blackmail/Report — финальные Trust/Strain, лут `bonus_pay` за шантаж, проверка Rhetoric.
-
