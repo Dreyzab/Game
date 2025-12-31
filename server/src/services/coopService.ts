@@ -1,11 +1,12 @@
 import { db } from '../db';
-import { coopSessions, coopParticipants, coopVotes, players, items, gameProgress } from '../db/schema';
+import { coopSessions, coopParticipants, coopVotes, players, items, gameProgress, voiceAttributes } from '../db/schema';
 import { eq, and, inArray, ne, sql } from 'drizzle-orm';
 import { coopGraph } from '../lib/coopGraph';
 import type { CoopExpeditionDeadlineEvent, CoopExpeditionDeadlineEventKind, CoopRoleId } from '../shared/types/coop';
 import { broadcastCoopUpdate } from '../lib/bus';
 import { getItemTemplate, hasItemTemplate } from '../lib/itemTemplates';
 import { COOP_STATUSES } from '../shared/coopScoreConfig';
+import { BASE_UPGRADES, ITEM_CONTRIBUTION_VALUES } from '../shared/data/campConfig';
 import { resolveExpeditionEvent } from '../lib/coopExpeditionEvents';
 import { generateExpeditionStageState, getExpeditionStagePool } from '../lib/coopExpeditionStagePools';
 import {
@@ -28,6 +29,9 @@ type CoopCampState = {
     security: number;
     operatives: number;
     inventory: Record<string, number>; // templateId -> quantity
+    baseLevel?: number;
+    upgrades?: Record<string, number>;
+    credits?: number;
 };
 
 const DEFAULT_CAMP_STATE: CoopCampState = {
@@ -54,10 +58,14 @@ function normalizeInventory(value: unknown): Record<string, number> {
 function normalizeCampState(value: unknown): CoopCampState {
     const raw = (value && typeof value === 'object') ? (value as any) : {};
     const inventory = normalizeInventory(raw.inventory);
+    const upgrades = normalizeInventory(raw.upgrades); // Re-use normalizeInventory since it's just string->number map
     return {
         security: Math.max(0, Math.floor(toFiniteNumber(raw.security, DEFAULT_CAMP_STATE.security))),
         operatives: Math.max(0, Math.floor(toFiniteNumber(raw.operatives, DEFAULT_CAMP_STATE.operatives))),
         inventory: { ...DEFAULT_CAMP_STATE.inventory, ...inventory },
+        baseLevel: Math.max(1, Math.floor(toFiniteNumber(raw.baseLevel, 1))),
+        upgrades: upgrades,
+        credits: Math.max(0, Math.floor(toFiniteNumber(raw.credits, 0))),
     };
 }
 
@@ -513,6 +521,58 @@ function getEncounterStateFromFlags(flags: Record<string, any>): CoopEncounterSt
     return normalizeEncounterState(graph?.encounter);
 }
 
+export interface SequentialBroadcastReaction {
+    playerId: number;
+    playerName: string;
+    playerRole: string | null;
+    choiceId: string;
+    choiceText: string;
+    effectText: string;
+    timestamp: number;
+}
+
+export interface SequentialBroadcastState {
+    activePlayerId: number | null;
+    completedPlayerIds: number[];
+    playerOrder: number[];
+    reactions: SequentialBroadcastReaction[];
+    showingReactionIndex: number | null;
+}
+
+function normalizeSequentialBroadcastState(value: unknown): SequentialBroadcastState | null {
+    if (!value || typeof value !== 'object') return null;
+    const raw = value as any;
+
+    const activePlayerId = typeof raw.activePlayerId === 'number' ? raw.activePlayerId : null;
+    const completedPlayerIds = Array.isArray(raw.completedPlayerIds)
+        ? raw.completedPlayerIds.filter((id: any) => typeof id === 'number')
+        : [];
+    const playerOrder = Array.isArray(raw.playerOrder)
+        ? raw.playerOrder.filter((id: any) => typeof id === 'number')
+        : [];
+    const reactions: SequentialBroadcastReaction[] = Array.isArray(raw.reactions)
+        ? raw.reactions.filter((r: any) =>
+            r && typeof r === 'object' && typeof r.playerId === 'number' && typeof r.choiceId === 'string'
+        ).map((r: any) => ({
+            playerId: r.playerId,
+            playerName: typeof r.playerName === 'string' ? r.playerName : '',
+            playerRole: typeof r.playerRole === 'string' ? r.playerRole : null,
+            choiceId: r.choiceId,
+            choiceText: typeof r.choiceText === 'string' ? r.choiceText : '',
+            effectText: typeof r.effectText === 'string' ? r.effectText : '',
+            timestamp: typeof r.timestamp === 'number' ? r.timestamp : Date.now(),
+        }))
+        : [];
+    const showingReactionIndex = typeof raw.showingReactionIndex === 'number' ? raw.showingReactionIndex : null;
+
+    return { activePlayerId, completedPlayerIds, playerOrder, reactions, showingReactionIndex };
+}
+
+function getSequentialBroadcastFromFlags(flags: Record<string, any>): SequentialBroadcastState | null {
+    const graph = (flags?.__graph ?? null) as any;
+    return normalizeSequentialBroadcastState(graph?.sequentialBroadcast);
+}
+
 const COOP_ARTIFACT_SCORE_BONUSES: Record<string, { bonus: number; tags?: string[] }> = {
     artifact_tech_scanner: { bonus: 5, tags: ['analysis'] },
     artifact_moon_fungus_lantern: { bonus: 5, tags: ['visual'] },
@@ -559,7 +619,7 @@ export const coopService = {
             joinedAt: Date.now(),
         });
 
-        const updatedState = await this.getRoomState(code);
+        const updatedState = await coopService.getRoomState(code);
         broadcastCoopUpdate(code, updatedState);
         return updatedState;
     },
@@ -586,6 +646,7 @@ export const coopService = {
         const questScore = getActiveScoreStateFromFlags(flags);
         const expedition = getExpeditionStateFromFlags(flags);
         const encounter = getEncounterStateFromFlags(flags);
+        const sequentialBroadcast = getSequentialBroadcastFromFlags(flags);
 
         let questNode = currentQuestNode;
         if (questNode && expedition?.poolId && expedition.missions) {
@@ -625,6 +686,7 @@ export const coopService = {
             camp,
             expedition,
             encounter,
+            sequentialBroadcast,
             questScore: questScore ? {
                 questId: questScore.questId,
                 current: questScore.current,
@@ -683,7 +745,7 @@ export const coopService = {
                     .set({ currentScene: session.currentScene ?? 'prologue_start' })
                     .where(and(eq(coopParticipants.sessionId, session.id), eq(coopParticipants.playerId, playerId)));
             }
-            const state = await this.getRoomState(code);
+            const state = await coopService.getRoomState(code);
             broadcastCoopUpdate(code, state);
             return state;
         }
@@ -700,7 +762,7 @@ export const coopService = {
             joinedAt: Date.now(),
         });
 
-        const state = await this.getRoomState(code);
+        const state = await coopService.getRoomState(code);
         broadcastCoopUpdate(code, state);
         return state;
     },
@@ -718,7 +780,7 @@ export const coopService = {
                 eq(coopParticipants.playerId, playerId)
             ));
 
-        const state = await this.getRoomState(code);
+        const state = await coopService.getRoomState(code);
         broadcastCoopUpdate(code, state);
         return state;
     },
@@ -752,7 +814,7 @@ export const coopService = {
                 .where(and(eq(coopParticipants.sessionId, session.id), inArray(coopParticipants.playerId, participantIds)));
         }
 
-        const state = await this.getRoomState(code);
+        const state = await coopService.getRoomState(code);
         broadcastCoopUpdate(code, state);
         return state;
     },
@@ -829,7 +891,7 @@ export const coopService = {
                 .where(eq(coopSessions.id, session.id));
         }
 
-        const state = await this.getRoomState(code);
+        const state = await coopService.getRoomState(code);
         broadcastCoopUpdate(code, state);
         return state;
     },
@@ -987,6 +1049,7 @@ export const coopService = {
                 activeScore?: CoopQuestScoreState | null;
                 expedition?: CoopExpeditionState | null;
                 encounter?: CoopEncounterState | null;
+                sequentialBroadcast?: SequentialBroadcastState | null;
             }) => void
         ) => {
             const currentSession = await db.query.coopSessions.findFirst({
@@ -1003,6 +1066,7 @@ export const coopService = {
                 activeScore?: CoopQuestScoreState | null;
                 expedition?: CoopExpeditionState | null;
                 encounter?: CoopEncounterState | null;
+                sequentialBroadcast?: SequentialBroadcastState | null;
             } = {
                 ...(rawGraphState && typeof rawGraphState === 'object' ? rawGraphState : {}),
                 stack: Array.isArray(rawGraphState.stack) ? rawGraphState.stack.filter((v: any) => typeof v === 'string') : [],
@@ -1011,6 +1075,7 @@ export const coopService = {
                 activeScore: normalizeScoreState(rawGraphState.activeScore),
                 expedition: normalizeExpeditionState(rawGraphState.expedition),
                 encounter: normalizeEncounterState(rawGraphState.encounter),
+                sequentialBroadcast: normalizeSequentialBroadcastState(rawGraphState.sequentialBroadcast),
             };
 
             updater(graphState);
@@ -1262,6 +1327,47 @@ export const coopService = {
             }
         }
 
+        // Validate stats, attributes, and traits
+        if (choice.requiredStats || choice.requiredAttributes || choice.requiredTraits) {
+            const progress = await db.query.gameProgress.findFirst({
+                where: eq(gameProgress.playerId, actorPlayerId)
+            });
+            const attributes = await db.query.voiceAttributes.findFirst({
+                where: eq(voiceAttributes.playerId, actorPlayerId)
+            });
+
+            // Check Stats
+            if (choice.requiredStats) {
+                if (!progress) throw new Error('Player stats not found');
+                const { hp, morale, stamina } = choice.requiredStats;
+                if (hp !== undefined && (progress.hp ?? 0) < hp) throw new Error('Not enough HP');
+                if (morale !== undefined && (progress.morale ?? 0) < morale) throw new Error('Not enough Morale');
+                if (stamina !== undefined && (progress.stamina ?? 0) < stamina) throw new Error('Not enough Stamina');
+            }
+
+            // Check Attributes
+            if (choice.requiredAttributes) {
+                if (!attributes) throw new Error('Player attributes not found');
+                for (const [attrId, minVal] of Object.entries(choice.requiredAttributes)) {
+                    const currentVal = (attributes as any)[attrId];
+                    if (typeof currentVal !== 'number' || currentVal < minVal) {
+                        throw new Error(`Attribute ${attrId} too low`);
+                    }
+                }
+            }
+
+            // Check Traits
+            if (choice.requiredTraits) {
+                const flagsSnapshot = (session.flags ?? {}) as Record<string, any>;
+                const expeditionSnapshot = getExpeditionStateFromFlags(flagsSnapshot);
+                const playerTraits = expeditionSnapshot?.playerTraits?.[String(actorPlayerId)] ?? [];
+
+                for (const trait of choice.requiredTraits) {
+                    if (!playerTraits.includes(trait)) throw new Error(`Missing trait: ${trait}`);
+                }
+            }
+        }
+
         // Validate expedition currency costs (optional; stored in flags.__graph.expedition).
         if ((choice as any).cost?.rp) {
             const flagsSnapshot = (session.flags ?? {}) as Record<string, any>;
@@ -1300,6 +1406,37 @@ export const coopService = {
         });
 
         const newFlags = getChoiceFlags(choiceId);
+
+        const awardLoot = async (c: any) => {
+            if (!c.itemRewards || !Array.isArray(c.itemRewards) || c.itemRewards.length === 0) return;
+
+            // Fetch latest session state to ensure atomicity on inventory
+            const s = await db.query.coopSessions.findFirst({
+                where: eq(coopSessions.id, session.id),
+                columns: { flags: true }
+            });
+            const f = (s?.flags ?? {}) as Record<string, any>;
+            const campState = getCampStateFromFlags(f);
+
+            // If no camp state, maybe we should init it? Or just ignore?
+            // For now, if we are in a mission finding loot, we probably "Send it to Base".
+            // If Base doesn't exist yet (Prologue?), we might lose it or need a persistent stash.
+            // Assumption: Camp exists if we are doing missions. If not, create default.
+            const nextCamp = campState ?? { ...DEFAULT_CAMP_STATE, inventory: {} };
+
+            const nextInv = { ...nextCamp.inventory };
+
+            for (const reward of c.itemRewards) {
+                const qty = Math.max(0, Math.floor(toFiniteNumber(reward.quantity, 0)));
+                if (qty > 0 && reward.templateId) {
+                    nextInv[reward.templateId] = (nextInv[reward.templateId] ?? 0) + qty;
+                }
+            }
+
+            nextCamp.inventory = nextInv;
+            const nextFlags = { ...f, __camp: nextCamp };
+            await db.update(coopSessions).set({ flags: nextFlags }).where(eq(coopSessions.id, session.id));
+        };
 
         // Individual choices are personal: they should not block others and should not advance the shared checkpoint.
         if (currentNode.interactionType === 'individual') {
@@ -1343,7 +1480,98 @@ export const coopService = {
             }).catch(() => { });
             // #endregion
             await applyFlags(newFlags);
-            const state = await this.getRoomState(code);
+            await awardLoot(choice);
+            const state = await coopService.getRoomState(code);
+            broadcastCoopUpdate(code, state);
+            return state;
+        }
+
+        // Sequential broadcast: each player chooses in order, reactions are shown to everyone
+        if (currentNode.interactionType === 'sequential_broadcast') {
+            // Get current sequential state
+            const currentFlags = (await db.query.coopSessions.findFirst({
+                where: eq(coopSessions.id, session.id),
+                columns: { flags: true }
+            }))?.flags as Record<string, any> ?? {};
+
+            const rawGraph = (currentFlags.__graph ?? {}) as any;
+            let seqState = normalizeSequentialBroadcastState(rawGraph.sequentialBroadcast) ?? {
+                activePlayerId: null,
+                completedPlayerIds: [],
+                playerOrder: [],
+                reactions: [],
+                // showingReactionIndex is deprecated in favor of ephemeral client-side handling
+                // but we keep it in state matching the type definition
+                showingReactionIndex: null,
+            };
+
+            // Initialize player order if empty (first player to arrive starts, rest random)
+            if (seqState.playerOrder.length === 0) {
+                const allPlayerIds = session.participants.map(p => p.playerId);
+                // First player to vote goes first
+                const remaining = allPlayerIds.filter(id => id !== actorPlayerId);
+                // Shuffle remaining
+                for (let i = remaining.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [remaining[i], remaining[j]] = [remaining[j], remaining[i]];
+                }
+                seqState.playerOrder = [actorPlayerId, ...remaining];
+                seqState.activePlayerId = actorPlayerId;
+            }
+
+            // Check if it's this player's turn
+            if (seqState.activePlayerId !== actorPlayerId) {
+                throw new Error('Not your turn to choose');
+            }
+
+            // Get player info for reaction
+            const actingParticipant = session.participants.find(p => p.playerId === actorPlayerId);
+            const playerName = actingParticipant?.player?.name ?? `Player ${actorPlayerId}`;
+            const playerRole = (actingParticipant?.role ?? null) as string | null;
+
+            // Record the reaction
+            seqState.reactions.push({
+                playerId: actorPlayerId,
+                playerName,
+                playerRole,
+                choiceId,
+                choiceText: choice.text ?? '',
+                effectText: choice.effectText ?? '',
+                timestamp: Date.now(),
+            });
+            seqState.completedPlayerIds.push(actorPlayerId);
+            seqState.showingReactionIndex = seqState.reactions.length - 1;
+
+            // Find next player
+            const nextPlayerIndex = seqState.playerOrder.findIndex(id =>
+                !seqState.completedPlayerIds.includes(id)
+            );
+
+            if (nextPlayerIndex >= 0) {
+                seqState.activePlayerId = seqState.playerOrder[nextPlayerIndex];
+            } else {
+                seqState.activePlayerId = null; // All done
+            }
+
+            // Apply choice flags
+            await applyFlags(newFlags);
+
+            // Check if all players have chosen
+            const allChosen = seqState.completedPlayerIds.length >= session.participants.length;
+
+            if (allChosen) {
+                // Everyone chose. We do NOT advance immediately to allow the final reaction to be shown.
+                // The client will see activePlayerId: null and show a "Continue" button.
+                seqState.activePlayerId = null;
+            }
+
+            // Update sequential state in graph
+            await updateGraphState((graph) => {
+                graph.sequentialBroadcast = seqState;
+            });
+
+
+            const state = await coopService.getRoomState(code);
             broadcastCoopUpdate(code, state);
             return state;
         }
@@ -1406,6 +1634,7 @@ export const coopService = {
             if (winningChoice) {
                 const winnerFlags = getChoiceFlags(winningChoice.id);
                 await applyFlags(winnerFlags);
+                await awardLoot(winningChoice);
             }
 
             let nextNodeId: string | undefined;
@@ -2102,7 +2331,7 @@ export const coopService = {
             }
         }
 
-        const state = await this.getRoomState(code);
+        const state = await coopService.getRoomState(code);
         broadcastCoopUpdate(code, state);
         return state;
     },
@@ -2212,7 +2441,7 @@ export const coopService = {
         await db.update(coopSessions).set({ currentScene: nextNodeId, flags }).where(eq(coopSessions.id, session.id));
         await db.delete(coopVotes).where(and(eq(coopVotes.sessionId, session.id), ne(coopVotes.sceneId, nextNodeId)));
 
-        const state = await this.getRoomState(params.code);
+        const state = await coopService.getRoomState(params.code);
         broadcastCoopUpdate(params.code, state);
         return state;
     },
@@ -2288,7 +2517,7 @@ export const coopService = {
         flags.__camp = nextCamp;
         await db.update(coopSessions).set({ flags }).where(eq(coopSessions.id, session.id));
 
-        const state = await this.getRoomState(code);
+        const state = await coopService.getRoomState(code);
         broadcastCoopUpdate(code, state);
         return state;
     },
@@ -2346,7 +2575,7 @@ export const coopService = {
         flags.__camp = nextCamp;
         await db.update(coopSessions).set({ flags }).where(eq(coopSessions.id, session.id));
 
-        const state = await this.getRoomState(code);
+        const state = await coopService.getRoomState(code);
         broadcastCoopUpdate(code, state);
         return state;
     },
@@ -2395,7 +2624,7 @@ export const coopService = {
         flags.__camp = nextCamp;
         await db.update(coopSessions).set({ flags }).where(eq(coopSessions.id, session.id));
 
-        const state = await this.getRoomState(code);
+        const state = await coopService.getRoomState(code);
         broadcastCoopUpdate(code, state);
         return state;
     },
@@ -2455,7 +2684,7 @@ export const coopService = {
         flags.__camp = nextCamp;
         await db.update(coopSessions).set({ flags }).where(eq(coopSessions.id, session.id));
 
-        const state = await this.getRoomState(code);
+        const state = await coopService.getRoomState(code);
         broadcastCoopUpdate(code, state);
         return state;
     },
@@ -2500,7 +2729,7 @@ export const coopService = {
         flags.__camp = nextCamp;
         await db.update(coopSessions).set({ flags }).where(eq(coopSessions.id, session.id));
 
-        const state = await this.getRoomState(code);
+        const state = await coopService.getRoomState(code);
         broadcastCoopUpdate(code, state);
         return state;
     },
@@ -2529,7 +2758,7 @@ export const coopService = {
             await db.update(coopSessions).set({ hostId: remaining[0].playerId }).where(eq(coopSessions.id, session.id));
         }
 
-        const state = await this.getRoomState(code);
+        const state = await coopService.getRoomState(code);
         broadcastCoopUpdate(code, state);
         return state;
     },
@@ -2540,7 +2769,7 @@ export const coopService = {
             .set({ currentScene: nodeId })
             .where(eq(coopSessions.inviteCode, code));
 
-        const state = await this.getRoomState(code);
+        const state = await coopService.getRoomState(code);
         broadcastCoopUpdate(code, state);
         return state;
     }
@@ -2582,7 +2811,57 @@ export const coopService = {
             joinedAt: Date.now(),
         });
 
-        const state = await this.getRoomState(code);
+        const state = await coopService.getRoomState(code);
+        broadcastCoopUpdate(code, state);
+        return state;
+    },
+
+    advanceSequential: async (code: string, playerId: number) => {
+        const session = await db.query.coopSessions.findFirst({
+            where: eq(coopSessions.inviteCode, code),
+            with: { participants: { with: { player: true } } }
+        });
+        if (!session) throw new Error('Session not found');
+
+        // Check if sequential broadcast is active
+        const result = getSequentialBroadcastFromFlags(session.flags as any);
+        const seqState = result;
+
+        if (!seqState) throw new Error('Not in sequential mode');
+
+        const allChosen = seqState.completedPlayerIds.length >= session.participants.length;
+        if (!allChosen) throw new Error('Not all players have finished');
+
+        // Logic to advance
+        const currentNodeId = session.currentScene;
+        if (!currentNodeId) throw new Error('No current scene');
+
+        const currentNode = coopGraph.getNode(currentNodeId);
+
+        if (currentNode?.interactionType !== 'sequential_broadcast') {
+            throw new Error('Not sequential node');
+        }
+
+        const firstChoice = currentNode.choices?.[0]; // Optional chain choices just in case
+        if (!firstChoice) throw new Error('No choices found');
+
+        const nextNodeId = firstChoice.nextNodeId;
+
+        if (!nextNodeId) throw new Error('No next node');
+
+        // Clear sequential state
+        const currentFlags = (session.flags as Record<string, any>) ?? {};
+        const rawGraph = (currentFlags.__graph ?? {}) as any;
+        const newGraph = { ...rawGraph, sequentialBroadcast: null };
+        const newFlags = { ...currentFlags, __graph: newGraph };
+
+        await db.update(coopSessions).set({
+            currentScene: nextNodeId,
+            flags: newFlags
+        }).where(eq(coopSessions.id, session.id));
+
+        // Refetch state to broadcast
+        const state = await coopService.getRoomState(code);
         broadcastCoopUpdate(code, state);
         return state;
     }

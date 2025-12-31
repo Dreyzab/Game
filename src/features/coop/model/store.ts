@@ -111,6 +111,9 @@ interface CoopStore {
     withdrawCampItem: (templateId: string, quantity?: number) => Promise<void>;
     fetchCampShop: () => Promise<any | null>;
     addBot: () => Promise<void>;
+    upgradeBase: (upgradeId: string) => Promise<void>;
+    startMission: (missionNodeId: string) => Promise<void>;
+    contributeItem: (templateId: string, quantity: number) => Promise<void>;
     clearError: () => void;
 
     // Updates
@@ -449,6 +452,57 @@ export const useCoopStore = create<CoopStore>((set, get) => ({
         } catch (e) {
             console.error(e);
             set({ error: 'Failed to add bot' });
+        }
+    },
+
+    upgradeBase: async (upgradeId) => {
+        const { room } = get();
+        if (!room) return;
+        set({ isUpdating: true, error: null });
+        try {
+            const client = authenticatedClient() as any;
+            const { data, error } = await client.coop.rooms[room.code].camp.upgrade.post({ upgradeId });
+            if (error) throw error;
+            if (data?.room) set({ room: data.room });
+        } catch (e: any) {
+            set({ error: e.message || 'Upgrade failed' });
+        } finally {
+            set({ isUpdating: false });
+        }
+    },
+
+    startMission: async (missionNodeId) => {
+        const { room } = get();
+        if (!room) return;
+        set({ isUpdating: true, error: null });
+        try {
+            const client = authenticatedClient() as any;
+            const { data, error } = await client.coop.rooms[room.code].camp.mission.start.post({ missionNodeId });
+            if (error) throw error;
+            if (data?.room) {
+                set({ room: data.room });
+                get().connectSocket(data.room.code); // Reconnect in case scene change requires it
+            }
+        } catch (e: any) {
+            set({ error: e.message || 'Start mission failed' });
+        } finally {
+            set({ isUpdating: false });
+        }
+    },
+
+    contributeItem: async (templateId, quantity) => {
+        const { room } = get();
+        if (!room) return;
+        set({ isUpdating: true, error: null });
+        try {
+            const client = authenticatedClient() as any;
+            const { data, error } = await client.coop.rooms[room.code].camp.contribute.post({ templateId, quantity });
+            if (error) throw error;
+            if (data?.room) set({ room: data.room });
+        } catch (e: any) {
+            set({ error: e.message || 'Contribution failed' });
+        } finally {
+            set({ isUpdating: false });
         }
     },
 

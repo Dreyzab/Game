@@ -19,18 +19,27 @@ export const ChoicePanel: React.FC<ChoicePanelProps> = ({
   const readSkill = (skill: VoiceId) =>
     (skills as Partial<Record<VoiceId, number>>)[skill] ?? 0
 
+  const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n))
+
   return (
     <div className="flex flex-col gap-2 sm:gap-3 w-full max-w-4xl mx-auto px-4 sm:px-6 mb-6 sm:mb-12 animate-slide-up">
       {choices.map((choice) => {
         const check = choice.requirements?.skillCheck
         const skillLevel = check ? readSkill(check.skill) : 0
-        const isSkillLocked = Boolean(check && skillLevel < check.difficulty)
-        const isLocked = Boolean(choice.disabled || isSkillLocked)
+        const dc =
+          check && typeof check.dc === 'number' && Number.isFinite(check.dc)
+            ? Math.round(check.dc)
+            : check
+              ? Math.round(check.difficulty)
+              : 0
+
+        // Matches the core skill check math (no assists/synergy in VN): chance = clamp(5..95, skill + (50 - dc)).
+        const successChance = check ? clamp(Math.round(skillLevel + (50 - dc)), 5, 95) : null
+
+        const isLocked = Boolean(choice.disabled)
         const lockReason =
           choice.lockReason ??
-          (isSkillLocked && check
-            ? check.label ?? `Requires ${check.skill.toUpperCase()} ${check.difficulty}+`
-            : undefined)
+          undefined
         const isVisited = choice.isVisited
 
         return (
@@ -82,16 +91,23 @@ export const ChoicePanel: React.FC<ChoicePanelProps> = ({
                 <div
                   className={cn(
                     'text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded border',
-                    isSkillLocked
-                      ? 'border-red-900/30 text-red-500/70'
-                      : 'border-blue-900/30 text-blue-400'
+                    successChance !== null && successChance < 35
+                      ? 'border-red-900/30 text-red-400/80'
+                      : successChance !== null && successChance < 65
+                        ? 'border-amber-900/30 text-amber-300/90'
+                        : 'border-emerald-900/30 text-emerald-300/90'
                   )}
                 >
-                  Check: {check.skill.toUpperCase()} &gt;= {check.difficulty}
+                  Check: {check.skill.toUpperCase()} vs DC {dc}
                 </div>
                 <div className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
                   Level: {skillLevel}
                 </div>
+                {successChance !== null && (
+                  <div className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
+                    Chance: {successChance}%
+                  </div>
+                )}
               </div>
             )}
 

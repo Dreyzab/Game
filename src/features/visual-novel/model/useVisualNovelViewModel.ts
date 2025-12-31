@@ -32,7 +32,7 @@ export interface VisualNovelViewModel {
   history: VisualNovelHistoryEntry[]
   flags: Set<string>
   goNext: () => void
-  choose: (choiceId: string) => void
+  choose: (choiceId: string, options?: { skillCheck?: { success: boolean } }) => void
   jumpToScene: (nextSceneId: string) => void
 }
 
@@ -287,35 +287,71 @@ export function useVisualNovelViewModel(
   }, [advanceToLine, currentLine?.id, currentLine?.nextLineId, hasActiveChoices, log])
 
   const choose = useCallback(
-    (choiceId: string) => {
+    (choiceId: string, options?: { skillCheck?: { success: boolean } }) => {
       const choice = choiceViews.find((item) => item.id === choiceId)
       if (!choice || choice.disabled) {
         log('[VN] choose: invalid or disabled choice', { choiceId, reason: choice?.lockReason })
         return
       }
+
+      const skillCheck = choice.requirements?.skillCheck
+      const hasSkillCheck = Boolean(skillCheck)
+
+      const resolveSkillCheck = () => {
+        if (!skillCheck) return { resolved: choice, outcome: null as null | boolean }
+
+        const explicit = options?.skillCheck?.success
+        const success =
+          typeof explicit === 'boolean'
+            ? explicit
+            : (() => {
+              log('[VN] choose: skillCheck missing outcome, defaulting to success', { choiceId })
+              return true
+            })()
+
+        const branchEffects = success ? skillCheck.successEffects : skillCheck.failureEffects
+        const branchNextSceneId = success ? skillCheck.successNextSceneId : skillCheck.failureNextSceneId
+
+        const combinedEffects = [
+          ...(choice.effects ?? []),
+          ...(branchEffects ?? []),
+        ]
+
+        const resolved: VisualNovelChoice = {
+          ...choice,
+          effects: combinedEffects.length > 0 ? combinedEffects : undefined,
+          nextSceneId: branchNextSceneId ?? choice.nextSceneId,
+        }
+
+        return { resolved, outcome: success }
+      }
+
+      const { resolved: resolvedChoice, outcome } = resolveSkillCheck()
+
       log('[VN] choose', {
-        choiceId: choice.id,
-        label: choice.label,
-        nextLineId: choice.nextLineId,
-        nextSceneId: choice.nextSceneId,
+        choiceId: resolvedChoice.id,
+        label: resolvedChoice.label,
+        nextLineId: resolvedChoice.nextLineId,
+        nextSceneId: resolvedChoice.nextSceneId,
+        ...(hasSkillCheck ? { skillCheck: { outcome } } : {}),
       })
-      applyEffects(choice)
-      const lineIdentifier = currentLine?.id ?? choice.nextLineId
+      applyEffects(resolvedChoice)
+      const lineIdentifier = currentLine?.id ?? resolvedChoice.nextLineId
       optionsRef.current?.onChoiceApplied?.({
         sceneId: scene.id,
         lineId: lineIdentifier,
-        choice,
+        choice: resolvedChoice,
       })
-      if (choice.nextSceneId) {
-        recordHistory(currentLine, choice.id)
-        goToScene(choice.nextSceneId)
+      if (resolvedChoice.nextSceneId) {
+        recordHistory(currentLine, resolvedChoice.id)
+        goToScene(resolvedChoice.nextSceneId)
         return
       }
-      if (choice.nextLineId) {
-        advanceToLine(choice.nextLineId, choice.id)
+      if (resolvedChoice.nextLineId) {
+        advanceToLine(resolvedChoice.nextLineId, resolvedChoice.id)
         return
       }
-      advanceToLine(undefined, choice.id)
+      advanceToLine(undefined, resolvedChoice.id)
     },
     [advanceToLine, applyEffects, choiceViews, currentLine, goToScene, log, recordHistory, scene.id]
   )

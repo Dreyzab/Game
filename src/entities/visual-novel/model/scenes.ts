@@ -282,8 +282,29 @@ function convertChoice(choice: SceneChoice): VisualNovelChoice {
   }
 
   const description = descriptionSegments.length > 0 ? descriptionSegments.join(' • ') : undefined
-  const nextSceneId =
-    choice.effects?.onSuccess?.nextScene ?? choice.nextScene ?? choice.effects?.onFailure?.nextScene
+
+  const normalizeSkillCheckDc = (rawDifficulty: number) => {
+    // Legacy VN content uses Disco-like difficulty values (e.g. 4-12).
+    // Newer content uses DC-like values (e.g. 40-70).
+    const raw = Number(rawDifficulty)
+    if (!Number.isFinite(raw) || raw <= 0) {
+      return { dc: 50, isLegacy: false }
+    }
+
+    if (raw <= 20) {
+      const dc = Math.max(5, Math.min(95, Math.round(raw * 5)))
+      return { dc, isLegacy: true }
+    }
+
+    const dc = Math.max(5, Math.min(95, Math.round(raw)))
+    return { dc, isLegacy: false }
+  }
+
+  const skillCheckDc = skillCheck ? normalizeSkillCheckDc(skillCheck.difficulty) : null
+
+  const nextSceneId = skillCheck
+    ? choice.nextScene
+    : (choice.effects?.onSuccess?.nextScene ?? choice.nextScene ?? choice.effects?.onFailure?.nextScene)
 
   const addFlags = new Set<string>()
   const removeFlags = new Set<string>()
@@ -355,6 +376,19 @@ function convertChoice(choice: SceneChoice): VisualNovelChoice {
 
   const normalizedEffects = effects.length > 0 ? effects : undefined
 
+  const toBranchFlagEffects = (branch?: { addFlags?: string[]; removeFlags?: string[] }) => {
+    const out: VisualNovelChoiceEffect[] = []
+    branch?.addFlags?.forEach((flag) => {
+      if (!flag) return
+      out.push({ type: 'flag', flag, value: true })
+    })
+    branch?.removeFlags?.forEach((flag) => {
+      if (!flag) return
+      out.push({ type: 'flag', flag, value: false })
+    })
+    return out.length > 0 ? out : undefined
+  }
+
   return {
     id: choice.id,
     label: choice.text,
@@ -367,7 +401,14 @@ function convertChoice(choice: SceneChoice): VisualNovelChoice {
           skillCheck: {
             skill: skillCheck.skill as VoiceId,
             difficulty: skillCheck.difficulty,
-            label: buildSkillLabel(skillCheck.skill, skillCheck.difficulty),
+            dc: skillCheckDc?.dc,
+            label: buildSkillLabel(skillCheck.skill, skillCheck.difficulty, skillCheckDc?.dc, skillCheckDc?.isLegacy),
+            successText: skillCheck.successText,
+            failureText: skillCheck.failureText,
+            successNextSceneId: choice.effects?.onSuccess?.nextScene ?? choice.nextScene,
+            failureNextSceneId: choice.effects?.onFailure?.nextScene ?? choice.nextScene,
+            successEffects: toBranchFlagEffects(choice.effects?.onSuccess),
+            failureEffects: toBranchFlagEffects(choice.effects?.onFailure),
           },
         }
         : {}),
@@ -452,8 +493,15 @@ function mapTone(color?: string) {
   }
 }
 
-function buildSkillLabel(skill: string, difficulty: number) {
-  return `Проверка: ${skill.toUpperCase()} • Сложность ${difficulty}`
+function buildSkillLabel(skill: string, difficulty: number, dc?: number, isLegacy?: boolean) {
+  const safeDc = typeof dc === 'number' && Number.isFinite(dc) ? Math.round(dc) : Math.round(difficulty)
+  const raw = Math.round(difficulty)
+
+  if (isLegacy && safeDc !== raw) {
+    return `Проверка: ${skill.toUpperCase()} • Сложность ${raw} (DC ${safeDc})`
+  }
+
+  return `Проверка: ${skill.toUpperCase()} • DC ${safeDc}`
 }
 
 function pickColor(palette: string[], index: number, key?: string) {

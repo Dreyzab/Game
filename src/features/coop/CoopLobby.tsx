@@ -10,9 +10,9 @@ import { LoadingSpinner } from '@/shared/ui/components/LoadingSpinner'
 import { cn } from '@/shared/lib/utils/cn'
 import { useMyPlayer } from '@/shared/hooks/useMyPlayer'
 import type { CoopRoleId } from '@/shared/types/coop'
-import { ITEM_TEMPLATES } from '@/shared/data/itemTemplates'
 import { COOP_CHARACTERS, formatLoadoutItem } from './model/characters'
 import { useCoopStore } from './model/store'
+import { CharacterDossier } from './ui/CharacterDossier'
 
 function normalizeCoopCode(raw: string): string | null {
   const trimmed = raw.trim()
@@ -194,99 +194,99 @@ export const CoopLobby: React.FC = () => {
         <div className="absolute inset-0 bg-black/70 backdrop-blur-[1px]" />
         <div className="relative z-10 flex items-center justify-center p-6 min-h-screen">
           <div className="w-full max-w-xl space-y-6">
-          <div className="text-center space-y-2">
-            <Heading level={1} className="text-4xl text-cyan-400">
-              Совместная игра
-            </Heading>
-            <Text variant="muted">Создай команду и поделись кодом — или присоединись по QR/коду.</Text>
-          </div>
-
-          {!mode && (
-            <div className="grid gap-3">
-              <Button size="lg" variant="primary" onClick={() => setMode('create')} disabled={!isProfileReady}>
-                Создать команду
-              </Button>
-              <Button size="lg" variant="outline" onClick={() => setMode('join')} disabled={!isProfileReady}>
-                Присоединиться
-              </Button>
-              {!isProfileReady && <div className="text-center text-xs text-slate-400">Создаём профиль игрока…</div>}
+            <div className="text-center space-y-2">
+              <Heading level={1} className="text-4xl text-cyan-400">
+                Совместная игра
+              </Heading>
+              <Text variant="muted">Создай команду и поделись кодом — или присоединись по QR/коду.</Text>
             </div>
-          )}
 
-          {mode === 'create' && (
-            <div className="glass-panel p-6 border border-white/5 space-y-4">
-              <Heading level={3}>Создать команду</Heading>
-              <Text variant="muted" size="sm">
-                После создания покажи QR-код/код друзьям. Потом вы выберете персонажей.
-              </Text>
+            {!mode && (
               <div className="grid gap-3">
-                <Button size="lg" variant="primary" onClick={() => createRoom()} disabled={!isProfileReady}>
-                  Создать
+                <Button size="lg" variant="primary" onClick={() => setMode('create')} disabled={!isProfileReady}>
+                  Создать команду
                 </Button>
+                <Button size="lg" variant="outline" onClick={() => setMode('join')} disabled={!isProfileReady}>
+                  Присоединиться
+                </Button>
+                {!isProfileReady && <div className="text-center text-xs text-slate-400">Создаём профиль игрока…</div>}
+              </div>
+            )}
+
+            {mode === 'create' && (
+              <div className="glass-panel p-6 border border-white/5 space-y-4">
+                <Heading level={3}>Создать команду</Heading>
+                <Text variant="muted" size="sm">
+                  После создания покажи QR-код/код друзьям. Потом вы выберете персонажей.
+                </Text>
+                <div className="grid gap-3">
+                  <Button size="lg" variant="primary" onClick={() => createRoom()} disabled={!isProfileReady}>
+                    Создать
+                  </Button>
+                  <Button variant="ghost" onClick={() => setMode(null)}>
+                    Назад
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {mode === 'join' && (
+              <div className="glass-panel p-6 border border-white/5 space-y-4">
+                <Heading level={3}>Присоединиться</Heading>
+
+                <div className="grid gap-2">
+                  <label className="text-xs uppercase tracking-[0.24em] text-slate-500">Код команды</label>
+                  <input
+                    type="text"
+                    value={joinCodeDraft}
+                    onChange={(e) => {
+                      clearError()
+                      setJoinCodeDraft(e.target.value.toUpperCase())
+                    }}
+                    placeholder="ABCD"
+                    className="w-full bg-black/60 border border-white/10 rounded-xl p-4 text-center text-3xl font-mono tracking-widest focus:border-cyan-500 outline-none transition-colors"
+                    maxLength={64}
+                    inputMode="text"
+                    autoCapitalize="characters"
+                  />
+                  <Button size="lg" variant="primary" onClick={handleJoin} disabled={!isProfileReady || !normalizeCoopCode(joinCodeDraft)}>
+                    Войти
+                  </Button>
+                </div>
+
+                <div className="pt-2 border-t border-white/5">
+                  <div className="flex items-center justify-between gap-3">
+                    <Text size="sm" variant="muted">
+                      Или сканируй QR-код
+                    </Text>
+                    <Button variant="outline" onClick={() => setScannerOpen((prev) => !prev)} disabled={!isProfileReady}>
+                      {isScannerOpen ? 'Скрыть' : 'Сканировать'}
+                    </Button>
+                  </div>
+
+                  {isScannerOpen && (
+                    <div className="mt-4 w-full aspect-square border border-cyan-500/40 rounded-2xl overflow-hidden">
+                      <Scanner
+                        onScan={(detectedCodes) => detectedCodes[0] && handleScan(detectedCodes[0].rawValue)}
+                        onError={() => {
+                          // ignore
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+
                 <Button variant="ghost" onClick={() => setMode(null)}>
                   Назад
                 </Button>
               </div>
-            </div>
-          )}
+            )}
 
-          {mode === 'join' && (
-            <div className="glass-panel p-6 border border-white/5 space-y-4">
-              <Heading level={3}>Присоединиться</Heading>
-
-              <div className="grid gap-2">
-                <label className="text-xs uppercase tracking-[0.24em] text-slate-500">Код команды</label>
-                <input
-                  type="text"
-                  value={joinCodeDraft}
-                  onChange={(e) => {
-                    clearError()
-                    setJoinCodeDraft(e.target.value.toUpperCase())
-                  }}
-                  placeholder="ABCD"
-                  className="w-full bg-black/60 border border-white/10 rounded-xl p-4 text-center text-3xl font-mono tracking-widest focus:border-cyan-500 outline-none transition-colors"
-                  maxLength={64}
-                  inputMode="text"
-                  autoCapitalize="characters"
-                />
-                <Button size="lg" variant="primary" onClick={handleJoin} disabled={!isProfileReady || !normalizeCoopCode(joinCodeDraft)}>
-                  Войти
-                </Button>
+            {error && (
+              <div className="bg-red-500/10 border border-red-500/40 text-red-200 p-4 rounded-xl text-sm text-center">
+                {error}
               </div>
-
-              <div className="pt-2 border-t border-white/5">
-                <div className="flex items-center justify-between gap-3">
-                  <Text size="sm" variant="muted">
-                    Или сканируй QR-код
-                  </Text>
-                  <Button variant="outline" onClick={() => setScannerOpen((prev) => !prev)} disabled={!isProfileReady}>
-                    {isScannerOpen ? 'Скрыть' : 'Сканировать'}
-                  </Button>
-                </div>
-
-                {isScannerOpen && (
-                  <div className="mt-4 w-full aspect-square border border-cyan-500/40 rounded-2xl overflow-hidden">
-                    <Scanner
-                      onScan={(detectedCodes) => detectedCodes[0] && handleScan(detectedCodes[0].rawValue)}
-                      onError={() => {
-                        // ignore
-                      }}
-                    />
-                  </div>
-                )}
-              </div>
-
-              <Button variant="ghost" onClick={() => setMode(null)}>
-                Назад
-              </Button>
-            </div>
-          )}
-
-          {error && (
-            <div className="bg-red-500/10 border border-red-500/40 text-red-200 p-4 rounded-xl text-sm text-center">
-              {error}
-            </div>
-          )}
+            )}
           </div>
         </div>
       </div>
@@ -498,73 +498,21 @@ export const CoopLobby: React.FC = () => {
               })}
             </div>
 
-            {myRole && (
-              <div className="pt-6 animate-in slide-in-from-bottom-2 fade-in duration-500">
-                <Heading level={4} className="mb-4 flex items-center gap-2">
-                  <span>Инвентарь</span>
-                  <Badge variant="outline" className="text-[10px] py-0 h-5">
-                    {COOP_CHARACTERS.find(c => c.id === myRole)?.title}
-                  </Badge>
-                </Heading>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {COOP_CHARACTERS.find(c => c.id === myRole)?.loadout.map((entry, idx) => {
-                    const item = ITEM_TEMPLATES[entry.itemId]
-                    if (!item) return null
-
-                    const imagePath = ITEM_IMAGES[entry.itemId]
-
-                    return (
-                      <div
-                        key={`${myRole}-item-${idx}`}
-                        className="group relative flex flex-col items-center gap-3 p-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-cyan-500/30 transition-all"
-                      >
-                        <div className="relative h-16 w-full flex items-center justify-center">
-                          {imagePath ? (
-                            <img
-                              src={imagePath}
-                              alt={item.name}
-                              className="max-h-full max-w-full object-contain drop-shadow-md group-hover:scale-110 transition-transform duration-300"
-                            />
-                          ) : (
-                            <div className="text-4xl opacity-70 group-hover:scale-110 transition-transform">{item.icon}</div>
-                          )}
-
-                          {entry.qty && entry.qty > 1 && (
-                            <div className="absolute -bottom-1 -right-1 bg-black/80 border border-white/20 text-white text-[10px] px-1.5 py-0.5 rounded-md font-mono">
-                              x{entry.qty}
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="text-center w-full">
-                          <div className="text-xs font-medium truncate text-slate-200 group-hover:text-cyan-400 transition-colors">
-                            {item.name}
-                          </div>
-                          <div className="mt-1 text-[10px] text-slate-500 line-clamp-2 leading-tight">
-                            {item.description}
-                          </div>
-                        </div>
-
-                        {/* Hover Stats Popover - Simplified as overlay for now */}
-                        <div className="absolute inset-0 bg-black/90 p-3 flex flex-col justify-center items-center text-center opacity-0 group-hover:opacity-100 transition-opacity rounded-xl pointer-events-none z-10">
-                          <div className="text-xs font-bold text-cyan-400 mb-1">{item.name}</div>
-                          <div className="space-y-1">
-                            {item.baseStats?.damage && (
-                              <div className="text-[10px] text-slate-300">Урон: <span className="text-white">{item.baseStats.damage}</span></div>
-                            )}
-                            {item.baseStats?.defense && (
-                              <div className="text-[10px] text-slate-300">Защита: <span className="text-white">{item.baseStats.defense}</span></div>
-                            )}
-                            <div className="text-[10px] text-slate-300">Вес: <span className="text-white">{item.baseStats?.weight ?? 0}кг</span></div>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
+            {myRole && (() => {
+              const selectedCharacter = COOP_CHARACTERS.find(c => c.id === myRole)
+              if (!selectedCharacter) return null
+              return (
+                <div className="pt-6">
+                  <Heading level={4} className="mb-4 flex items-center gap-2">
+                    <span>Досье</span>
+                    <Badge variant="glow" className="text-[10px] py-0 h-5">
+                      {selectedCharacter.title}
+                    </Badge>
+                  </Heading>
+                  <CharacterDossier character={selectedCharacter} />
                 </div>
-              </div>
-            )}
+              )
+            })()}
 
             {error && (
               <div className="bg-red-500/10 border border-red-500/40 text-red-200 p-4 rounded-xl text-sm">
@@ -576,19 +524,4 @@ export const CoopLobby: React.FC = () => {
       </div>
     </div>
   )
-}
-
-const ITEM_IMAGES: Record<string, string> = {
-  // Weapons
-  'pistol_pm': '/images/weapons/makarov.png',
-  'glock_19': '/images/weapons/glock_19.png',
-  'sawed_off_shotgun': '/images/weapons/sawed_off.png',
-  'rifle_ak74': '/images/weapons/Автомат 2.png',
-
-  // Armor/Gear - Mapping based on best guess from available files
-  'vest_police': '/images/снаряга/Бронижилет1Класса.png',
-  'helmet_police': '/images/снаряга/шлем.png',
-  'field_medkit': '/images/снаряга/медицинская аптечка.png',
-  'medkit': '/images/снаряга/медицинская аптечка.png',
-  'bandage': '/images/снаряга/медицинская аптечка.png', // Fallback or maybe abstract
 }

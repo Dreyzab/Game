@@ -20,8 +20,23 @@ export interface VisualNovelChoiceRequirement {
   notFlags?: string[]
   skillCheck?: {
     skill: VoiceId
+    /**
+     * Raw difficulty value from content.
+     * - Legacy VN content may use 4-20 style values.
+     * - Newer content may use DC-like 5-95 scale.
+     */
     difficulty: number
+    /**
+     * Normalized DC value (used for roll math + UI). If omitted, fall back to `difficulty`.
+     */
+    dc?: number
     label?: string
+    successText?: string
+    failureText?: string
+    successNextSceneId?: string
+    failureNextSceneId?: string
+    successEffects?: VisualNovelChoiceEffect[]
+    failureEffects?: VisualNovelChoiceEffect[]
   }
 }
 

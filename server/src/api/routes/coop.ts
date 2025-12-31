@@ -185,4 +185,70 @@ export const coopRoutes = (app: Elysia) =>
                         return { error: e.message, status: 400 };
                     }
                 })
+
+                .post("/rooms/:code/advance_sequential", async ({ user, params }) => {
+                    if (!user) return { error: "Unauthorized", status: 401 };
+                    const playerId = await getPlayerId(user as any);
+                    if (!playerId) return { error: "Player profile not found", status: 404 };
+
+                    try {
+                        const room = await coopService.advanceSequential(params.code, playerId);
+                        return { room };
+                    } catch (e: any) {
+                        return { error: e.message, status: 400 };
+                    }
+                })
+
+                .post("/rooms/:code/camp/upgrade", async ({ user, params, body }) => {
+                    if (!user) return { error: "Unauthorized", status: 401 };
+                    const playerId = await getPlayerId(user as any);
+                    if (!playerId) return { error: "Player profile not found", status: 404 };
+
+                    try {
+                        const room = await coopService.upgradeBase(params.code, playerId, body.upgradeId);
+                        return { room };
+                    } catch (e: any) {
+                        return { error: e.message, status: 400 };
+                    }
+                }, {
+                    body: t.Object({ upgradeId: t.String() })
+                })
+
+                .post("/rooms/:code/camp/mission/start", async ({ user, params, body }) => {
+                    if (!user) return { error: "Unauthorized", status: 401 };
+                    const playerId = await getPlayerId(user as any);
+                    if (!playerId) return { error: "Player profile not found", status: 404 };
+
+                    try {
+                        const room = await coopService.startMission(params.code, playerId, body.missionNodeId);
+                        return { room };
+                    } catch (e: any) {
+                        return { error: e.message, status: 400 };
+                    }
+                }, {
+                    body: t.Object({ missionNodeId: t.String() })
+                })
+
+                .post("/rooms/:code/camp/contribute", async ({ user, params, body }) => {
+                    if (!user) return { error: "Unauthorized", status: 401 };
+                    const playerId = await getPlayerId(user as any);
+                    if (!playerId) return { error: "Player profile not found", status: 404 };
+
+                    try {
+                        const room = await coopService.contributeItem(
+                            params.code,
+                            playerId,
+                            body.templateId,
+                            body.quantity
+                        );
+                        return { room };
+                    } catch (e: any) {
+                        return { error: e.message, status: 400 };
+                    }
+                }, {
+                    body: t.Object({
+                        templateId: t.String(),
+                        quantity: t.Number()
+                    })
+                })
         );

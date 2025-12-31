@@ -13,6 +13,9 @@ export { clearLastCoopRoomCode, getLastCoopRoomCode, setLastCoopRoomCode } from 
 export { ScoreFeedback } from './ui/ScoreFeedback';
 export { ExpeditionFeedback } from './ui/ExpeditionFeedback';
 
+// Character data (re-export to avoid deep imports)
+export { COOP_CHARACTERS, formatLoadoutItem } from './model/characters';
+
 
 
 

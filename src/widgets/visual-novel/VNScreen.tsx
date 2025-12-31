@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { AnimatePresence, motion, useAnimationControls } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import {
   CharacterGroup,
@@ -13,12 +13,14 @@ import {
   type FloatingTextEvent,
 } from '@/features/dreyzab-combat-simulator'
 import { cn } from '@/shared/lib/utils/cn'
+import type { CheckParticipant, SkillCheckResult } from '@/shared/lib/skillChecks'
+import { performSkillCheck } from '@/shared/lib/skillChecks'
 import type {
   VisualNovelChoiceView,
   VisualNovelLine,
   VisualNovelSceneDefinition,
 } from '@/shared/types/visualNovel'
-import type { VoiceId } from '@/shared/types/parliament'
+import { STARTING_VOICE_LEVELS, type VoiceId } from '@/shared/types/parliament'
 import { getVoiceDefinition, useConsultationMode } from '@/features/visual-novel/consultation'
 import { Routes } from '@/shared/lib/utils/navigation'
 
@@ -34,7 +36,7 @@ export interface VNScreenProps {
   maxHp?: number
   floatingEvents?: FloatingTextEvent[]
   onAdvance: () => void
-  onChoice: (choiceId: string) => void
+  onChoice: (choiceId: string, options?: { skillCheck?: { success: boolean } }) => void
   onExit: () => void
   onAdviceViewed?: (payload: {
     sceneId: string
@@ -46,6 +48,22 @@ export interface VNScreenProps {
   }) => void
   isCommitting?: boolean
 }
+
+type SkillCheckOverlayState = {
+  id: string
+  choiceId: string
+  voiceId: VoiceId
+  label?: string
+  rawDifficulty: number
+  dc: number
+  skillLevel: number
+  stage: 'rolling' | 'result'
+  result: SkillCheckResult
+  successText?: string
+  failureText?: string
+}
+
+type ChoiceSkillCheck = NonNullable<NonNullable<VisualNovelChoiceView['requirements']>['skillCheck']>
 
 export const VNScreen: React.FC<VNScreenProps> = ({
   scene,
@@ -101,6 +119,17 @@ export const VNScreen: React.FC<VNScreenProps> = ({
   const [isLineRevealed, setLineRevealed] = useState(false)
   const [forceShowText, setForceShowText] = useState(false)
   const [isMenuOpen, setMenuOpen] = useState(false)
+  const [skillCheckOverlay, setSkillCheckOverlay] = useState<SkillCheckOverlayState | null>(null)
+  const activeSkillCheckIdRef = useRef<string | null>(null)
+  const isMountedRef = useRef(true)
+  const shakeControls = useAnimationControls()
+  const [screenFlash, setScreenFlash] = useState<null | { id: string; kind: 'damage' | 'heal' }>(null)
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
 
   const shouldShowHp = typeof hp === 'number' && typeof maxHp === 'number'
   const [hpHudPulseKey, setHpHudPulseKey] = useState(0)
@@ -115,11 +144,29 @@ export const VNScreen: React.FC<VNScreenProps> = ({
       return
     }
     if (hp !== prevHp) {
+      const delta = hp - prevHp
       setPrevHp(hp)
       setHpHudPulseKey((k) => k + 1)
       setHpHudVisible(true)
+
+      if (Number.isFinite(delta) && delta !== 0) {
+        const id = `vn_hpfx_${Date.now()}_${Math.random().toString(16).slice(2)}`
+
+        if (delta < 0) {
+          setScreenFlash({ id, kind: 'damage' })
+          shakeControls
+            .start({
+              x: [0, -8, 8, -6, 6, 0],
+              y: [0, 2, -2, 1, -1, 0],
+              transition: { duration: 0.35, ease: 'easeOut' },
+            })
+            .catch(() => { })
+        } else {
+          setScreenFlash({ id, kind: 'heal' })
+        }
+      }
     }
-  }, [hp, prevHp, shouldShowHp])
+  }, [hp, prevHp, shakeControls, shouldShowHp])
 
   const consultation = useConsultationMode({
     currentLine,
@@ -186,16 +233,103 @@ export const VNScreen: React.FC<VNScreenProps> = ({
     setForceShowText(false)
   }, [currentLine?.id, scene.id])
 
+  const skillCheckVoice = useMemo(() => {
+    if (!skillCheckOverlay) return null
+    return getVoiceDefinition(skillCheckOverlay.voiceId)
+  }, [skillCheckOverlay])
+
+  const runSkillCheck = useCallback(
+    async (choice: VisualNovelChoiceView, check: ChoiceSkillCheck) => {
+      if (activeSkillCheckIdRef.current) return
+
+      const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n))
+      const normalizeDc = (rawDifficulty: number) => {
+        const raw = Number(rawDifficulty)
+        if (!Number.isFinite(raw) || raw <= 0) return 50
+        if (raw <= 20) return clamp(Math.round(raw * 5), 5, 95)
+        return clamp(Math.round(raw), 5, 95)
+      }
+
+      const dc =
+        typeof check.dc === 'number' && Number.isFinite(check.dc) ? clamp(Math.round(check.dc), 5, 95) : normalizeDc(check.difficulty)
+
+      const rawSkill = (skills as any)?.[check.skill]
+      const skillValue = typeof rawSkill === 'number' && Number.isFinite(rawSkill) ? rawSkill : Number(rawSkill)
+      const skillLevel = Number.isFinite(skillValue) ? Math.round(skillValue) : 0
+
+      const base = STARTING_VOICE_LEVELS[check.skill] ?? 0
+      const leader: CheckParticipant = {
+        id: 'vn_player',
+        name: 'Player',
+        voiceLevels: {
+          [check.skill]: skillLevel - base,
+        },
+      }
+
+      const result = performSkillCheck(leader, [], check.skill, dc)
+
+      const overlayId = `vn_check_${Date.now()}_${Math.random().toString(16).slice(2)}`
+      activeSkillCheckIdRef.current = overlayId
+
+      setSkillCheckOverlay({
+        id: overlayId,
+        choiceId: choice.id,
+        voiceId: check.skill,
+        label: check.label,
+        rawDifficulty: check.difficulty,
+        dc,
+        skillLevel,
+        stage: 'rolling',
+        result,
+        successText: check.successText,
+        failureText: check.failureText,
+      })
+
+      const delay = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms))
+
+      await delay(650)
+      if (!isMountedRef.current || activeSkillCheckIdRef.current !== overlayId) return
+      setSkillCheckOverlay((prev) => (prev && prev.id === overlayId ? { ...prev, stage: 'result' } : prev))
+
+      await delay(850)
+      if (!isMountedRef.current || activeSkillCheckIdRef.current !== overlayId) return
+
+      setSkillCheckOverlay(null)
+      activeSkillCheckIdRef.current = null
+
+      onChoice(choice.id, { skillCheck: { success: result.success } })
+    },
+    [onChoice, skills]
+  )
+
   const handleChoiceSelect = useCallback(
     (choiceId: string) => {
       if (!isLineRevealed || isPending || isSceneCompleted) return
+      if (skillCheckOverlay) return
+
+      const selected = visibleChoices.find((choice) => choice.id === choiceId)
+      if (!selected || selected.disabled) return
+
+      const check = selected.requirements?.skillCheck as ChoiceSkillCheck | undefined
+      if (check) {
+        runSkillCheck(selected, check).catch((error) => {
+          console.error('[VN] skill check failed', error)
+          activeSkillCheckIdRef.current = null
+          setSkillCheckOverlay(null)
+        })
+        return
+      }
+
       onChoice(choiceId)
     },
-    [isLineRevealed, isPending, isSceneCompleted, onChoice]
+    [isLineRevealed, isPending, isSceneCompleted, onChoice, runSkillCheck, skillCheckOverlay, visibleChoices]
   )
 
   return (
-    <div className="vn-chronicles relative w-screen h-screen overflow-hidden bg-[#020617]">
+    <motion.div
+      className="vn-chronicles relative w-screen h-screen overflow-hidden bg-[#020617]"
+      animate={shakeControls}
+    >
       {isVideoBackground ? (
         <video
           key={backgroundImage}
@@ -218,6 +352,139 @@ export const VNScreen: React.FC<VNScreenProps> = ({
       )}
 
       <VFXOverlay />
+
+      <AnimatePresence>
+        {screenFlash ? (
+          <motion.div
+            key={screenFlash.id}
+            className="absolute inset-0 pointer-events-none z-[55]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0, screenFlash.kind === 'damage' ? 0.55 : 0.35, 0] }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: screenFlash.kind === 'damage' ? 0.45 : 0.35, ease: 'easeOut', times: [0, 0.22, 1] }}
+            style={{
+              background:
+                screenFlash.kind === 'damage'
+                  ? 'radial-gradient(circle at 50% 70%, rgba(239, 68, 68, 0.35), rgba(239, 68, 68, 0.08) 55%, rgba(0,0,0,0) 75%)'
+                  : 'radial-gradient(circle at 50% 70%, rgba(34, 197, 94, 0.25), rgba(34, 197, 94, 0.06) 55%, rgba(0,0,0,0) 75%)',
+            }}
+            onAnimationComplete={() => {
+              setScreenFlash((prev) => (prev?.id === screenFlash.id ? null : prev))
+            }}
+          />
+        ) : null}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {skillCheckOverlay ? (
+          <motion.div
+            key={skillCheckOverlay.id}
+            className="absolute inset-0 z-[60] flex items-center justify-center p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <div className="absolute inset-0 bg-black/65 backdrop-blur-[2px]" />
+            <motion.div
+              className="relative w-full max-w-md rounded-2xl border border-white/15 bg-slate-950/80 backdrop-blur-xl shadow-2xl p-5"
+              initial={{ opacity: 0, y: 12, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 12, scale: 0.98 }}
+              transition={{ duration: 0.18 }}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-[10px] uppercase tracking-[0.28em] text-slate-400">
+                    Проверка
+                  </div>
+                  <div className="mt-1 font-cinzel text-lg text-white">
+                    {skillCheckVoice?.name ?? skillCheckOverlay.voiceId.toUpperCase()}
+                  </div>
+                  <div className="mt-1 text-xs text-slate-300">
+                    DC {skillCheckOverlay.dc} • Навык {skillCheckOverlay.skillLevel}
+                  </div>
+                </div>
+                <div
+                  className="px-2 py-1 rounded-lg border border-white/10 text-[10px] uppercase tracking-widest text-slate-300"
+                  style={
+                    skillCheckVoice?.color
+                      ? { borderColor: `${skillCheckVoice.color}55`, color: skillCheckVoice.color }
+                      : undefined
+                  }
+                >
+                  {skillCheckOverlay.voiceId.toUpperCase()}
+                </div>
+              </div>
+
+              {skillCheckOverlay.label && (
+                <div className="mt-2 text-[11px] text-slate-400">{skillCheckOverlay.label}</div>
+              )}
+
+              <div className="mt-4">
+                <AnimatePresence mode="wait" initial={false}>
+                  {skillCheckOverlay.stage === 'rolling' ? (
+                    <motion.div
+                      key="rolling"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="flex flex-col items-center justify-center gap-3 py-6"
+                    >
+                      <div className="w-16 h-16 rounded-full border-4 border-white/10 border-t-cyan-400 animate-spin" />
+                      <div className="text-sm text-slate-200 font-bold">Бросок...</div>
+                      <div className="text-[11px] text-slate-400">Секунда.</div>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="result"
+                      initial={{ opacity: 0, scale: 0.98 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="flex flex-col items-center justify-center gap-3 py-4 text-center"
+                    >
+                      <div
+                        className={cn(
+                          'inline-flex items-center justify-center w-24 h-24 rounded-full text-4xl font-bold shadow-xl',
+                          skillCheckOverlay.result.success
+                            ? skillCheckOverlay.result.isCritical
+                              ? 'bg-gradient-to-br from-amber-500 to-yellow-600 text-white'
+                              : 'bg-gradient-to-br from-emerald-500 to-green-600 text-white'
+                            : skillCheckOverlay.result.isCritical
+                              ? 'bg-gradient-to-br from-rose-600 to-red-700 text-white'
+                              : 'bg-gradient-to-br from-red-500 to-rose-600 text-white'
+                        )}
+                      >
+                        {skillCheckOverlay.result.roll}
+                      </div>
+
+                      <div
+                        className={cn(
+                          'text-xl font-bold',
+                          skillCheckOverlay.result.success ? 'text-emerald-300' : 'text-rose-300'
+                        )}
+                      >
+                        {skillCheckOverlay.result.isCritical ? 'КРИТ. ' : ''}
+                        {skillCheckOverlay.result.success ? 'УСПЕХ' : 'ПРОВАЛ'}
+                      </div>
+
+                      <div className="text-[11px] text-slate-400">
+                        Бросок {skillCheckOverlay.result.roll} • Эфф. {skillCheckOverlay.result.effectiveSkill} • DC{' '}
+                        {skillCheckOverlay.result.effectiveDC}
+                      </div>
+
+                      {(skillCheckOverlay.result.success ? skillCheckOverlay.successText : skillCheckOverlay.failureText) && (
+                        <div className="mt-1 text-sm text-slate-100 leading-snug">
+                          {skillCheckOverlay.result.success ? skillCheckOverlay.successText : skillCheckOverlay.failureText}
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </motion.div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
 
       <CharacterSprites characters={scene.characters} activeSpeakerId={spritesActiveSpeakerId} />
 
@@ -456,7 +723,7 @@ export const VNScreen: React.FC<VNScreenProps> = ({
           </motion.div>
         ) : null}
       </AnimatePresence>
-    </div>
+    </motion.div>
   )
 }
 

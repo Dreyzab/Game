@@ -11,6 +11,7 @@ export type ItemKind =
     | 'clothing'
     | 'backpack'
     | 'rig'
+    | 'tool'
     | 'quest'
     | 'misc'
 
@@ -48,6 +49,8 @@ export interface ItemTemplate {
     kind: ItemKind
     rarity: Rarity
     icon: string
+    /** Optional image URL for visual display */
+    imageUrl?: string
     baseStats: ItemStats
     tags?: string[]
     /** Optional link to combat weapon template ID for combat system integration */

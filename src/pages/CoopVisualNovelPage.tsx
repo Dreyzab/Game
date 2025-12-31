@@ -1,15 +1,17 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, useAnimationControls } from 'framer-motion';
+import { User, Package, Tent, X, Shield, Users, Info, ShoppingCart, ArrowRight } from 'lucide-react';
 import { useCoopStore } from '@/features/coop';
 import { useMyPlayer } from '@/shared/hooks/useMyPlayer';
-import type { CoopRoleId } from '@/shared/types/coop';
+import type { CoopRoleId, SequentialBroadcastState } from '@/shared/types/coop';
 import { cn } from '@/shared/lib/utils/cn';
 import { authenticatedClient } from '@/shared/api/client';
 import { DialogueBox, ChoicePanel } from '@/entities/visual-novel/ui';
 import type { VisualNovelChoiceView } from '@/shared/types/visualNovel';
 import { ITEM_TEMPLATES } from '@/shared/data/itemTemplates';
 import { COOP_STATUSES, ROLE_TAG_MULTS } from '@/shared/data/coopScoreConfig';
-import { ScoreFeedback, ExpeditionFeedback } from '@/features/coop';
+import { COOP_ROLES } from '@/shared/types/coop';
+import { COOP_CHARACTERS, ScoreFeedback, ExpeditionFeedback } from '@/features/coop';
 
 const EMPTY_LIST: any[] = [];
 const FALLBACK_NODE: any = {
@@ -33,6 +35,7 @@ export const CoopVisualNovelPage: React.FC = () => {
     const camp = room?.camp ?? null;
     const questScore = room?.questScore ?? null;
     const expedition = room?.expedition ?? null;
+    const sequentialBroadcast = (room as any)?.sequentialBroadcast as SequentialBroadcastState | null;
 
     const myId = (myPlayerQuery.data as any)?.player?.id as number | undefined;
     const myParticipant = myId ? participants.find((p) => p.id === myId) : undefined;
@@ -42,8 +45,22 @@ export const CoopVisualNovelPage: React.FC = () => {
     const defaultControlledId = myId ?? participants[0]?.id ?? null;
     const [controlledPlayerId, setControlledPlayerId] = useState<number | null>(defaultControlledId);
     const [isMenuOpen, setMenuOpen] = useState(false);
+    const [activeTab, setActiveTab] = useState<'character' | 'inventory' | 'camp'>('character');
     const [campShop, setCampShop] = useState<any | null>(null);
     const [shopSelectedTemplateId, setShopSelectedTemplateId] = useState<string>('');
+
+    const shakeControls = useAnimationControls();
+    const [screenFlash, setScreenFlash] = useState<null | { id: string; kind: 'damage' | 'heal' }>(null);
+    const prevControlledHpRef = useRef<number | null>(null);
+
+    const [eventToast, setEventToast] = useState<null | {
+        id: string;
+        success: boolean;
+        title: string;
+        summary: string;
+        lines: Array<{ playerId: string; name: string; pass: boolean; traitsAdded: string[] }>;
+    }>(null);
+    const lastEventAtRef = useRef<number | null>(null);
 
     useEffect(() => {
         if (defaultControlledId === null) return;
@@ -78,6 +95,85 @@ export const CoopVisualNovelPage: React.FC = () => {
     );
 
     const controlledRole = (controlledParticipant?.role ?? undefined) as CoopRoleId | undefined;
+
+    const encounterPlayers = room?.encounter?.players;
+    const myHp = (myPlayerQuery.data as any)?.progress?.hp as number | undefined;
+
+    const controlledHp = useMemo(() => {
+        const pid = controlledPlayerId ?? null;
+        if (pid !== null && Array.isArray(encounterPlayers)) {
+            const entry = encounterPlayers.find((p) => p.playerId === pid);
+            if (entry && typeof entry.hp === 'number' && Number.isFinite(entry.hp)) {
+                return entry.hp;
+            }
+        }
+        return typeof myHp === 'number' && Number.isFinite(myHp) ? myHp : null;
+    }, [controlledPlayerId, encounterPlayers, myHp]);
+
+    useEffect(() => {
+        if (typeof controlledHp !== 'number' || !Number.isFinite(controlledHp)) return;
+        const prev = prevControlledHpRef.current;
+        if (prev === null) {
+            prevControlledHpRef.current = controlledHp;
+            return;
+        }
+        if (controlledHp === prev) return;
+
+        const delta = controlledHp - prev;
+        prevControlledHpRef.current = controlledHp;
+
+        const id = `coop_hpfx_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+        if (delta < 0) {
+            setScreenFlash({ id, kind: 'damage' });
+            shakeControls
+                .start({
+                    x: [0, -8, 8, -6, 6, 0],
+                    y: [0, 2, -2, 1, -1, 0],
+                    transition: { duration: 0.35, ease: 'easeOut' },
+                })
+                .catch(() => { });
+        } else {
+            setScreenFlash({ id, kind: 'heal' });
+        }
+    }, [controlledHp, shakeControls]);
+
+    useEffect(() => {
+        const ev = expedition?.lastEvent;
+        if (!ev?.at) return;
+        if (lastEventAtRef.current === ev.at) return;
+        lastEventAtRef.current = ev.at;
+
+        const titleById: Record<string, string> = {
+            psi_wave: 'Psi-wave',
+            injury_roll: 'Injury',
+            injury_treat: 'Treatment',
+        };
+
+        const lines = Object.entries(ev.perPlayer ?? {}).map(([playerId, result]) => {
+            const participant = participants.find((p) => String(p.id) === String(playerId));
+            const traitsAddedRaw = (result as any)?.traitsAdded;
+            const traitsAdded = Array.isArray(traitsAddedRaw)
+                ? traitsAddedRaw.map((t) => String(t)).filter(Boolean)
+                : [];
+            return {
+                playerId: String(playerId),
+                name: participant?.name ?? `Player ${playerId}`,
+                pass: Boolean((result as any)?.pass),
+                traitsAdded,
+            };
+        });
+
+        setEventToast({
+            id: `event_${ev.at}`,
+            success: Boolean(ev.success),
+            title: titleById[String(ev.id)] ?? String(ev.id),
+            summary: String(ev.summary ?? ''),
+            lines,
+        });
+
+        const t = window.setTimeout(() => setEventToast(null), 4500);
+        return () => window.clearTimeout(t);
+    }, [expedition?.lastEvent?.at, participants, expedition?.lastEvent, expedition]);
 
     const agentLog = (hypothesisId: string, location: string, message: string, data: Record<string, unknown>) => {
         const payload = {
@@ -234,8 +330,50 @@ export const CoopVisualNovelPage: React.FC = () => {
     // Show choices at key moments:
     // - Shared checkpoints (vote/sync branching) when everyone reached the node
     // - Individual nodes (personal decisions) after narration
+    const [ephemeralReaction, setEphemeralReaction] = useState<any | null>(null);
+    const lastReactionCountRef = useRef<number>(0);
+
+    // Effect: Detect new reactions and show them ephemerally
+    useEffect(() => {
+        if (!sequentialBroadcast) {
+            lastReactionCountRef.current = 0;
+            return;
+        }
+        const currentCount = sequentialBroadcast.reactions.length;
+        if (currentCount > lastReactionCountRef.current) {
+            // New reaction(s) arrived
+            const latest = sequentialBroadcast.reactions[currentCount - 1];
+            setEphemeralReaction(latest);
+
+            // Auto-dismiss after 6 seconds
+            const timer = setTimeout(() => {
+                setEphemeralReaction((prev: any) => (prev === latest ? null : prev));
+            }, 6000);
+
+            lastReactionCountRef.current = currentCount;
+            return () => clearTimeout(timer);
+        }
+        // If we just loaded/reloaded, sync the ref without showing
+        if (lastReactionCountRef.current === 0 && currentCount > 0) {
+            lastReactionCountRef.current = currentCount;
+        }
+    }, [sequentialBroadcast]);
+
+    // Show choices at key moments:
+    // - Shared checkpoints (vote/sync branching) when everyone reached the node
+    // - Individual nodes (personal decisions) after narration
+    // - Sequential broadcast: only when it's YOUR turn AND no reaction is playing
+    const isSequentialMode = localNode.interactionType === 'sequential_broadcast';
+    const isMyTurnInSequential = isSequentialMode && sequentialBroadcast?.activePlayerId === controlledPlayerId;
+
     const shouldShowChoices =
-        isNarrationDone && ((isCheckpoint && isAtSharedCheckpoint) || localNode.interactionType === 'individual');
+        isNarrationDone &&
+        !ephemeralReaction &&
+        (
+            (isCheckpoint && isAtSharedCheckpoint) ||
+            localNode.interactionType === 'individual' ||
+            isMyTurnInSequential
+        );
 
     // Transform raw choices to VisualNovelChoiceView format for ChoicePanel
     const visibleChoices: VisualNovelChoiceView[] = useMemo(() => {
@@ -477,6 +615,11 @@ export const CoopVisualNovelPage: React.FC = () => {
             return;
         }
 
+        if (localNode.interactionType === 'sequential_broadcast') {
+            await castVote(choiceId, controlledPlayerId ?? undefined);
+            return;
+        }
+
         await advanceLocal(choice.nextNodeId);
     };
 
@@ -498,6 +641,16 @@ export const CoopVisualNovelPage: React.FC = () => {
         }
     };
 
+    const handleSequentialContinue = async () => {
+        if (!room?.code) return;
+        const client = authenticatedClient() as any;
+        try {
+            await client.coop.rooms[room.code].advance_sequential.post();
+        } catch (err: any) {
+            console.error('Failed to advance sequential:', err);
+        }
+    };
+
     const isScenarioReady = Boolean(room && questNode);
     if (!isScenarioReady) {
         return (
@@ -511,7 +664,7 @@ export const CoopVisualNovelPage: React.FC = () => {
     }
 
     return (
-        <div className="vn-chronicles relative w-screen h-screen overflow-hidden bg-[#020617]">
+        <motion.div className="vn-chronicles relative w-screen h-screen overflow-hidden bg-[#020617]" animate={shakeControls}>
             {/* Background */}
             <div className="absolute inset-0 overflow-hidden">
                 <motion.div
@@ -531,7 +684,29 @@ export const CoopVisualNovelPage: React.FC = () => {
             </div>
 
             {/* Gradient overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+            <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/40 to-transparent" />
+
+            <AnimatePresence>
+                {screenFlash ? (
+                    <motion.div
+                        key={screenFlash.id}
+                        className="absolute inset-0 pointer-events-none z-35"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: [0, screenFlash.kind === 'damage' ? 0.55 : 0.35, 0] }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: screenFlash.kind === 'damage' ? 0.45 : 0.35, ease: 'easeOut', times: [0, 0.22, 1] }}
+                        style={{
+                            background:
+                                screenFlash.kind === 'damage'
+                                    ? 'radial-gradient(circle at 50% 70%, rgba(239, 68, 68, 0.35), rgba(239, 68, 68, 0.08) 55%, rgba(0,0,0,0) 75%)'
+                                    : 'radial-gradient(circle at 50% 70%, rgba(34, 197, 94, 0.25), rgba(34, 197, 94, 0.06) 55%, rgba(0,0,0,0) 75%)',
+                        }}
+                        onAnimationComplete={() => {
+                            setScreenFlash((prev) => (prev?.id === screenFlash.id ? null : prev));
+                        }}
+                    />
+                ) : null}
+            </AnimatePresence>
 
             {/* Side quest score (top-center) */}
             {questScore && Number(questScore.target ?? 0) > 0 && (
@@ -543,6 +718,54 @@ export const CoopVisualNovelPage: React.FC = () => {
                     />
                 </div>
             )}
+
+            <AnimatePresence>
+                {eventToast ? (
+                    <motion.div
+                        key={eventToast.id}
+                        className="absolute top-24 left-1/2 -translate-x-1/2 z-40 w-[360px] max-w-[92vw] pointer-events-none"
+                        initial={{ opacity: 0, y: -10, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -10, scale: 0.98 }}
+                        transition={{ duration: 0.22 }}
+                    >
+                        <div
+                            className={cn(
+                                "px-4 py-3 rounded-xl border backdrop-blur-md shadow-xl",
+                                eventToast.success ? "bg-emerald-950/40 border-emerald-500/30" : "bg-rose-950/40 border-rose-500/30"
+                            )}
+                        >
+                            <div className="flex items-baseline justify-between gap-3">
+                                <div className="text-[10px] uppercase tracking-widest text-slate-300">{eventToast.title}</div>
+                                <div className={cn("text-[10px] font-bold uppercase tracking-widest", eventToast.success ? "text-emerald-300" : "text-rose-300")}>
+                                    {eventToast.success ? "Success" : "Fail"}
+                                </div>
+                            </div>
+                            <div className="mt-1 text-xs text-slate-100 leading-snug">{eventToast.summary}</div>
+                            {eventToast.lines.length > 0 && (
+                                <div className="mt-2 space-y-1">
+                                    {eventToast.lines.slice(0, 6).map((line) => (
+                                        <div key={line.playerId} className="flex items-center justify-between gap-3 text-[11px]">
+                                            <span className="truncate text-slate-200">{line.name}</span>
+                                            <span className={cn("font-bold", line.pass ? "text-emerald-300" : "text-rose-300")}>
+                                                {line.pass ? "✓" : "✕"}
+                                            </span>
+                                        </div>
+                                    ))}
+                                    {eventToast.lines.some((l) => l.traitsAdded.length > 0) && (
+                                        <div className="pt-1 text-[10px] text-slate-300">
+                                            {eventToast.lines
+                                                .filter((l) => l.traitsAdded.length > 0)
+                                                .map((l) => `${l.name}: +${l.traitsAdded.join(', +')}`)
+                                                .join(' • ')}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </motion.div>
+                ) : null}
+            </AnimatePresence>
 
             {/* Participants HUD (top-right) */}
             <div className="absolute top-0 right-0 z-30 p-4">
@@ -628,6 +851,73 @@ export const CoopVisualNovelPage: React.FC = () => {
                 </div>
             )}
 
+            {/* Sequential Broadcast: Waiting / Complete message */}
+            {isSequentialMode && !isMyTurnInSequential && isNarrationDone && (
+                <div className="absolute bottom-32 left-1/2 -translate-x-1/2 z-40">
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="px-6 py-3 rounded-xl bg-black/60 border border-cyan-500/30 backdrop-blur-md text-center max-w-md flex flex-col items-center gap-2"
+                    >
+                        {sequentialBroadcast?.activePlayerId ? (
+                            <>
+                                <div className="text-cyan-400 text-sm font-medium">
+                                    Ожидаем выбора: {participants.find(p => p.id === sequentialBroadcast.activePlayerId)?.name ?? 'Player ' + sequentialBroadcast.activePlayerId}
+                                </div>
+                                <div className="text-xs text-slate-400">
+                                    Ход передается последовательно. Ваш черед скоро наступит.
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <div className="text-emerald-400 text-sm font-medium">
+                                    Брифинг завершен
+                                </div>
+                                <div className="text-xs text-slate-400 mb-2">
+                                    Группа готова выдвигаться.
+                                </div>
+                                <button
+                                    onClick={handleSequentialContinue}
+                                    className="px-4 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/40 border border-emerald-500/50 rounded text-xs font-bold text-emerald-300 transition-colors uppercase tracking-wider"
+                                >
+                                    Продолжить
+                                </button>
+                            </>
+                        )}
+                    </motion.div>
+                </div>
+            )}
+
+            {/* Sequential Broadcast: Reaction Overlay (Ephemeral) */}
+            {isSequentialMode && ephemeralReaction && (
+                <div key={ephemeralReaction.timestamp} className="absolute inset-0 z-60 flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm pointer-events-none">
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 1.1 }}
+                        className="max-w-2xl w-full bg-slate-900/90 border border-white/20 rounded-2xl p-8 shadow-2xl relative overflow-hidden"
+                    >
+                        <div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-transparent via-cyan-500 to-transparent opacity-50" />
+                        <div className="text-center mb-6">
+                            <div className="text-xs uppercase tracking-[0.2em] text-cyan-400 mb-2">
+                                {ephemeralReaction.playerRole ? ephemeralReaction.playerRole.toUpperCase() : 'PLAYER'} ACTION
+                            </div>
+                            <div className="text-xl font-cinzel text-white">
+                                {ephemeralReaction.playerName}
+                            </div>
+                        </div>
+
+                        <div className="mb-6 p-4 rounded-lg bg-white/5 border border-white/10 text-center italic text-slate-300">
+                            "{ephemeralReaction.choiceText}"
+                        </div>
+
+                        <div className="text-base leading-relaxed text-slate-200 text-center whitespace-pre-wrap">
+                            {ephemeralReaction.effectText}
+                        </div>
+                    </motion.div>
+                </div>
+            )}
+
             {/* Votes display (when voting) */}
             {isGroupVoteNode && sortedVotes.length > 0 && (
                 <div className="absolute bottom-32 right-4 z-40 max-w-xs">
@@ -692,117 +982,330 @@ export const CoopVisualNovelPage: React.FC = () => {
             <AnimatePresence>
                 {isMenuOpen && (
                     <motion.div
-                        className="absolute inset-0 z-50"
+                        className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={() => setMenuOpen(false)}
                     >
-                        <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" />
+                        <div className="absolute inset-0 bg-black/60 backdrop-blur-md" />
+
                         <motion.div
-                            className="absolute bottom-6 right-6 w-[260px] rounded-2xl border border-white/15 bg-slate-950/80 backdrop-blur-xl shadow-2xl p-3"
-                            initial={{ opacity: 0, y: 12 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: 12 }}
-                            transition={{ duration: 0.18 }}
+                            className="relative w-full max-w-2xl h-[85vh] max-h-[700px] flex flex-col rounded-3xl border border-white/10 bg-slate-950/90 shadow-2xl overflow-hidden"
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
                             onClick={(e) => e.stopPropagation()}
                         >
-                            <div className="text-[10px] uppercase tracking-[0.28em] text-slate-400 px-2 py-1">
-                                Меню
-                            </div>
-                            <div className="grid gap-2 mt-2">
-                                {camp && (
-                                    <div className="rounded-xl border border-white/10 bg-black/20 p-3 space-y-2">
-                                        <div className="text-[10px] uppercase tracking-widest text-slate-400">Лагерь</div>
-                                        <div className="flex items-center justify-between text-xs text-slate-200">
-                                            <span>Безопасность</span>
-                                            <span className="font-mono">{Number(camp.security ?? 0)}</span>
-                                        </div>
-                                        <div className="flex items-center justify-between text-xs text-slate-200">
-                                            <span>Оперативники</span>
-                                            <span className="font-mono">{Number(camp.operatives ?? 0)}</span>
-                                        </div>
-                                        <div className="flex items-center justify-between text-xs text-slate-200">
-                                            <span>{expedition ? 'RP' : 'Scrap'}</span>
-                                            <span className="font-mono">
-                                                {expedition ? Number(expedition.researchPoints ?? 0) : Number((camp as any)?.inventory?.scrap ?? 0)}
-                                            </span>
-                                        </div>
-
-                                        <button
-                                            type="button"
-                                            className="w-full px-3 py-2 rounded-lg border border-white/10 bg-black/20 hover:bg-black/30 text-xs text-slate-200 transition"
-                                            onClick={() => callReinforcements(1).catch(() => { })}
-                                        >
-                                            Вызвать подкрепление (-25 {expedition ? 'RP' : 'scrap'})
-                                        </button>
-
-                                        {campShop?.stock?.length > 0 && (
-                                            <div className="space-y-2 pt-1">
-                                                <div className="text-[10px] uppercase tracking-widest text-slate-400">Закупка</div>
-                                                <select
-                                                    className="w-full bg-black/30 border border-white/15 rounded-lg px-2 py-2 text-xs text-slate-200"
-                                                    value={shopSelectedTemplateId}
-                                                    onChange={(e) => setShopSelectedTemplateId(String(e.target.value))}
-                                                >
-                                                    {campShop.stock.map((it: any) => (
-                                                        <option key={it.templateId} value={it.templateId}>
-                                                            {(ITEM_TEMPLATES as any)[it.templateId]?.name ?? it.name ?? it.templateId} — {it.price} {expedition ? 'RP' : 'scrap'}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                                <button
-                                                    type="button"
-                                                    className="w-full px-3 py-2 rounded-lg border border-white/10 bg-black/20 hover:bg-black/30 text-xs text-slate-200 transition"
-                                                    disabled={!shopSelectedTemplateId}
-                                                    onClick={() => buyCampItem(shopSelectedTemplateId, 1).catch(() => { })}
-                                                >
-                                                    Купить (x1)
-                                                </button>
-                                            </div>
+                            {/* Header & Tabs */}
+                            <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-white/5 bg-white/5">
+                                <div className="flex gap-4">
+                                    <button
+                                        onClick={() => setActiveTab('character')}
+                                        className={cn(
+                                            "flex items-center gap-2 px-4 py-2 rounded-xl transition-all",
+                                            activeTab === 'character' ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.15)]" : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
                                         )}
+                                    >
+                                        <User size={18} />
+                                        <span className="text-sm font-cinzel font-bold tracking-wider uppercase">Досье</span>
+                                    </button>
+                                    <button
+                                        onClick={() => setActiveTab('inventory')}
+                                        className={cn(
+                                            "flex items-center gap-2 px-4 py-2 rounded-xl transition-all",
+                                            activeTab === 'inventory' ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.15)]" : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
+                                        )}
+                                    >
+                                        <Package size={18} />
+                                        <span className="text-sm font-cinzel font-bold tracking-wider uppercase">Вещи</span>
+                                    </button>
+                                    {camp && (
+                                        <button
+                                            onClick={() => setActiveTab('camp')}
+                                            className={cn(
+                                                "flex items-center gap-2 px-4 py-2 rounded-xl transition-all",
+                                                activeTab === 'camp' ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.15)]" : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
+                                            )}
+                                        >
+                                            <Tent size={18} />
+                                            <span className="text-sm font-cinzel font-bold tracking-wider uppercase">Лагерь</span>
+                                        </button>
+                                    )}
+                                </div>
+                                <button
+                                    onClick={() => setMenuOpen(false)}
+                                    className="p-2 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+                                >
+                                    <X size={24} />
+                                </button>
+                            </div>
 
-                                        <div className="space-y-1 pt-1">
-                                            <div className="text-[10px] uppercase tracking-widest text-slate-400">Общий инвентарь</div>
-                                            <div className="max-h-40 overflow-auto space-y-1 pr-1">
+                            {/* Content Area */}
+                            <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide">
+                                {activeTab === 'character' && controlledRole && (
+                                    <motion.div
+                                        initial={{ opacity: 0, x: -10 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        className="space-y-6"
+                                    >
+                                        {/* Profile Card */}
+                                        <div className="flex flex-col sm:flex-row gap-6 p-1 rounded-2xl bg-white/5 border border-white/10 overflow-hidden">
+                                            <div className="w-full sm:w-48 h-64 sm:h-auto overflow-hidden rounded-xl border border-white/10 bg-black/40">
+                                                <img
+                                                    src={COOP_CHARACTERS.find(c => c.id === controlledRole)?.portraitUrl}
+                                                    className="w-full h-full object-cover grayscale-[0.3] hover:grayscale-0 transition-all duration-700"
+                                                    alt="Portrait"
+                                                />
+                                            </div>
+                                            <div className="flex-1 p-4 flex flex-col justify-center">
+                                                <div className="flex items-center gap-3 mb-1">
+                                                    <h3 className="text-2xl font-cinzel font-bold text-white tracking-wide">
+                                                        {COOP_ROLES[controlledRole]?.nameRu ?? controlledRole}
+                                                    </h3>
+                                                    <span className="px-2 py-0.5 rounded border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 text-[10px] font-bold tracking-widest uppercase">
+                                                        {COOP_ROLES[controlledRole]?.label}
+                                                    </span>
+                                                </div>
+                                                <p className="text-sm text-cyan-400/80 italic font-medium mb-4">
+                                                    {COOP_CHARACTERS.find(c => c.id === controlledRole)?.subtitle}
+                                                </p>
+                                                <div className="space-y-4">
+                                                    <div className="p-3 rounded-xl bg-black/30 border border-white/5">
+                                                        <p className="text-xs text-slate-300 leading-relaxed italic">
+                                                            {COOP_CHARACTERS.find(c => c.id === controlledRole)?.backstory || COOP_ROLES[controlledRole]?.description}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Voice Modifiers / Stats */}
+                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                            {Object.entries(COOP_CHARACTERS.find(c => c.id === controlledRole)?.voiceModifiers || {}).map(([voiceId, mod]) => (
+                                                <div key={voiceId} className="p-3 rounded-xl bg-white/5 border border-white/10 flex flex-col items-center text-center group hover:border-cyan-500/30 transition-colors">
+                                                    <span className="text-[10px] uppercase tracking-widest text-slate-500 group-hover:text-cyan-400 transition-colors">{voiceId}</span>
+                                                    <span className="text-lg font-mono font-bold text-white">+{Math.round((mod as number - 1) * 100)}%</span>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        <div className="p-4 rounded-xl bg-cyan-500/5 border border-cyan-500/20 flex gap-4">
+                                            <Info className="text-cyan-400 shrink-0" size={20} />
+                                            <p className="text-xs text-slate-300 leading-relaxed">
+                                                <span className="text-cyan-400 font-bold">Стиль игры:</span> {COOP_ROLES[controlledRole]?.playstyleHint}
+                                            </p>
+                                        </div>
+                                    </motion.div>
+                                )}
+
+                                {activeTab === 'inventory' && controlledRole && (
+                                    <motion.div
+                                        initial={{ opacity: 0, x: -10 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        className="space-y-8"
+                                    >
+                                        {/* Personal Gear */}
+                                        <div className="space-y-4">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-1 h-4 bg-cyan-500 rounded-full" />
+                                                <h4 className="text-sm font-cinzel font-bold tracking-widest uppercase text-white">Личное снаряжение</h4>
+                                            </div>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                {COOP_CHARACTERS.find(char => char.id === controlledRole)?.loadout.map((entry, idx) => {
+                                                    const template = (ITEM_TEMPLATES as any)[entry.itemId];
+                                                    return (
+                                                        <div key={`${controlledRole}-gear-${idx}`} className="flex items-center gap-4 p-3 rounded-2xl bg-white/5 border border-white/10 group hover:border-cyan-500/30 transition-all">
+                                                            <div className="w-12 h-12 rounded-xl bg-black/40 border border-white/10 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+                                                                {template?.icon || "📦"}
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="text-xs font-bold text-white truncate">
+                                                                    {template?.name || entry.itemId}
+                                                                </div>
+                                                                <div className="text-[10px] text-slate-500 truncate">
+                                                                    {template?.kind || 'Предмет'} • {template?.baseStats?.weight || 0}кг
+                                                                </div>
+                                                            </div>
+                                                            {entry.qty && entry.qty > 1 && (
+                                                                <div className="px-2 py-1 rounded bg-slate-800 text-[10px] font-mono font-bold text-slate-300">
+                                                                    x{entry.qty}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+
+                                        {/* Common Inventory */}
+                                        <div className="space-y-4 pt-4 border-t border-white/5">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-1 h-4 bg-amber-500 rounded-full" />
+                                                    <h4 className="text-sm font-cinzel font-bold tracking-widest uppercase text-white">Общий склад</h4>
+                                                </div>
+                                                <span className="text-[10px] font-mono text-slate-500">Доступно всей группе</span>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 gap-2">
                                                 {Object.entries((camp as any)?.inventory ?? {})
                                                     .filter(([id, qty]) => id !== 'scrap' && Number(qty) > 0)
                                                     .sort(([a], [b]) => a.localeCompare(b))
-                                                    .map(([templateId, qty]) => (
-                                                        <div key={templateId} className="flex items-center justify-between gap-2 text-xs text-slate-200">
-                                                            <span className="truncate">
-                                                                {(ITEM_TEMPLATES as any)[templateId]?.name ?? templateId}
-                                                                <span className="text-slate-500"> x{Number(qty)}</span>
-                                                            </span>
-                                                            <button
-                                                                type="button"
-                                                                className="px-2 py-1 rounded border border-white/10 bg-black/20 hover:bg-black/30 text-[11px]"
-                                                                onClick={() => withdrawCampItem(templateId, 1).catch(() => { })}
-                                                            >
-                                                                Взять
-                                                            </button>
-                                                        </div>
-                                                    ))}
+                                                    .map(([templateId, qty]) => {
+                                                        const template = (ITEM_TEMPLATES as any)[templateId];
+                                                        return (
+                                                            <div key={templateId} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/8 transition-colors">
+                                                                <div className="flex items-center gap-3">
+                                                                    <span className="text-xl">{template?.icon || "📦"}</span>
+                                                                    <span className="text-xs font-medium text-slate-200">{template?.name || templateId}</span>
+                                                                    <span className="text-[10px] font-mono text-slate-500">x{Number(qty)}</span>
+                                                                </div>
+                                                                <button
+                                                                    onClick={() => withdrawCampItem(templateId, 1).catch(() => { })}
+                                                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 text-[10px] font-bold uppercase transition-all"
+                                                                >
+                                                                    <span>Взять</span>
+                                                                    <ArrowRight size={12} />
+                                                                </button>
+                                                            </div>
+                                                        );
+                                                    })}
                                                 {Object.entries((camp as any)?.inventory ?? {}).filter(([id, qty]) => id !== 'scrap' && Number(qty) > 0).length === 0 && (
-                                                    <div className="text-xs text-slate-500">Пусто</div>
+                                                    <div className="py-8 text-center text-xs text-slate-500 italic bg-white/5 rounded-2xl border border-dashed border-white/10">
+                                                        На общем складе пока пусто
+                                                    </div>
                                                 )}
                                             </div>
                                         </div>
-                                    </div>
+                                    </motion.div>
                                 )}
 
+                                {activeTab === 'camp' && camp && (
+                                    <motion.div
+                                        initial={{ opacity: 0, x: -10 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        className="space-y-6"
+                                    >
+                                        {/* Camp Status Grid */}
+                                        <div className="grid grid-cols-3 gap-3">
+                                            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 flex flex-col items-center gap-2">
+                                                <Shield className="text-cyan-400" size={20} />
+                                                <span className="text-[10px] uppercase tracking-widest text-slate-500">Защита</span>
+                                                <span className="text-xl font-mono font-bold text-white">{Number(camp.security ?? 0)}</span>
+                                            </div>
+                                            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 flex flex-col items-center gap-2">
+                                                <Users className="text-amber-400" size={20} />
+                                                <span className="text-[10px] uppercase tracking-widest text-slate-500">Люди</span>
+                                                <span className="text-xl font-mono font-bold text-white">{Number(camp.operatives ?? 0)}</span>
+                                            </div>
+                                            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 flex flex-col items-center gap-2">
+                                                <div className="w-5 h-5 rounded-full bg-cyan-500/20 border border-cyan-500/50 flex items-center justify-center text-[10px] font-bold text-cyan-400">R</div>
+                                                <span className="text-[10px] uppercase tracking-widest text-slate-500">{expedition ? 'RP' : 'Scrap'}</span>
+                                                <span className="text-xl font-mono font-bold text-white">
+                                                    {expedition ? Number(expedition.researchPoints ?? 0) : Number((camp as any)?.inventory?.scrap ?? 0)}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {/* Actions */}
+                                        <div className="space-y-4">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-1 h-4 bg-emerald-500 rounded-full" />
+                                                <h4 className="text-sm font-cinzel font-bold tracking-widest uppercase text-white">Управление ресурсами</h4>
+                                            </div>
+                                            <div className="p-5 rounded-2xl bg-white/5 border border-white/10 space-y-4">
+                                                <div className="flex items-start gap-4">
+                                                    <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                                                        <Users size={18} />
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <div className="text-xs font-bold text-white mb-1">Вызов подкрепления</div>
+                                                        <p className="text-[10px] text-slate-500 leading-relaxed mb-3">Увеличивает количество оперативников в лагере, что критически важно для защиты и разведки.</p>
+                                                        <button
+                                                            onClick={() => callReinforcements(1).catch(() => { })}
+                                                            className="px-4 py-2 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-400 text-xs font-bold transition-all"
+                                                        >
+                                                            Запросить команду (-25 {expedition ? 'RP' : 'scrap'})
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Shop Section */}
+                                        {campShop?.stock?.length > 0 && (
+                                            <div className="space-y-4">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-1 h-4 bg-purple-500 rounded-full" />
+                                                    <h4 className="text-sm font-cinzel font-bold tracking-widest uppercase text-white">Снабжение лагеря</h4>
+                                                </div>
+                                                <div className="p-5 rounded-2xl bg-white/5 border border-white/10 space-y-5">
+                                                    <div className="flex flex-col gap-3">
+                                                        <label className="text-[10px] uppercase tracking-widest text-slate-500 flex items-center gap-2">
+                                                            <ShoppingCart size={12} />
+                                                            <span>Доступные товары</span>
+                                                        </label>
+                                                        <div className="grid grid-cols-1 gap-2">
+                                                            {campShop.stock.map((it: any) => (
+                                                                <button
+                                                                    key={it.templateId}
+                                                                    onClick={() => setShopSelectedTemplateId(it.templateId)}
+                                                                    className={cn(
+                                                                        "flex items-center justify-between p-3 rounded-xl border transition-all text-left",
+                                                                        shopSelectedTemplateId === it.templateId
+                                                                            ? "bg-purple-500/20 border-purple-500/40"
+                                                                            : "bg-black/20 border-white/10 hover:border-white/20"
+                                                                    )}
+                                                                >
+                                                                    <div className="flex items-center gap-3">
+                                                                        <span className="text-xl">{(ITEM_TEMPLATES as any)[it.templateId]?.icon || "📦"}</span>
+                                                                        <div>
+                                                                            <div className="text-xs font-bold text-slate-200">
+                                                                                {(ITEM_TEMPLATES as any)[it.templateId]?.name ?? it.name ?? it.templateId}
+                                                                            </div>
+                                                                            <div className="text-[10px] text-slate-500">
+                                                                                {(ITEM_TEMPLATES as any)[it.templateId]?.kind || "Предмет"}
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-black/40 border border-white/10">
+                                                                        <span className="text-[10px] font-mono font-bold text-white">{it.price}</span>
+                                                                        <span className="text-[9px] text-slate-500 uppercase">{expedition ? 'RP' : 'SCR'}</span>
+                                                                    </div>
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => buyCampItem(shopSelectedTemplateId, 1).catch(() => { })}
+                                                        disabled={!shopSelectedTemplateId}
+                                                        className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/40 text-purple-400 text-xs font-bold transition-all disabled:opacity-30 disabled:grayscale disabled:cursor-not-allowed"
+                                                    >
+                                                        <ShoppingCart size={14} />
+                                                        <span>Подтвердить закупку</span>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </motion.div>
+                                )}
+                            </div>
+
+                            {/* Footer */}
+                            <div className="px-6 py-4 border-t border-white/5 bg-black/40 flex justify-end">
                                 <button
-                                    type="button"
-                                    className="w-full px-4 py-3 rounded-xl border border-white/10 bg-black/20 hover:bg-black/30 text-left text-sm text-slate-200 transition"
                                     onClick={() => setMenuOpen(false)}
+                                    className="px-6 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-cinzel font-bold tracking-widest uppercase text-slate-300 transition-all"
                                 >
-                                    Закрыть
+                                    Вернуться в игру
                                 </button>
                             </div>
                         </motion.div>
                     </motion.div>
                 )}
             </AnimatePresence>
-        </div>
+        </motion.div>
     );
 };

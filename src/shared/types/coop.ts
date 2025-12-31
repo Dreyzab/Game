@@ -51,7 +51,7 @@ export const COOP_ROLES: Record<CoopRoleId, CoopRoleDefinition> = {
   },
 }
 
-export type CoopQuestNodeInteraction = 'vote' | 'individual' | 'sync' | 'contribute'
+export type CoopQuestNodeInteraction = 'vote' | 'individual' | 'sync' | 'contribute' | 'sequential_broadcast'
 
 export type CoopQuestChoiceAction =
   | 'start_side_quest'
@@ -73,6 +73,9 @@ export interface CoopCampState {
   security: number
   operatives: number
   inventory: Record<string, number>
+  baseLevel?: number
+  upgrades?: Record<string, number>// upgradeId -> level
+  credits?: number // "Camp Credits" derived from contributions
 }
 
 export interface CoopQuestChoice {
@@ -98,6 +101,8 @@ export interface CoopQuestChoice {
   consumableCost?: { templateId: string; amount: number }
   /** Optional flat bonus when consuming the above cost. */
   itemBonus?: number
+  /** Optional items received upon choosing/winning this choice. */
+  itemRewards?: Array<{ templateId: string; quantity: number }>
 
   /** Optional score modifier deltas to apply on resolve (multipliers; see `tag:*` convention). */
   applyScoreModifiers?: Record<string, number>
@@ -135,6 +140,9 @@ export interface CoopQuestChoice {
     victoryNextNodeId?: string
     defeatNextNodeId?: string
   }
+
+  /** If true, effectText will be shown to ALL players in sequential_broadcast mode. */
+  broadcastEffect?: boolean
 }
 
 export interface CoopQuestNode {
@@ -166,4 +174,29 @@ export interface CoopQuestState {
   score?: { current: number; target: number; history: number[] }
   /** Optional active score modifiers (multipliers; see `tag:*` convention). */
   modifiers?: Record<string, number>
+}
+
+/**
+ * State for sequential_broadcast interaction mode.
+ * Tracks which player is currently choosing and history of reactions.
+ */
+export interface SequentialBroadcastState {
+  /** Current player who should make a choice (null = waiting for first arrival) */
+  activePlayerId: number | null
+  /** Players who have already made their choice */
+  completedPlayerIds: number[]
+  /** Order of players (first = first to arrive, rest = random) */
+  playerOrder: number[]
+  /** History of reactions shown to all players */
+  reactions: Array<{
+    playerId: number
+    playerName: string
+    playerRole: string | null
+    choiceId: string
+    choiceText: string
+    effectText: string
+    timestamp: number
+  }>
+  /** Currently showing reaction (for animation sync) */
+  showingReactionIndex: number | null
 }
