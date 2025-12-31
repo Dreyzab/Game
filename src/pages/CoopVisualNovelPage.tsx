@@ -109,42 +109,26 @@ export const CoopVisualNovelPage: React.FC = () => {
     const [localNode, setLocalNode] = useState<any>(questNode ?? FALLBACK_NODE);
     const nodeCache = useRef<Map<string, any>>(new Map([[sceneId, questNode]]));
     const localNodeIdRef = useRef<string>(localNodeId);
-    const prevSceneIdRef = useRef<string>(sceneId);
     useEffect(() => {
         localNodeIdRef.current = localNodeId;
     }, [localNodeId]);
 
     useEffect(() => {
         if (!sceneId) return;
-        const prevSceneId = prevSceneIdRef.current;
-        const sceneChanged = prevSceneId !== sceneId;
-        const isOnSharedCheckpoint = localNodeIdRef.current === sceneId;
-
-        // Always refresh cache for the shared scene node (room.questNode == room.sceneId).
+        // #region agent log (debug)
+        agentLog('H1', 'src/pages/CoopVisualNovelPage.tsx:scene-sync', 'sync local node to room sceneId/questNode', {
+            roomCode: room?.code ?? null,
+            prevLocalNodeId: localNodeIdRef.current ?? null,
+            sceneId,
+            questNodeId: (questNode as any)?.id ?? null,
+            participants: Array.isArray(participants) ? participants.length : null,
+            controlledPlayerId: controlledPlayerId ?? null,
+            controlledRole: controlledRole ?? null,
+        });
+        // #endregion
+        setLocalNodeId(sceneId);
+        setLocalNode(questNode);
         nodeCache.current.set(sceneId, questNode);
-
-        // Only force-sync local cursor when the shared sceneId actually changes.
-        // Otherwise, updating `questNode` (due to room refresh) must NOT reset a player reading ahead on an individual node.
-        if (sceneChanged) {
-            // #region agent log (debug)
-            agentLog('H1', 'src/pages/CoopVisualNovelPage.tsx:scene-sync', 'sync local node to room sceneId/questNode', {
-                roomCode: room?.code ?? null,
-                prevLocalNodeId: localNodeIdRef.current ?? null,
-                sceneId,
-                questNodeId: (questNode as any)?.id ?? null,
-                participants: Array.isArray(participants) ? participants.length : null,
-                controlledPlayerId: controlledPlayerId ?? null,
-                controlledRole: controlledRole ?? null,
-            });
-            // #endregion
-            setLocalNodeId(sceneId);
-            setLocalNode(questNode);
-        } else if (isOnSharedCheckpoint) {
-            // Shared checkpoint got refreshed (e.g. votes updated) — update displayed node content, but keep cursor.
-            setLocalNode(questNode);
-        }
-
-        prevSceneIdRef.current = sceneId;
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [sceneId, questNode]);
 
@@ -218,34 +202,7 @@ export const CoopVisualNovelPage: React.FC = () => {
 
     const backgroundUrl = localNode.background ?? '/images/backgrounds/default_dark.jpg';
 
-    // Dynamic background pan based on image aspect ratio (portrait mode only)
-    const [bgPanClass, setBgPanClass] = useState<string>('vn-bg-pan');
 
-    useEffect(() => {
-        if (!backgroundUrl) {
-            setBgPanClass('vn-bg-pan');
-            return;
-        }
-
-        const img = new Image();
-        img.onload = () => {
-            const ratio = img.width / img.height;
-            // Determine pan class based on aspect ratio
-            if (ratio < 1.5) {
-                setBgPanClass('vn-bg-pan-narrow');
-            } else if (ratio < 2.0) {
-                setBgPanClass('vn-bg-pan-normal');
-            } else if (ratio < 2.5) {
-                setBgPanClass('vn-bg-pan-wide');
-            } else {
-                setBgPanClass('vn-bg-pan-ultrawide');
-            }
-        };
-        img.onerror = () => {
-            setBgPanClass('vn-bg-pan');
-        };
-        img.src = backgroundUrl;
-    }, [backgroundUrl]);
 
     const narrativeChunks = useMemo(() => {
         const chunks: string[] = [];
@@ -557,9 +514,19 @@ export const CoopVisualNovelPage: React.FC = () => {
         <div className="vn-chronicles relative w-screen h-screen overflow-hidden bg-[#020617]">
             {/* Background */}
             <div className="absolute inset-0 overflow-hidden">
-                <div
-                    className={`absolute inset-[-8%] bg-cover ${bgPanClass}`}
-                    style={{ backgroundImage: `url(${backgroundUrl})`, backgroundPosition: 'center center' }}
+                <motion.div
+                    className="absolute inset-0 bg-cover"
+                    style={{ backgroundImage: `url(${backgroundUrl})` }}
+                    initial={{ backgroundPosition: '20% 50%' }}
+                    animate={{
+                        backgroundPosition: ['0% 50%', '100% 50%'],
+                    }}
+                    transition={{
+                        duration: 60,
+                        ease: 'linear',
+                        repeat: Infinity,
+                        repeatType: 'reverse',
+                    }}
                 />
             </div>
 
