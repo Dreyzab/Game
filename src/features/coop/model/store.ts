@@ -47,6 +47,31 @@ export interface CoopExpeditionState {
     };
 }
 
+export interface CoopEncounterState {
+    id: string;
+    startedAt: number;
+    status: 'active' | 'resolved';
+    sceneId: string;
+    choiceId: string;
+    scenarioId?: string;
+    threatLevel: number;
+    returnNodeId: string;
+    defeatNodeId?: string;
+    rewardRp?: number;
+    players: Array<{
+        playerId: number;
+        role: string | null;
+        hp: number;
+        maxHp: number;
+        morale: number;
+        maxMorale: number;
+        stamina: number;
+        maxStamina: number;
+        traits: string[];
+    }>;
+    result?: { outcome: 'victory' | 'defeat'; resolvedAt: number };
+}
+
 export interface CoopRoomState {
     code: string;
     status: string;
@@ -55,6 +80,7 @@ export interface CoopRoomState {
     questNode: CoopQuestNode | null;
     camp?: CoopCampState | null;
     expedition?: CoopExpeditionState | null;
+    encounter?: CoopEncounterState | null;
     questScore?: CoopQuestScoreState | null;
     participants: CoopParticipant[];
     votes: any[]; // refine if needed
@@ -76,6 +102,10 @@ interface CoopStore {
     setReady: (ready: boolean) => Promise<void>;
     startGame: () => Promise<void>;
     castVote: (choiceId: string, asPlayerId?: number, nodeId?: string) => Promise<void>;
+    resolveBattle: (payload: {
+        result: 'victory' | 'defeat';
+        players: Array<{ playerId: number; hp: number; morale?: number; stamina?: number }>;
+    }) => Promise<void>;
     callReinforcements: (count?: number) => Promise<void>;
     buyCampItem: (templateId: string, quantity?: number) => Promise<void>;
     withdrawCampItem: (templateId: string, quantity?: number) => Promise<void>;
@@ -265,6 +295,25 @@ export const useCoopStore = create<CoopStore>((set, get) => ({
             const nextRoom = payload.room as any;
             setLastCoopRoomCode(String(nextRoom.code ?? room.code));
             set({ room: nextRoom });
+        }
+    },
+
+    resolveBattle: async (payload) => {
+        const { room } = get();
+        if (!room) return;
+        // @ts-expect-error - dynamic route access issue
+        const { data, error } = await authenticatedClient().coop.rooms[room.code].battle.resolve.post(payload);
+        if (error) {
+            set({ error: (error as any)?.value ? String((error as any).value) : 'Unknown error' });
+            return;
+        }
+        const response = data as any;
+        if (typeof response?.error === 'string' && response.error) {
+            set({ error: response.error });
+            return;
+        }
+        if (response?.room) {
+            set({ room: response.room as any });
         }
     },
 

@@ -4,6 +4,7 @@ import { useCoopStore, CoopLobby } from '@/features/coop'
 import { LoadingSpinner } from '@/shared/ui/components/LoadingSpinner'
 import { useMyPlayer } from '@/shared/hooks/useMyPlayer'
 import { CoopVisualNovelPage } from '@/pages/CoopVisualNovelPage'
+import CoopBattlePage from '@/pages/CoopBattlePage'
 
 const CoopPage: React.FC = () => {
   const { roomCode } = useParams<{ roomCode?: string }>()
@@ -33,6 +34,9 @@ const CoopPage: React.FC = () => {
   }
 
   if (room?.status === 'active') {
+    if (room?.encounter && room.encounter.status === 'active') {
+      return <CoopBattlePage />
+    }
     return <CoopVisualNovelPage />
   }
 

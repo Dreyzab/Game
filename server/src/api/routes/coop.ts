@@ -115,6 +115,34 @@ export const coopRoutes = (app: Elysia) =>
                     })
                 })
 
+                .post("/rooms/:code/battle/resolve", async ({ user, params, body }) => {
+                    if (!user) return { error: "Unauthorized", status: 401 };
+                    const playerId = await getPlayerId(user as any);
+                    if (!playerId) return { error: "Player profile not found", status: 404 };
+
+                    try {
+                        const room = await coopService.resolveCoopBattle({
+                            code: params.code,
+                            playerId,
+                            result: (body as any).result,
+                            players: (body as any).players,
+                        });
+                        return { room };
+                    } catch (e: any) {
+                        return { error: e.message, status: 400 };
+                    }
+                }, {
+                    body: t.Object({
+                        result: t.Union([t.Literal('victory'), t.Literal('defeat')]),
+                        players: t.Array(t.Object({
+                            playerId: t.Number(),
+                            hp: t.Number(),
+                            morale: t.Optional(t.Number()),
+                            stamina: t.Optional(t.Number()),
+                        })),
+                    })
+                })
+
                 .post("/rooms/:code/reach", async ({ user, params, body }) => {
                     if (!user) return { error: "Unauthorized", status: 401 };
                     const playerId = await getPlayerId(user as any);

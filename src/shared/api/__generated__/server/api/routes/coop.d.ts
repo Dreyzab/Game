@@ -1,4 +1,5 @@
 import { Elysia } from "elysia";
+import type { CoopRoleId } from "../../shared/types/coop";
 export declare const coopRoutes: (app: Elysia) => Elysia<"", {
     decorator: {};
     store: {};
@@ -84,6 +85,33 @@ export declare const coopRoutes: (app: Elysia) => Elysia<"", {
                                     }>;
                                     targetPlayerId?: number;
                                     actorPlayerId?: number;
+                                };
+                            } | null;
+                            encounter: {
+                                id: string;
+                                startedAt: number;
+                                status: "active" | "resolved";
+                                sceneId: string;
+                                choiceId: string;
+                                scenarioId?: string;
+                                threatLevel: number;
+                                returnNodeId: string;
+                                defeatNodeId?: string;
+                                rewardRp?: number;
+                                players: {
+                                    playerId: number;
+                                    role: CoopRoleId | null;
+                                    hp: number;
+                                    maxHp: number;
+                                    morale: number;
+                                    maxMorale: number;
+                                    stamina: number;
+                                    maxStamina: number;
+                                    traits: string[];
+                                }[];
+                                result?: {
+                                    outcome: "victory" | "defeat";
+                                    resolvedAt: number;
                                 };
                             } | null;
                             questScore: {
@@ -203,6 +231,33 @@ export declare const coopRoutes: (app: Elysia) => Elysia<"", {
                                         actorPlayerId?: number;
                                     };
                                 } | null;
+                                encounter: {
+                                    id: string;
+                                    startedAt: number;
+                                    status: "active" | "resolved";
+                                    sceneId: string;
+                                    choiceId: string;
+                                    scenarioId?: string;
+                                    threatLevel: number;
+                                    returnNodeId: string;
+                                    defeatNodeId?: string;
+                                    rewardRp?: number;
+                                    players: {
+                                        playerId: number;
+                                        role: CoopRoleId | null;
+                                        hp: number;
+                                        maxHp: number;
+                                        morale: number;
+                                        maxMorale: number;
+                                        stamina: number;
+                                        maxStamina: number;
+                                        traits: string[];
+                                    }[];
+                                    result?: {
+                                        outcome: "victory" | "defeat";
+                                        resolvedAt: number;
+                                    };
+                                } | null;
                                 questScore: {
                                     questId: string;
                                     current: number;
@@ -318,6 +373,33 @@ export declare const coopRoutes: (app: Elysia) => Elysia<"", {
                                             }>;
                                             targetPlayerId?: number;
                                             actorPlayerId?: number;
+                                        };
+                                    } | null;
+                                    encounter: {
+                                        id: string;
+                                        startedAt: number;
+                                        status: "active" | "resolved";
+                                        sceneId: string;
+                                        choiceId: string;
+                                        scenarioId?: string;
+                                        threatLevel: number;
+                                        returnNodeId: string;
+                                        defeatNodeId?: string;
+                                        rewardRp?: number;
+                                        players: {
+                                            playerId: number;
+                                            role: CoopRoleId | null;
+                                            hp: number;
+                                            maxHp: number;
+                                            morale: number;
+                                            maxMorale: number;
+                                            stamina: number;
+                                            maxStamina: number;
+                                            traits: string[];
+                                        }[];
+                                        result?: {
+                                            outcome: "victory" | "defeat";
+                                            resolvedAt: number;
                                         };
                                     } | null;
                                     questScore: {
@@ -444,6 +526,33 @@ export declare const coopRoutes: (app: Elysia) => Elysia<"", {
                                             actorPlayerId?: number;
                                         };
                                     } | null;
+                                    encounter: {
+                                        id: string;
+                                        startedAt: number;
+                                        status: "active" | "resolved";
+                                        sceneId: string;
+                                        choiceId: string;
+                                        scenarioId?: string;
+                                        threatLevel: number;
+                                        returnNodeId: string;
+                                        defeatNodeId?: string;
+                                        rewardRp?: number;
+                                        players: {
+                                            playerId: number;
+                                            role: CoopRoleId | null;
+                                            hp: number;
+                                            maxHp: number;
+                                            morale: number;
+                                            maxMorale: number;
+                                            stamina: number;
+                                            maxStamina: number;
+                                            traits: string[];
+                                        }[];
+                                        result?: {
+                                            outcome: "victory" | "defeat";
+                                            resolvedAt: number;
+                                        };
+                                    } | null;
                                     questScore: {
                                         questId: string;
                                         current: number;
@@ -566,6 +675,33 @@ export declare const coopRoutes: (app: Elysia) => Elysia<"", {
                                             actorPlayerId?: number;
                                         };
                                     } | null;
+                                    encounter: {
+                                        id: string;
+                                        startedAt: number;
+                                        status: "active" | "resolved";
+                                        sceneId: string;
+                                        choiceId: string;
+                                        scenarioId?: string;
+                                        threatLevel: number;
+                                        returnNodeId: string;
+                                        defeatNodeId?: string;
+                                        rewardRp?: number;
+                                        players: {
+                                            playerId: number;
+                                            role: CoopRoleId | null;
+                                            hp: number;
+                                            maxHp: number;
+                                            morale: number;
+                                            maxMorale: number;
+                                            stamina: number;
+                                            maxStamina: number;
+                                            traits: string[];
+                                        }[];
+                                        result?: {
+                                            outcome: "victory" | "defeat";
+                                            resolvedAt: number;
+                                        };
+                                    } | null;
                                     questScore: {
                                         questId: string;
                                         current: number;
@@ -680,6 +816,33 @@ export declare const coopRoutes: (app: Elysia) => Elysia<"", {
                                             }>;
                                             targetPlayerId?: number;
                                             actorPlayerId?: number;
+                                        };
+                                    } | null;
+                                    encounter: {
+                                        id: string;
+                                        startedAt: number;
+                                        status: "active" | "resolved";
+                                        sceneId: string;
+                                        choiceId: string;
+                                        scenarioId?: string;
+                                        threatLevel: number;
+                                        returnNodeId: string;
+                                        defeatNodeId?: string;
+                                        rewardRp?: number;
+                                        players: {
+                                            playerId: number;
+                                            role: CoopRoleId | null;
+                                            hp: number;
+                                            maxHp: number;
+                                            morale: number;
+                                            maxMorale: number;
+                                            stamina: number;
+                                            maxStamina: number;
+                                            traits: string[];
+                                        }[];
+                                        result?: {
+                                            outcome: "victory" | "defeat";
+                                            resolvedAt: number;
                                         };
                                     } | null;
                                     questScore: {
@@ -806,6 +969,33 @@ export declare const coopRoutes: (app: Elysia) => Elysia<"", {
                                             actorPlayerId?: number;
                                         };
                                     } | null;
+                                    encounter: {
+                                        id: string;
+                                        startedAt: number;
+                                        status: "active" | "resolved";
+                                        sceneId: string;
+                                        choiceId: string;
+                                        scenarioId?: string;
+                                        threatLevel: number;
+                                        returnNodeId: string;
+                                        defeatNodeId?: string;
+                                        rewardRp?: number;
+                                        players: {
+                                            playerId: number;
+                                            role: CoopRoleId | null;
+                                            hp: number;
+                                            maxHp: number;
+                                            morale: number;
+                                            maxMorale: number;
+                                            stamina: number;
+                                            maxStamina: number;
+                                            traits: string[];
+                                        }[];
+                                        result?: {
+                                            outcome: "victory" | "defeat";
+                                            resolvedAt: number;
+                                        };
+                                    } | null;
                                     questScore: {
                                         questId: string;
                                         current: number;
@@ -849,6 +1039,163 @@ export declare const coopRoutes: (app: Elysia) => Elysia<"", {
                                 found?: unknown;
                                 property?: string;
                                 expected?: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+    };
+} & {
+    coop: {
+        rooms: {
+            ":code": {
+                battle: {
+                    resolve: {
+                        post: {
+                            body: {
+                                players: {
+                                    morale?: number | undefined;
+                                    stamina?: number | undefined;
+                                    playerId: number;
+                                    hp: number;
+                                }[];
+                                result: "victory" | "defeat";
+                            };
+                            params: {
+                                code: string;
+                            } & {};
+                            query: unknown;
+                            headers: unknown;
+                            response: {
+                                200: {
+                                    room: {
+                                        code: string;
+                                        status: string | null;
+                                        hostId: number;
+                                        sceneId: string | null;
+                                        questNode: import("../../shared/types/coop").CoopQuestNode | null;
+                                        camp: {
+                                            security: number;
+                                            operatives: number;
+                                            inventory: Record<string, number>;
+                                        } | null;
+                                        expedition: {
+                                            turnCount: number;
+                                            maxTurns: number;
+                                            researchPoints: number;
+                                            waveNodeId?: string;
+                                            wavePending?: boolean;
+                                            deadlineEvents?: import("../../shared/types/coop").CoopExpeditionDeadlineEvent[];
+                                            pendingNodeId?: string;
+                                            pendingKind?: import("../../shared/types/coop").CoopExpeditionDeadlineEventKind;
+                                            poolId?: string;
+                                            stageIndex?: number;
+                                            stageId?: string;
+                                            hubNodeId?: string;
+                                            missions?: Record<string, {
+                                                kind: "sidequest" | "node";
+                                                title: string;
+                                                timeCost: number;
+                                                threatLevel: number;
+                                                modifierId: string;
+                                                modifierLabel: string;
+                                                isUnique?: boolean;
+                                                questId?: string;
+                                                entryNodeId?: string;
+                                                nodeId?: string;
+                                                scoreModifiers?: Record<string, number>;
+                                                applyStatuses?: Record<string, number>;
+                                            }>;
+                                            playerTraits?: Record<string, string[]>;
+                                            injury?: {
+                                                targetPlayerId: number;
+                                                needsTreatment: boolean;
+                                            };
+                                            lastEvent?: {
+                                                id: string;
+                                                at: number;
+                                                success: boolean;
+                                                summary: string;
+                                                perPlayer: Record<string, {
+                                                    pass: boolean;
+                                                    traitsAdded: string[];
+                                                }>;
+                                                targetPlayerId?: number;
+                                                actorPlayerId?: number;
+                                            };
+                                        } | null;
+                                        encounter: {
+                                            id: string;
+                                            startedAt: number;
+                                            status: "active" | "resolved";
+                                            sceneId: string;
+                                            choiceId: string;
+                                            scenarioId?: string;
+                                            threatLevel: number;
+                                            returnNodeId: string;
+                                            defeatNodeId?: string;
+                                            rewardRp?: number;
+                                            players: {
+                                                playerId: number;
+                                                role: CoopRoleId | null;
+                                                hp: number;
+                                                maxHp: number;
+                                                morale: number;
+                                                maxMorale: number;
+                                                stamina: number;
+                                                maxStamina: number;
+                                                traits: string[];
+                                            }[];
+                                            result?: {
+                                                outcome: "victory" | "defeat";
+                                                resolvedAt: number;
+                                            };
+                                        } | null;
+                                        questScore: {
+                                            questId: string;
+                                            current: number;
+                                            target: number;
+                                            history: number[];
+                                            modifiers: Record<string, number>;
+                                            playerModifiers: Record<string, Record<string, number>>;
+                                            statuses: Record<string, number>;
+                                            playerStatuses: Record<string, Record<string, number>>;
+                                            stages: number;
+                                            lastStageTotal: number;
+                                            lastStageByPlayer: Record<string, number>;
+                                        } | null;
+                                        participants: {
+                                            id: number;
+                                            name: string;
+                                            role: string | null;
+                                            ready: boolean | null;
+                                        }[];
+                                        votes: {
+                                            id: number;
+                                            createdAt: number;
+                                            sessionId: number;
+                                            sceneId: string;
+                                            choiceId: string;
+                                            voterId: number;
+                                        }[];
+                                    } | null;
+                                    error?: undefined;
+                                    status?: undefined;
+                                } | {
+                                    error: any;
+                                    status: number;
+                                    room?: undefined;
+                                };
+                                422: {
+                                    type: "validation";
+                                    on: string;
+                                    summary?: string;
+                                    message?: string;
+                                    found?: unknown;
+                                    property?: string;
+                                    expected?: string;
+                                };
                             };
                         };
                     };
@@ -926,6 +1273,33 @@ export declare const coopRoutes: (app: Elysia) => Elysia<"", {
                                             }>;
                                             targetPlayerId?: number;
                                             actorPlayerId?: number;
+                                        };
+                                    } | null;
+                                    encounter: {
+                                        id: string;
+                                        startedAt: number;
+                                        status: "active" | "resolved";
+                                        sceneId: string;
+                                        choiceId: string;
+                                        scenarioId?: string;
+                                        threatLevel: number;
+                                        returnNodeId: string;
+                                        defeatNodeId?: string;
+                                        rewardRp?: number;
+                                        players: {
+                                            playerId: number;
+                                            role: CoopRoleId | null;
+                                            hp: number;
+                                            maxHp: number;
+                                            morale: number;
+                                            maxMorale: number;
+                                            stamina: number;
+                                            maxStamina: number;
+                                            traits: string[];
+                                        }[];
+                                        result?: {
+                                            outcome: "victory" | "defeat";
+                                            resolvedAt: number;
                                         };
                                     } | null;
                                     questScore: {
@@ -1089,6 +1463,33 @@ export declare const coopRoutes: (app: Elysia) => Elysia<"", {
                                             actorPlayerId?: number;
                                         };
                                     } | null;
+                                    encounter: {
+                                        id: string;
+                                        startedAt: number;
+                                        status: "active" | "resolved";
+                                        sceneId: string;
+                                        choiceId: string;
+                                        scenarioId?: string;
+                                        threatLevel: number;
+                                        returnNodeId: string;
+                                        defeatNodeId?: string;
+                                        rewardRp?: number;
+                                        players: {
+                                            playerId: number;
+                                            role: CoopRoleId | null;
+                                            hp: number;
+                                            maxHp: number;
+                                            morale: number;
+                                            maxMorale: number;
+                                            stamina: number;
+                                            maxStamina: number;
+                                            traits: string[];
+                                        }[];
+                                        result?: {
+                                            outcome: "victory" | "defeat";
+                                            resolvedAt: number;
+                                        };
+                                    } | null;
                                     questScore: {
                                         questId: string;
                                         current: number;
@@ -1204,6 +1605,33 @@ export declare const coopRoutes: (app: Elysia) => Elysia<"", {
                                                 }>;
                                                 targetPlayerId?: number;
                                                 actorPlayerId?: number;
+                                            };
+                                        } | null;
+                                        encounter: {
+                                            id: string;
+                                            startedAt: number;
+                                            status: "active" | "resolved";
+                                            sceneId: string;
+                                            choiceId: string;
+                                            scenarioId?: string;
+                                            threatLevel: number;
+                                            returnNodeId: string;
+                                            defeatNodeId?: string;
+                                            rewardRp?: number;
+                                            players: {
+                                                playerId: number;
+                                                role: CoopRoleId | null;
+                                                hp: number;
+                                                maxHp: number;
+                                                morale: number;
+                                                maxMorale: number;
+                                                stamina: number;
+                                                maxStamina: number;
+                                                traits: string[];
+                                            }[];
+                                            result?: {
+                                                outcome: "victory" | "defeat";
+                                                resolvedAt: number;
                                             };
                                         } | null;
                                         questScore: {

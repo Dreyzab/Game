@@ -2514,12 +2514,16 @@ Valkyrie (Medic) has the best odds.
         choices: [
             {
                 id: 'wave_hold',
+                action: 'start_coop_battle',
+                battle: { scenarioId: 'scorpion_nest', threatDelta: 0 },
                 text: 'Удерживать позиции',
                 reward: { rp: 5 },
                 nextNodeId: 'rift_clearing_hub',
             },
             {
                 id: 'wave_fallback',
+                action: 'start_coop_battle',
+                battle: { scenarioId: 'scorpion_nest', threatDelta: -1 },
                 text: 'Отступить к укрытиям',
                 nextNodeId: 'rift_clearing_hub',
             },

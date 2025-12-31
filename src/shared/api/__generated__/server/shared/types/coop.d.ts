@@ -11,7 +11,7 @@ export interface CoopRoleDefinition {
 }
 export declare const COOP_ROLES: Record<CoopRoleId, CoopRoleDefinition>;
 export type CoopQuestNodeInteraction = 'vote' | 'individual' | 'sync' | 'contribute';
-export type CoopQuestChoiceAction = 'start_side_quest' | 'return' | 'start_expedition' | 'resolve_expedition_event' | 'advance_expedition_stage';
+export type CoopQuestChoiceAction = 'start_side_quest' | 'return' | 'start_expedition' | 'resolve_expedition_event' | 'advance_expedition_stage' | 'start_coop_battle';
 export type CoopExpeditionDeadlineEventKind = 'enemy' | 'check';
 export interface CoopExpeditionDeadlineEvent {
     nodeId: string;
@@ -78,6 +78,16 @@ export interface CoopQuestChoice {
         actorRole?: CoopRoleId;
         successNextNodeId?: string;
         failureNextNodeId?: string;
+    };
+    /** Optional battle payload (used by `action: 'start_coop_battle'`). */
+    battle?: {
+        /** Optional scenario hint for the client battle UI. */
+        scenarioId?: string;
+        /** Optional threat adjustment (e.g. fallback = -1). */
+        threatDelta?: number;
+        /** Optional override nodes to return to after the battle. */
+        victoryNextNodeId?: string;
+        defeatNextNodeId?: string;
     };
 }
 export interface CoopQuestNode {

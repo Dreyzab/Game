@@ -36,10 +36,18 @@ const resolveBaseUrl = (): string => {
   const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1'
 
   // 3. Development / LAN Mode
+  // If we are in development and accessing via an IP address (LAN),
+  // but the environment variable points to localhost, we should use the current hostname instead.
+  if (import.meta.env.DEV && !isLocalhost && envUrl && (envUrl.includes('localhost') || envUrl.includes('127.0.0.1'))) {
+    const dynamicUrl = envUrl.replace('localhost', hostname).replace('127.0.0.1', hostname)
+    console.log(`[API] LAN Mode: Redirecting localhost API to ${dynamicUrl}`)
+    return dynamicUrl
+  }
+
   if (!envUrl) {
     if (isLocalhost) return 'http://localhost:3000'
-    console.error('[API] VITE_API_URL missing on remote host. API calls will likely fail.')
-    return ''
+    // Fallback for LAN IP if VITE_API_URL is missing
+    return `http://${hostname}:3000`
   }
 
   return envUrl

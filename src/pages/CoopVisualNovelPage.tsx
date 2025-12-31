@@ -79,6 +79,27 @@ export const CoopVisualNovelPage: React.FC = () => {
 
     const controlledRole = (controlledParticipant?.role ?? undefined) as CoopRoleId | undefined;
 
+    const agentLog = (hypothesisId: string, location: string, message: string, data: Record<string, unknown>) => {
+        const payload = {
+            sessionId: 'debug-session',
+            runId: 'pre-fix',
+            hypothesisId,
+            location,
+            message,
+            data,
+            timestamp: Date.now(),
+        };
+        // Online-safe: always log to browser console; ingest may be unreachable in prod.
+        console.debug('[agent-debug]', payload);
+        fetch('http://127.0.0.1:7243/ingest/8d2cfb91-eb32-456b-9d58-3c64b19222af', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        }).catch((err) => {
+            console.debug('[agent-debug][ingest-failed]', { location, message: String((err as any)?.message ?? err) });
+        });
+    };
+
     const isCheckpointNode = (node: any) =>
         node?.interactionType === 'vote' ||
         node?.interactionType === 'contribute' ||
@@ -87,12 +108,44 @@ export const CoopVisualNovelPage: React.FC = () => {
     const [localNodeId, setLocalNodeId] = useState<string>(sceneId);
     const [localNode, setLocalNode] = useState<any>(questNode ?? FALLBACK_NODE);
     const nodeCache = useRef<Map<string, any>>(new Map([[sceneId, questNode]]));
+    const localNodeIdRef = useRef<string>(localNodeId);
+    const prevSceneIdRef = useRef<string>(sceneId);
+    useEffect(() => {
+        localNodeIdRef.current = localNodeId;
+    }, [localNodeId]);
 
     useEffect(() => {
         if (!sceneId) return;
-        setLocalNodeId(sceneId);
-        setLocalNode(questNode);
+        const prevSceneId = prevSceneIdRef.current;
+        const sceneChanged = prevSceneId !== sceneId;
+        const isOnSharedCheckpoint = localNodeIdRef.current === sceneId;
+
+        // Always refresh cache for the shared scene node (room.questNode == room.sceneId).
         nodeCache.current.set(sceneId, questNode);
+
+        // Only force-sync local cursor when the shared sceneId actually changes.
+        // Otherwise, updating `questNode` (due to room refresh) must NOT reset a player reading ahead on an individual node.
+        if (sceneChanged) {
+            // #region agent log (debug)
+            agentLog('H1', 'src/pages/CoopVisualNovelPage.tsx:scene-sync', 'sync local node to room sceneId/questNode', {
+                roomCode: room?.code ?? null,
+                prevLocalNodeId: localNodeIdRef.current ?? null,
+                sceneId,
+                questNodeId: (questNode as any)?.id ?? null,
+                participants: Array.isArray(participants) ? participants.length : null,
+                controlledPlayerId: controlledPlayerId ?? null,
+                controlledRole: controlledRole ?? null,
+            });
+            // #endregion
+            setLocalNodeId(sceneId);
+            setLocalNode(questNode);
+        } else if (isOnSharedCheckpoint) {
+            // Shared checkpoint got refreshed (e.g. votes updated) — update displayed node content, but keep cursor.
+            setLocalNode(questNode);
+        }
+
+        prevSceneIdRef.current = sceneId;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [sceneId, questNode]);
 
     const fetchNode = async (nodeId: string) => {
@@ -116,6 +169,16 @@ export const CoopVisualNovelPage: React.FC = () => {
         if (!nextNodeId) return;
         const nextNode = await fetchNode(nextNodeId);
         if (!nextNode) return;
+        // #region agent log (debug)
+        agentLog('H2', 'src/pages/CoopVisualNovelPage.tsx:advanceLocal', 'advanceLocal to nextNodeId', {
+            roomCode: room?.code ?? null,
+            fromLocalNodeId: localNodeIdRef.current ?? null,
+            toLocalNodeId: nextNodeId,
+            toInteractionType: (nextNode as any)?.interactionType ?? null,
+            willMarkReached: Boolean(isCheckpointNode(nextNode)),
+            sceneId,
+        });
+        // #endregion
         setLocalNodeId(nextNodeId);
         setLocalNode(nextNode);
 
@@ -424,6 +487,21 @@ export const CoopVisualNovelPage: React.FC = () => {
     const handleChoiceSelect = async (choiceId: string) => {
         const choice = rawChoices.find((c: any) => c.id === choiceId);
         if (!choice) return;
+
+        // #region agent log (debug)
+        agentLog('H3', 'src/pages/CoopVisualNovelPage.tsx:handleChoiceSelect', 'choice selected', {
+            roomCode: room?.code ?? null,
+            sceneId,
+            localNodeId,
+            localInteractionType: (localNode as any)?.interactionType ?? null,
+            isCheckpointNode: Boolean(isCheckpointNode(localNode)),
+            isAtSharedCheckpoint,
+            choiceId,
+            nextNodeId: (choice as any)?.nextNodeId ?? null,
+            controlledPlayerId: controlledPlayerId ?? null,
+            controlledRole: controlledRole ?? null,
+        });
+        // #endregion
 
         setLocalSelections((prev) => ({ ...prev, [localNodeId]: choiceId }));
 

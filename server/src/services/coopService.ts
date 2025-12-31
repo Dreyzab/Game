@@ -298,6 +298,37 @@ type CoopQuestScoreState = {
     lastScoredSceneId?: string;
 };
 
+type CoopEncounterOutcome = 'victory' | 'defeat';
+
+type CoopEncounterStatus = 'active' | 'resolved';
+
+type CoopEncounterPlayerSnapshot = {
+    playerId: number;
+    role: CoopRoleId | null;
+    hp: number;
+    maxHp: number;
+    morale: number;
+    maxMorale: number;
+    stamina: number;
+    maxStamina: number;
+    traits: string[];
+};
+
+type CoopEncounterState = {
+    id: string;
+    startedAt: number;
+    status: CoopEncounterStatus;
+    sceneId: string;
+    choiceId: string;
+    scenarioId?: string;
+    threatLevel: number;
+    returnNodeId: string;
+    defeatNodeId?: string;
+    rewardRp?: number;
+    players: CoopEncounterPlayerSnapshot[];
+    result?: { outcome: CoopEncounterOutcome; resolvedAt: number };
+};
+
 function normalizeScoreModifiers(value: unknown): Record<string, number> {
     if (!value || typeof value !== 'object') return {};
     const out: Record<string, number> = {};
@@ -387,6 +418,101 @@ function getActiveScoreStateFromFlags(flags: Record<string, any>): CoopQuestScor
     return normalizeScoreState(graph?.activeScore);
 }
 
+function normalizeEncounterState(value: unknown): CoopEncounterState | null {
+    if (!value || typeof value !== 'object') return null;
+    const raw = value as any;
+
+    const id = typeof raw.id === 'string' ? raw.id.trim() : '';
+    if (!id) return null;
+
+    const startedAt = Math.max(0, Math.floor(toFiniteNumber(raw.startedAt, 0)));
+    const statusRaw = typeof raw.status === 'string' ? raw.status.trim() : '';
+    const status: CoopEncounterStatus = statusRaw === 'resolved' ? 'resolved' : 'active';
+
+    const sceneId = typeof raw.sceneId === 'string' ? raw.sceneId.trim() : '';
+    const choiceId = typeof raw.choiceId === 'string' ? raw.choiceId.trim() : '';
+    const returnNodeId = typeof raw.returnNodeId === 'string' ? raw.returnNodeId.trim() : '';
+    if (!sceneId || !choiceId || !returnNodeId) return null;
+
+    const defeatNodeId =
+        typeof raw.defeatNodeId === 'string' && raw.defeatNodeId.trim().length > 0 ? raw.defeatNodeId.trim() : undefined;
+
+    const scenarioId =
+        typeof raw.scenarioId === 'string' && raw.scenarioId.trim().length > 0 ? raw.scenarioId.trim() : undefined;
+
+    const threatLevel = Math.max(1, Math.floor(toFiniteNumber(raw.threatLevel, 1)));
+    const rewardRpRaw = toFiniteNumber(raw.rewardRp, 0);
+    const rewardRp = Number.isFinite(rewardRpRaw) && rewardRpRaw > 0 ? Math.floor(rewardRpRaw) : undefined;
+
+    const playersRaw = Array.isArray(raw.players) ? raw.players : [];
+    const players: CoopEncounterPlayerSnapshot[] = [];
+    for (const entry of playersRaw) {
+        if (!entry || typeof entry !== 'object') continue;
+        const playerId = Math.max(0, Math.floor(toFiniteNumber((entry as any).playerId, 0)));
+        if (playerId <= 0) continue;
+
+        const roleRaw = typeof (entry as any).role === 'string' ? String((entry as any).role).trim() : '';
+        const role = COOP_ROLE_IDS.includes(roleRaw as CoopRoleId) ? (roleRaw as CoopRoleId) : null;
+
+        const maxHp = Math.max(1, Math.floor(toFiniteNumber((entry as any).maxHp, 100)));
+        const maxMorale = Math.max(1, Math.floor(toFiniteNumber((entry as any).maxMorale, 100)));
+        const maxStamina = Math.max(1, Math.floor(toFiniteNumber((entry as any).maxStamina, 100)));
+
+        const hp = Math.max(0, Math.min(maxHp, Math.floor(toFiniteNumber((entry as any).hp, maxHp))));
+        const morale = Math.max(0, Math.min(maxMorale, Math.floor(toFiniteNumber((entry as any).morale, maxMorale))));
+        const stamina = Math.max(0, Math.min(maxStamina, Math.floor(toFiniteNumber((entry as any).stamina, maxStamina))));
+
+        const traitsRaw = Array.isArray((entry as any).traits) ? (entry as any).traits : [];
+        const traits = traitsRaw
+            .map((t: any) => (typeof t === 'string' ? t.trim() : ''))
+            .filter(Boolean);
+
+        players.push({
+            playerId,
+            role,
+            hp,
+            maxHp,
+            morale,
+            maxMorale,
+            stamina,
+            maxStamina,
+            traits: Array.from(new Set(traits)),
+        });
+    }
+
+    if (players.length === 0) return null;
+
+    const resultRaw = raw.result;
+    const result = (() => {
+        if (!resultRaw || typeof resultRaw !== 'object') return undefined;
+        const outcomeRaw = typeof (resultRaw as any).outcome === 'string' ? (resultRaw as any).outcome.trim() : '';
+        const outcome: CoopEncounterOutcome | null = outcomeRaw === 'victory' || outcomeRaw === 'defeat' ? outcomeRaw : null;
+        if (!outcome) return undefined;
+        const resolvedAt = Math.max(0, Math.floor(toFiniteNumber((resultRaw as any).resolvedAt, 0)));
+        return { outcome, resolvedAt };
+    })();
+
+    return {
+        id,
+        startedAt,
+        status,
+        sceneId,
+        choiceId,
+        scenarioId,
+        threatLevel,
+        returnNodeId,
+        defeatNodeId,
+        rewardRp,
+        players,
+        result,
+    };
+}
+
+function getEncounterStateFromFlags(flags: Record<string, any>): CoopEncounterState | null {
+    const graph = (flags?.__graph ?? null) as any;
+    return normalizeEncounterState(graph?.encounter);
+}
+
 const COOP_ARTIFACT_SCORE_BONUSES: Record<string, { bonus: number; tags?: string[] }> = {
     artifact_tech_scanner: { bonus: 5, tags: ['analysis'] },
     artifact_moon_fungus_lantern: { bonus: 5, tags: ['visual'] },
@@ -459,6 +585,7 @@ export const coopService = {
         const camp = getCampStateFromFlags(flags);
         const questScore = getActiveScoreStateFromFlags(flags);
         const expedition = getExpeditionStateFromFlags(flags);
+        const encounter = getEncounterStateFromFlags(flags);
 
         let questNode = currentQuestNode;
         if (questNode && expedition?.poolId && expedition.missions) {
@@ -497,6 +624,7 @@ export const coopService = {
             questNode,
             camp,
             expedition,
+            encounter,
             questScore: questScore ? {
                 questId: questScore.questId,
                 current: questScore.current,
@@ -652,6 +780,25 @@ export const coopService = {
         });
 
         // #region agent log (debug)
+        // eslint-disable-next-line no-console
+        console.info('[agent-debug]', {
+            sessionId: 'debug-session',
+            runId: 'pre-fix',
+            hypothesisId: 'H4',
+            location: 'server/src/services/coopService.ts:markReached',
+            message: 'markReached: updated participant cursor; may promote shared currentScene',
+            data: {
+                code,
+                playerId,
+                nodeId,
+                prevSessionScene: session.currentScene ?? null,
+                reachedCount: reached.length,
+                threshold,
+                participants: session.participants.length,
+                willPromote: reached.length >= threshold && session.currentScene !== nodeId,
+            },
+            timestamp: Date.now(),
+        });
         fetch('http://127.0.0.1:7243/ingest/8d2cfb91-eb32-456b-9d58-3c64b19222af', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -696,6 +843,12 @@ export const coopService = {
         if (session.status !== 'active') throw new Error('Session not active');
         if (!session.currentScene) throw new Error('Invalid scene');
 
+        const flagsAtStart = (session.flags ?? {}) as Record<string, any>;
+        const encounterAtStart = getEncounterStateFromFlags(flagsAtStart);
+        if (encounterAtStart?.status === 'active') {
+            throw new Error('Battle in progress');
+        }
+
         const actorPlayerId = typeof asPlayerId === 'number' ? asPlayerId : requesterPlayerId;
 
         if (actorPlayerId !== requesterPlayerId) {
@@ -728,6 +881,25 @@ export const coopService = {
         }
 
         // #region agent log (debug)
+        // eslint-disable-next-line no-console
+        console.info('[agent-debug]', {
+            sessionId: 'debug-session',
+            runId: 'pre-fix',
+            hypothesisId: 'H1',
+            location: 'server/src/services/coopService.ts:castVote:init',
+            message: 'castVote received',
+            data: {
+                code,
+                requesterPlayerId,
+                actorPlayerId,
+                sessionCurrentScene: session.currentScene,
+                normalizedNodeId: normalizedNodeId ?? null,
+                voteSceneId,
+                interactionType: (currentNode as any)?.interactionType ?? null,
+                choiceId,
+            },
+            timestamp: Date.now(),
+        });
         fetch('http://127.0.0.1:7243/ingest/8d2cfb91-eb32-456b-9d58-3c64b19222af', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -814,6 +986,7 @@ export const coopService = {
                 activeQuestId?: string;
                 activeScore?: CoopQuestScoreState | null;
                 expedition?: CoopExpeditionState | null;
+                encounter?: CoopEncounterState | null;
             }) => void
         ) => {
             const currentSession = await db.query.coopSessions.findFirst({
@@ -829,6 +1002,7 @@ export const coopService = {
                 activeQuestId?: string;
                 activeScore?: CoopQuestScoreState | null;
                 expedition?: CoopExpeditionState | null;
+                encounter?: CoopEncounterState | null;
             } = {
                 ...(rawGraphState && typeof rawGraphState === 'object' ? rawGraphState : {}),
                 stack: Array.isArray(rawGraphState.stack) ? rawGraphState.stack.filter((v: any) => typeof v === 'string') : [],
@@ -836,6 +1010,7 @@ export const coopService = {
                 activeQuestId: typeof rawGraphState.activeQuestId === 'string' ? rawGraphState.activeQuestId : undefined,
                 activeScore: normalizeScoreState(rawGraphState.activeScore),
                 expedition: normalizeExpeditionState(rawGraphState.expedition),
+                encounter: normalizeEncounterState(rawGraphState.encounter),
             };
 
             updater(graphState);
@@ -1129,6 +1304,23 @@ export const coopService = {
         // Individual choices are personal: they should not block others and should not advance the shared checkpoint.
         if (currentNode.interactionType === 'individual') {
             // #region agent log (debug)
+            // eslint-disable-next-line no-console
+            console.info('[agent-debug]', {
+                sessionId: 'debug-session',
+                runId: 'pre-fix',
+                hypothesisId: 'H2',
+                location: 'server/src/services/coopService.ts:castVote:individual',
+                message: 'individual choice: applying flags only (no session scene advance)',
+                data: {
+                    code,
+                    actorPlayerId,
+                    voteSceneId,
+                    sessionCurrentScene: session.currentScene,
+                    choiceId,
+                    flagKeys: Object.keys(newFlags ?? {}).slice(0, 20),
+                },
+                timestamp: Date.now(),
+            });
             fetch('http://127.0.0.1:7243/ingest/8d2cfb91-eb32-456b-9d58-3c64b19222af', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1339,6 +1531,105 @@ export const coopService = {
 
                 nextNodeId = returnNodeId ?? winningChoice.nextNodeId;
                 actionHandled = Boolean(nextNodeId);
+            } else if (winningChoice && winningAction === 'start_coop_battle') {
+                const payload = (winningChoice as any).battle as any;
+                const scenarioId =
+                    typeof payload?.scenarioId === 'string' && payload.scenarioId.trim().length > 0 ? payload.scenarioId.trim() : undefined;
+                const threatDelta = toFiniteNumber(payload?.threatDelta, 0);
+
+                const victoryNextNodeId =
+                    typeof payload?.victoryNextNodeId === 'string' && payload.victoryNextNodeId.trim().length > 0
+                        ? payload.victoryNextNodeId.trim()
+                        : undefined;
+                const defeatNextNodeId =
+                    typeof payload?.defeatNextNodeId === 'string' && payload.defeatNextNodeId.trim().length > 0
+                        ? payload.defeatNextNodeId.trim()
+                        : undefined;
+
+                const returnNodeId = victoryNextNodeId ?? winningChoice.nextNodeId;
+                if (!returnNodeId) throw new Error('Battle choice missing nextNodeId');
+                const defeatNodeId = defeatNextNodeId ?? returnNodeId;
+
+                const participantIds = session.participants.map((p) => p.playerId);
+                const progressRows = await db.query.gameProgress.findMany({
+                    where: inArray(gameProgress.playerId, participantIds),
+                    columns: {
+                        playerId: true,
+                        hp: true,
+                        maxHp: true,
+                        morale: true,
+                        maxMorale: true,
+                        stamina: true,
+                        maxStamina: true,
+                    },
+                });
+                const progressByPlayerId = new Map<number, any>();
+                for (const row of progressRows) progressByPlayerId.set(row.playerId, row);
+
+                const currentFlags = (session.flags ?? {}) as Record<string, any>;
+                const expeditionCtx = getExpeditionStateFromFlags(currentFlags);
+                const traitsByPlayerKey = expeditionCtx?.playerTraits ?? {};
+
+                const baseThreat = typeof expeditionCtx?.stageIndex === 'number' && Number.isFinite(expeditionCtx.stageIndex)
+                    ? Math.max(1, Math.floor(expeditionCtx.stageIndex) + 1)
+                    : 1;
+                const threatLevel = Math.max(1, Math.min(4, Math.floor(baseThreat + toFiniteNumber(threatDelta, 0))));
+
+                const playersSnapshot: CoopEncounterPlayerSnapshot[] = session.participants.map((p) => {
+                    const progress = progressByPlayerId.get(p.playerId);
+
+                    const maxHp = Math.max(1, Math.floor(toFiniteNumber(progress?.maxHp, 100)));
+                    const maxMorale = Math.max(1, Math.floor(toFiniteNumber(progress?.maxMorale, 100)));
+                    const maxStamina = Math.max(1, Math.floor(toFiniteNumber(progress?.maxStamina, 100)));
+
+                    const hp = Math.max(0, Math.min(maxHp, Math.floor(toFiniteNumber(progress?.hp, maxHp))));
+                    const morale = Math.max(0, Math.min(maxMorale, Math.floor(toFiniteNumber(progress?.morale, maxMorale))));
+                    const stamina = Math.max(0, Math.min(maxStamina, Math.floor(toFiniteNumber(progress?.stamina, maxStamina))));
+
+                    const traitsRaw = traitsByPlayerKey[String(p.playerId)] ?? [];
+                    const traits = Array.isArray(traitsRaw)
+                        ? traitsRaw.map((t) => (typeof t === 'string' ? t.trim() : '')).filter(Boolean)
+                        : [];
+
+                    return {
+                        playerId: p.playerId,
+                        role: (p.role ?? null) as CoopRoleId | null,
+                        hp,
+                        maxHp,
+                        morale,
+                        maxMorale,
+                        stamina,
+                        maxStamina,
+                        traits: Array.from(new Set(traits)),
+                    };
+                });
+
+                const rewardRpRaw = toFiniteNumber((winningChoice as any)?.reward?.rp, 0);
+                const rewardRp = Number.isFinite(rewardRpRaw) && rewardRpRaw > 0 ? Math.floor(rewardRpRaw) : undefined;
+
+                const now = Date.now();
+                const encounterId = `enc_${now}_${Math.random().toString(36).slice(2, 8)}`;
+
+                await updateGraphState((graph) => {
+                    const existing = normalizeEncounterState(graph.encounter);
+                    if (existing?.status === 'active') return;
+                    graph.encounter = {
+                        id: encounterId,
+                        startedAt: now,
+                        status: 'active',
+                        sceneId: session.currentScene as string,
+                        choiceId: winningChoice.id,
+                        scenarioId,
+                        threatLevel,
+                        returnNodeId,
+                        defeatNodeId,
+                        rewardRp,
+                        players: playersSnapshot,
+                    };
+                });
+
+                nextNodeId = session.currentScene;
+                actionHandled = true;
             } else if (winningChoice && winningAction === 'resolve_expedition_event') {
                 const payload = (winningChoice as any).expeditionEvent as any;
                 const rawEventId = typeof payload?.id === 'string' ? payload.id.trim() : '';
@@ -1409,6 +1700,64 @@ export const coopService = {
                     actorRole,
                     injury: expeditionCtx.injury,
                 });
+
+                const perPlayerResults = resolution.perPlayer ?? {};
+                const now = Date.now();
+                const updatesByPlayerId = new Map<number, { hp?: number; morale?: number; stamina?: number }>();
+
+                const getCurrent = (playerId: number) => {
+                    const progress = progressByPlayerId.get(playerId);
+                    const maxHp = Math.max(1, Math.floor(toFiniteNumber(progress?.maxHp, 100)));
+                    const maxMorale = Math.max(1, Math.floor(toFiniteNumber(progress?.maxMorale, 100)));
+                    const maxStamina = Math.max(1, Math.floor(toFiniteNumber(progress?.maxStamina, 100)));
+                    const hp = Math.max(0, Math.min(maxHp, Math.floor(toFiniteNumber(progress?.hp, maxHp))));
+                    const morale = Math.max(0, Math.min(maxMorale, Math.floor(toFiniteNumber(progress?.morale, maxMorale))));
+                    const stamina = Math.max(0, Math.min(maxStamina, Math.floor(toFiniteNumber(progress?.stamina, maxStamina))));
+                    return { hp, maxHp, morale, maxMorale, stamina, maxStamina };
+                };
+
+                if (resolution.id === 'psi_wave') {
+                    for (const p of playerSnapshots) {
+                        const playerId = p.playerId;
+                        const entry = perPlayerResults[String(playerId)];
+                        if (!entry || entry.pass) continue;
+
+                        const current = getCurrent(playerId);
+                        const moraleLoss = Math.max(5, Math.floor(current.maxMorale * 0.08));
+                        updatesByPlayerId.set(playerId, { morale: Math.max(0, current.morale - moraleLoss) });
+                    }
+                } else if (resolution.id === 'injury_roll') {
+                    const targetPlayerId = resolution.targetPlayerId;
+                    if (targetPlayerId) {
+                        const entry = perPlayerResults[String(targetPlayerId)];
+                        if (entry && !entry.pass) {
+                            const current = getCurrent(targetPlayerId);
+                            const hpLoss = Math.max(4, Math.floor(current.maxHp * 0.05));
+                            updatesByPlayerId.set(targetPlayerId, { hp: Math.max(0, current.hp - hpLoss) });
+                        }
+                    }
+                } else if (resolution.id === 'injury_treat') {
+                    const targetPlayerId = resolution.targetPlayerId;
+                    if (targetPlayerId) {
+                        const current = getCurrent(targetPlayerId);
+                        if (resolution.success) {
+                            const heal = Math.max(6, Math.floor(current.maxHp * 0.06));
+                            updatesByPlayerId.set(targetPlayerId, { hp: Math.min(current.maxHp, current.hp + heal) });
+                        } else {
+                            const hpLoss = Math.max(3, Math.floor(current.maxHp * 0.03));
+                            updatesByPlayerId.set(targetPlayerId, { hp: Math.max(0, current.hp - hpLoss) });
+                        }
+                    }
+                }
+
+                for (const [playerId, patch] of updatesByPlayerId) {
+                    await db.update(gameProgress).set({
+                        ...(typeof patch.hp === 'number' ? { hp: patch.hp } : {}),
+                        ...(typeof patch.morale === 'number' ? { morale: patch.morale } : {}),
+                        ...(typeof patch.stamina === 'number' ? { stamina: patch.stamina } : {}),
+                        updatedAt: now,
+                    }).where(eq(gameProgress.playerId, playerId));
+                }
 
                 await updateGraphState((graph) => {
                     const expedition = normalizeExpeditionState(graph.expedition);
@@ -1491,12 +1840,11 @@ export const coopService = {
 
                 const extraTimeCost = Math.max(0, Math.floor(toFiniteNumber(expeditionExtraTimeCost, 0)));
 
+                const isBattleStart = choiceAny.action === 'start_coop_battle';
                 const shouldTouchExpedition = Boolean(
                     choiceAny.action === 'start_expedition' ||
                     choiceAny.action === 'advance_expedition_stage' ||
-                    choiceAny.cost?.time ||
-                    choiceAny.cost?.rp ||
-                    choiceAny.reward?.rp ||
+                    (!isBattleStart && (choiceAny.cost?.time || choiceAny.cost?.rp || choiceAny.reward?.rp)) ||
                     extraTimeCost > 0
                 );
 
@@ -1756,6 +2104,116 @@ export const coopService = {
 
         const state = await this.getRoomState(code);
         broadcastCoopUpdate(code, state);
+        return state;
+    },
+
+    async resolveCoopBattle(params: {
+        code: string;
+        playerId: number;
+        result: CoopEncounterOutcome;
+        players: Array<{ playerId: number; hp: number; morale?: number; stamina?: number }>;
+    }) {
+        const session = await db.query.coopSessions.findFirst({
+            where: eq(coopSessions.inviteCode, params.code),
+            with: { participants: true },
+        });
+        if (!session) throw new Error('Room not found');
+        if (session.status !== 'active') throw new Error('Session not active');
+        if (session.hostId !== params.playerId) throw new Error('Only host can resolve battle');
+
+        const flags = (session.flags ?? {}) as Record<string, any>;
+        const encounter = getEncounterStateFromFlags(flags);
+        if (!encounter || encounter.status !== 'active') throw new Error('No active battle');
+
+        const outcome: CoopEncounterOutcome = params.result === 'defeat' ? 'defeat' : 'victory';
+        const nextNodeId = outcome === 'victory' ? encounter.returnNodeId : (encounter.defeatNodeId ?? encounter.returnNodeId);
+        if (!nextNodeId) throw new Error('Battle return node is missing');
+
+        const reportedByPlayerId = new Map<number, { hp: number; morale?: number; stamina?: number }>();
+        for (const entry of params.players ?? []) {
+            const pid = Math.max(0, Math.floor(toFiniteNumber((entry as any)?.playerId, 0)));
+            if (pid <= 0) continue;
+            const hp = Math.floor(toFiniteNumber((entry as any)?.hp, 0));
+            const morale = (entry as any)?.morale;
+            const stamina = (entry as any)?.stamina;
+            reportedByPlayerId.set(pid, {
+                hp,
+                morale: typeof morale === 'number' && Number.isFinite(morale) ? morale : undefined,
+                stamina: typeof stamina === 'number' && Number.isFinite(stamina) ? stamina : undefined,
+            });
+        }
+
+        const participantIds = encounter.players.map((p) => p.playerId);
+        const progressRows = await db.query.gameProgress.findMany({
+            where: inArray(gameProgress.playerId, participantIds),
+            columns: {
+                playerId: true,
+                hp: true,
+                maxHp: true,
+                morale: true,
+                maxMorale: true,
+                stamina: true,
+                maxStamina: true,
+            },
+        });
+        const progressByPlayerId = new Map<number, any>();
+        for (const row of progressRows) progressByPlayerId.set(row.playerId, row);
+
+        const now = Date.now();
+        for (const snapshot of encounter.players) {
+            const row = progressByPlayerId.get(snapshot.playerId);
+            const reported = reportedByPlayerId.get(snapshot.playerId);
+
+            const maxHp = Math.max(1, Math.floor(toFiniteNumber(row?.maxHp, snapshot.maxHp)));
+            const maxMorale = Math.max(1, Math.floor(toFiniteNumber(row?.maxMorale, snapshot.maxMorale)));
+            const maxStamina = Math.max(1, Math.floor(toFiniteNumber(row?.maxStamina, snapshot.maxStamina)));
+
+            const hpBase = typeof reported?.hp === 'number' && Number.isFinite(reported.hp) ? reported.hp : toFiniteNumber(row?.hp, snapshot.hp);
+            const moraleBase =
+                typeof reported?.morale === 'number' && Number.isFinite(reported.morale)
+                    ? reported.morale
+                    : toFiniteNumber(row?.morale, snapshot.morale);
+            const staminaBase =
+                typeof reported?.stamina === 'number' && Number.isFinite(reported.stamina)
+                    ? reported.stamina
+                    : toFiniteNumber(row?.stamina, snapshot.stamina);
+
+            const hp = Math.max(0, Math.min(maxHp, Math.floor(toFiniteNumber(hpBase, maxHp))));
+            const morale = Math.max(0, Math.min(maxMorale, Math.floor(toFiniteNumber(moraleBase, maxMorale))));
+            const stamina = Math.max(0, Math.min(maxStamina, Math.floor(toFiniteNumber(staminaBase, maxStamina))));
+
+            await db.update(gameProgress).set({
+                hp,
+                morale,
+                stamina,
+                updatedAt: now,
+            }).where(eq(gameProgress.playerId, snapshot.playerId));
+        }
+
+        const rawGraph = (flags.__graph ?? {}) as any;
+        const expedition = normalizeExpeditionState(rawGraph.expedition);
+        const rewardRp = outcome === 'victory' ? Math.max(0, Math.floor(toFiniteNumber(encounter.rewardRp, 0))) : 0;
+        if (expedition && rewardRp > 0) {
+            expedition.researchPoints = Math.max(0, Math.floor(toFiniteNumber(expedition.researchPoints, 0)) + rewardRp);
+            rawGraph.expedition = expedition;
+
+            const camp = getCampStateFromFlags(flags);
+            if (camp) {
+                flags.__camp = {
+                    ...camp,
+                    inventory: { ...camp.inventory, scrap: expedition.researchPoints },
+                };
+            }
+        }
+
+        rawGraph.encounter = { ...encounter, status: 'resolved', result: { outcome, resolvedAt: now } };
+        flags.__graph = rawGraph;
+
+        await db.update(coopSessions).set({ currentScene: nextNodeId, flags }).where(eq(coopSessions.id, session.id));
+        await db.delete(coopVotes).where(and(eq(coopVotes.sessionId, session.id), ne(coopVotes.sceneId, nextNodeId)));
+
+        const state = await this.getRoomState(params.code);
+        broadcastCoopUpdate(params.code, state);
         return state;
     },
 

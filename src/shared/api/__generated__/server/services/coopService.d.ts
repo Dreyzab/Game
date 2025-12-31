@@ -49,6 +49,36 @@ type CoopExpeditionState = {
         actorPlayerId?: number;
     };
 };
+type CoopEncounterOutcome = 'victory' | 'defeat';
+type CoopEncounterStatus = 'active' | 'resolved';
+type CoopEncounterPlayerSnapshot = {
+    playerId: number;
+    role: CoopRoleId | null;
+    hp: number;
+    maxHp: number;
+    morale: number;
+    maxMorale: number;
+    stamina: number;
+    maxStamina: number;
+    traits: string[];
+};
+type CoopEncounterState = {
+    id: string;
+    startedAt: number;
+    status: CoopEncounterStatus;
+    sceneId: string;
+    choiceId: string;
+    scenarioId?: string;
+    threatLevel: number;
+    returnNodeId: string;
+    defeatNodeId?: string;
+    rewardRp?: number;
+    players: CoopEncounterPlayerSnapshot[];
+    result?: {
+        outcome: CoopEncounterOutcome;
+        resolvedAt: number;
+    };
+};
 export declare const coopService: {
     createRoom(hostId: number, role?: CoopRoleId): Promise<{
         code: string;
@@ -58,6 +88,7 @@ export declare const coopService: {
         questNode: import("../shared/types/coop").CoopQuestNode | null;
         camp: CoopCampState | null;
         expedition: CoopExpeditionState | null;
+        encounter: CoopEncounterState | null;
         questScore: {
             questId: string;
             current: number;
@@ -94,6 +125,7 @@ export declare const coopService: {
         questNode: import("../shared/types/coop").CoopQuestNode | null;
         camp: CoopCampState | null;
         expedition: CoopExpeditionState | null;
+        encounter: CoopEncounterState | null;
         questScore: {
             questId: string;
             current: number;
@@ -130,6 +162,7 @@ export declare const coopService: {
         questNode: import("../shared/types/coop").CoopQuestNode | null;
         camp: CoopCampState | null;
         expedition: CoopExpeditionState | null;
+        encounter: CoopEncounterState | null;
         questScore: {
             questId: string;
             current: number;
@@ -166,6 +199,7 @@ export declare const coopService: {
         questNode: import("../shared/types/coop").CoopQuestNode | null;
         camp: CoopCampState | null;
         expedition: CoopExpeditionState | null;
+        encounter: CoopEncounterState | null;
         questScore: {
             questId: string;
             current: number;
@@ -202,6 +236,7 @@ export declare const coopService: {
         questNode: import("../shared/types/coop").CoopQuestNode | null;
         camp: CoopCampState | null;
         expedition: CoopExpeditionState | null;
+        encounter: CoopEncounterState | null;
         questScore: {
             questId: string;
             current: number;
@@ -238,6 +273,7 @@ export declare const coopService: {
         questNode: import("../shared/types/coop").CoopQuestNode | null;
         camp: CoopCampState | null;
         expedition: CoopExpeditionState | null;
+        encounter: CoopEncounterState | null;
         questScore: {
             questId: string;
             current: number;
@@ -274,6 +310,54 @@ export declare const coopService: {
         questNode: import("../shared/types/coop").CoopQuestNode | null;
         camp: CoopCampState | null;
         expedition: CoopExpeditionState | null;
+        encounter: CoopEncounterState | null;
+        questScore: {
+            questId: string;
+            current: number;
+            target: number;
+            history: number[];
+            modifiers: Record<string, number>;
+            playerModifiers: Record<string, Record<string, number>>;
+            statuses: Record<string, number>;
+            playerStatuses: Record<string, Record<string, number>>;
+            stages: number;
+            lastStageTotal: number;
+            lastStageByPlayer: Record<string, number>;
+        } | null;
+        participants: {
+            id: number;
+            name: string;
+            role: string | null;
+            ready: boolean | null;
+        }[];
+        votes: {
+            id: number;
+            createdAt: number;
+            sessionId: number;
+            sceneId: string;
+            choiceId: string;
+            voterId: number;
+        }[];
+    } | null>;
+    resolveCoopBattle(params: {
+        code: string;
+        playerId: number;
+        result: CoopEncounterOutcome;
+        players: Array<{
+            playerId: number;
+            hp: number;
+            morale?: number;
+            stamina?: number;
+        }>;
+    }): Promise<{
+        code: string;
+        status: string | null;
+        hostId: number;
+        sceneId: string | null;
+        questNode: import("../shared/types/coop").CoopQuestNode | null;
+        camp: CoopCampState | null;
+        expedition: CoopExpeditionState | null;
+        encounter: CoopEncounterState | null;
         questScore: {
             questId: string;
             current: number;
@@ -316,6 +400,7 @@ export declare const coopService: {
         questNode: import("../shared/types/coop").CoopQuestNode | null;
         camp: CoopCampState | null;
         expedition: CoopExpeditionState | null;
+        encounter: CoopEncounterState | null;
         questScore: {
             questId: string;
             current: number;
@@ -352,6 +437,7 @@ export declare const coopService: {
         questNode: import("../shared/types/coop").CoopQuestNode | null;
         camp: CoopCampState | null;
         expedition: CoopExpeditionState | null;
+        encounter: CoopEncounterState | null;
         questScore: {
             questId: string;
             current: number;
@@ -388,6 +474,7 @@ export declare const coopService: {
         questNode: import("../shared/types/coop").CoopQuestNode | null;
         camp: CoopCampState | null;
         expedition: CoopExpeditionState | null;
+        encounter: CoopEncounterState | null;
         questScore: {
             questId: string;
             current: number;
@@ -424,6 +511,7 @@ export declare const coopService: {
         questNode: import("../shared/types/coop").CoopQuestNode | null;
         camp: CoopCampState | null;
         expedition: CoopExpeditionState | null;
+        encounter: CoopEncounterState | null;
         questScore: {
             questId: string;
             current: number;
@@ -460,6 +548,7 @@ export declare const coopService: {
         questNode: import("../shared/types/coop").CoopQuestNode | null;
         camp: CoopCampState | null;
         expedition: CoopExpeditionState | null;
+        encounter: CoopEncounterState | null;
         questScore: {
             questId: string;
             current: number;
@@ -496,6 +585,7 @@ export declare const coopService: {
         questNode: import("../shared/types/coop").CoopQuestNode | null;
         camp: CoopCampState | null;
         expedition: CoopExpeditionState | null;
+        encounter: CoopEncounterState | null;
         questScore: {
             questId: string;
             current: number;
@@ -532,6 +622,7 @@ export declare const coopService: {
         questNode: import("../shared/types/coop").CoopQuestNode | null;
         camp: CoopCampState | null;
         expedition: CoopExpeditionState | null;
+        encounter: CoopEncounterState | null;
         questScore: {
             questId: string;
             current: number;
@@ -568,6 +659,7 @@ export declare const coopService: {
         questNode: import("../shared/types/coop").CoopQuestNode | null;
         camp: CoopCampState | null;
         expedition: CoopExpeditionState | null;
+        encounter: CoopEncounterState | null;
         questScore: {
             questId: string;
             current: number;

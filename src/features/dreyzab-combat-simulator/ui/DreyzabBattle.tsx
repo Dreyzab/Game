@@ -25,8 +25,9 @@ import GaugeUI from './components/GaugeUI'
 type DreyzabBattleResult = 'victory' | 'defeat'
 
 type DreyzabBattleProps = {
-    onBattleEnd?: (result: DreyzabBattleResult) => void
+    onBattleEnd?: (result: DreyzabBattleResult, finalSession?: BattleSession) => void
     scenarioId?: ScenarioId
+    initialSession?: BattleSession
     renderEquipmentOverlay?: (props: { onClose: () => void; title?: string }) => ReactNode
 }
 
@@ -139,9 +140,11 @@ const writeAchievements = (value: Achievement[]) => {
     localStorage.setItem(ACHIEVEMENTS_STORAGE_KEY, JSON.stringify(value))
 }
 
-const createInitialSession = (scenarioId: ScenarioId = 'default'): { session: BattleSession; defaultTargetId: string | null } => {
-    const scenarioFactory = SCENARIOS[scenarioId] ?? SCENARIOS['default']
-    const session = scenarioFactory()
+const createInitialSession = (params: {
+    scenarioId: ScenarioId
+    initialSession?: BattleSession
+}): { session: BattleSession; defaultTargetId: string | null } => {
+    const session = params.initialSession ?? (SCENARIOS[params.scenarioId] ?? SCENARIOS['default'])()
 
     return {
         session,
@@ -150,8 +153,8 @@ const createInitialSession = (scenarioId: ScenarioId = 'default'): { session: Ba
 }
 
 // Battle component
-export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default', renderEquipmentOverlay }: DreyzabBattleProps) {
-    const [initial] = useState(() => createInitialSession(scenarioId))
+export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default', initialSession, renderEquipmentOverlay }: DreyzabBattleProps) {
+    const [initial] = useState(() => createInitialSession({ scenarioId, initialSession }))
     const [battle, setBattle] = useState<BattleSession>(initial.session)
     const [selectedTargetId, setSelectedTargetId] = useState<string | null>(initial.defaultTargetId)
     const [achievements, setAchievements] = useState<Achievement[]>(() => readAchievements())
@@ -260,12 +263,12 @@ export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default', ren
 
         if (battle.phase === 'VICTORY' && reportedResultRef.current !== 'victory') {
             reportedResultRef.current = 'victory'
-            onBattleEnd('victory')
+            onBattleEnd('victory', battleRef.current)
         }
 
         if (battle.phase === 'DEFEAT' && reportedResultRef.current !== 'defeat') {
             reportedResultRef.current = 'defeat'
-            onBattleEnd('defeat')
+            onBattleEnd('defeat', battleRef.current)
         }
 
         if (battle.phase !== 'VICTORY' && battle.phase !== 'DEFEAT') {
@@ -681,12 +684,12 @@ export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default', ren
 
     const resetBattle = useCallback(() => {
         clearTimers()
-        const next = createInitialSession()
+        const next = createInitialSession({ scenarioId, initialSession })
         setBattle(next.session)
         setSelectedTargetId(next.defaultTargetId)
         setShowAchievements(false)
         reportedResultRef.current = null
-    }, [clearTimers])
+    }, [clearTimers, initialSession, scenarioId])
 
     const handleTouchScrub = useCallback((e: React.TouchEvent) => {
         const touch = e.touches[0]
