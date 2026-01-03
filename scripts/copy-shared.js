@@ -1,11 +1,19 @@
 /**
- * Copy Shared Data to Server
- * This script copies shared data files to the server directory during build.
- * Run: node scripts/copy-shared.js
+ * Mirror shared modules into the backend.
+ *
+ * This keeps the server self-contained (no imports from the frontend source tree),
+ * and enables API type generation via `npm run api:types`.
+ *
+ * Mirrors:
+ * - `src/shared/types/**` -> `server/src/shared/types/**`
+ * - `src/shared/data/**`  -> `server/src/shared/data/**`
+ * - (selected) `src/shared/lib/*.ts` -> `server/src/shared/lib/*.ts`
+ *
+ * Run: `node scripts/copy-shared.js`
  */
 
-import { mkdirSync, existsSync, readFileSync, writeFileSync } from 'fs'
-import { join, dirname } from 'path'
+import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync } from 'fs'
+import { dirname, join } from 'path'
 import { fileURLToPath } from 'url'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -13,35 +21,70 @@ const __dirname = dirname(__filename)
 
 const ROOT = join(__dirname, '..')
 const SHARED_ROOT = join(ROOT, 'src/shared')
-const SERVER_DEST = join(ROOT, 'server/src/shared')
+const SERVER_SHARED_ROOT = join(ROOT, 'server/src/shared')
 
-// Ensure destination directory exists
-if (!existsSync(SERVER_DEST)) {
-    mkdirSync(SERVER_DEST, { recursive: true })
+const ensureDir = (dir) => {
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
 }
 
-// Files to copy (src relative to SHARED_ROOT, dest is flat in server/src/shared)
-const FILES = [
-    { src: 'data/itemTypes.ts', dest: 'itemTypes.ts' },
-    { src: 'data/itemTemplates.ts', dest: 'itemTemplates.ts' },
-    { src: 'lib/itemPricing.ts', dest: 'itemPricing.ts' },
-    { src: 'data/coopScoreConfig.ts', dest: 'coopScoreConfig.ts' },
-]
+const resetDir = (dir) => {
+  rmSync(dir, { recursive: true, force: true })
+  ensureDir(dir)
+}
 
-for (const file of FILES) {
-    const src = join(SHARED_ROOT, file.src)
-    const dest = join(SERVER_DEST, file.dest)
+const shouldIgnoreFile = (filename) =>
+  filename.endsWith('.test.ts') ||
+  filename.endsWith('.spec.ts') ||
+  filename.endsWith('.test.tsx') ||
+  filename.endsWith('.spec.tsx')
 
-    if (existsSync(src)) {
-        let content = readFileSync(src, 'utf8')
-        if (file.dest === 'itemPricing.ts') {
-            content = content.replace("from '../data/itemTypes'", "from './itemTypes'")
-        }
-        writeFileSync(dest, content, 'utf8')
-        console.log(`✓ Copied ${file.src} → server/src/shared/${file.dest}`)
-    } else {
-        console.error(`✗ Source not found: ${src}`)
+const copyDirRecursive = (srcDir, destDir) => {
+  ensureDir(destDir)
+  const entries = readdirSync(srcDir, { withFileTypes: true })
+  for (const entry of entries) {
+    const srcPath = join(srcDir, entry.name)
+    const destPath = join(destDir, entry.name)
+    if (entry.isDirectory()) {
+      copyDirRecursive(srcPath, destPath)
+      continue
     }
+    if (shouldIgnoreFile(entry.name)) continue
+    ensureDir(dirname(destPath))
+    copyFileSync(srcPath, destPath)
+  }
 }
 
-console.log('Done!')
+ensureDir(SERVER_SHARED_ROOT)
+
+const TYPES_SRC = join(SHARED_ROOT, 'types')
+const DATA_SRC = join(SHARED_ROOT, 'data')
+const LIB_SRC = join(SHARED_ROOT, 'lib')
+
+const TYPES_DEST = join(SERVER_SHARED_ROOT, 'types')
+const DATA_DEST = join(SERVER_SHARED_ROOT, 'data')
+const LIB_DEST = join(SERVER_SHARED_ROOT, 'lib')
+
+if (!existsSync(TYPES_SRC)) throw new Error(`Missing shared types dir: ${TYPES_SRC}`)
+if (!existsSync(DATA_SRC)) throw new Error(`Missing shared data dir: ${DATA_SRC}`)
+
+resetDir(TYPES_DEST)
+copyDirRecursive(TYPES_SRC, TYPES_DEST)
+
+resetDir(DATA_DEST)
+copyDirRecursive(DATA_SRC, DATA_DEST)
+
+// Selected shared libs that are safe for server usage.
+ensureDir(LIB_DEST)
+for (const filename of ['itemPricing.ts', 'skillChecks.ts']) {
+  const srcPath = join(LIB_SRC, filename)
+  const destPath = join(LIB_DEST, filename)
+  if (!existsSync(srcPath)) continue
+  copyFileSync(srcPath, destPath)
+}
+
+// Remove legacy flat copies (kept only for earlier iterations).
+for (const legacy of ['itemTypes.ts', 'itemTemplates.ts', 'itemPricing.ts', 'coopScoreConfig.ts']) {
+  rmSync(join(SERVER_SHARED_ROOT, legacy), { force: true })
+}
+
+console.log('[copy-shared] Mirrored shared types/data to server/src/shared')

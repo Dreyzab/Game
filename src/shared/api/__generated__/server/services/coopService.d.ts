@@ -3,6 +3,9 @@ type CoopCampState = {
     security: number;
     operatives: number;
     inventory: Record<string, number>;
+    baseLevel?: number;
+    upgrades?: Record<string, number>;
+    credits?: number;
 };
 type CoopExpeditionState = {
     turnCount: number;
@@ -79,6 +82,22 @@ type CoopEncounterState = {
         resolvedAt: number;
     };
 };
+export interface SequentialBroadcastReaction {
+    playerId: number;
+    playerName: string;
+    playerRole: string | null;
+    choiceId: string;
+    choiceText: string;
+    effectText: string;
+    timestamp: number;
+}
+export interface SequentialBroadcastState {
+    activePlayerId: number | null;
+    completedPlayerIds: number[];
+    playerOrder: number[];
+    reactions: SequentialBroadcastReaction[];
+    showingReactionIndex: number | null;
+}
 export declare const coopService: {
     createRoom(hostId: number, role?: CoopRoleId): Promise<{
         code: string;
@@ -89,6 +108,7 @@ export declare const coopService: {
         camp: CoopCampState | null;
         expedition: CoopExpeditionState | null;
         encounter: CoopEncounterState | null;
+        sequentialBroadcast: SequentialBroadcastState | null;
         questScore: {
             questId: string;
             current: number;
@@ -126,6 +146,7 @@ export declare const coopService: {
         camp: CoopCampState | null;
         expedition: CoopExpeditionState | null;
         encounter: CoopEncounterState | null;
+        sequentialBroadcast: SequentialBroadcastState | null;
         questScore: {
             questId: string;
             current: number;
@@ -163,6 +184,7 @@ export declare const coopService: {
         camp: CoopCampState | null;
         expedition: CoopExpeditionState | null;
         encounter: CoopEncounterState | null;
+        sequentialBroadcast: SequentialBroadcastState | null;
         questScore: {
             questId: string;
             current: number;
@@ -200,6 +222,7 @@ export declare const coopService: {
         camp: CoopCampState | null;
         expedition: CoopExpeditionState | null;
         encounter: CoopEncounterState | null;
+        sequentialBroadcast: SequentialBroadcastState | null;
         questScore: {
             questId: string;
             current: number;
@@ -237,6 +260,7 @@ export declare const coopService: {
         camp: CoopCampState | null;
         expedition: CoopExpeditionState | null;
         encounter: CoopEncounterState | null;
+        sequentialBroadcast: SequentialBroadcastState | null;
         questScore: {
             questId: string;
             current: number;
@@ -274,6 +298,7 @@ export declare const coopService: {
         camp: CoopCampState | null;
         expedition: CoopExpeditionState | null;
         encounter: CoopEncounterState | null;
+        sequentialBroadcast: SequentialBroadcastState | null;
         questScore: {
             questId: string;
             current: number;
@@ -311,6 +336,7 @@ export declare const coopService: {
         camp: CoopCampState | null;
         expedition: CoopExpeditionState | null;
         encounter: CoopEncounterState | null;
+        sequentialBroadcast: SequentialBroadcastState | null;
         questScore: {
             questId: string;
             current: number;
@@ -358,6 +384,7 @@ export declare const coopService: {
         camp: CoopCampState | null;
         expedition: CoopExpeditionState | null;
         encounter: CoopEncounterState | null;
+        sequentialBroadcast: SequentialBroadcastState | null;
         questScore: {
             questId: string;
             current: number;
@@ -392,6 +419,120 @@ export declare const coopService: {
         currencyAmount: number;
         stock: import("../lib/vendorStock").VendorStockItem[];
     }>;
+    contributeItem(code: string, playerId: number, templateId: string, quantity?: number): Promise<{
+        code: string;
+        status: string | null;
+        hostId: number;
+        sceneId: string | null;
+        questNode: import("../shared/types/coop").CoopQuestNode | null;
+        camp: CoopCampState | null;
+        expedition: CoopExpeditionState | null;
+        encounter: CoopEncounterState | null;
+        sequentialBroadcast: SequentialBroadcastState | null;
+        questScore: {
+            questId: string;
+            current: number;
+            target: number;
+            history: number[];
+            modifiers: Record<string, number>;
+            playerModifiers: Record<string, Record<string, number>>;
+            statuses: Record<string, number>;
+            playerStatuses: Record<string, Record<string, number>>;
+            stages: number;
+            lastStageTotal: number;
+            lastStageByPlayer: Record<string, number>;
+        } | null;
+        participants: {
+            id: number;
+            name: string;
+            role: string | null;
+            ready: boolean | null;
+        }[];
+        votes: {
+            id: number;
+            createdAt: number;
+            sessionId: number;
+            sceneId: string;
+            choiceId: string;
+            voterId: number;
+        }[];
+    } | null>;
+    upgradeBase(code: string, playerId: number, upgradeId: string): Promise<{
+        code: string;
+        status: string | null;
+        hostId: number;
+        sceneId: string | null;
+        questNode: import("../shared/types/coop").CoopQuestNode | null;
+        camp: CoopCampState | null;
+        expedition: CoopExpeditionState | null;
+        encounter: CoopEncounterState | null;
+        sequentialBroadcast: SequentialBroadcastState | null;
+        questScore: {
+            questId: string;
+            current: number;
+            target: number;
+            history: number[];
+            modifiers: Record<string, number>;
+            playerModifiers: Record<string, Record<string, number>>;
+            statuses: Record<string, number>;
+            playerStatuses: Record<string, Record<string, number>>;
+            stages: number;
+            lastStageTotal: number;
+            lastStageByPlayer: Record<string, number>;
+        } | null;
+        participants: {
+            id: number;
+            name: string;
+            role: string | null;
+            ready: boolean | null;
+        }[];
+        votes: {
+            id: number;
+            createdAt: number;
+            sessionId: number;
+            sceneId: string;
+            choiceId: string;
+            voterId: number;
+        }[];
+    } | null>;
+    startMission(code: string, playerId: number, missionNodeId: string): Promise<{
+        code: string;
+        status: string | null;
+        hostId: number;
+        sceneId: string | null;
+        questNode: import("../shared/types/coop").CoopQuestNode | null;
+        camp: CoopCampState | null;
+        expedition: CoopExpeditionState | null;
+        encounter: CoopEncounterState | null;
+        sequentialBroadcast: SequentialBroadcastState | null;
+        questScore: {
+            questId: string;
+            current: number;
+            target: number;
+            history: number[];
+            modifiers: Record<string, number>;
+            playerModifiers: Record<string, Record<string, number>>;
+            statuses: Record<string, number>;
+            playerStatuses: Record<string, Record<string, number>>;
+            stages: number;
+            lastStageTotal: number;
+            lastStageByPlayer: Record<string, number>;
+        } | null;
+        participants: {
+            id: number;
+            name: string;
+            role: string | null;
+            ready: boolean | null;
+        }[];
+        votes: {
+            id: number;
+            createdAt: number;
+            sessionId: number;
+            sceneId: string;
+            choiceId: string;
+            voterId: number;
+        }[];
+    } | null>;
     callReinforcements(code: string, playerId: number, count?: number): Promise<{
         code: string;
         status: string | null;
@@ -401,6 +542,7 @@ export declare const coopService: {
         camp: CoopCampState | null;
         expedition: CoopExpeditionState | null;
         encounter: CoopEncounterState | null;
+        sequentialBroadcast: SequentialBroadcastState | null;
         questScore: {
             questId: string;
             current: number;
@@ -438,6 +580,7 @@ export declare const coopService: {
         camp: CoopCampState | null;
         expedition: CoopExpeditionState | null;
         encounter: CoopEncounterState | null;
+        sequentialBroadcast: SequentialBroadcastState | null;
         questScore: {
             questId: string;
             current: number;
@@ -475,6 +618,7 @@ export declare const coopService: {
         camp: CoopCampState | null;
         expedition: CoopExpeditionState | null;
         encounter: CoopEncounterState | null;
+        sequentialBroadcast: SequentialBroadcastState | null;
         questScore: {
             questId: string;
             current: number;
@@ -512,6 +656,7 @@ export declare const coopService: {
         camp: CoopCampState | null;
         expedition: CoopExpeditionState | null;
         encounter: CoopEncounterState | null;
+        sequentialBroadcast: SequentialBroadcastState | null;
         questScore: {
             questId: string;
             current: number;
@@ -549,6 +694,7 @@ export declare const coopService: {
         camp: CoopCampState | null;
         expedition: CoopExpeditionState | null;
         encounter: CoopEncounterState | null;
+        sequentialBroadcast: SequentialBroadcastState | null;
         questScore: {
             questId: string;
             current: number;
@@ -586,6 +732,7 @@ export declare const coopService: {
         camp: CoopCampState | null;
         expedition: CoopExpeditionState | null;
         encounter: CoopEncounterState | null;
+        sequentialBroadcast: SequentialBroadcastState | null;
         questScore: {
             questId: string;
             current: number;
@@ -623,6 +770,7 @@ export declare const coopService: {
         camp: CoopCampState | null;
         expedition: CoopExpeditionState | null;
         encounter: CoopEncounterState | null;
+        sequentialBroadcast: SequentialBroadcastState | null;
         questScore: {
             questId: string;
             current: number;
@@ -660,6 +808,45 @@ export declare const coopService: {
         camp: CoopCampState | null;
         expedition: CoopExpeditionState | null;
         encounter: CoopEncounterState | null;
+        sequentialBroadcast: SequentialBroadcastState | null;
+        questScore: {
+            questId: string;
+            current: number;
+            target: number;
+            history: number[];
+            modifiers: Record<string, number>;
+            playerModifiers: Record<string, Record<string, number>>;
+            statuses: Record<string, number>;
+            playerStatuses: Record<string, Record<string, number>>;
+            stages: number;
+            lastStageTotal: number;
+            lastStageByPlayer: Record<string, number>;
+        } | null;
+        participants: {
+            id: number;
+            name: string;
+            role: string | null;
+            ready: boolean | null;
+        }[];
+        votes: {
+            id: number;
+            createdAt: number;
+            sessionId: number;
+            sceneId: string;
+            choiceId: string;
+            voterId: number;
+        }[];
+    } | null>;
+    advanceSequential: (code: string, playerId: number) => Promise<{
+        code: string;
+        status: string | null;
+        hostId: number;
+        sceneId: string | null;
+        questNode: import("../shared/types/coop").CoopQuestNode | null;
+        camp: CoopCampState | null;
+        expedition: CoopExpeditionState | null;
+        encounter: CoopEncounterState | null;
+        sequentialBroadcast: SequentialBroadcastState | null;
         questScore: {
             questId: string;
             current: number;

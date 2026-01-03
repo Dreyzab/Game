@@ -1,5 +1,5 @@
 import type { CoopQuestChoice, CoopQuestNode, CoopRoleId } from '../shared/types/coop'
-import { COOP_STATUSES, ROLE_TAG_MULTS } from '../shared/coopScoreConfig'
+import { COOP_STATUSES, ROLE_TAG_MULTS } from '../shared/data/coopScoreConfig'
 
 export interface CoopSideQuestMeta {
   stages: number

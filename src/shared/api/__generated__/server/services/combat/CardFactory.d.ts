@@ -1,9 +1,12 @@
 export interface Card {
     id: string;
     name: string;
+    description?: string;
+    type: string;
     damage: number;
-    damageType: 'PHYSICAL' | 'TECHNO' | 'BIO' | 'RITUAL';
-    range: number[];
+    damageType: string;
+    range?: number[];
+    optimalRange?: number[];
     apCost: number;
     staminaCost: number;
     effects: any[];
@@ -36,3 +39,4 @@ export interface Artifact {
 }
 export declare function synthesizeCard(weapon: Weapon, artifact: Artifact | null, voices: VoiceStats): Card;
 export declare function createMoveCard(direction: 'ADVANCE' | 'RETREAT'): any;
+export declare function generateCardsForWeapon(weaponId: string, baseStats?: any): Card[];

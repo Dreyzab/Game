@@ -32,6 +32,7 @@ export declare const vnRoutes: (app: Elysia) => Elysia<"", {
                             visitedScenes: string[];
                             flags: Record<string, any>;
                             reputation: any;
+                            attributes: any;
                             skills: Record<string, number>;
                             id: number;
                             updatedAt: number;
@@ -112,6 +113,7 @@ export declare const vnRoutes: (app: Elysia) => Elysia<"", {
                             visitedScenes: string[];
                             flags: Record<string, any>;
                             reputation: any;
+                            attributes: any;
                             skills: Record<string, number>;
                             id: number;
                             updatedAt: number;

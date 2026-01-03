@@ -178,14 +178,15 @@ export const resonanceRoutes = (app: Elysia) =>
                     const session = resumeIfPaused(params.code);
                     if (!session) return { error: "NOT_FOUND", status: 404 };
                     // сохраняем как interrupt payload, чтобы не плодить отдельную структуру
+                    const at = Date.now();
                     session.interrupts.push({
                         type: 'force_next',
                         playerId: (user as AuthedUser).id,
                         cost: 0,
-                        at: Date.now(),
-                        payload: { proximity_hint: body.hint },
+                        at,
+                        payload: { proxemic: { hint: body.hint, at } },
                     });
-                    session.updatedAt = Date.now();
+                    session.updatedAt = at;
                     return { session };
                 }, {
                     body: t.Object({

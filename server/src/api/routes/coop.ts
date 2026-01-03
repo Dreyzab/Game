@@ -251,4 +251,70 @@ export const coopRoutes = (app: Elysia) =>
                         quantity: t.Number()
                     })
                 })
+
+                .get("/rooms/:code/camp/shop", async ({ user, params }) => {
+                    if (!user) return { error: "Unauthorized", status: 401 };
+                    const playerId = await getPlayerId(user as any);
+                    if (!playerId) return { error: "Player profile not found", status: 404 };
+
+                    try {
+                        const shop = await coopService.getCampShop(params.code, playerId);
+                        return { shop };
+                    } catch (e: any) {
+                        return { error: e.message, status: 400 };
+                    }
+                })
+
+                .post("/rooms/:code/camp/reinforce", async ({ user, params, body }) => {
+                    if (!user) return { error: "Unauthorized", status: 401 };
+                    const playerId = await getPlayerId(user as any);
+                    if (!playerId) return { error: "Player profile not found", status: 404 };
+
+                    try {
+                        const room = await coopService.callReinforcements(params.code, playerId, body.count ?? 1);
+                        return { room };
+                    } catch (e: any) {
+                        return { error: e.message, status: 400 };
+                    }
+                }, {
+                    body: t.Object({
+                        count: t.Optional(t.Number()),
+                    })
+                })
+
+                .post("/rooms/:code/camp/purchase", async ({ user, params, body }) => {
+                    if (!user) return { error: "Unauthorized", status: 401 };
+                    const playerId = await getPlayerId(user as any);
+                    if (!playerId) return { error: "Player profile not found", status: 404 };
+
+                    try {
+                        const room = await coopService.purchaseCampItem(params.code, playerId, body.templateId, body.quantity ?? 1);
+                        return { room };
+                    } catch (e: any) {
+                        return { error: e.message, status: 400 };
+                    }
+                }, {
+                    body: t.Object({
+                        templateId: t.String(),
+                        quantity: t.Optional(t.Number()),
+                    })
+                })
+
+                .post("/rooms/:code/camp/inventory/withdraw", async ({ user, params, body }) => {
+                    if (!user) return { error: "Unauthorized", status: 401 };
+                    const playerId = await getPlayerId(user as any);
+                    if (!playerId) return { error: "Player profile not found", status: 404 };
+
+                    try {
+                        const room = await coopService.withdrawFromCamp(params.code, playerId, body.templateId, body.quantity ?? 1);
+                        return { room };
+                    } catch (e: any) {
+                        return { error: e.message, status: 400 };
+                    }
+                }, {
+                    body: t.Object({
+                        templateId: t.String(),
+                        quantity: t.Optional(t.Number()),
+                    })
+                })
         );

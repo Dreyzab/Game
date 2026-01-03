@@ -1,7 +1,7 @@
 import { Elysia, t } from "elysia";
 import { db } from "../../db";
-import { players, gameProgress } from "../../db/schema";
-import { eq } from "drizzle-orm";
+import { players, gameProgress, quests } from "../../db/schema";
+import { eq, sql } from "drizzle-orm";
 import { auth } from "../auth";
 import { needsSkillsNormalization, normalizeSkills, STARTING_SKILLS } from "../../lib/gameProgress";
 import { deriveOnboardingSkills, ONBOARDING_SKILLS_APPLIED_FLAG } from "../../lib/onboarding";
@@ -79,6 +79,12 @@ export const playerRoutes = (app: Elysia) =>
                         return { player: null };
                     }
 
+                    const questCountRows = await db
+                        .select({ count: sql<number>`count(*)` })
+                        .from(quests)
+                        .where(eq(quests.isActive, true));
+                    const totalQuests = Number(questCountRows[0]?.count ?? 0);
+
                     // Fetch progress
                     let progress = await db.query.gameProgress.findFirst({
                         where: eq(gameProgress.playerId, player.id)
@@ -106,7 +112,7 @@ export const playerRoutes = (app: Elysia) =>
                         }
                     }
 
-                    return { player: toPublicPlayer(player), progress };
+                    return { player: toPublicPlayer(player), progress, totalQuests };
                 })
 
                 .post("/init", async ({ user, body }) => {

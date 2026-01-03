@@ -5,7 +5,7 @@ import { coopGraph } from '../lib/coopGraph';
 import type { CoopExpeditionDeadlineEvent, CoopExpeditionDeadlineEventKind, CoopRoleId } from '../shared/types/coop';
 import { broadcastCoopUpdate } from '../lib/bus';
 import { getItemTemplate, hasItemTemplate } from '../lib/itemTemplates';
-import { COOP_STATUSES } from '../shared/coopScoreConfig';
+import { COOP_STATUSES } from '../shared/data/coopScoreConfig';
 import { BASE_UPGRADES, ITEM_CONTRIBUTION_VALUES } from '../shared/data/campConfig';
 import { resolveExpeditionEvent } from '../lib/coopExpeditionEvents';
 import { generateExpeditionStageState, getExpeditionStagePool } from '../lib/coopExpeditionStagePools';
@@ -841,50 +841,6 @@ export const coopService = {
             columns: { id: true },
         });
 
-        // #region agent log (debug)
-        // eslint-disable-next-line no-console
-        console.info('[agent-debug]', {
-            sessionId: 'debug-session',
-            runId: 'pre-fix',
-            hypothesisId: 'H4',
-            location: 'server/src/services/coopService.ts:markReached',
-            message: 'markReached: updated participant cursor; may promote shared currentScene',
-            data: {
-                code,
-                playerId,
-                nodeId,
-                prevSessionScene: session.currentScene ?? null,
-                reachedCount: reached.length,
-                threshold,
-                participants: session.participants.length,
-                willPromote: reached.length >= threshold && session.currentScene !== nodeId,
-            },
-            timestamp: Date.now(),
-        });
-        fetch('http://127.0.0.1:7243/ingest/8d2cfb91-eb32-456b-9d58-3c64b19222af', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                sessionId: 'debug-session',
-                runId: 'pre-fix',
-                hypothesisId: 'H4',
-                location: 'server/src/services/coopService.ts:markReached',
-                message: 'markReached: updated participant cursor; may promote shared currentScene',
-                data: {
-                    code,
-                    playerId,
-                    nodeId,
-                    prevSessionScene: session.currentScene ?? null,
-                    reachedCount: reached.length,
-                    threshold,
-                    participants: session.participants.length,
-                    willPromote: reached.length >= threshold && session.currentScene !== nodeId,
-                },
-                timestamp: Date.now(),
-            }),
-        }).catch(() => { });
-        // #endregion
-
         if (reached.length >= threshold && session.currentScene !== nodeId) {
             await db.update(coopSessions)
                 .set({ currentScene: nodeId })
@@ -941,50 +897,6 @@ export const coopService = {
             voteSceneId = normalizedNodeId;
             currentNode = requestedNode;
         }
-
-        // #region agent log (debug)
-        // eslint-disable-next-line no-console
-        console.info('[agent-debug]', {
-            sessionId: 'debug-session',
-            runId: 'pre-fix',
-            hypothesisId: 'H1',
-            location: 'server/src/services/coopService.ts:castVote:init',
-            message: 'castVote received',
-            data: {
-                code,
-                requesterPlayerId,
-                actorPlayerId,
-                sessionCurrentScene: session.currentScene,
-                normalizedNodeId: normalizedNodeId ?? null,
-                voteSceneId,
-                interactionType: (currentNode as any)?.interactionType ?? null,
-                choiceId,
-            },
-            timestamp: Date.now(),
-        });
-        fetch('http://127.0.0.1:7243/ingest/8d2cfb91-eb32-456b-9d58-3c64b19222af', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                sessionId: 'debug-session',
-                runId: 'pre-fix',
-                hypothesisId: 'H1',
-                location: 'server/src/services/coopService.ts:castVote:init',
-                message: 'castVote received',
-                data: {
-                    code,
-                    requesterPlayerId,
-                    actorPlayerId,
-                    sessionCurrentScene: session.currentScene,
-                    normalizedNodeId: normalizedNodeId ?? null,
-                    voteSceneId,
-                    interactionType: (currentNode as any)?.interactionType ?? null,
-                    choiceId,
-                },
-                timestamp: Date.now(),
-            }),
-        }).catch(() => { });
-        // #endregion
 
         // --- FLAG / EFFECT HELPERS ---
         const getChoiceFlags = (cId: string): Record<string, any> => {
@@ -1440,45 +1352,6 @@ export const coopService = {
 
         // Individual choices are personal: they should not block others and should not advance the shared checkpoint.
         if (currentNode.interactionType === 'individual') {
-            // #region agent log (debug)
-            // eslint-disable-next-line no-console
-            console.info('[agent-debug]', {
-                sessionId: 'debug-session',
-                runId: 'pre-fix',
-                hypothesisId: 'H2',
-                location: 'server/src/services/coopService.ts:castVote:individual',
-                message: 'individual choice: applying flags only (no session scene advance)',
-                data: {
-                    code,
-                    actorPlayerId,
-                    voteSceneId,
-                    sessionCurrentScene: session.currentScene,
-                    choiceId,
-                    flagKeys: Object.keys(newFlags ?? {}).slice(0, 20),
-                },
-                timestamp: Date.now(),
-            });
-            fetch('http://127.0.0.1:7243/ingest/8d2cfb91-eb32-456b-9d58-3c64b19222af', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    sessionId: 'debug-session',
-                    runId: 'pre-fix',
-                    hypothesisId: 'H2',
-                    location: 'server/src/services/coopService.ts:castVote:individual',
-                    message: 'individual choice: applying flags only (no session scene advance)',
-                    data: {
-                        code,
-                        actorPlayerId,
-                        voteSceneId,
-                        sessionCurrentScene: session.currentScene,
-                        choiceId,
-                        flagKeys: Object.keys(newFlags ?? {}).slice(0, 20),
-                    },
-                    timestamp: Date.now(),
-                }),
-            }).catch(() => { });
-            // #endregion
             await applyFlags(newFlags);
             await awardLoot(choice);
             const state = await coopService.getRoomState(code);
@@ -2469,6 +2342,123 @@ export const coopService = {
             currencyAmount: camp.inventory.scrap ?? 0,
             stock,
         };
+    },
+
+    async contributeItem(code: string, playerId: number, templateId: string, quantity = 1) {
+        const session = await db.query.coopSessions.findFirst({
+            where: eq(coopSessions.inviteCode, code),
+            with: { participants: true },
+            columns: { id: true, flags: true, status: true, inviteCode: true },
+        });
+        if (!session) throw new Error('Room not found');
+        if (session.status !== 'active') throw new Error('Session not active');
+        if (!session.participants.some((p) => p.playerId === playerId)) throw new Error('Not a participant');
+
+        const normalizedTemplateId = String(templateId ?? '').trim();
+        if (!normalizedTemplateId) throw new Error('Invalid templateId');
+        if (!hasItemTemplate(normalizedTemplateId)) throw new Error('Unknown template');
+
+        const requestedQty = Math.max(1, Math.floor(quantity));
+
+        const flags = (session.flags ?? {}) as Record<string, any>;
+        const camp: CoopCampState =
+            getCampStateFromFlags(flags) ?? { ...DEFAULT_CAMP_STATE, baseLevel: 1, upgrades: {}, credits: 0 };
+
+        const prevQty = Math.max(0, Math.floor(toFiniteNumber(camp.inventory[normalizedTemplateId], 0)));
+        const nextInventory = { ...camp.inventory, [normalizedTemplateId]: prevQty + requestedQty };
+
+        const unitCredits = toFiniteNumber(ITEM_CONTRIBUTION_VALUES[normalizedTemplateId], 0);
+        const prevCredits = Math.max(0, Math.floor(toFiniteNumber(camp.credits, 0)));
+        const creditDelta = unitCredits > 0 ? unitCredits * requestedQty : 0;
+
+        const nextCamp: CoopCampState = {
+            ...camp,
+            inventory: nextInventory,
+            credits: prevCredits + creditDelta,
+        };
+
+        flags.__camp = nextCamp;
+        await db.update(coopSessions).set({ flags }).where(eq(coopSessions.id, session.id));
+
+        const state = await coopService.getRoomState(code);
+        broadcastCoopUpdate(code, state);
+        return state;
+    },
+
+    async upgradeBase(code: string, playerId: number, upgradeId: string) {
+        const session = await db.query.coopSessions.findFirst({
+            where: eq(coopSessions.inviteCode, code),
+            with: { participants: true },
+            columns: { id: true, flags: true, status: true, inviteCode: true },
+        });
+        if (!session) throw new Error('Room not found');
+        if (session.status !== 'active') throw new Error('Session not active');
+        if (!session.participants.some((p) => p.playerId === playerId)) throw new Error('Not a participant');
+
+        const normalizedUpgradeId = String(upgradeId ?? '').trim();
+        if (!normalizedUpgradeId) throw new Error('Invalid upgradeId');
+        const upgrade = BASE_UPGRADES.find((u) => u.id === normalizedUpgradeId);
+        if (!upgrade) throw new Error('Unknown upgrade');
+
+        const flags = (session.flags ?? {}) as Record<string, any>;
+        const camp: CoopCampState =
+            getCampStateFromFlags(flags) ?? { ...DEFAULT_CAMP_STATE, baseLevel: 1, upgrades: {}, credits: 0 };
+
+        const currentLevel = Math.max(0, Math.floor(toFiniteNumber(camp.upgrades?.[normalizedUpgradeId], 0)));
+        if (currentLevel >= upgrade.maxLevel) throw new Error('Upgrade already at max level');
+
+        const availableCredits = Math.max(0, Math.floor(toFiniteNumber(camp.credits, 0)));
+        const upgradeCost = Math.max(1, Math.floor(upgrade.baseCost * Math.pow(upgrade.costMultiplier, currentLevel)));
+        if (availableCredits < upgradeCost) throw new Error('Not enough camp credits');
+
+        const nextUpgrades = { ...(camp.upgrades ?? {}) };
+        nextUpgrades[normalizedUpgradeId] = currentLevel + 1;
+
+        const nextCamp: CoopCampState = {
+            ...camp,
+            credits: availableCredits - upgradeCost,
+            upgrades: nextUpgrades,
+        };
+
+        flags.__camp = nextCamp;
+        await db.update(coopSessions).set({ flags }).where(eq(coopSessions.id, session.id));
+
+        const state = await coopService.getRoomState(code);
+        broadcastCoopUpdate(code, state);
+        return state;
+    },
+
+    async startMission(code: string, playerId: number, missionNodeId: string) {
+        const session = await db.query.coopSessions.findFirst({
+            where: eq(coopSessions.inviteCode, code),
+            with: { participants: true },
+            columns: { id: true, status: true, hostId: true, inviteCode: true },
+        });
+        if (!session) throw new Error('Room not found');
+        if (session.status !== 'active') throw new Error('Session not active');
+        if (session.hostId !== playerId) throw new Error('Only host can start missions');
+
+        const normalizedNodeId = String(missionNodeId ?? '').trim();
+        if (!normalizedNodeId) throw new Error('Invalid missionNodeId');
+        if (!coopGraph.getNode(normalizedNodeId)) throw new Error('Node not found');
+
+        await db.update(coopSessions)
+            .set({ currentScene: normalizedNodeId })
+            .where(eq(coopSessions.id, session.id));
+
+        const participantIds = session.participants.map((p) => p.playerId);
+        if (participantIds.length > 0) {
+            await db
+                .update(coopParticipants)
+                .set({ currentScene: normalizedNodeId })
+                .where(and(eq(coopParticipants.sessionId, session.id), inArray(coopParticipants.playerId, participantIds)));
+        }
+
+        await db.delete(coopVotes).where(eq(coopVotes.sessionId, session.id));
+
+        const state = await coopService.getRoomState(code);
+        broadcastCoopUpdate(code, state);
+        return state;
     },
 
     async callReinforcements(code: string, playerId: number, count = 1) {

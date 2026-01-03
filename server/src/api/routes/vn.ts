@@ -301,6 +301,7 @@ export const vnRoutes = (app: Elysia) =>
                             visitedScenes: progress.visitedScenes ?? [],
                             flags: progress.flags ?? {},
                             reputation: (progress as any).reputation ?? {},
+                            attributes: (progress as any).attributes ?? progress.skills ?? {},
                             skills: progress.skills ?? {},
                         }
                     };
@@ -500,6 +501,7 @@ export const vnRoutes = (app: Elysia) =>
                             visitedScenes: latestProgress.visitedScenes ?? [],
                             flags: latestProgress.flags ?? {},
                             reputation: (latestProgress as any).reputation ?? {},
+                            attributes: (latestProgress as any).attributes ?? latestProgress.skills ?? {},
                             skills: latestProgress.skills ?? {},
                         },
                         awardedItems,

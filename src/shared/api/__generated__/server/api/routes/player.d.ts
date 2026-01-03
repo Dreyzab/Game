@@ -30,11 +30,13 @@ export declare const playerRoutes: (app: Elysia) => Elysia<"", {
                     status: number;
                     player?: undefined;
                     progress?: undefined;
+                    totalQuests?: undefined;
                 } | {
                     player: null;
                     error?: undefined;
                     status?: undefined;
                     progress?: undefined;
+                    totalQuests?: undefined;
                 } | {
                     player: PublicPlayer | null;
                     progress: {
@@ -59,6 +61,7 @@ export declare const playerRoutes: (app: Elysia) => Elysia<"", {
                         maxStamina: number | null;
                         phase: number | null;
                     } | undefined;
+                    totalQuests: number;
                     error?: undefined;
                     status?: undefined;
                 };

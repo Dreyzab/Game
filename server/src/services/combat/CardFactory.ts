@@ -1,13 +1,15 @@
-import { eq, and } from "drizzle-orm";
-// We will need to import types, but for now let's define the class structure.
-// Actual imports will be resolved when we have the full type context.
+import { ITEM_TEMPLATES } from '../../shared/data/itemTemplates'
+import { generateWeaponCardsForWeaponId } from '../../shared/data/weaponCards'
 
 export interface Card {
     id: string;
     name: string;
+    description?: string;
+    type: string;
     damage: number;
-    damageType: 'PHYSICAL' | 'TECHNO' | 'BIO' | 'RITUAL';
-    range: number[];
+    damageType: string;
+    range?: number[]; // Deprecated in favor of optimalRange
+    optimalRange?: number[];
     apCost: number;
     staminaCost: number;
     effects: any[]; // Using any for now, refine later
@@ -48,9 +50,11 @@ export function synthesizeCard(weapon: Weapon, artifact: Artifact | null, voices
     let card: Card = {
         id: crypto.randomUUID(),
         name: weapon.name,
+        type: 'attack', // Default type, logic should refine this
         damage: weapon.baseDamage,
         damageType: weapon.damageType,
-        range: weapon.validRanks,
+        range: weapon.validRanks, // Keeping for backward compat, though interface deprecated it
+        optimalRange: weapon.validRanks,
         apCost: weapon.baseAp,
         staminaCost: weapon.baseStamina,
         effects: [...weapon.defaultEffects],
@@ -105,4 +109,41 @@ export function createMoveCard(direction: 'ADVANCE' | 'RETREAT'): any { // Using
         jamChance: 0,
         tags: ['MOVEMENT']
     };
+}
+
+export function generateCardsForWeapon(weaponId: string, baseStats?: any): Card[] {
+    const template = (ITEM_TEMPLATES as any)?.[weaponId];
+    const baseDamage = (() => {
+        const raw = baseStats?.damage ?? template?.baseStats?.damage;
+        const num = typeof raw === 'number' ? raw : Number(raw);
+        return Number.isFinite(num) ? num : 10;
+    })();
+
+    const baseJamChance = (() => {
+        const raw = baseStats?.jamChance ?? 0;
+        const num = typeof raw === 'number' ? raw : Number(raw);
+        return Number.isFinite(num) ? num : 0;
+    })();
+
+    const generated = generateWeaponCardsForWeaponId(weaponId, {
+        baseDamage,
+        baseJamChance,
+        idPrefix: `srv_${weaponId}`,
+    });
+
+    return generated.map((card) => ({
+        id: card.id,
+        name: card.name,
+        description: card.description,
+        type: card.type,
+        damage: card.damage,
+        damageType: card.damageType,
+        range: card.optimalRange,
+        optimalRange: card.optimalRange,
+        apCost: card.apCost,
+        staminaCost: card.staminaCost,
+        effects: card.effects,
+        jamChance: card.jamChance,
+        tags: ['weapon'],
+    }));
 }

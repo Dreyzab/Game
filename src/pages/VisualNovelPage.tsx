@@ -103,10 +103,17 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
       .map(([key]) => key)
   }, [vnStateQuery.data?.progress?.flags])
 
-  const skills = useMemo(
-    () => (vnStateQuery.data?.progress?.skills as Record<string, number> | undefined) ?? {},
-    [vnStateQuery.data?.progress?.skills]
-  )
+  const pendingAttributeDeltas = useVisualNovelSessionStore((state) => state.pendingAttributeDeltas)
+  const attributes = useMemo(() => {
+    const progress = (vnStateQuery.data as any)?.progress
+    const base = (progress?.attributes ?? progress?.skills ?? {}) as Record<string, number>
+    const merged = { ...base }
+    Object.entries(pendingAttributeDeltas).forEach(([key, delta]) => {
+      if (typeof delta !== 'number' || !Number.isFinite(delta) || delta === 0) return
+      merged[key] = (merged[key] ?? 0) + delta
+    })
+    return merged
+  }, [pendingAttributeDeltas, vnStateQuery.data])
 
   const hp = useMemo(() => {
     const baseHpRaw = (vnStateQuery.data as any)?.progress?.hp
@@ -369,7 +376,7 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
         isSceneCompleted={viewModel.isSceneCompleted}
         isPending={viewModel.isPending}
         flags={viewModel.flags}
-        skills={skills}
+        skills={attributes}
         hp={hp.hp}
         maxHp={hp.maxHp}
         floatingEvents={floatingEvents}

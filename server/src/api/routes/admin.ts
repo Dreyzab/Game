@@ -8,8 +8,7 @@ type AuthedUser = { id: string; type: 'clerk' | 'guest' }
 
 function isAllowedAdmin(user: AuthedUser | null, headers: Record<string, string | undefined>): boolean {
   const tokenHeader = headers['x-admin-token'] ?? headers['X-Admin-Token']
-  // Явно захардкоженный ADMIN_TOKEN (по просьбе: без "безопасности")
-  const adminToken = (process.env.ADMIN_TOKEN ?? '13121998qwer').trim()
+  const adminToken = (process.env.ADMIN_TOKEN ?? '').trim()
   const adminUserIds = (process.env.ADMIN_USER_IDS ?? '')
     .split(',')
     .map((s) => s.trim())
@@ -86,5 +85,3 @@ export const adminRoutes = (app: Elysia) =>
           }
         )
     )
-
-

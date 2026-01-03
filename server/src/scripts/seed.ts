@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { mapPoints, items, safeZones, dangerZones } from "../db/schema";
+import { mapPoints, items, safeZones, dangerZones, worldRifts } from "../db/schema";
 import { SEED_MAP_POINTS } from "../seeds/mapPoints";
 import { ITEM_TEMPLATES } from "../seeds/itemTemplates";
 import { SEED_SAFE_ZONES } from "../seeds/safeZones";
@@ -69,14 +69,17 @@ async function seedDangerZones() {
     const now = Date.now();
 
     // Full replace for deterministic seeding
+    await db.delete(worldRifts);
     await db.delete(dangerZones);
 
     let inserted = 0;
     for (const zone of SEED_DANGER_ZONES) {
         await db.insert(dangerZones).values({
+            key: zone.key,
             title: zone.title,
             dangerLevel: zone.dangerLevel,
             polygon: zone.polygon,
+            spawnPoints: zone.spawnPoints ?? [],
             isActive: true,
         });
         inserted += 1;

@@ -22,8 +22,7 @@ export const CoopBattleScreen: React.FC<CoopBattleScreenProps> = ({ roomCode }) 
       const token = await getToken()
       const client = authenticatedClient(token ?? undefined)
 
-      // @ts-expect-error - dynamic route typing in Eden
-      const { data, error } = await client.coop.rooms[roomCode].get()
+      const { data, error } = await client.coop.rooms({ code: roomCode }).get()
       if (error) throw error
 
       const payload = data as any
@@ -38,8 +37,7 @@ export const CoopBattleScreen: React.FC<CoopBattleScreenProps> = ({ roomCode }) 
       const token = await getToken()
       const client = authenticatedClient(token ?? undefined)
 
-      // @ts-expect-error - dynamic route typing in Eden
-      const { data, error } = await client.coop.rooms[roomCode].quest.post({ choiceId })
+      const { data, error } = await client.coop.rooms({ code: roomCode }).quest.post({ choiceId })
       if (error) throw error
 
       const payload = data as any

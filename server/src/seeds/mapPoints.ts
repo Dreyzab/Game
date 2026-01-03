@@ -17,25 +17,50 @@ export type SeedMapPoint = {
 }
 
 export const SEED_MAP_POINTS: SeedMapPoint[] = [
-  // Центральная мастерская Дитера
+  // Стартовая точка (Drop Zone)
+  {
+    id: 'sdg_drop_zone',
+    title: 'Зона Высадки (SDG)',
+    description: 'Место вашего появления во Фрайбурге. Свежий воздух и неизвестность.',
+    coordinates: { lat: 47.9940, lng: 7.8480 }, // TBD: Adjust to real drop location
+    type: 'location',
+    phase: 1,
+    isActive: true,
+    metadata: {
+      category: 'start_point',
+      visibility: {
+        initiallyHidden: false
+      },
+      sceneBindings: [
+        {
+          sceneId: 'onboarding_sdg_arrival',
+          triggerType: 'click',
+          conditions: {
+            notFlags: ['arrived_at_freiburg']
+          },
+          priority: 100
+        }
+      ]
+    },
+    createdAt: Date.now(),
+  },
+  // Цех Артисанов «Шестеренка» (бывший "Опора")
   {
     id: 'workshop_center',
-    title: 'Центральная мастерская "Опора"',
+    title: 'Цех Артисанов «Шестеренка»',
     description:
-      'Главная точка ремесленной сети. Здесь Диетер чинит, улучшает и собирает снаряжение. Знакомство с ним открывает путь в ремесленное сообщество.',
+      'Сердце городской инфраструктуры в бывшем депо. Здесь Мастер Дитер и артисаны чинят всё: от кофеварок до БТРов. Шум, пар и запах масла.',
     coordinates: { lat: 47.993, lng: 7.849 },
-    type: 'npc',
+    type: 'location',
     phase: 1,
     isActive: true,
     metadata: {
       category: 'workshop',
-      npcId: 'dieter_craftsman_artisan',
-      characterName: 'Мастер Дитер',
-      services: ['repair', 'crafting', 'upgrade', 'storage'],
-      dialogues: ['craftsman_meeting_dialog', 'weapon_repair_dialog'],
-      questBindings: ['chance_for_a_newbie', 'whispers_of_rift'],
+      faction: 'artisans',
+      philosophy: 'pragmatism',
+      magic_level: 'low',
       atmosphere:
-        'Тёплая, шумная мастерская, пахнущая маслом и горячим металлом. Инструменты и заготовки аккуратно разложены по стенам.',
+        'Огромный цех, заполненный паром и лязгом металла. Артисаны работают слаженно, как единый механизм.',
       relationship: {
         initialLevel: 0,
         maxLevel: 100,
@@ -90,22 +115,25 @@ export const SEED_MAP_POINTS: SeedMapPoint[] = [
     createdAt: Date.now(),
   },
 
-  // Кампус "Синтез" — глобальная цель профессора
+  // Кампус "Синтез"
   {
     id: 'synthesis_campus',
-    title: 'Кампус "Синтез"',
+    title: 'Кампус "Синтез" (Здание "Солнечный Корабль")',
     description:
-      'Основной кампус исследовательской фракции "Синтез". Здесь, по слухам, можно найти профессора, которому нужно доставить посылку.',
-    coordinates: { lat: 47.9942, lng: 7.8465 },
+      'Центр исследований Разломов и база трансгуманистов. Здесь пытаются совместить магию и технологию.',
+    coordinates: { lat: 47.9942, lng: 7.8465 }, // Мерцхаузерштрассе
     type: 'location',
     phase: 1,
     isActive: true,
     metadata: {
       category: 'synthesis_campus',
       faction: 'synthesis',
+      philosophy: 'transhumanism',
+      magic_level: 'medium',
       questBindings: ['delivery_for_professor'],
       isGlobalObjective: true,
-      atmosphere: 'Спокойный технический квартал с лабораториями, аудиториями и пристыкованными научными модулями.',
+      atmosphere: 'Стерильный хай-тек, гудение серверов и мягкий свет лабораторных ламп.',
+      npcId: 'prof_steinbach',
       sceneBindings: [
         {
           sceneId: 'university_wait_evening',
@@ -128,118 +156,43 @@ export const SEED_MAP_POINTS: SeedMapPoint[] = [
     createdAt: Date.now(),
   },
 
-  {
-    id: 'carl_private_workshop',
-    title: 'Частная мастерская "Шестерёнка"',
-    description:
-      'Небольшая частная мастерская с экспериментальными механизмами. Карл работает по настроению и любит необычные заказы.',
-    coordinates: { lat: 47.994097368864146, lng: 7.850222931413185 },
-    type: 'npc',
-    phase: 1,
-    isActive: true,
-    metadata: {
-      category: 'workshop',
-      npcId: 'carl_gears',
-      characterName: 'Карл "Шестерёнка"',
-      services: ['crafting', 'upgrade'],
-      dialogues: ['carl_introduction', 'invention_discussion'],
-      atmosphere:
-        'Тесное, заваленное деталями помещение. Среди хаоса виден порядок, понятный только самому Карлу.',
-      relationship: {
-        initialLevel: 0,
-        maxLevel: 100,
-      },
-    },
-    createdAt: Date.now(),
-  },
 
-  // Медцентр Синтеза
+
+  // Медцентр Синтеза (Location)
   {
     id: 'synthesis_medical_center',
     title: 'Медцентр "Гиппократ"',
     description:
-      'Клиника фракции Синтез. Здесь лечат раненых, продают медикаменты и иногда выдают задания, связанные с полевой медициной.',
+      'Клиника фракции Синтез. Здесь лечат раненых и продают медикаменты.',
     coordinates: { lat: 47.99350491104801, lng: 7.845726036754058 },
-    type: 'npc',
+    type: 'location',
     phase: 1,
     isActive: true,
     metadata: {
       category: 'medical',
-      npcId: 'npc_lena_richter',
-      characterName: 'Лена Рихтер',
       faction: 'synthesis',
-      services: ['healing', 'medicine_trade', 'first_aid_training'],
-      dialogues: ['field_medicine_quest', 'medical_assistance'],
-      questBindings: ['field_medicine', 'medical_supplies_quest'],
       atmosphere:
         'Стерильный, но не лишённый человеческого тепла медицинский блок. Запах антисептика и приглушённые голоса персонала.',
     },
     createdAt: Date.now(),
   },
 
-  // Доска объявлений FJR
-  {
-    id: 'fjr_board',
-    title: 'Доска объявлений FJR',
-    description:
-      'Официальная доска объявлений Фрайбургского Жилищного Резерва. Здесь висят контракты, наряды и объявления для рекрутов.',
-    coordinates: { lat: 47.9969, lng: 7.8513 },
-    type: 'board',
-    phase: 1,
-    isActive: true,
-    metadata: {
-      category: 'bulletin_board',
-      faction: 'fjr',
-      services: ['quests', 'recruitment', 'news'],
-      dialogues: ['fjr_bulletin_board_dialog'],
-      questBindings: ['fjr_recruitment', 'patrol_duty', 'security_contract', 'baptism_by_fire'],
-      atmosphere:
-        'Строгий стенд с аккуратно развешенными листами. Края многих объявлений затёрты от частых прикосновений.',
-    },
-    createdAt: Date.now(),
-  },
 
-  {
-    id: 'fjr_briefing_point',
-    title: 'Брифинг-точка FJR',
-    description:
-      'Место, где сержант FJR коротко инструктирует рекрутов перед вылазками. Здесь можно получить вводный брифинг.',
-    coordinates: { lat: 47.996967960860246, lng: 7.855025931272138 },
-    type: 'npc',
-    phase: 1,
-    isActive: true,
-    metadata: {
-      category: 'briefing_point',
-      faction: 'fjr',
-      services: ['quests'],
-      npcId: 'npc_sgt_kruger',
-      questBindings: ['baptism_by_fire'],
-      atmosphere:
-        'Небольшой пятачок с полевой картой и ящиком амуниции. Здесь коротко и по делу объясняют, во что ты ввязываешься.',
-      requiresFaction: 'fjr',
-      minReputation: 20,
-    },
-    createdAt: Date.now(),
-  },
 
-  // Инфо-бюро на станции
+  // Инфо-бюро (Location)
   {
     id: 'info_bureau',
     title: 'Инфо-бюро на сортировочной станции',
     description:
-      'Небольшое окошко регистрации и справок. Здесь старушка-регистратор помогает новичкам с первыми ориентирами.',
+      'Небольшое окошко регистрации и справок.',
     coordinates: { lat: 47.99805434969426, lng: 7.841994665633422 },
-    type: 'npc',
+    type: 'location',
     phase: 1,
     isActive: true,
     metadata: {
       category: 'information',
-      npcId: 'old_lady_registrar',
-      characterName: 'Старушка-регистратор',
-      services: ['information', 'registration'],
       atmosphere:
-        'Тёплый уголок с замусоленными бумажками и старым терминалом. Старушка приветливо кивает каждому новому лицу.',
-      questBindings: ['first_steps_in_freiburg'],
+        'Тёплый уголок с замусоленными бумажками и старым терминалом.',
       unlockRequirements: {
         flags: ['arrived_at_freiburg'],
       },
@@ -268,23 +221,20 @@ export const SEED_MAP_POINTS: SeedMapPoint[] = [
   },
 
   // Лавка Элиаса "Ржавый Якорь" — цель квеста "Шанс для новичка"
+  // Лавка "Ржавый Якорь" (Location)
   {
     id: 'market_square_elias_stall',
     title: 'Лавка "Ржавый Якорь"',
     description:
-      'Небольшая лавка с запчастями и снаряжением. Здесь торгует Элиас, у которого нужно забрать ящик для мастера Дитера.',
+      'Небольшая лавка с запчастями и снаряжением.',
     coordinates: { lat: 47.994429768036866, lng: 7.846396544822056 },
-    type: 'npc',
+    type: 'location',
     phase: 1,
     isActive: true,
     metadata: {
       category: 'trader',
-      npcId: 'npc_elias_trader',
-      characterName: 'Элиас, лавочник',
-      services: ['trade', 'information', 'rumors'],
       atmosphere:
-        'Тесный прилавок, заваленный коробками и ящиками. Элиас зорко следит за каждым болтом и гайкой.',
-      questBindings: ['chance_for_a_newbie', 'sanctuary_blessing'],
+        'Тесный прилавок, заваленный коробками и ящиками.',
       danger_level: 'low',
       sceneBindings: [
         {
@@ -314,59 +264,27 @@ export const SEED_MAP_POINTS: SeedMapPoint[] = [
     createdAt: Date.now(),
   },
 
-  // Промзона Артисанов (Инфо-точка)
-  {
-    id: 'artisan_industrial_zone',
-    title: 'Промзона Артисанов',
-    description:
-      'Промышленный район, контролируемый фракцией Артисанов. Здесь можно поискать работу или встретить ремесленников.',
-    coordinates: { lat: 47.992, lng: 7.850 }, // Примерные координаты
-    type: 'location',
-    phase: 1,
-    isActive: true,
-    metadata: {
-      category: 'industrial_zone',
-      faction: 'artisans',
-      atmosphere: 'Шум работающих станков, запах гари и металла. Здесь кипит работа.',
-      services: ['work', 'crafting'],
-      sceneBindings: [
-        {
-          sceneId: 'artisan_zone_arrival',
-          triggerType: 'click',
-          conditions: {
-            notFlags: ['visited_artisan_zone'],
-          },
-          priority: 50,
-        },
-        {
-          sceneId: 'artisan_bulletin_board',
-          triggerType: 'click',
-          conditions: {
-            flags: ['visited_artisan_zone'],
-          },
-          priority: 10,
-        },
-      ],
-    },
-    createdAt: Date.now(),
-  },
 
-  // Кафедральный собор (Инфо-точка)
+
+  // Фрайбургский Мюнстер (База Староверов)
   {
     id: 'cathedral',
-    title: 'Кафедральный собор',
+    title: 'Фрайбургский Мюнстер',
     description:
-      'Величественный собор, ставший убежищем для многих. Настоятель может нуждаться в помощи.',
-    coordinates: { lat: 47.9955, lng: 7.8529 }, // Примерные координаты
+      'Духовный щит города. Зона, свободная от монстров и Скверны благодаря молитвам Староверов.',
+    coordinates: { lat: 47.9955, lng: 7.8529 },
     type: 'location',
     phase: 1,
     isActive: true,
     metadata: {
       category: 'religious',
       faction: 'old_believers',
-      atmosphere: 'Тишина и полумрак, нарушаемые лишь тихими молитвами. Запах ладана.',
-      services: ['healing', 'sanctuary'],
+      philosophy: 'traditionalism',
+      magic_level: 'holy', // Очищение
+      atmosphere: 'Тишина, запах ладана и ощущение абсолютной безопасности. Здесь дышится легче.',
+      services: ['healing', 'sanctuary', 'cleansing'],
       questBindings: ['sanctuary_blessing'],
+      npcId: 'father_johann', // Отец Иоанн (Keep just for reference if needed or remove entirely)
       sceneBindings: [
         {
           sceneId: 'father_johann_meeting',
@@ -455,84 +373,9 @@ export const SEED_MAP_POINTS: SeedMapPoint[] = [
     createdAt: Date.now(),
   },
 
-  // Шлосберг — склон и аномальная зона (доступ после пропуска Шмидта)
-  {
-    id: 'schlossberg_anomaly',
-    title: 'Шлосберг — Склон',
-    description:
-      'Лесной склон за восточными воротами. Дитер говорил о схроне и кристаллах — но гора отвечает шёпотом.',
-    coordinates: { lat: 47.9954, lng: 7.8586 },
-    type: 'anomaly',
-    phase: 1,
-    isActive: true,
-    metadata: {
-      category: 'anomaly',
-      atmosphere: 'Влажный лес, туман и редкие щелчки дозиметра. Воздух будто дрожит.',
-      questBindings: ['whispers_of_rift'],
-      danger_level: 'high',
-      unlockRequirements: {
-        flags: ['schlossberg_access_granted', 'whispers_quest_active'],
-      },
-      sceneBindings: [
-        {
-          sceneId: 'schlossberg_trail_entry',
-          triggerType: 'click',
-          conditions: {
-            notFlags: ['schlossberg_crystal_obtained'],
-          },
-          priority: 100,
-        },
-        {
-          sceneId: 'schlossberg_have_crystal_return',
-          triggerType: 'click',
-          conditions: {
-            flags: ['schlossberg_crystal_obtained'],
-            notFlags: ['schlossberg_crystal_delivered'],
-          },
-          priority: 50,
-        },
-      ],
-    },
-    createdAt: Date.now(),
-  },
 
-  // Штаб FJR (Инфо-точка)
-  {
-    id: 'fjr_hq',
-    title: 'Штаб FJR',
-    description:
-      'Укрепленная база Фрайбургского Жилищного Резерва. Здесь принимают рекрутов и выдают военные контракты.',
-    coordinates: { lat: 47.9975, lng: 7.854 }, // Примерные координаты
-    type: 'location',
-    phase: 1,
-    isActive: true,
-    metadata: {
-      category: 'military_base',
-      faction: 'fjr',
-      atmosphere: 'Строгий порядок, патрули и укрепления. Чувствуется военная дисциплина.',
-      services: ['recruitment', 'quests'],
-      questBindings: ['fjr_recruitment_quest', 'baptism_by_fire'],
-      sceneBindings: [
-        {
-          sceneId: 'fjr_recruitment_dialog',
-          triggerType: 'click',
-          conditions: {
-            notFlags: ['met_fjr', 'fjr_recruitment_accepted'],
-          },
-          priority: 50,
-        },
-        {
-          sceneId: 'fjr_briefing_point_dialog',
-          triggerType: 'click',
-          conditions: {
-            flags: ['fjr_recruitment_accepted'],
-          },
-          priority: 40,
-        },
-      ],
-    },
-    createdAt: Date.now(),
-  },
+
+
 
   // Августинерплац (Опасная зона, Анархисты)
   {
@@ -595,21 +438,19 @@ export const SEED_MAP_POINTS: SeedMapPoint[] = [
     createdAt: Date.now(),
   },
 
-  // Ганс (Временный NPC у станции)
+
+  // КПП Станции
   {
-    id: 'hans_at_station',
-    title: 'Ганс',
+    id: 'sgt_hans_station',
+    title: 'КПП Станции',
     description:
-      'Твой проводник в этот мир. Он ждет, пока ты освоишься, но скоро уйдет по своим делам.',
+      'Укрепленный блокпост FJR у входа на вокзал.',
     coordinates: { lat: 47.9979, lng: 7.8422 }, // Рядом с инфо-бюро
-    type: 'npc',
+    type: 'location',
     phase: 1,
     isActive: true,
     metadata: {
-      characterName: 'Ганс',
-      npcId: 'hans_guide',
       faction: 'fjr',
-      dialogues: ['hans_post_prologue_dialog'],
       atmosphere: 'Ганс проверяет снаряжение, готовый выдвинуться в любой момент.',
       sceneBindings: [
         {
@@ -643,10 +484,8 @@ export const SEED_MAP_POINTS: SeedMapPoint[] = [
     metadata: {
       category: 'social',
       npcId: 'luda_bartender',
-      characterName: 'Люда',
       services: ['rumors', 'drinks', 'rest'],
       atmosphere: 'Тусклый свет, запах дешёвого пива и табака. Люда протирает стаканы за стойкой.',
-      dialogues: ['luda_gossip_dialog', 'luda_shopkeeper_info'],
       questBindings: ['shopkeeper_truant'],
       sceneBindings: [
         {
@@ -682,8 +521,6 @@ export const SEED_MAP_POINTS: SeedMapPoint[] = [
       category: 'public_square',
       atmosphere: 'Шум торговли, крики разносчиков, запах жареных колбасок.',
       npcId: 'karapuz',
-      characterName: 'Карапуз',
-      dialogues: ['karapuz_introduction', 'karapuz_quest_shopkeeper'],
       questBindings: ['shopkeeper_truant'],
       sceneBindings: [
         {
@@ -700,27 +537,7 @@ export const SEED_MAP_POINTS: SeedMapPoint[] = [
     createdAt: Date.now(),
   },
 
-  // Главный рынок - Фленс
-  {
-    id: 'main_market_flens',
-    title: 'Главный рынок - Лавка Фленса',
-    description:
-      'Крупная торговая точка на главном рынке. Фленс знает всё о местных торговцах.',
-    coordinates: { lat: 47.9945, lng: 7.8462 },
-    type: 'npc',
-    phase: 1,
-    isActive: true,
-    metadata: {
-      category: 'trader',
-      npcId: 'flens_merchant',
-      characterName: 'Фленс',
-      services: ['trade', 'information'],
-      atmosphere: 'Аккуратная лавка с разнообразным товаром. Фленс щурится на каждого покупателя.',
-      dialogues: ['flens_introduction', 'flens_shopkeeper_details'],
-      questBindings: ['shopkeeper_truant'],
-    },
-    createdAt: Date.now(),
-  },
+
 
   // Доходный дом - комната 3Б
   {
@@ -751,23 +568,25 @@ export const SEED_MAP_POINTS: SeedMapPoint[] = [
     createdAt: Date.now(),
   },
 
-  // Клуб "Дыра" - встреча со Шрамом
+  // Клуб "Дыра"
   {
     id: 'the_hole_club',
-    title: 'Клуб "Дыра"',
+    title: 'Клуб "Дыра" (The Hole)',
     description:
-      'Подпольный клуб на границе анархистской территории. Здесь правит Шрам.',
-    coordinates: { lat: 47.9932, lng: 7.8535 },
+      'Штаб Анархистов в подвалах сквота в Вобане. Место обмена информацией без цензуры.',
+    coordinates: { lat: 47.975, lng: 7.825 }, // Vauban approx
     type: 'location',
     phase: 1,
     isActive: true,
     metadata: {
       category: 'underground',
       faction: 'anarchists',
+      philosophy: 'nihilism',
+      magic_level: 'low',
       npcId: 'scar_boss',
-      characterName: 'Шрам',
-      atmosphere: 'Темнота, пульсирующий бас, тени движутся в дыму. Шрам сидит в углу.',
-      dialogues: ['scar_introduction', 'scar_shopkeeper_deal'],
+      characterName: 'Шрам', // keep simple ref or remove
+      atmosphere: 'Громкая музыка, дым, неоновые граффити. Свобода граничит с хаосом.',
+      services: ['rumors', 'black_market_info'],
       questBindings: ['shopkeeper_truant'],
       danger_level: 'high',
       unlockRequirements: {
@@ -875,172 +694,15 @@ export const SEED_MAP_POINTS: SeedMapPoint[] = [
     createdAt: Date.now(),
   },
 
-  // Отец Иоанн в Кафедрале
-  {
-    id: 'cathedral_father_johann',
-    title: 'Кафедральный собор - Отец Иоанн',
-    description:
-      'Величественный собор, где служит отец Иоанн. Он предлагает убежище и мудрые советы.',
-    coordinates: { lat: 47.9957, lng: 7.8531 },
-    type: 'npc',
-    phase: 1,
-    isActive: true,
-    metadata: {
-      category: 'religious',
-      faction: 'old_believers',
-      npcId: 'father_johann',
-      characterName: 'Отец Иоанн',
-      services: ['healing', 'blessing', 'sanctuary', 'quests'],
-      atmosphere: 'Свет свечей играет на древних витражах. Тихая молитва эхом разносится по нефу.',
-      dialogues: ['father_johann_welcome', 'father_johann_blessing', 'father_johann_quest'],
-      sceneBindings: [
-        {
-          sceneId: 'father_johann_meeting',
-          triggerType: 'click',
-          conditions: {
-            flags: ['arrived_at_freiburg'],
-            notFlags: ['met_father_johann'],
-          },
-          priority: 1,
-        },
-      ],
-    },
-    createdAt: Date.now(),
-  },
 
-  // Доска объявлений Артисанов
-  {
-    id: 'artisan_bulletin_board',
-    title: 'Доска объявлений Артисанов',
-    description:
-      'Большая доска с заказами на ремонт и изготовление. Здесь Артисаны ищут помощников.',
-    coordinates: { lat: 47.9922, lng: 7.8502 },
-    type: 'board',
-    phase: 1,
-    isActive: true,
-    metadata: {
-      category: 'bulletin_board',
-      faction: 'artisans',
-      services: ['quests', 'crafting_orders'],
-      atmosphere: 'Листки с заказами прикреплены в несколько слоёв. Некоторые уже пожелтели.',
-      questBindings: ['artisan_repair_job', 'salvage_mission'],
-      interactionMenu: [
-        { id: 'view_orders', label: 'Просмотреть заказы', sceneId: 'artisan_board_view' },
-        { id: 'take_job', label: 'Взять работу', sceneId: 'artisan_board_job' },
-      ],
-    },
-    createdAt: Date.now(),
-  },
 
-  // Вальдемар - лидер Анархистов (осторожно!)
-  {
-    id: 'augustinerplatz_waldemar',
-    title: 'Августинерплац - Штаб Вальдемара',
-    description:
-      'Центр анархистского квартала. Здесь царит хаос, но есть и свои правила.',
-    coordinates: { lat: 47.9933, lng: 7.8528 },
-    type: 'npc',
-    phase: 1,
-    isActive: true,
-    metadata: {
-      category: 'faction_leader',
-      faction: 'anarchists',
-      npcId: 'waldemar_one',
-      characterName: 'Вальдемар "Один"',
-      danger_level: 'high',
-      atmosphere: 'Граффити, баррикады, костры. Люди смотрят на чужаков с подозрением.',
-      dialogues: ['waldemar_introduction', 'waldemar_ideology'],
-      unlockRequirements: {
-        flags: ['anarchist_contact'],
-        minReputation: { faction: 'anarchists', value: 10 },
-      },
-      sceneBindings: [
-        {
-          sceneId: 'augustinerplatz_warning',
-          triggerType: 'click',
-          conditions: {
-            notFlags: ['anarchist_contact'],
-          },
-          priority: 1,
-        },
-        {
-          sceneId: 'waldemar_audience',
-          triggerType: 'click',
-          conditions: {
-            flags: ['anarchist_contact'],
-          },
-          priority: 2,
-        },
-      ],
-    },
-    createdAt: Date.now(),
-  },
 
-  // Асуа - разведчица Анархистов
-  {
-    id: 'asua_lookout',
-    title: 'Наблюдательный пост - Асуа',
-    description:
-      'Тайный наблюдательный пост на крыше. Здесь дежурит Асуа, мечтательница среди анархистов.',
-    coordinates: { lat: 47.9936, lng: 7.8522 },
-    type: 'npc',
-    phase: 1,
-    isActive: true,
-    metadata: {
-      category: 'scout',
-      faction: 'anarchists',
-      npcId: 'asua_scout',
-      characterName: 'Асуа',
-      atmosphere: 'Ветер треплет флаги. Асуа смотрит в бинокль, но её мысли где-то далеко.',
-      dialogues: ['asua_dreams', 'asua_synthesis_interest'],
-      unlockRequirements: {
-        flags: ['anarchist_territory_entered'],
-      },
-      sceneBindings: [
-        {
-          sceneId: 'asua_stargazer',
-          triggerType: 'click',
-          conditions: {
-            flags: ['anarchist_territory_entered'],
-          },
-          priority: 1,
-        },
-      ],
-    },
-    createdAt: Date.now(),
-  },
 
-  // Профессор Штейнбах - основная цель посылки
-  {
-    id: 'professor_schmidt_office',
-    title: 'Кабинет профессора Штейнбаха',
-    description:
-      'Кабинет в университетском корпусе. Профессор исчез, но здесь могут быть следы.',
-    coordinates: { lat: 47.9944, lng: 7.8460 },
-    type: 'location',
-    phase: 1,
-    isActive: true,
-    metadata: {
-      category: 'investigation',
-      faction: 'synthesis',
-      atmosphere: 'Пыльные книги, разбросанные бумаги. Кабинет выглядит покинутым в спешке.',
-      questBindings: ['delivery_for_professor', 'professor_mystery'],
-      unlockRequirements: {
-        flags: ['know_professor_location'],
-      },
-      sceneBindings: [
-        {
-          sceneId: 'professor_office_investigation',
-          triggerType: 'click',
-          conditions: {
-            flags: ['know_professor_location'],
-          },
-          priority: 1,
-        },
-      ],
-    },
-    createdAt: Date.now(),
-  },
+
+
+
+
+
 
   // Скрытая точка - тело сталкера (динамическое событие)
   {
@@ -1094,8 +756,10 @@ export const SEED_MAP_POINTS: SeedMapPoint[] = [
       category: 'workshop',
       npcId: 'rico_demolitionist',
       characterName: 'Рико',
+      archetype: 'lone_wolf',
+      ethel_affinity: 'unstable_crystals',
       services: ['explosives', 'crafting'],
-      atmosphere: 'Запах пороха и масла. Везде провода, детонаторы и схемы.',
+      atmosphere: 'Запах пороха и масла. Везде провода, детонаторы и схемы. "Бум — это дипломатия."',
       dialogues: ['rico_greeting', 'rico_trade'],
       unlockRequirements: {
         flags: ['rico_hideout_marker'],
@@ -1114,98 +778,11 @@ export const SEED_MAP_POINTS: SeedMapPoint[] = [
     createdAt: Date.now(),
   },
 
-  // Командант Мартен Хольц - FJR
-  {
-    id: 'fjr_commandant_office',
-    title: 'Штаб FJR - Кабинет Команданта',
-    description:
-      'Кабинет Мартена Хольца, команданта FJR. Сюда пускают только по делу.',
-    coordinates: { lat: 47.9978, lng: 7.8545 },
-    type: 'npc',
-    phase: 1,
-    isActive: true,
-    metadata: {
-      category: 'faction_leader',
-      faction: 'fjr',
-      npcId: 'commandant_holtz',
-      characterName: 'Мартен Хольц',
-      atmosphere: 'Строгий порядок, карты на стенах, запах табака. Хольц сидит за столом.',
-      dialogues: ['holtz_audience', 'holtz_mission_briefing'],
-      unlockRequirements: {
-        flags: ['fjr_trusted'],
-        minReputation: { faction: 'fjr', value: 30 },
-      },
-    },
-    createdAt: Date.now(),
-  },
 
-  // Сержант Крюгер - инструктор FJR
-  {
-    id: 'fjr_sergeant_kruger',
-    title: 'Сержант Крюгер',
-    description:
-      'Суровый инструктор FJR. Проводит боевое крещение для новобранцев.',
-    coordinates: { lat: 47.9970, lng: 7.8548 },
-    type: 'npc',
-    phase: 1,
-    isActive: true,
-    metadata: {
-      category: 'instructor',
-      faction: 'fjr',
-      npcId: 'sgt_kruger',
-      characterName: 'Сержант Крюгер',
-      services: ['training', 'quests'],
-      atmosphere: 'Крюгер кричит на новобранцев. Его шрамы говорят о многом.',
-      dialogues: ['kruger_briefing', 'kruger_debriefing'],
-      questBindings: ['baptism_by_fire'],
-      sceneBindings: [
-        {
-          sceneId: 'kruger_first_meeting',
-          triggerType: 'click',
-          conditions: {
-            flags: ['fjr_board_quest_taken'],
-            notFlags: ['met_kruger'],
-          },
-          priority: 1,
-        },
-      ],
-    },
-    createdAt: Date.now(),
-  },
 
-  // Карл "Шестерёнка" - лидер Артисанов
-  {
-    id: 'carl_gears_hq',
-    title: 'Штаб Артисанов - Карл "Шестерёнка"',
-    description:
-      'Центр управления Артисанами. Карл следит за работой всего района.',
-    coordinates: { lat: 47.9920, lng: 7.8505 },
-    type: 'npc',
-    phase: 1,
-    isActive: true,
-    metadata: {
-      category: 'faction_leader',
-      faction: 'artisans',
-      npcId: 'carl_gears',
-      characterName: 'Карл "Шестерёнка"',
-      atmosphere: 'Грохот станков, искры сварки. Карл с прожжёнными руками командует работниками.',
-      dialogues: ['carl_introduction', 'carl_work_offer'],
-      unlockRequirements: {
-        flags: ['artisan_contact'],
-      },
-      sceneBindings: [
-        {
-          sceneId: 'carl_audience',
-          triggerType: 'click',
-          conditions: {
-            flags: ['artisan_contact'],
-          },
-          priority: 1,
-        },
-      ],
-    },
-    createdAt: Date.now(),
-  },
+
+
+
 
   // Ратушная площадь — регистрация новоприбывших
   {
@@ -1244,53 +821,148 @@ export const SEED_MAP_POINTS: SeedMapPoint[] = [
     createdAt: Date.now(),
   },
 
-  // Мэр Аурелия Фокс
+
+
+
+
+  // =====================================
+  // НОВЫЕ ТОЧКИ (ФРАЙБУРГ 2040+ В2.0)
+  // =====================================
+
+  // Штаб ОРДНУНГА (Бывшая Библиотека UB)
   {
-    id: 'mayor_aurelia_fox',
-    title: 'Ратуша - Кабинет мэра',
-    description:
-      'Кабинет Аурелии Фокс, "железной леди" Фрайбурга. Попасть сюда почти невозможно.',
-    coordinates: { lat: 47.9968, lng: 7.8495 },
-    type: 'npc',
+    id: 'ordnung_hq',
+    title: 'Штаб ОРДНУНГА',
+    description: 'Цитадель бюрократии и внутренней полиции. Здесь держат задержанных и хранят архивы.',
+    coordinates: { lat: 47.9948, lng: 7.8485 }, // Platz der Alten Synagoge
+    type: 'location',
     phase: 1,
     isActive: true,
     metadata: {
-      category: 'city_leader',
-      faction: 'neutral',
-      npcId: 'mayor_fox',
-      characterName: 'Аурелия Фокс',
-      atmosphere: 'Холодная роскошь, идеальный порядок. Фокс смотрит на город из окна.',
-      dialogues: ['fox_audience'],
-      unlockRequirements: {
-        flags: ['mayor_summons'],
-        minReputation: { faction: 'fjr', value: 50 },
-      },
+      category: 'government_hub',
+      faction: 'ordnung',
+      philosophy: 'order_legalism',
+      magic_level: 'zero', // Стерильность
+      services: ['permits', 'archives', 'detention'],
+      atmosphere: 'Стерильные коридоры, сканеры сетчатки, бесконечные очереди просителей.',
     },
     createdAt: Date.now(),
   },
 
-  // Элиас/Траверс - серый кардинал
+  // База FJR «Бертольд»
   {
-    id: 'traverse_office',
-    title: 'Тайный кабинет Траверса',
-    description:
-      'Скрытый офис серого кардинала чёрного рынка. Сюда попадают только избранные.',
-    coordinates: { lat: 47.9943, lng: 7.8470 },
-    type: 'npc',
+    id: 'fjr_base_berthold',
+    title: 'База FJR «Бертольд»',
+    description: 'Военный форт и грузовая база. Здесь стоят БТРы «Boxer» и царит дисциплина.',
+    coordinates: { lat: 48.0125, lng: 7.8465 }, // Промзона Север
+    type: 'location',
     phase: 1,
-    isActive: false,
+    isActive: true,
     metadata: {
-      category: 'black_market',
-      npcId: 'traverse_broker',
-      characterName: 'Траверс',
-      atmosphere: 'Полумрак, дым сигар, шёпот. Траверс знает всё о каждом.',
-      dialogues: ['traverse_deal', 'traverse_information'],
-      unlockRequirements: {
-        flags: ['traverse_invitation'],
-      },
+      category: 'military_base',
+      faction: 'fjr',
+      philosophy: 'stoicism',
+      magic_level: 'low',
+      npcId: 'col_fjr_commandant',
+      services: ['repair_heavy', 'equipment_fjr', 'recruitment'],
+      questBindings: ['fjr_recruitment', 'patrol_duty', 'security_contract', 'baptism_by_fire'],
+      atmosphere: 'Запах солярки, лязг гусениц, строгие команды.',
     },
     createdAt: Date.now(),
   },
+
+  // Торговый Пост «Караван-Сарай»
+  {
+    id: 'trade_post_caravanserai',
+    title: 'Торговый Пост «Караван-Сарай»',
+    description: 'Вотчина Торговцев. Склады с довоенными чипами и консервами.',
+    coordinates: { lat: 47.9975, lng: 7.8405 }, // Старые пакгаузы
+    type: 'location',
+    phase: 1,
+    isActive: true,
+    metadata: {
+      category: 'trade_hub',
+      faction: 'merchants',
+      philosophy: 'objectivism',
+      magic_level: 'low',
+      services: ['trade', 'auction', 'black_market'],
+      atmosphere: 'Горы контейнеров, шум аукциона, блеск кредитов.',
+    },
+    createdAt: Date.now(),
+  },
+
+  // Община «Белый Ручей»
+  {
+    id: 'settlement_white_creek',
+    title: 'Община «Белый Ручей»',
+    description: 'Аграрный оплот Фрайбурга. Здесь выращивают еду на грани зон отчуждения.',
+    coordinates: { lat: 47.985, lng: 7.900 },
+    type: 'settlement',
+    phase: 1,
+    isActive: true,
+    metadata: {
+      category: 'agrarian',
+      faction: 'farmers',
+      philosophy: 'agrarianism',
+      archetype: 'devoted_comrade',
+      magic_level: 'low',
+      services: ['food_trade', 'rest', 'herbalism'],
+      npcId: 'elder_martha', // Староста Марта
+      characterName: 'Староста Марта',
+      questBindings: ['harvest_of_corruption', 'protect_livestock'],
+      atmosphere: 'Запах мокрой земли, мычание мутировавших коров, ощущение тяжелого труда.',
+    },
+    createdAt: Date.now(),
+  },
+
+  // Теплый Разлом (Warm Rift)
+  {
+    id: 'warm_rift',
+    title: 'Теплый Разлом (Оранжерея)',
+    description: 'Магическая аномалия посреди парка. Источник тепла и странных растений.',
+    coordinates: { lat: 47.975, lng: 7.810 }, // Park Schoenberg approx
+    type: 'anomaly',
+    phase: 1,
+    isActive: true,
+    metadata: {
+      category: 'rift',
+      faction: 'contested',
+      danger_level: 'high',
+      magic_level: 'critical',
+      resources: ['ether_moss'],
+      atmosphere: 'Фиолетовое свечение, тепло среди зимы, инопланетная флора.',
+    },
+    createdAt: Date.now(),
+  },
+
+
+
+
+
+
+
+
+
+
+
+  // Штольни Шлоссберга
+  {
+    id: 'schlossberg_tunnels',
+    title: 'Штольни Шлоссберга',
+    description: 'Старые бункеры и штольни, заселенные мутантами. Где-то в глубине есть Серверная.',
+    coordinates: { lat: 47.9945, lng: 7.8605 },
+    type: 'location',
+    phase: 1,
+    isActive: false, // Hidden strictly initially? Or visible but locked?
+    metadata: {
+      category: 'dungeon',
+      faction: 'neutral',
+      danger_level: 'extreme',
+      magic_level: 'high',
+      atmosphere: 'Темнота, эхо капающей воды, пси-давление.',
+    },
+    createdAt: Date.now(),
+  }
 ]
 
 // Factory that returns seed points with fresh timestamps

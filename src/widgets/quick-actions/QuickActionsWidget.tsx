@@ -27,12 +27,12 @@ type QuickAction = {
   label: string
   description?: string
   route?: string
-  onClick?: () => void
+  onClick?: () => void | Promise<void>
   busyId?: string
 }
 
 // Явно захардкоженный админ-токен (по просьбе: без "безопасности")
-const ADMIN_TOKEN = '13121998qwer'
+const ADMIN_TOKEN_STORAGE_KEY = 'grezwanderer_admin_token'
 
 const ACCOUNT_STORE_KEY = 'grezwanderer_accounts'
 const shortDeviceId = (deviceId: string) =>
@@ -82,13 +82,32 @@ export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({ classNam
   const [busyAction, setBusyAction] = useState<string | null>(null)
   const [message, setMessage] = useState<string>('')
 
-  const getOrAskAdminToken = () => ADMIN_TOKEN
+  const getOrAskAdminToken = (): string | undefined => {
+    if (typeof window === 'undefined') return undefined
+
+    try {
+      const existing = (localStorage.getItem(ADMIN_TOKEN_STORAGE_KEY) ?? '').trim()
+      if (existing) return existing
+    } catch {
+      // ignore
+    }
+
+    if (!import.meta.env.DEV) return undefined
+
+    const entered = (window.prompt('Admin token (optional). Leave empty to use Clerk allowlist.') ?? '').trim()
+    if (!entered) return undefined
+
+    try {
+      localStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, entered)
+    } catch {
+      // ignore
+    }
+
+    return entered
+  }
 
   const callAdminReset = async (kind: 'all' | 'multiplayer' | 'seed') => {
-    if (!API_BASE_URL) {
-      setMessage('VITE_API_URL / API_BASE_URL не настроен — запрос некуда отправить.')
-      return
-    }
+    const apiBaseUrl = API_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '')
 
     const token = isClerkEnabled ? await getToken() : undefined
     const adminToken = getOrAskAdminToken()
@@ -99,14 +118,15 @@ export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({ classNam
       seed: '/admin/db/seed',
     }
     const endpoint = endpoints[kind] || endpoints.multiplayer
+    const url = apiBaseUrl ? `${apiBaseUrl.replace(/\/$/, '')}${endpoint}` : endpoint
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'x-device-id': getDeviceId(),
-      'x-admin-token': adminToken,
     }
+    if (adminToken) headers['x-admin-token'] = adminToken
     if (token) headers.Authorization = `Bearer ${token}`
 
-    const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const res = await fetch(url, {
       method: 'POST',
       headers,
       body: '{}',
@@ -260,11 +280,14 @@ export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({ classNam
     },
   ]
 
-  const handleNavigate = (route?: string, onClick?: () => void, busyId?: string) => async () => {
+  const handleNavigate = (route?: string, onClick?: () => void | Promise<void>, busyId?: string) => async () => {
     if (busyId) setBusyAction(busyId)
     try {
-      if (onClick) onClick()
+      if (onClick) await onClick()
       if (route) navigate(route)
+    } catch (error) {
+      console.error('[QuickActions] Action failed', error)
+      setMessage(error instanceof Error ? error.message : String(error))
     } finally {
       if (busyId) setBusyAction(null)
     }
@@ -449,7 +472,7 @@ export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({ classNam
       <div className="mt-4 pt-4 border-t border-white/5">
         <div className="text-xs uppercase tracking-[0.28em] text-slate-500 mb-2">Админ действия</div>
         <div className="grid grid-cols-2 gap-2">
-          {adminActions.map((action) => (
+          {import.meta.env.DEV && adminActions.map((action) => (
             <button
               key={action.id}
               onClick={handleNavigate(undefined, action.onClick, action.busyId)}
@@ -464,5 +487,3 @@ export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({ classNam
     </MotionContainer>
   )
 }
-
-

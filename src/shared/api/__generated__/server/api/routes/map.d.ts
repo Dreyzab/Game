@@ -25,20 +25,20 @@ export declare const mapRoutes: (app: Elysia) => Elysia<"", {
                 headers: unknown;
                 response: {
                     200: {
-                        points: {
-                            id: string;
-                            title: string;
-                            description: string | null;
-                            lat: number;
-                            lng: number;
-                            type: string | null;
-                            phase: number | null;
-                            isActive: boolean | null;
+                        points: ({
+                            id: any;
+                            title: any;
+                            description: any;
+                            lat: any;
+                            lng: any;
+                            type: any;
+                            phase: any;
+                            isActive: any;
                             metadata: any;
                             status: string;
                             discoveredAt: number | undefined;
                             researchedAt: number | undefined;
-                        }[];
+                        } | null)[];
                     };
                     422: {
                         type: "validation";
@@ -200,7 +200,7 @@ export declare const mapRoutes: (app: Elysia) => Elysia<"", {
                                 lng: number;
                             }[];
                         }[];
-                        dangerZones: {
+                        dangerZones: ({
                             id: number;
                             title: string | null;
                             isActive: boolean | null;
@@ -208,8 +208,29 @@ export declare const mapRoutes: (app: Elysia) => Elysia<"", {
                                 lat: number;
                                 lng: number;
                             }[];
+                            key: string | null;
                             dangerLevel: string | null;
-                        }[];
+                            spawnPoints: {
+                                lat: number;
+                                lng: number;
+                            }[] | null;
+                        } | {
+                            hasActiveRift: boolean;
+                            riftIntensity: number | null;
+                            id: number;
+                            title: string | null;
+                            isActive: boolean | null;
+                            polygon: {
+                                lat: number;
+                                lng: number;
+                            }[];
+                            key: string | null;
+                            dangerLevel: string | null;
+                            spawnPoints: {
+                                lat: number;
+                                lng: number;
+                            }[] | null;
+                        })[];
                     };
                     422: {
                         type: "validation";

@@ -1,7 +1,7 @@
 import { useQuery, useMutation, keepPreviousData } from "@tanstack/react-query";
 import { authenticatedClient } from "../api/client";
 import { useEffect, useState } from "react";
-import type { BBox, MapPointMetadata } from "../types/map";
+import type { BBox, MapPoint, MapPointMetadata } from "../types/map";
 import { useAppAuth } from "@/shared/auth";
 
 type ApiPoint = {
@@ -56,7 +56,7 @@ export const useMapData = (bbox?: { minLat: number; maxLat: number; minLng: numb
   // Fetch Points
   const pointsQuery = useQuery<PointsResponse>({
     queryKey: ['mapPoints', bbox],
-    queryFn: async () => {
+    queryFn: async (): Promise<PointsResponse> => {
       const token = await getToken();
       const client = authenticatedClient(token || undefined); // Allowed without token theoretically, but filtered logic changes
 
@@ -64,7 +64,10 @@ export const useMapData = (bbox?: { minLat: number; maxLat: number; minLng: numb
         query: bbox ? { ...bbox } : {}
       });
       if (error) throw error;
-      return data;
+
+      const rawPoints = (data as any)?.points;
+      const points = (Array.isArray(rawPoints) ? rawPoints.filter(Boolean) : []) as ApiPoint[];
+      return { points };
     },
     placeholderData: keepPreviousData,
     staleTime: 30000,
@@ -103,14 +106,19 @@ export const useMapData = (bbox?: { minLat: number; maxLat: number; minLng: numb
   });
 
   // Transform API response to match frontend types
-  const transformedPoints = (pointsQuery.data?.points ?? []).map((p: any) => ({
-    ...p,
+  const transformedPoints: MapPoint[] = (pointsQuery.data?.points ?? []).map((p) => ({
+    ...(p as any),
     id: String(p.id),
     title: p.title ?? '',
     description: p.description ?? '',
-    type: p.type ?? 'poi',
+    type: (p.type ?? 'poi') as any,
+    phase: p.phase ?? undefined,
     isActive: p.isActive ?? true,
     coordinates: { lat: p.lat, lng: p.lng },
+    metadata: p.metadata ?? undefined,
+    status: (p.status ?? 'not_found') as any,
+    discoveredAt: p.discoveredAt,
+    researchedAt: p.researchedAt,
   }));
 
   const transformedZones = (zonesQuery.data?.zones ?? []).map((z: any) => ({

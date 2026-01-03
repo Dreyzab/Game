@@ -187,8 +187,8 @@ export declare const resonanceRoutes: (app: Elysia) => Elysia<"", {
                 check: {
                     post: {
                         body: {
-                            positionOptimum?: number | undefined;
                             onSuccess?: any;
+                            positionOptimum?: number | undefined;
                             onFail?: any;
                             skill: string;
                             dc: number;

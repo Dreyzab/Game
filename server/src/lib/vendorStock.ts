@@ -3,7 +3,7 @@
  */
 import { getItemTemplate } from "./itemTemplates";
 import { calculateVendorBuyPrice, calculateVendorSellPrice } from "./itemPricing";
-import type { ItemKind, ItemTemplate, Rarity } from "../shared/itemTypes";
+import type { ItemKind, ItemTemplate, Rarity } from "../shared/data/itemTypes";
 
 export interface VendorStockItem {
   templateId: string;

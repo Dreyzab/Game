@@ -1,1 +1,1 @@
-export * from '../shared/itemTypes';
+export * from '../shared/data/itemTypes';

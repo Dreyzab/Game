@@ -103,8 +103,25 @@ export const safeZones = pgTable('safe_zones', {
 
 export const dangerZones = pgTable('danger_zones', {
     id: serial('id').primaryKey(),
+    key: text('key').unique(), // Stable identifier (e.g. "sberg_zone")
     title: text('title'),
     dangerLevel: text('danger_level').default('low'), // low, medium, high
     polygon: jsonb('polygon').$type<Array<{ lat: number; lng: number }>>().notNull(),
+    spawnPoints: jsonb('spawn_points').$type<Array<{ lat: number; lng: number }>>(),
     isActive: boolean('is_active').default(true),
+});
+
+export const worldRifts = pgTable('world_rifts', {
+    id: serial('id').primaryKey(),
+    zoneKey: text('zone_key').references(() => dangerZones.key),
+    spawnPointIdx: integer('spawn_point_idx'), // Index in dangerZones.spawnPoints
+
+    state: text('state').$type<'unstable' | 'breach' | 'closed' | 'stabilized'>().default('unstable'),
+    intensity: integer('intensity').default(1),
+
+    lastTickAt: bigint('last_tick_at', { mode: 'number' }),
+    stabilizedUntil: bigint('stabilized_until', { mode: 'number' }),
+
+    createdAt: bigint('created_at', { mode: 'number' }),
+    updatedAt: bigint('updated_at', { mode: 'number' }),
 });

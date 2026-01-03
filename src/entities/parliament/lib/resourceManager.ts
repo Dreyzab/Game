@@ -76,8 +76,8 @@ export function migratePlayerResources(progress: PlayerProgress): PlayerProgress
     // If version is already 1, return as is
     if (progress.version === 1) return progress
 
-    const skills = progress.skills || {}
-    const maxResources = calculateMaxResources(skills)
+    const attributes = progress.attributes ?? progress.skills ?? {}
+    const maxResources = calculateMaxResources(attributes)
 
     // Legacy mapping
     // We access dynamic properties that might exist on old objects even if typed loosely

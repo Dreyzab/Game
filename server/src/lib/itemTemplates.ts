@@ -4,8 +4,8 @@
  * Run `npm run copy-shared` to update from src/shared/data.
  */
 
-import { ITEM_TEMPLATES, ITEM_TEMPLATES_ARRAY, ITEM_TEMPLATES_BY_ID } from '../shared/itemTemplates'
-import type { ItemTemplate } from '../shared/itemTypes'
+import { ITEM_TEMPLATES, ITEM_TEMPLATES_ARRAY, ITEM_TEMPLATES_BY_ID } from '../shared/data/itemTemplates'
+import type { ItemTemplate } from '../shared/data/itemTypes'
 
 export { ITEM_TEMPLATES, ITEM_TEMPLATES_ARRAY, ITEM_TEMPLATES_BY_ID }
 export type { ItemTemplate }

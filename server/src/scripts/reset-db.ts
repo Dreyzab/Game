@@ -8,10 +8,10 @@ import { seedScenarios } from "../db/seeds/scenarios";
 import { mapPoints, items, safeZones, dangerZones } from "../db/schema";
 
 async function resetDatabase() {
-    console.log("🧨 Начинаю полную очистку базы данных...");
+    console.log("ÐYõù Ñ?Ñø¥ÎÑ÷Ñ«Ñø¥Z Ñ¨ÑóÑ¯Ñ«¥Ÿ¥Z Ñó¥ÎÑ÷¥?¥'Ñ§¥Ÿ ÑñÑøÑú¥< ÑïÑøÑ«Ñ«¥<¥....");
 
     try {
-        // Получаем список всех таблиц в схеме public, кроме мета-таблиц Drizzle
+        // ÑYÑóÑ¯¥Ÿ¥ÎÑøÑæÑ¬ ¥?Ñ¨Ñ÷¥?ÑóÑ§ Ñý¥?Ñæ¥. ¥'ÑøÑñÑ¯Ñ÷¥Å Ñý ¥?¥.ÑæÑ¬Ñæ public, Ñ§¥?ÑóÑ¬Ñæ Ñ¬Ñæ¥'Ñø-¥'ÑøÑñÑ¯Ñ÷¥Å Drizzle
         const tablesResponse = await db.execute(sql`
             SELECT tablename 
             FROM pg_tables 
@@ -22,14 +22,14 @@ async function resetDatabase() {
         if (tablesResponse && (tablesResponse as any).length > 0) {
             for (const table of (tablesResponse as any)) {
                 const tableName = table.tablename;
-                console.log(`🧼 Очищаю таблицу: ${tableName}`);
+                console.log(`ÐYõ¬ Ñz¥ÎÑ÷¥%Ñø¥Z ¥'ÑøÑñÑ¯Ñ÷¥Å¥Ÿ: ${tableName}`);
                 await db.execute(sql.raw(`TRUNCATE TABLE "${tableName}" RESTART IDENTITY CASCADE`));
             }
         }
 
-        console.log("✅ База данных успешно очищена.");
+        console.log("ƒo. Ñ'ÑøÑúÑø ÑïÑøÑ«Ñ«¥<¥. ¥Ÿ¥?Ñ¨Ñæ¥^Ñ«Ñó Ñó¥ÎÑ÷¥%ÑæÑ«Ñø.");
     } catch (error) {
-        console.error("❌ Ошибка при очистке базы данных:", error);
+        console.error("ƒ?O Ñz¥^Ñ÷ÑñÑ§Ñø Ñ¨¥?Ñ÷ Ñó¥ÎÑ÷¥?¥'Ñ§Ñæ ÑñÑøÑú¥< ÑïÑøÑ«Ñ«¥<¥.:", error);
         throw error;
     }
 }
@@ -52,7 +52,7 @@ async function seedMapPoints() {
         });
         inserted += 1;
     }
-    console.log(`🌱 Map points seeded: ${inserted}`);
+    console.log(`ÐYOñ Map points seeded: ${inserted}`);
 }
 
 async function seedSafeZones() {
@@ -66,21 +66,23 @@ async function seedSafeZones() {
         });
         inserted += 1;
     }
-    console.log(`🌱 Safe zones seeded: ${inserted}`);
+    console.log(`ÐYOñ Safe zones seeded: ${inserted}`);
 }
 
 async function seedDangerZones() {
     let inserted = 0;
     for (const zone of SEED_DANGER_ZONES) {
         await db.insert(dangerZones).values({
+            key: zone.key,
             title: zone.title,
             dangerLevel: zone.dangerLevel,
             polygon: zone.polygon,
+            spawnPoints: zone.spawnPoints ?? [],
             isActive: true,
         });
         inserted += 1;
     }
-    console.log(`🌱 Danger zones seeded: ${inserted}`);
+    console.log(`ÐYOñ Danger zones seeded: ${inserted}`);
 }
 
 async function seedItemTemplates() {
@@ -105,22 +107,22 @@ async function seedItemTemplates() {
         });
         inserted += 1;
     }
-    console.log(`🌱 Item templates seeded: ${inserted}`);
+    console.log(`ÐYOñ Item templates seeded: ${inserted}`);
 }
 
 async function main() {
     await resetDatabase();
-    console.log("📡 Начинаю сидирование новых данных...");
+    console.log("ÐY\"­ Ñ?Ñø¥ÎÑ÷Ñ«Ñø¥Z ¥?Ñ÷ÑïÑ÷¥?ÑóÑýÑøÑ«Ñ÷Ñæ Ñ«ÑóÑý¥<¥. ÑïÑøÑ«Ñ«¥<¥....");
     await seedMapPoints();
     await seedSafeZones();
     await seedDangerZones();
     await seedItemTemplates();
     await seedScenarios();
-    console.log("✨ Процесс сброса и сидирования завершен!");
+    console.log("ƒoù ÑY¥?Ñó¥ÅÑæ¥?¥? ¥?Ññ¥?Ñó¥?Ñø Ñ÷ ¥?Ñ÷ÑïÑ÷¥?ÑóÑýÑøÑ«Ñ÷¥? ÑúÑøÑýÑæ¥?¥^ÑæÑ«!");
     process.exit(0);
 }
 
 main().catch((err) => {
-    console.error("💥 Критическая ошибка в процессе сброса:", err);
+    console.error("ÐY'¾ Ñs¥?Ñ÷¥'Ñ÷¥ÎÑæ¥?Ñ§Ñø¥? Ñó¥^Ñ÷ÑñÑ§Ñø Ñý Ñ¨¥?Ñó¥ÅÑæ¥?¥?Ñæ ¥?Ññ¥?Ñó¥?Ñø:", err);
     process.exit(1);
 });

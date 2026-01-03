@@ -16,9 +16,9 @@ export type CheckResult = 'critical_failure' | 'failure' | 'success' | 'critical
  */
 export function useParliament() {
     const { progress } = usePlayerProgress()
-    const skills = progress?.skills || {}
+    const attributes = progress?.attributes ?? progress?.skills ?? {}
 
-    const getVoiceLevel = (voiceId: VoiceId) => skills[voiceId] || 0
+    const getVoiceLevel = (voiceId: VoiceId) => attributes[voiceId] || 0
 
     const getVoice = (voiceId: VoiceId): VoiceDefinition | undefined =>
         PARLIAMENT_VOICES[voiceId]
@@ -44,11 +44,11 @@ export function useParliament() {
         return total >= difficulty ? 'success' : 'failure'
     }
 
-    const derivedStats = calculateDerivedStats(skills)
-    const maxResources = calculateMaxResources(skills)
+    const derivedStats = calculateDerivedStats(attributes)
+    const maxResources = calculateMaxResources(attributes)
 
     return {
-        skills,
+        attributes,
         getVoiceLevel,
         getVoice,
         getVoicesByGroup,

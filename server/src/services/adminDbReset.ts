@@ -1,6 +1,6 @@
 import { db } from '../db'
 import { sql, inArray } from 'drizzle-orm'
-import { mapPoints, items, safeZones, dangerZones } from '../db/schema'
+import { mapPoints, items, safeZones, dangerZones, worldRifts } from '../db/schema'
 import { SEED_MAP_POINTS } from '../seeds/mapPoints'
 import { ITEM_TEMPLATES } from '../seeds/itemTemplates'
 import { SEED_SAFE_ZONES } from '../seeds/safeZones'
@@ -114,13 +114,16 @@ export async function seedDatabase(): Promise<{ success: boolean; stats: any }> 
   stats.safeZones = szCount;
 
   // 3. Danger Zones
+  await db.delete(worldRifts);
   await db.delete(dangerZones);
   let dzCount = 0;
   for (const zone of SEED_DANGER_ZONES) {
     await db.insert(dangerZones).values({
+      key: zone.key,
       title: zone.title,
       dangerLevel: zone.dangerLevel,
       polygon: zone.polygon,
+      spawnPoints: zone.spawnPoints ?? [],
       isActive: true,
     });
     dzCount++;
@@ -154,7 +157,4 @@ export async function seedDatabase(): Promise<{ success: boolean; stats: any }> 
 
   return { success: true, stats };
 }
-
-
-
 

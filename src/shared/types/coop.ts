@@ -83,6 +83,12 @@ export interface CoopQuestChoice {
   text: string
   nextNodeId?: string // If null, stays on same node (for individual dialogue)
   requiredRole?: CoopRoleId
+  /** Optional stat requirements (validated server-side). */
+  requiredStats?: { hp?: number; morale?: number; stamina?: number }
+  /** Optional attribute requirements (validated server-side). */
+  requiredAttributes?: Record<string, number>
+  /** Optional trait requirements (validated server-side). */
+  requiredTraits?: string[]
   effectText?: string // Text shown to the user who picked it (or all if vote)
   flags?: Record<string, any> // Session flags applied by the server when this choice wins
   action?: CoopQuestChoiceAction // Server-resolved graph actions (side quests, returns, etc.)
@@ -145,12 +151,26 @@ export interface CoopQuestChoice {
   broadcastEffect?: boolean
 }
 
+export interface CoopPassiveCheck {
+  id: string
+  attribute: string
+  threshold: number
+  requiredRole?: CoopRoleId
+  successText: string
+  failureText?: string
+  broadcast?: boolean
+  xpReward?: number
+  successFlags?: Record<string, any>
+  failureFlags?: Record<string, any>
+}
+
 export interface CoopQuestNode {
   id: string
   title: string
   background?: string
   description: string // Markdown supported
   privateText?: Partial<Record<CoopRoleId, string>> // Secret text for specific roles
+  passiveChecks?: CoopPassiveCheck[]
   interactionType: CoopQuestNodeInteraction
   /** Optional override: require all players to vote before advancing. */
   requiresAllVotesForProgress?: boolean

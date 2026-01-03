@@ -1,11 +1,13 @@
 import { Elysia, t } from "elysia";
 import { db } from "../../db";
-import { mapPoints, pointDiscoveries, safeZones, dangerZones, players, gameProgress, questProgress } from "../../db/schema";
+import { mapPoints, pointDiscoveries, safeZones, dangerZones, players, gameProgress, questProgress, worldRifts } from "../../db/schema";
 import { eq, and } from "drizzle-orm";
 import { auth } from "../auth";
 import { awardXPAndLevelUp, mergeFlags, mergeReputation, needsSkillsNormalization, normalizeSkills, STARTING_SKILLS } from "../../lib/gameProgress";
 import { awardItemsToPlayer } from "../../lib/itemAward";
 import { getQrBonus, pickBonusOutcome, type QrAction } from "../../lib/qrBonuses";
+import { SEED_NPCS } from "../../seeds/npcs";
+import type { MapPointMetadata } from "../../shared/types/map";
 
 // Haversine Helper
 function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -40,6 +42,7 @@ const CITY_REGISTERED_FLAG = 'city_registered';
 const NICKNAME_FLAG = 'nickname_set';
 const TOWNHALL_POINT_ID = 'rathaus_square';
 const LEGACY_TOWNHALL_POINT_ID = 'mayor_aurelia_fox';
+const SDG_DROP_ZONE_ID = 'sdg_drop_zone';
 const SYNTHESIS_CAMPUS_POINT_ID = 'synthesis_campus';
 const ONBOARDING_POLICE_SCENE_ID = 'onboarding_police_intro';
 const ONBOARDING_POLICE_DIRECT_SCENE_ID = 'onboarding_police_direct';
@@ -293,8 +296,13 @@ export const mapRoutes = (app: Elysia) =>
                         }
                     }
 
-                    // Onboarding lock: before city registration, show only the Town Hall point.
-                    // This is intentionally independent from bbox/unlock requirements to ensure the player always sees the objective.
+                    // Load point discoveries
+                    const myDiscoveries = user ? await db.query.pointDiscoveries.findMany({
+                        where: user.type === 'clerk' ? eq(pointDiscoveries.userId, user.id) : eq(pointDiscoveries.deviceId, user.id)
+                    }) : [];
+                    const discoveredPointIds = new Set(myDiscoveries.map(d => d.pointKey));
+
+                    // Onboarding Logic
                     if (user && !isCityRegistered) {
                         const hasArrivalFlag =
                             playerFlags['arrived_at_freiburg'] === true ||
@@ -304,28 +312,29 @@ export const mapRoutes = (app: Elysia) =>
                         if (hasArrivalFlag) {
                             activeQuestIds.add('delivery_for_dieter');
                             activeQuestIds.add('delivery_for_professor');
+                            activeQuestIds.add('city_registration');
                         }
 
-                        const townhall =
-                            (await db.query.mapPoints.findFirst({
-                                where: eq(mapPoints.id, TOWNHALL_POINT_ID)
-                            })) ??
-                            (await db.query.mapPoints.findFirst({
-                                where: eq(mapPoints.id, LEGACY_TOWNHALL_POINT_ID)
-                            }));
+                        // Special handling for pre-registration flow:
+                        // 1. SDG (Start) is always visible.
+                        // 2. Rathaus (Registration) is visible only after arrival.
+                        const visibleOnboardingIds = new Set<string>();
+                        visibleOnboardingIds.add(SDG_DROP_ZONE_ID);
 
-                        const synthesisCampus = hasArrivalFlag
-                            ? await db.query.mapPoints.findFirst({
-                                where: eq(mapPoints.id, SYNTHESIS_CAMPUS_POINT_ID)
-                            })
-                            : null;
+                        if (hasArrivalFlag) {
+                            visibleOnboardingIds.add(TOWNHALL_POINT_ID);
+                            visibleOnboardingIds.add(LEGACY_TOWNHALL_POINT_ID);
+                            visibleOnboardingIds.add(SYNTHESIS_CAMPUS_POINT_ID);
+                        }
 
-                        if (!townhall && !synthesisCampus) return { points: [] };
+                        // Fetch strictly relevant points
+                        const onboardingPoints = await db.query.mapPoints.findMany({
+                            where: eq(mapPoints.isActive, true)
+                        });
 
-                        const visiblePoints = [townhall, synthesisCampus].filter(
-                            (point): point is typeof mapPoints.$inferSelect => Boolean(point)
-                        );
+                        const visiblePoints = onboardingPoints.filter(p => visibleOnboardingIds.has(p.id));
 
+                        // ... (keep existing mapping/enrichment logic, simplified for this scope)
                         const results = await Promise.all(visiblePoints.map(async (point) => {
                             const meta = (point.metadata as any) || {};
 
@@ -334,12 +343,7 @@ export const mapRoutes = (app: Elysia) =>
                             let discoveredAt: number | undefined;
                             let researchedAt: number | undefined;
 
-                            const discovery = await db.query.pointDiscoveries.findFirst({
-                                where: and(
-                                    eq(pointDiscoveries.pointKey, point.id),
-                                    user.type === 'clerk' ? eq(pointDiscoveries.userId, user.id) : eq(pointDiscoveries.deviceId, user.id)
-                                )
-                            });
+                            const discovery = myDiscoveries.find(d => d.pointKey === point.id); // In-memory find
                             if (discovery) {
                                 if (discovery.researchedAt) status = 'researched';
                                 else if (discovery.discoveredAt) status = 'discovered';
@@ -347,69 +351,81 @@ export const mapRoutes = (app: Elysia) =>
                                 researchedAt = discovery.researchedAt || undefined;
                             }
 
+                            // Auto-discover SDG if not discovered
+                            if (point.id === SDG_DROP_ZONE_ID && !discovery && status === 'not_found') {
+                                status = 'discovered'; // Treat as discovered for UI
+                            }
+
                             const questBindings = Array.isArray(meta.questBindings) ? meta.questBindings : [];
                             const isQuestTarget = questBindings.some((id: string) => activeQuestIds.has(id));
 
                             let finalMeta = { ...meta };
 
-                            if (point.id === townhall?.id) {
+                            // Ensure SDG onboarding scene exists even if DB seed is outdated.
+                            if (point.id === SDG_DROP_ZONE_ID) {
+                                const bindings = (finalMeta as any).sceneBindings;
+                                const hasSdgArrival =
+                                    Array.isArray(bindings) &&
+                                    bindings.some((b: any) => b?.sceneId === 'onboarding_sdg_arrival');
+
+                                if (!hasSdgArrival) {
+                                    finalMeta = {
+                                        ...finalMeta,
+                                        sceneBindings: [
+                                            ...(Array.isArray(bindings) ? bindings : []),
+                                            {
+                                                sceneId: 'onboarding_sdg_arrival',
+                                                triggerType: 'click',
+                                                conditions: { notFlags: ['arrived_at_freiburg'] },
+                                                priority: 100,
+                                            },
+                                        ],
+                                    };
+                                }
+                            }
+
+                            if (point.id === TOWNHALL_POINT_ID || point.id === LEGACY_TOWNHALL_POINT_ID) {
                                 finalMeta = { ...finalMeta, isGlobalObjective: true };
+                                // Ensure registration scene
+                                if (!Array.isArray((finalMeta as any).sceneBindings)) {
+                                    finalMeta = {
+                                        ...finalMeta,
+                                        sceneBindings: [
+                                            {
+                                                sceneId: ONBOARDING_TOWNHALL_SCENE_ID,
+                                                triggerType: 'click',
+                                                conditions: { notFlags: [CITY_REGISTERED_FLAG] },
+                                                priority: 100,
+                                            },
+                                        ],
+                                    };
+                                }
                             }
 
                             if (isQuestTarget) {
                                 finalMeta = { ...finalMeta, isActiveQuestTarget: true };
                             }
 
-                            // Ensure the registration scene is always reachable even if the DB seed
-                            // hasn't been re-applied yet (inject a default scene binding).
-                            if (point.id === townhall?.id && !Array.isArray((finalMeta as any).sceneBindings)) {
-                                finalMeta = {
-                                    ...finalMeta,
-                                    sceneBindings: [
-                                        {
-                                            sceneId: ONBOARDING_TOWNHALL_SCENE_ID,
-                                            triggerType: 'click',
-                                            conditions: { notFlags: [CITY_REGISTERED_FLAG] },
-                                            priority: 100,
-                                        },
-                                    ],
-                                };
+                            // Synthesis campus default bindings
+                            if (point.id === SYNTHESIS_CAMPUS_POINT_ID) {
+                                const bindings = (finalMeta as any).sceneBindings || [];
+                                const hasCampusScenes = bindings.some((b: any) => b?.sceneId === 'university_gate_denial');
+                                if (!hasCampusScenes) {
+                                    finalMeta = {
+                                        ...finalMeta,
+                                        sceneBindings: [
+                                            { sceneId: 'university_wait_evening', triggerType: 'click', conditions: { flags: ['waiting_for_kruger'] }, priority: 100 },
+                                            { sceneId: 'university_gate_denial', triggerType: 'click', conditions: { notFlags: ['visited_synthesis_campus'] }, priority: 90 },
+                                        ]
+                                    };
+                                }
                             }
 
-                            // Ensure the campus scene is reachable even if the DB seed is outdated.
-                            // We want the first interaction to show the gate denial, and repeat clicks to show the waiting scene.
-                            const campusBindings = (finalMeta as any).sceneBindings;
-                            const hasCampusScenes =
-                                Array.isArray(campusBindings) &&
-                                campusBindings.some((binding: any) =>
-                                    binding?.sceneId === 'university_gate_denial' || binding?.sceneId === 'university_wait_evening'
-                                );
-
-                            if (point.id === synthesisCampus?.id && !hasCampusScenes) {
-                                finalMeta = {
-                                    ...finalMeta,
-                                    sceneBindings: [
-                                        {
-                                            sceneId: 'university_wait_evening',
-                                            triggerType: 'click',
-                                            conditions: { flags: ['waiting_for_kruger'] },
-                                            priority: 100,
-                                        },
-                                        {
-                                            sceneId: 'university_gate_denial',
-                                            triggerType: 'click',
-                                            conditions: { notFlags: ['visited_synthesis_campus'] },
-                                            priority: 90,
-                                        },
-                                    ],
-                                };
-                            }
-
-                            // QR-gated points: mark unlocked per-player once researched
                             if (finalMeta.qrRequired === true) {
                                 finalMeta = { ...finalMeta, isUnlocked: Boolean(researchedAt) };
                             }
 
+                            // Don't leak qrCode
                             return {
                                 id: point.id,
                                 title: point.title,
@@ -429,79 +445,135 @@ export const mapRoutes = (app: Elysia) =>
                         return { points: results };
                     }
 
-                    // Derived Flags
+                    // --- FULL GAME LOGIC ---
+
+                    // 1. Derived Quest Flags (keep existing logic)
                     const hasArrivalFlag = playerFlags['arrived_at_freiburg'] === true || playerFlags['need_info_bureau'] === true;
                     if (hasArrivalFlag) {
                         activeQuestIds.add('delivery_for_dieter');
                         activeQuestIds.add('delivery_for_professor');
                     }
-
                     const needsCityRegistration = playerFlags['city_registered'] !== true;
-                    if (hasArrivalFlag && needsCityRegistration) {
-                        activeQuestIds.add('city_registration');
-                    }
+                    if (hasArrivalFlag && needsCityRegistration) activeQuestIds.add('city_registration');
+                    if (playerFlags['chance_for_newbie_active'] === true) activeQuestIds.add('chance_for_a_newbie');
+                    if (playerFlags['whispers_quest_active'] === true) activeQuestIds.add('whispers_of_rift');
+                    if (playerFlags['shopkeeper_truant_active'] === true) activeQuestIds.add('shopkeeper_truant');
 
-                    // Lightweight quest highlighting via flags (until full quest seeding is in place)
-                    if (playerFlags['chance_for_newbie_active'] === true) {
-                        activeQuestIds.add('chance_for_a_newbie');
-                    }
-
-                    if (playerFlags['whispers_quest_active'] === true) {
-                        activeQuestIds.add('whispers_of_rift');
-                    }
-
-                    if (playerFlags['shopkeeper_truant_active'] === true) {
-                        activeQuestIds.add('shopkeeper_truant');
-                    }
-
-                    // Fetch All Active Points (then filter in memory for bbox/reqs)
+                    // 2. Fetch All Active Points
                     const allPoints = await db.query.mapPoints.findMany({
                         where: eq(mapPoints.isActive, true),
-                        limit: limit * 2 // fetch a bit more to filter
+                        limit: 1000 // Increase limit to filter in memory
                     });
 
-                    let filtered = allPoints;
+                    // 3. Rifts Injection
+                    const activeRifts = await db.query.worldRifts.findMany();
+                    const dangerZonesList = await db.query.dangerZones.findMany();
 
-                    // BBox Filter
+                    const riftPoints = activeRifts.map(rift => {
+                        const zone = dangerZonesList.find(z => z.key === rift.zoneKey);
+                        if (!zone || !zone.spawnPoints || !Array.isArray(zone.spawnPoints)) return null;
+
+                        // Use spawnPointIdx or fallback to 0
+                        const spawnPoint = zone.spawnPoints[rift.spawnPointIdx || 0] as { lat: number, lng: number };
+                        if (!spawnPoint) return null;
+
+                        // Map Rift State to visual
+                        // TBD: Add logic to check lastTickAt here (Lazy Tick) and update if needed?
+                        // For now just display.
+
+                        return {
+                            id: `rift_${rift.id}`,
+                            title: `Разлом: ${zone.title || 'Unknown'}`,
+                            description: 'Аномальная активность. Пространство искажено.',
+                            lat: spawnPoint.lat,
+                            lng: spawnPoint.lng,
+                            type: 'anomaly',
+                            phase: 1,
+                            isActive: true,
+                            metadata: {
+                                category: 'rift',
+                                state: rift.state,
+                                intensity: rift.intensity,
+                                danger_level: 'high',
+                                isDynamic: true
+                            },
+                            // Treat as discovered immediately if active
+                            status: 'discovered',
+                            discoveredAt: Date.now(),
+                            researchedAt: undefined
+                        };
+                    }).filter(Boolean) as any[];
+
+                    // 4. NPC Generation (keep existing)
+                    const npcPoints = SEED_NPCS.map(npc => {
+                        const locationId = npc.defaultLocationId;
+                        const locationPoint = allPoints.find(p => p.id === locationId);
+                        if (!locationPoint) return null;
+
+                        // Check visibility requirements for NPCS? 
+                        // Currently we assume if location is visible, NPC might be too, OR we filter later.
+
+                        return {
+                            id: `npc_${npc.name}`,
+                            title: npc.characterName,
+                            description: npc.description,
+                            lat: locationPoint.lat,
+                            lng: locationPoint.lng,
+                            type: 'npc',
+                            phase: 1,
+                            isActive: true,
+                            metadata: {
+                                characterName: npc.characterName,
+                                npcId: npc.id,
+                                archetype: npc.archetype,
+                                faction: npc.faction,
+                                philosophy: npc.philosophy,
+                                ethel_affinity: npc.ethel_affinity,
+                                perk: npc.perk,
+                                services: npc.services,
+                                dialogues: npc.dialogues,
+                                questBindings: npc.questBindings,
+                                atmosphere: npc.atmosphere,
+                                sceneBindings: npc.sceneBindings,
+                                unlockRequirements: npc.unlockRequirements,
+                                danger_level: npc.danger_level
+                            },
+                            createdAt: Date.now()
+                        };
+                    }).filter(Boolean) as any[];
+
+                    // 5. Combine & Filter
+                    let combinedPoints = [...allPoints, ...npcPoints, ...riftPoints];
+
                     if (bbox) {
-                        filtered = filtered.filter(p =>
+                        combinedPoints = combinedPoints.filter(p =>
                             p.lat >= bbox.minLat && p.lat <= bbox.maxLat &&
                             p.lng >= bbox.minLng && p.lng <= bbox.maxLng
                         );
                     }
 
-                    // Unlock Reqs Filter
-                    filtered = filtered.filter(point => {
-                        const meta = point.metadata as any;
-                        const unlockReqs = isUnlockRequirements(meta?.unlockRequirements) ? meta?.unlockRequirements : undefined;
-                        if (!unlockReqs) return true;
-
-                        if (Array.isArray(unlockReqs.flags)) {
-                            const hasAll = unlockReqs.flags.every((f: string) => playerFlags[f] === true);
-                            if (!hasAll) return false;
-                        }
-                        if (unlockReqs.phase !== undefined && playerPhase !== undefined) {
-                            if (playerPhase < unlockReqs.phase) return false;
-                        }
-                        return true;
-                    });
-
-                    // Enrich with status (discovered/researched)
-                    const results = await Promise.all(filtered.slice(0, limit).map(async (point) => {
+                    const results = await Promise.all(combinedPoints.slice(0, limit).map(async (point: any) => {
                         const meta = (point.metadata as any) || {};
 
-                        // Discovery Status
+                        // Skip Hidden Points NOT discovered
+                        if (meta.visibility?.initiallyHidden === true) {
+                            // Dynamic points (Rifts/NPCs) usually don't have this set, or we handle it above.
+                            // DB Points check:
+                            if (!discoveredPointIds.has(point.id)) {
+                                return null;
+                            }
+                        }
+
+                        // ... (Standard Discovery/Unlock Logic similar to Onboarding block)
                         let status = 'not_found';
                         let discoveredAt: number | undefined;
                         let researchedAt: number | undefined;
 
-                        if (user) {
-                            const discovery = await db.query.pointDiscoveries.findFirst({
-                                where: and(
-                                    eq(pointDiscoveries.pointKey, point.id),
-                                    user.type === 'clerk' ? eq(pointDiscoveries.userId, user.id) : eq(pointDiscoveries.deviceId, user.id)
-                                )
-                            });
+                        if (point.type === 'anomaly') {
+                            // Rifts are always discovered if active
+                            status = 'discovered';
+                        } else {
+                            const discovery = myDiscoveries.find(d => d.pointKey === point.id);
                             if (discovery) {
                                 if (discovery.researchedAt) status = 'researched';
                                 else if (discovery.discoveredAt) status = 'discovered';
@@ -510,47 +582,41 @@ export const mapRoutes = (app: Elysia) =>
                             }
                         }
 
-                        // Check Quest Binding
+                        // Unlock filter
+                        const unlockReqs = isUnlockRequirements(meta?.unlockRequirements) ? meta?.unlockRequirements : undefined;
+                        if (unlockReqs) {
+                            if (Array.isArray(unlockReqs.flags)) {
+                                if (!unlockReqs.flags.every((f: string) => playerFlags[f] === true)) return null;
+                            }
+                            if (unlockReqs.phase !== undefined && playerPhase !== undefined) {
+                                if (playerPhase < unlockReqs.phase) return null;
+                            }
+                        }
+
+                        // Quest Bindings
                         const questBindings = Array.isArray(meta.questBindings) ? meta.questBindings : [];
                         const isQuestTarget = questBindings.some((id: string) => activeQuestIds.has(id));
                         let finalMeta = isQuestTarget ? { ...meta, isActiveQuestTarget: true } : meta;
 
-                        // Ensure the campus scene is reachable even if the DB seed is outdated.
-                        // We want the first interaction to show the gate denial, and repeat clicks to show the waiting scene.
-                        const campusBindings = (finalMeta as any).sceneBindings;
-                        const hasCampusScenes =
-                            Array.isArray(campusBindings) &&
-                            campusBindings.some((binding: any) =>
-                                binding?.sceneId === 'university_gate_denial' || binding?.sceneId === 'university_wait_evening'
-                            );
-
-                        if (point.id === SYNTHESIS_CAMPUS_POINT_ID && !hasCampusScenes) {
-                            finalMeta = {
-                                ...finalMeta,
-                                sceneBindings: [
-                                    {
-                                        sceneId: 'university_wait_evening',
-                                        triggerType: 'click',
-                                        conditions: { flags: ['waiting_for_kruger'] },
-                                        priority: 100,
-                                    },
-                                    {
-                                        sceneId: 'university_gate_denial',
-                                        triggerType: 'click',
-                                        conditions: { notFlags: ['visited_synthesis_campus'] },
-                                        priority: 90,
-                                    },
-                                ],
-                            };
+                        // Inject default scenes for stability
+                        if (point.id === SYNTHESIS_CAMPUS_POINT_ID) {
+                            const bindings = (finalMeta as any).sceneBindings || [];
+                            const hasCampusScenes = bindings.some((b: any) => b?.sceneId === 'university_gate_denial');
+                            if (!hasCampusScenes) {
+                                finalMeta = {
+                                    ...finalMeta,
+                                    sceneBindings: [
+                                        { sceneId: 'university_wait_evening', triggerType: 'click', conditions: { flags: ['waiting_for_kruger'] }, priority: 100 },
+                                        { sceneId: 'university_gate_denial', triggerType: 'click', conditions: { notFlags: ['visited_synthesis_campus'] }, priority: 90 },
+                                    ]
+                                };
+                            }
                         }
 
-                        // QR-gated points: mark unlocked per-player once researched
                         if (finalMeta.qrRequired === true) {
                             finalMeta = { ...finalMeta, isUnlocked: Boolean(researchedAt) };
                         }
 
-                        // Never return raw qr payloads to the client.
-                        // qrCode is a secret (used for QR-gating) and must not leak via /map/points.
                         return {
                             id: point.id,
                             title: point.title,
@@ -567,7 +633,7 @@ export const mapRoutes = (app: Elysia) =>
                         };
                     }));
 
-                    return { points: results };
+                    return { points: results.filter(Boolean) };
                 })
 
                 // POST /map/discover
@@ -585,6 +651,16 @@ export const mapRoutes = (app: Elysia) =>
                     for (const p of allPoints) {
                         const dist = calculateDistance(lat, lng, p.lat, p.lng);
                         if (dist <= radiusKm) {
+                            // Check visibility rules
+                            const meta = (p.metadata as any) || {};
+                            if (meta.visibility?.initiallyHidden === true) {
+                                // If specifically marked as NOT discoverable by proximity (e.g. quest only), skip.
+                                // Default to true if not specified.
+                                if (meta.visibility?.discoverableByProximity === false) {
+                                    continue;
+                                }
+                            }
+
                             // Upsert Discovery
                             const existing = await db.query.pointDiscoveries.findFirst({
                                 where: and(
@@ -870,10 +946,32 @@ export const mapRoutes = (app: Elysia) =>
                     const allSafe = await db.query.safeZones.findMany({ where: eq(safeZones.isActive, true) });
                     const allDanger = await db.query.dangerZones.findMany({ where: eq(dangerZones.isActive, true) });
 
+                    // Fetch active rifts to calculate effective danger
+                    const activeRifts = await db.query.worldRifts.findMany({
+                        where: eq(worldRifts.state, 'breach') // Only breaches increase zone danger? Or unstable too?
+                    });
+
+                    const effectiveDangerZones = allDanger.map(zone => {
+                        const rift = activeRifts.find(r => r.zoneKey === zone.key);
+                        if (rift) {
+                            // Simple modifier logic: if rift is active, upgrade danger level
+                            // low -> medium -> high -> critical?
+                            // For now just marking it as enhanced
+                            return {
+                                ...zone,
+                                hasActiveRift: true,
+                                riftIntensity: rift.intensity,
+                                // logic to upgrade dangerLevel string if needed, e.g.:
+                                // dangerLevel: upgradeDangerLevel(zone.dangerLevel, rift.intensity)
+                            };
+                        }
+                        return zone;
+                    });
+
                     return {
                         zones: allZones,
                         safeZones: allSafe,
-                        dangerZones: allDanger
+                        dangerZones: effectiveDangerZones
                     };
                 })
         );

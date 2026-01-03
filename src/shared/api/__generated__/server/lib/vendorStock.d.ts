@@ -1,4 +1,4 @@
-import type { ItemKind, ItemTemplate, Rarity } from "../shared/itemTypes";
+import type { ItemKind, ItemTemplate, Rarity } from "../shared/data/itemTypes";
 export interface VendorStockItem {
     templateId: string;
     name: string;

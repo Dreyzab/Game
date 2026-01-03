@@ -18,6 +18,7 @@ interface VisualNovelSessionState {
   pendingRemoveFlags: string[]
   pendingXp: number
   pendingHpDelta: number
+  pendingAttributeDeltas: Record<string, number>
   pendingReputation: Record<string, number>
   pendingItems: { itemId: string; quantity: number }[]
   pendingQuests: string[]
@@ -85,6 +86,7 @@ export const useVisualNovelSessionStore = create<VisualNovelSessionState>((set, 
   pendingRemoveFlags: [],
   pendingXp: 0,
   pendingHpDelta: 0,
+  pendingAttributeDeltas: {},
   pendingReputation: {},
   pendingItems: [],
   pendingQuests: [],
@@ -99,6 +101,7 @@ export const useVisualNovelSessionStore = create<VisualNovelSessionState>((set, 
       pendingRemoveFlags: [],
       pendingXp: 0,
       pendingHpDelta: 0,
+      pendingAttributeDeltas: {},
       pendingReputation: {},
       pendingItems: [],
       pendingQuests: [],
@@ -118,6 +121,7 @@ export const useVisualNovelSessionStore = create<VisualNovelSessionState>((set, 
       let nextRemoveFlags = [...state.pendingRemoveFlags]
       let nextXp = state.pendingXp
       let nextHpDelta = state.pendingHpDelta
+      let nextAttributeDeltas = { ...state.pendingAttributeDeltas }
       let nextReputation = { ...state.pendingReputation }
       let nextItems = [...state.pendingItems]
       let nextQuests = [...state.pendingQuests]
@@ -142,6 +146,19 @@ export const useVisualNovelSessionStore = create<VisualNovelSessionState>((set, 
             if (effect.stat === 'xp') {
               nextXp += effect.delta
               xpDelta += effect.delta
+              break
+            }
+
+            const statKey = typeof effect.stat === 'string' ? effect.stat.trim() : ''
+            if (!statKey) break
+            // Treat non-xp stat modifiers as skill/attribute deltas during the VN session.
+            // Server-side, these are applied to `game_progress.skills` today.
+            const skillId = statKey.startsWith('skill:') ? statKey.slice('skill:'.length) : statKey
+            if (!skillId) break
+            if (typeof effect.delta !== 'number' || !Number.isFinite(effect.delta) || effect.delta === 0) break
+            nextAttributeDeltas = {
+              ...nextAttributeDeltas,
+              [skillId]: (nextAttributeDeltas[skillId] ?? 0) + effect.delta,
             }
             break
           }
@@ -156,6 +173,18 @@ export const useVisualNovelSessionStore = create<VisualNovelSessionState>((set, 
               const amount = typeof data.amount === 'number' ? data.amount : 0
               if (Number.isFinite(amount) && amount !== 0) {
                 nextHpDelta += amount
+              }
+            }
+
+            if (effect.action === 'skill_boost') {
+              const data = (effect.data ?? {}) as { skillId?: unknown; amount?: unknown }
+              const skillId = typeof data.skillId === 'string' ? data.skillId.trim() : ''
+              const amount = typeof data.amount === 'number' ? data.amount : 0
+              if (skillId && Number.isFinite(amount) && amount !== 0) {
+                nextAttributeDeltas = {
+                  ...nextAttributeDeltas,
+                  [skillId]: (nextAttributeDeltas[skillId] ?? 0) + amount,
+                }
               }
             }
             break
@@ -212,6 +241,7 @@ export const useVisualNovelSessionStore = create<VisualNovelSessionState>((set, 
         pendingRemoveFlags: nextRemoveFlags,
         pendingXp: nextXp,
         pendingHpDelta: nextHpDelta,
+        pendingAttributeDeltas: nextAttributeDeltas,
         pendingReputation: nextReputation,
         pendingItems: nextItems,
         pendingQuests: nextQuests,
@@ -255,6 +285,8 @@ export const useVisualNovelSessionStore = create<VisualNovelSessionState>((set, 
       pendingAddFlags: [],
       pendingRemoveFlags: [],
       pendingXp: 0,
+      pendingHpDelta: 0,
+      pendingAttributeDeltas: {},
       pendingReputation: {},
       pendingItems: [],
       pendingQuests: [],
@@ -273,6 +305,8 @@ export const useVisualNovelSessionStore = create<VisualNovelSessionState>((set, 
       pendingAddFlags: [],
       pendingRemoveFlags: [],
       pendingXp: 0,
+      pendingHpDelta: 0,
+      pendingAttributeDeltas: {},
       pendingReputation: {},
       pendingItems: [],
       pendingQuests: [],

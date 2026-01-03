@@ -10,7 +10,7 @@ export interface CoopRoleDefinition {
     playstyleHint: string;
 }
 export declare const COOP_ROLES: Record<CoopRoleId, CoopRoleDefinition>;
-export type CoopQuestNodeInteraction = 'vote' | 'individual' | 'sync' | 'contribute';
+export type CoopQuestNodeInteraction = 'vote' | 'individual' | 'sync' | 'contribute' | 'sequential_broadcast';
 export type CoopQuestChoiceAction = 'start_side_quest' | 'return' | 'start_expedition' | 'resolve_expedition_event' | 'advance_expedition_stage' | 'start_coop_battle';
 export type CoopExpeditionDeadlineEventKind = 'enemy' | 'check';
 export interface CoopExpeditionDeadlineEvent {
@@ -22,12 +22,25 @@ export interface CoopCampState {
     security: number;
     operatives: number;
     inventory: Record<string, number>;
+    baseLevel?: number;
+    upgrades?: Record<string, number>;
+    credits?: number;
 }
 export interface CoopQuestChoice {
     id: string;
     text: string;
     nextNodeId?: string;
     requiredRole?: CoopRoleId;
+    /** Optional stat requirements (validated server-side). */
+    requiredStats?: {
+        hp?: number;
+        morale?: number;
+        stamina?: number;
+    };
+    /** Optional attribute requirements (validated server-side). */
+    requiredAttributes?: Record<string, number>;
+    /** Optional trait requirements (validated server-side). */
+    requiredTraits?: string[];
     effectText?: string;
     flags?: Record<string, any>;
     action?: CoopQuestChoiceAction;
@@ -47,6 +60,11 @@ export interface CoopQuestChoice {
     };
     /** Optional flat bonus when consuming the above cost. */
     itemBonus?: number;
+    /** Optional items received upon choosing/winning this choice. */
+    itemRewards?: Array<{
+        templateId: string;
+        quantity: number;
+    }>;
     /** Optional score modifier deltas to apply on resolve (multipliers; see `tag:*` convention). */
     applyScoreModifiers?: Record<string, number>;
     /** Optional status effect to apply on resolve (server-side). */
@@ -89,6 +107,20 @@ export interface CoopQuestChoice {
         victoryNextNodeId?: string;
         defeatNextNodeId?: string;
     };
+    /** If true, effectText will be shown to ALL players in sequential_broadcast mode. */
+    broadcastEffect?: boolean;
+}
+export interface CoopPassiveCheck {
+    id: string;
+    attribute: string;
+    threshold: number;
+    requiredRole?: CoopRoleId;
+    successText: string;
+    failureText?: string;
+    broadcast?: boolean;
+    xpReward?: number;
+    successFlags?: Record<string, any>;
+    failureFlags?: Record<string, any>;
 }
 export interface CoopQuestNode {
     id: string;
@@ -96,6 +128,7 @@ export interface CoopQuestNode {
     background?: string;
     description: string;
     privateText?: Partial<Record<CoopRoleId, string>>;
+    passiveChecks?: CoopPassiveCheck[];
     interactionType: CoopQuestNodeInteraction;
     /** Optional override: require all players to vote before advancing. */
     requiresAllVotesForProgress?: boolean;
@@ -121,4 +154,28 @@ export interface CoopQuestState {
     };
     /** Optional active score modifiers (multipliers; see `tag:*` convention). */
     modifiers?: Record<string, number>;
+}
+/**
+ * State for sequential_broadcast interaction mode.
+ * Tracks which player is currently choosing and history of reactions.
+ */
+export interface SequentialBroadcastState {
+    /** Current player who should make a choice (null = waiting for first arrival) */
+    activePlayerId: number | null;
+    /** Players who have already made their choice */
+    completedPlayerIds: number[];
+    /** Order of players (first = first to arrive, rest = random) */
+    playerOrder: number[];
+    /** History of reactions shown to all players */
+    reactions: Array<{
+        playerId: number;
+        playerName: string;
+        playerRole: string | null;
+        choiceId: string;
+        choiceText: string;
+        effectText: string;
+        timestamp: number;
+    }>;
+    /** Currently showing reaction (for animation sync) */
+    showingReactionIndex: number | null;
 }

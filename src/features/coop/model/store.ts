@@ -8,7 +8,7 @@ export interface CoopParticipant {
     id: number;
     name: string;
     role: string | null;
-    ready: boolean;
+    ready: boolean | null;
 }
 
 export interface CoopQuestScoreState {
@@ -74,7 +74,7 @@ export interface CoopEncounterState {
 
 export interface CoopRoomState {
     code: string;
-    status: string;
+    status: string | null;
     hostId: number;
     sceneId: string | null;
     questNode: CoopQuestNode | null;
@@ -157,8 +157,7 @@ export const useCoopStore = create<CoopStore>((set, get) => ({
 
     joinRoom: async (code, role) => {
         set({ isLoading: true, error: null });
-        // @ts-expect-error - dynamic route access issue with Eden
-        const { data, error } = await authenticatedClient().coop.rooms[code].join.post({ role });
+        const { data, error } = await authenticatedClient().coop.rooms({ code }).join.post({ role });
 
         if (error) {
             set({ isLoading: false, error: (error as any)?.value ? String((error as any).value) : 'Unknown error' });
@@ -189,8 +188,7 @@ export const useCoopStore = create<CoopStore>((set, get) => ({
         set({ isUpdating: true, error: null });
 
         try {
-            // @ts-expect-error - dynamic route access issue with Eden
-            const { data, error } = await authenticatedClient().coop.rooms[room.code].join.post({ role });
+            const { data, error } = await authenticatedClient().coop.rooms({ code: room.code }).join.post({ role });
             if (error) {
                 set({ error: (error as any)?.value ? String((error as any).value) : 'Unknown error' });
                 return;
@@ -215,8 +213,7 @@ export const useCoopStore = create<CoopStore>((set, get) => ({
     leaveRoom: async () => {
         const { room } = get();
         if (!room) return;
-        // @ts-expect-error - dynamic route access issue with Eden
-        const { data, error } = await authenticatedClient().coop.rooms[room.code].leave.post();
+        const { data, error } = await authenticatedClient().coop.rooms({ code: room.code }).leave.post();
         if (error) {
             set({ error: (error as any)?.value ? String((error as any).value) : 'Unknown error' });
         } else if (typeof (data as any)?.error === 'string') {
@@ -237,8 +234,7 @@ export const useCoopStore = create<CoopStore>((set, get) => ({
     setReady: async (ready) => {
         const { room } = get();
         if (!room) return;
-        // @ts-expect-error - dynamic route access issue
-        const { data, error } = await authenticatedClient().coop.rooms[room.code].ready.post({ ready });
+        const { data, error } = await authenticatedClient().coop.rooms({ code: room.code }).ready.post({ ready });
         if (error) {
             set({ error: (error as any)?.value ? String((error as any).value) : 'Unknown error' });
             return;
@@ -258,8 +254,7 @@ export const useCoopStore = create<CoopStore>((set, get) => ({
     startGame: async () => {
         const { room } = get();
         if (!room) return;
-        // @ts-expect-error - dynamic route access issue
-        const { data, error } = await authenticatedClient().coop.rooms[room.code].start.post();
+        const { data, error } = await authenticatedClient().coop.rooms({ code: room.code }).start.post();
         if (error) {
             set({ error: (error as any)?.value ? String((error as any).value) : 'Unknown error' });
             return;
@@ -279,8 +274,7 @@ export const useCoopStore = create<CoopStore>((set, get) => ({
     castVote: async (choiceId, asPlayerId, nodeId) => {
         const { room } = get();
         if (!room) return;
-        // @ts-expect-error - dynamic route access issue
-        const { data, error } = await authenticatedClient().coop.rooms[room.code].quest.post({
+        const { data, error } = await authenticatedClient().coop.rooms({ code: room.code }).quest.post({
             choiceId,
             asPlayerId: typeof asPlayerId === 'number' ? asPlayerId : undefined,
             nodeId: typeof nodeId === 'string' && nodeId.trim().length > 0 ? nodeId : undefined,
@@ -304,8 +298,7 @@ export const useCoopStore = create<CoopStore>((set, get) => ({
     resolveBattle: async (payload) => {
         const { room } = get();
         if (!room) return;
-        // @ts-expect-error - dynamic route access issue
-        const { data, error } = await authenticatedClient().coop.rooms[room.code].battle.resolve.post(payload);
+        const { data, error } = await authenticatedClient().coop.rooms({ code: room.code }).battle.resolve.post(payload);
         if (error) {
             set({ error: (error as any)?.value ? String((error as any).value) : 'Unknown error' });
             return;
@@ -324,8 +317,8 @@ export const useCoopStore = create<CoopStore>((set, get) => ({
         const { room } = get();
         if (!room) return;
 
-        const client = authenticatedClient() as any;
-        const { data, error } = await client.coop.rooms[room.code].camp.reinforce.post({
+        const client = authenticatedClient();
+        const { data, error } = await client.coop.rooms({ code: room.code }).camp.reinforce.post({
             count: typeof count === 'number' ? count : undefined,
         });
 
@@ -351,8 +344,8 @@ export const useCoopStore = create<CoopStore>((set, get) => ({
         const { room } = get();
         if (!room) return;
 
-        const client = authenticatedClient() as any;
-        const { data, error } = await client.coop.rooms[room.code].camp.purchase.post({
+        const client = authenticatedClient();
+        const { data, error } = await client.coop.rooms({ code: room.code }).camp.purchase.post({
             templateId,
             quantity: typeof quantity === 'number' ? quantity : undefined,
         });
@@ -379,8 +372,8 @@ export const useCoopStore = create<CoopStore>((set, get) => ({
         const { room } = get();
         if (!room) return;
 
-        const client = authenticatedClient() as any;
-        const { data, error } = await client.coop.rooms[room.code].camp.inventory.withdraw.post({
+        const client = authenticatedClient();
+        const { data, error } = await client.coop.rooms({ code: room.code }).camp.inventory.withdraw.post({
             templateId,
             quantity: typeof quantity === 'number' ? quantity : undefined,
         });
@@ -407,8 +400,8 @@ export const useCoopStore = create<CoopStore>((set, get) => ({
         const { room } = get();
         if (!room) return null;
 
-        const client = authenticatedClient() as any;
-        const { data, error } = await client.coop.rooms[room.code].camp.shop.get();
+        const client = authenticatedClient();
+        const { data, error } = await client.coop.rooms({ code: room.code }).camp.shop.get();
 
         if (error) {
             set({ error: (error as any)?.value ? String((error as any).value) : 'Unknown error' });
@@ -428,16 +421,10 @@ export const useCoopStore = create<CoopStore>((set, get) => ({
         const { room } = get();
         if (!room) return;
 
-        // Manual fetch because Eden type inference might not have picked up the new route yet
-        // or it's just easier to use fetch for a debug endpoint
-
-        // We can try to use authenticatedClient if the types are updated, but let's use a safe fallback if needed.
-        // Given we just updated the backend, the client types might not be regenerated yet.
-        // We'll treat it as 'any' to bypass TS check on the new route.
-        const client = authenticatedClient() as any;
+        const client = authenticatedClient();
 
         try {
-            const { data, error } = await client.coop.rooms[room.code].debug.add_bot.post();
+            const { data, error } = await client.coop.rooms({ code: room.code }).debug.add_bot.post();
 
             if (error) {
                 set({ error: (error as any)?.value ? String((error as any).value) : 'Unknown error' });
@@ -460,8 +447,8 @@ export const useCoopStore = create<CoopStore>((set, get) => ({
         if (!room) return;
         set({ isUpdating: true, error: null });
         try {
-            const client = authenticatedClient() as any;
-            const { data, error } = await client.coop.rooms[room.code].camp.upgrade.post({ upgradeId });
+            const client = authenticatedClient();
+            const { data, error } = await client.coop.rooms({ code: room.code }).camp.upgrade.post({ upgradeId });
             if (error) throw error;
             if (data?.room) set({ room: data.room });
         } catch (e: any) {
@@ -476,8 +463,8 @@ export const useCoopStore = create<CoopStore>((set, get) => ({
         if (!room) return;
         set({ isUpdating: true, error: null });
         try {
-            const client = authenticatedClient() as any;
-            const { data, error } = await client.coop.rooms[room.code].camp.mission.start.post({ missionNodeId });
+            const client = authenticatedClient();
+            const { data, error } = await client.coop.rooms({ code: room.code }).camp.mission.start.post({ missionNodeId });
             if (error) throw error;
             if (data?.room) {
                 set({ room: data.room });
@@ -495,8 +482,8 @@ export const useCoopStore = create<CoopStore>((set, get) => ({
         if (!room) return;
         set({ isUpdating: true, error: null });
         try {
-            const client = authenticatedClient() as any;
-            const { data, error } = await client.coop.rooms[room.code].camp.contribute.post({ templateId, quantity });
+            const client = authenticatedClient();
+            const { data, error } = await client.coop.rooms({ code: room.code }).camp.contribute.post({ templateId, quantity });
             if (error) throw error;
             if (data?.room) set({ room: data.room });
         } catch (e: any) {

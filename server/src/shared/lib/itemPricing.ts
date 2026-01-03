@@ -2,7 +2,7 @@
  * Унифицированный расчёт цен предметов (shared между клиентом и сервером)
  */
 
-import type { ItemTemplate, Rarity } from './itemTypes'
+import type { ItemTemplate, Rarity } from '../data/itemTypes'
 
 /** Множители цены по редкости */
 export const RARITY_MULTIPLIERS: Record<Rarity, number> = {

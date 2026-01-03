@@ -16,9 +16,11 @@ const createDefaultProgress = (): PlayerProgress => ({
   skillPoints: 0,
   reputation: {},
   completedQuests: 0,
+  totalQuests: 0,
   fame: 0,
   points: 0,
   daysInGame: 1,
+  attributes: {},
   skills: {},
   flags: {},
   visitedScenes: [],
@@ -43,11 +45,16 @@ export function usePlayerProgress() {
     const pg = (data as any)?.progress
     if (!pg) return createDefaultProgress()
     const reputationByFaction = coerceNumberRecord(pg.reputationByFaction ?? pg.reputation)
+    const totalQuestsRaw = (data as any)?.totalQuests ?? (pg as any)?.totalQuests
+    const totalQuestsNum = typeof totalQuestsRaw === 'number' ? totalQuestsRaw : Number(totalQuestsRaw)
+    const totalQuests = Number.isFinite(totalQuestsNum) ? totalQuestsNum : 0
     return {
       ...createDefaultProgress(),
       ...pg,
+      totalQuests,
       reputation: reputationByFaction,
       reputationByFaction,
+      attributes: (pg as any).attributes ?? pg.skills ?? {},
       skills: pg.skills ?? {},
     }
   }, [data])

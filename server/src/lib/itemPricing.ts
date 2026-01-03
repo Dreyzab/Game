@@ -1,14 +1,14 @@
 /**
  * Модуль расчёта цен предметов (сервер) — опирается на shared расчёт
  */
-import type { ItemTemplate, Rarity } from "../shared/itemTypes";
+import type { ItemTemplate, Rarity } from "../shared/data/itemTypes";
 import {
   calculateTemplatePrice,
   calculateVendorBuyPrice,
   calculateVendorSellPrice,
   RARITY_MULTIPLIERS,
   BASE_PRICES,
-} from "../shared/itemPricing";
+} from "../shared/lib/itemPricing";
 import { getItemTemplate } from "./itemTemplates";
 
 export { calculateTemplatePrice, calculateVendorBuyPrice, calculateVendorSellPrice, RARITY_MULTIPLIERS, BASE_PRICES };

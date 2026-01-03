@@ -20,5 +20,11 @@
         "types": [
             "bun-types"
         ]
-    }
+    },
+    "include": [
+        "src/**/*.ts"
+    ],
+    "exclude": [
+        "src/**/*.d.ts"
+    ]
 }

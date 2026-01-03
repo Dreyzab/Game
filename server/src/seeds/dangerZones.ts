@@ -1,5 +1,6 @@
 export const SEED_DANGER_ZONES = [
     {
+        key: "sberg_zone",
         title: "SBerg",
         dangerLevel: "medium",
         polygon: [
@@ -10,9 +11,14 @@ export const SEED_DANGER_ZONES = [
             { lat: 47.99676918287287, lng: 7.8581286620433275 },
             { lat: 47.99278575860137, lng: 7.854509089880537 },
             { lat: 47.99232024560553, lng: 7.854452690054984 }
+        ],
+        spawnPoints: [
+            { lat: 47.9940, lng: 7.8590 },
+            { lat: 47.9950, lng: 7.8600 }
         ]
     },
     {
+        key: "park_zone",
         title: "Park",
         dangerLevel: "low",
         polygon: [
@@ -21,6 +27,10 @@ export const SEED_DANGER_ZONES = [
             { lat: 47.99904604059253, lng: 7.8569929576547395 },
             { lat: 47.99742948319329, lng: 7.856026627812213 },
             { lat: 47.99693655561421, lng: 7.858165226643081 }
+        ],
+        spawnPoints: [
+            { lat: 47.9975, lng: 7.8575 },
+            { lat: 47.9980, lng: 7.8585 }
         ]
     }
 ];

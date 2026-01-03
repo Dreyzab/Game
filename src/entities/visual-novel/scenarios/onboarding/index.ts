@@ -6,6 +6,28 @@ const OLD_REGISTRAR_SPRITE = '/images/npcs/trader.jpg'
 const HANS_SPRITE = '/images/npcs/craftsman.jpg'
 
 export const onboardingScenes: Record<string, Scene> = {
+  onboarding_sdg_arrival: {
+    id: 'onboarding_sdg_arrival',
+    background: POLICE_BACKGROUND,
+    characters: [],
+    dialogue: [
+      {
+        speaker: 'Система',
+        text: 'Ты прибыл в SDG Фрайбурга. Пора зарегистрироваться в ратуше.',
+      },
+    ],
+    choices: [
+      {
+        id: 'onboarding_sdg_arrival_open_map',
+        text: 'Открыть карту',
+        effects: {
+          addFlags: ['arrived_at_freiburg', 'prologue_complete'],
+          immediate: [{ type: 'open_map' }],
+        },
+      },
+    ],
+  },
+
   onboarding_police_intro: {
     id: 'onboarding_police_intro',
     background: POLICE_BACKGROUND,
