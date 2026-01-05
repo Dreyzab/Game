@@ -11,7 +11,7 @@ export declare function needsSkillsNormalization(skills: unknown): boolean;
  * Normalize a skills map to canonical IDs.
  *
  * - Maps legacy keys (`strength`, `stamina`) to canonical (`force`, `resilience`)
- * - Ensures all canonical voice keys exist (fills with STARTING_SKILLS defaults)
+ * - Ensures all canonical keys exist (fills with STARTING_SKILLS defaults)
  * - Preserves any extra numeric skills (e.g. future non-voice skills)
  */
 export declare function normalizeSkills(skills: Record<string, unknown> | null | undefined): Record<string, number>;

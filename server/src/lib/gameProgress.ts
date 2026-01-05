@@ -10,7 +10,7 @@ export const STARTING_SKILLS: Record<string, number> = {
     // MIND
     logic: 45,
     rhetoric: 30,
-    analysis: 30,
+    knowledge: 30,
     // CONSCIOUSNESS
     authority: 30,
     suggestion: 30,
@@ -23,6 +23,13 @@ export const STARTING_SKILLS: Record<string, number> = {
     solidarity: 20,
     honor: 20,
     empathy: 20,
+
+    // PROLOGUE META (stored in `skills` for now)
+    parl_union: 25,
+    parl_academy: 25,
+    parl_free_corps: 25,
+    parl_seekers: 25,
+    psi_exposure: 0,
 };
 
 /**
@@ -34,6 +41,7 @@ export const STARTING_SKILLS: Record<string, number> = {
 export const LEGACY_SKILL_ID_MAP: Record<string, string> = {
     strength: 'force',
     stamina: 'resilience',
+    analysis: 'knowledge',
 };
 
 function isFiniteNumber(value: unknown): value is number {
@@ -63,7 +71,7 @@ export function needsSkillsNormalization(skills: unknown): boolean {
  * Normalize a skills map to canonical IDs.
  *
  * - Maps legacy keys (`strength`, `stamina`) to canonical (`force`, `resilience`)
- * - Ensures all canonical voice keys exist (fills with STARTING_SKILLS defaults)
+ * - Ensures all canonical keys exist (fills with STARTING_SKILLS defaults)
  * - Preserves any extra numeric skills (e.g. future non-voice skills)
  */
 export function normalizeSkills(

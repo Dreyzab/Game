@@ -36,7 +36,7 @@ export const COOP_SIDE_QUEST_NODES: Record<string, CoopQuestNode> = {
         nextNodeId: 'sq_signal_cache_outcome_search',
         baseScore: 12,
         classMultipliers: { vorschlag: 1.2, ghost: 1.2, valkyrie: 1.0, shustrya: 1.0 },
-        scoreTags: ['analysis', 'perception'],
+        scoreTags: ['knowledge', 'perception'],
       },
       {
         id: 'sq_signal_cache_force',
@@ -300,7 +300,7 @@ export const COOP_SIDE_QUEST_NODES: Record<string, CoopQuestNode> = {
         nextNodeId: 'sq_drone_shards_outcome_recover',
         baseScore: 10,
         classMultipliers: { vorschlag: 1.5, valkyrie: 1.2, ghost: 0.8, shustrya: 0.5 },
-        scoreTags: ['analysis', 'tech'],
+        scoreTags: ['knowledge', 'tech'],
         flags: {
           sq_drone_shards_outcome: 'recovered',
           intel_drone_data: true,
@@ -493,7 +493,7 @@ export const COOP_SIDE_QUEST_NODES: Record<string, CoopQuestNode> = {
         nextNodeId: 'sq_mushroom_threat_outcome_sample',
         baseScore: 15,
         classMultipliers: { valkyrie: 1.5, vorschlag: 1.2, ghost: 0.8, shustrya: 0.5 },
-        scoreTags: ['analysis', 'visual'],
+        scoreTags: ['knowledge', 'visual'],
         consumableCost: { templateId: 'pills', amount: 1 },
         itemBonus: 25,
         flags: {
@@ -583,7 +583,7 @@ export const COOP_SIDE_QUEST_NODES: Record<string, CoopQuestNode> = {
         nextNodeId: 'sq_forgotten_bunker_outcome_diaries',
         baseScore: 10,
         classMultipliers: { vorschlag: 1.2, valkyrie: 1.2, ghost: 1.0, shustrya: 1.0 },
-        scoreTags: ['analysis', 'logic'],
+        scoreTags: ['knowledge', 'logic'],
         flags: {
           sq_forgotten_bunker_outcome: 'diaries',
           intel_stabilization_method: true,

@@ -24,7 +24,7 @@ export function deriveOnboardingSkills(
         add("endurance", 10);
     } else if (hasFlag(flags, "build_mind")) {
         add("logic", 12);
-        add("analysis", 10);
+        add("knowledge", 10);
         add("rhetoric", 8);
     } else if (hasFlag(flags, "build_social")) {
         add("suggestion", 12);
@@ -57,4 +57,3 @@ export function deriveOnboardingSkills(
 
     return next;
 }
-

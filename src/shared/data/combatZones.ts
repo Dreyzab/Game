@@ -23,7 +23,7 @@ export const COMBAT_ZONES: Record<string, ZoneModifier> = {
       courage: 1     // +1 к ОТВАГЕ
     },
     voiceDebuffs: {
-      analysis: -2,  // -2 к АНАЛИЗУ (помехи веры)
+      knowledge: -2,  // -2 к АНАЛИЗУ (помехи веры)
       gambling: -1   // -1 к АЗАРТУ
     },
     
@@ -114,7 +114,7 @@ export const COMBAT_ZONES: Record<string, ZoneModifier> = {
     nameRu: 'Кузница Индустриального Севера',
     
     voiceBuffs: {
-      analysis: 2,   // +2 к АНАЛИЗУ
+      knowledge: 2,   // +2 к АНАЛИЗУ
       logic: 1,      // +1 к ЛОГИКЕ
       force: 1       // +1 к СИЛЕ (промышленная мощь)
     },
@@ -227,7 +227,7 @@ export const COMBAT_ZONES: Record<string, ZoneModifier> = {
     
     voiceBuffs: {
       logic: 3,      // +3 к ЛОГИКЕ
-      analysis: 2,   // +2 к АНАЛИЗУ  
+      knowledge: 2,   // +2 к АНАЛИЗУ  
       rhetoric: 2    // +2 к РИТОРИКЕ
     },
     voiceDebuffs: {

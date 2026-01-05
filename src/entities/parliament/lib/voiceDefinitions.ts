@@ -46,7 +46,7 @@ export const VOICE_ICONS: Record<VoiceId, string> = {
   // MIND - РАЗУМ
   logic: '/images/Атрибут/Разум/Логика.jpg',
   rhetoric: '/images/Атрибут/Разум/РиторикаРус.jpg',
-  analysis: '/images/Атрибут/Разум/Анализ.jpg',
+  knowledge: '/images/Атрибут/Разум/Анализ.jpg',
   // CONSCIOUSNESS - СОЗНАНИЕ
   authority: '/images/Атрибут/Сознание/Авторитет.jpg',
   suggestion: '/images/Атрибут/Сознание/Внушение.jpg',

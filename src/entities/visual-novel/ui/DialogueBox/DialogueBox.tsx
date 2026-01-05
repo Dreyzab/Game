@@ -19,8 +19,8 @@ export interface DialogueBoxProps {
 }
 
 export const DialogueBox: React.FC<DialogueBoxProps> = ({
-  speakerName: _speakerName,
-  speakerTitle: _speakerTitle,
+  speakerName,
+  speakerTitle,
   text,
   stageDirection,
   disabled,
@@ -32,10 +32,7 @@ export const DialogueBox: React.FC<DialogueBoxProps> = ({
   forceShow,
   onOpenMenu,
 }) => {
-  // Note: _speakerName and _speakerTitle are received as props but not displayed
-  // in this version of the component. They're kept for API compatibility.
-  void _speakerName
-  void _speakerTitle
+  void speakerTitle
   const sanitizeText = useCallback((value: string) => {
     if (!value) return value
 
@@ -136,6 +133,14 @@ export const DialogueBox: React.FC<DialogueBoxProps> = ({
         )}
         style={style}
       >
+        {/* Speaker Name Badge */}
+        {speakerName && (
+          <div className="mb-3 -mt-1">
+            <span className="inline-block px-3 py-1 text-xs sm:text-sm font-semibold uppercase tracking-wider text-cyan-300 bg-cyan-500/15 border border-cyan-500/30 rounded-lg shadow-[0_0_8px_rgba(6,182,212,0.2)]">
+              {speakerName}
+            </span>
+          </div>
+        )}
         <div className="font-sans text-[17px] sm:text-[20px] leading-relaxed text-white/90 font-medium tracking-tight min-h-[3rem]">
           {displayedText.slice(0, visibleCount)}
           {isTyping && (

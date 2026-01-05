@@ -204,7 +204,7 @@ export const CLASS_SYNERGIES: Array<{
 }> = [
         {
             classes: ['valkyrie', 'vorschlag'],
-            voiceBonus: { analysis: 10, logic: 5 },
+            voiceBonus: { knowledge: 10, logic: 5 },
             description: 'Медик + Техник: бонус к аналитическим проверкам',
         },
         {

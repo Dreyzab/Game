@@ -49,7 +49,7 @@ export interface CoopQuestChoice {
     baseScore?: number;
     /** Optional per-role multiplier overrides for this choice. */
     classMultipliers?: Partial<Record<CoopRoleId, number>>;
-    /** Optional tags for score modifiers/artifacts (e.g. "analysis", "visual"). */
+    /** Optional tags for score modifiers/artifacts (e.g. "knowledge", "visual"). */
     scoreTags?: string[];
     /** Optional item requirement to enable this choice (templateId). */
     requiredItem?: string;

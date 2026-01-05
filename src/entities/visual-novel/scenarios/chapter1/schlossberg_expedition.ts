@@ -43,7 +43,7 @@ export const schlossbergExpeditionScenes: Record<string, Scene> = {
       },
       {
         id: 'analysis_study',
-        text: '[АНАЛИЗ] Остановиться и изучить следы и звуки детальнее.',
+        text: '[ЗНАНИЯ] Остановиться и изучить следы и звуки детальнее.',
         nextScene: 'schlossberg_analyze_tracks',
       },
     ],

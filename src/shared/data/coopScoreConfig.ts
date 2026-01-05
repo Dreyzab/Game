@@ -1,7 +1,7 @@
 export const ROLE_TAG_MULTS = {
   vorschlag: {
     tech: 1.5,
-    analysis: 1.4,
+    knowledge: 1.4,
     logic: 1.3,
     investigation: 1.2,
     perception: 1.1,
@@ -17,7 +17,7 @@ export const ROLE_TAG_MULTS = {
   },
   valkyrie: {
     tech: 1.2,
-    analysis: 1.2,
+    knowledge: 1.2,
     logic: 1.1,
     investigation: 1.1,
     perception: 1.1,
@@ -33,7 +33,7 @@ export const ROLE_TAG_MULTS = {
   },
   ghost: {
     tech: 0.8,
-    analysis: 1.0,
+    knowledge: 1.0,
     logic: 0.9,
     investigation: 1.2,
     perception: 1.2,
@@ -49,7 +49,7 @@ export const ROLE_TAG_MULTS = {
   },
   shustrya: {
     tech: 0.5,
-    analysis: 0.8,
+    knowledge: 0.8,
     logic: 0.7,
     investigation: 1.0,
     perception: 0.9,
@@ -104,7 +104,6 @@ export const COOP_STATUSES = {
   scanner_overload: {
     label: 'Scanner Overload',
     defaultTurns: 1,
-    mods: { 'tag:tech': 0.0, 'tag:analysis': 0.0 },
+    mods: { 'tag:tech': 0.0, 'tag:knowledge': 0.0 },
   },
 } as const
-

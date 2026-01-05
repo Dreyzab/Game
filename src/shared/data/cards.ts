@@ -50,7 +50,7 @@ export const ARTIFACTS: Record<string, Artifact> = {
     additionalEffects: [
       { type: 'paralysis', value: 1, chance: 20, duration: 1, description: '20% шанс паралича' }
     ],
-    requiredVoice: 'analysis',
+    requiredVoice: 'knowledge',
     requiredVoiceLevel: 20,
     rarity: 'rare',
     sourceZone: 'chaos_zone_vauban'
@@ -172,7 +172,7 @@ export const ARTIFACTS: Record<string, Artifact> = {
       { type: 'paralysis', value: 100, chance: 100, duration: 2, description: '100% паралич механических целей' },
       { type: 'stamina_drain', value: 30, description: '-30 выносливости врагу' }
     ],
-    requiredVoice: 'analysis',
+    requiredVoice: 'knowledge',
     requiredVoiceLevel: 30,
     rarity: 'rare',
     sourceZone: 'forge_industrial'
@@ -364,8 +364,8 @@ export const BASE_CARDS: Record<string, CombatCard> = {
     effects: [
       { type: 'debuff', value: 25, duration: 3, description: 'Враг получает +25% урона на 3 хода' }
     ],
-    scalingVoice: 'analysis',
-    scalingFormula: '1 + (analysis / 20)',
+    scalingVoice: 'knowledge',
+    scalingFormula: '1 + (knowledge / 20)',
     icon: '🔍',
     animation: 'analyze'
   },
@@ -705,7 +705,7 @@ export function generateDeckFromEquipment(
   // Добавляем голосовые карты в зависимости от уровней
   if ((voiceLevels.authority || 0) >= 20) deck.push(BASE_CARDS.intimidate)
   if ((voiceLevels.courage || 0) >= 20) deck.push(BASE_CARDS.rally)
-  if ((voiceLevels.analysis || 0) >= 25) deck.push(BASE_CARDS.analyze_weakness)
+  if ((voiceLevels.knowledge || 0) >= 25) deck.push(BASE_CARDS.analyze_weakness)
   if ((voiceLevels.drama || 0) >= 15) deck.push(BASE_CARDS.taunt)
   if ((voiceLevels.suggestion || 0) >= 30) deck.push(BASE_CARDS.confuse)
   if ((voiceLevels.reaction || 0) >= 35) deck.push(BASE_CARDS.counter_attack)

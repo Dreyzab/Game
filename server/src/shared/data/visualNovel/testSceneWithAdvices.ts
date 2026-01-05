@@ -102,7 +102,7 @@ export const TEST_SCENE_WITH_ADVICES: VisualNovelSceneDefinition = {
           minSkillLevel: 40,
         },
         {
-          characterId: 'analysis',
+          characterId: 'knowledge',
           text: 'Что-то не так. Внутренний голос кричит "ловушка". Но какая? Может, предмет отслеживается. Или это приманка для чего-то большего.',
           mood: 'grim',
           stageDirection: 'Предчувствие опасности',

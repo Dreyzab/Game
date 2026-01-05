@@ -221,14 +221,14 @@ export interface BattleLogEntry {
 }
 /**
  * Формула вероятности заклинивания (Jam Chance):
- * P_jam = (100 - Condition) * 0.2 + (Heat * 0.1) - (V_Analysis * 0.5)
+ * P_jam = (100 - Condition) * 0.2 + (Heat * 0.1) - (V_Knowledge * 0.5)
  */
-export declare function calculateJamChance(condition: number, heat: number, analysisLevel: number): number;
+export declare function calculateJamChance(condition: number, heat: number, knowledgeLevel: number): number;
 /**
  * Формула базового урона:
- * Damage = (Base_Weapon_Dmg + Force * k_force + Analysis * k_analysis) * M_artifact - Target_Armor
+ * Damage = (Base_Weapon_Dmg + Force * k_force + Knowledge * k_knowledge) * M_artifact - Target_Armor
  */
-export declare function calculateDamage(baseDamage: number, forceLevel: number, analysisLevel: number, artifactMultiplier: number, targetArmor: number, kForce?: number, kAnalysis?: number): number;
+export declare function calculateDamage(baseDamage: number, forceLevel: number, knowledgeLevel: number, artifactMultiplier: number, targetArmor: number, kForce?: number, kKnowledge?: number): number;
 /**
  * Эффективный урон с учётом крита:
  * E_DMG = Damage * (1 + P_crit * (M_crit - 1))

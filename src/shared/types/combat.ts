@@ -401,31 +401,31 @@ export interface BattleLogEntry {
 
 /**
  * Формула вероятности заклинивания (Jam Chance):
- * P_jam = (100 - Condition) * 0.2 + (Heat * 0.1) - (V_Analysis * 0.5)
+ * P_jam = (100 - Condition) * 0.2 + (Heat * 0.1) - (V_Knowledge * 0.5)
  */
 export function calculateJamChance(
   condition: number,
   heat: number,
-  analysisLevel: number
+  knowledgeLevel: number
 ): number {
-  const chance = (100 - condition) * 0.2 + (heat * 0.1) - (analysisLevel * 0.5)
+  const chance = (100 - condition) * 0.2 + (heat * 0.1) - (knowledgeLevel * 0.5)
   return Math.max(0, Math.min(100, chance))
 }
 
 /**
  * Формула базового урона:
- * Damage = (Base_Weapon_Dmg + Force * k_force + Analysis * k_analysis) * M_artifact - Target_Armor
+ * Damage = (Base_Weapon_Dmg + Force * k_force + Knowledge * k_knowledge) * M_artifact - Target_Armor
  */
 export function calculateDamage(
   baseDamage: number,
   forceLevel: number,
-  analysisLevel: number,
+  knowledgeLevel: number,
   artifactMultiplier: number,
   targetArmor: number,
   kForce = 0.5,
-  kAnalysis = 0.3
+  kKnowledge = 0.3
 ): number {
-  const raw = (baseDamage + forceLevel * kForce + analysisLevel * kAnalysis) * artifactMultiplier
+  const raw = (baseDamage + forceLevel * kForce + knowledgeLevel * kKnowledge) * artifactMultiplier
   return Math.max(0, Math.floor(raw - targetArmor))
 }
 

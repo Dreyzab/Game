@@ -99,10 +99,10 @@ export function calculateMaxResources(skills: Partial<Record<VoiceId, number>>):
     const rawAp = 2 + Math.floor((get('reaction') + get('coordination')) / 40)
     const ap = Math.min(10, Math.max(2, rawAp))
 
-    // MP (Mind): 20 + Logic*0.5 + Analysis*0.5
+    // MP (Mind): 20 + Logic*0.5 + Knowledge*0.5
     const mp = 20 + Math.floor(
         get('logic') * 0.5 +
-        get('analysis') * 0.5
+        get('knowledge') * 0.5
     )
 
     // WP (Consciousness): 20 + Authority*0.5 + Courage*0.5 + Suggestion*0.2

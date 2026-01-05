@@ -30,7 +30,7 @@
 - **ID голосов:**  
   `force`, `resilience`, `endurance`,  
   `perception`, `reaction`, `coordination`,  
-  `logic`, `rhetoric`, `analysis`,  
+  `logic`, `rhetoric`, `knowledge`,  
   `authority`, `suggestion`, `courage`,  
   `gambling`, `drama`, `creativity`,  
   `empathy`, `solidarity`, `honor`
@@ -47,7 +47,7 @@
 - **ID навыков:**  
   `strength`, `endurance`, `stamina`,  
   `perception`, `reaction`, `coordination`,  
-  `logic`, `rhetoric`, `analysis`,  
+  `logic`, `rhetoric`, `knowledge`,  
   `authority`, `suggestion`, `courage`,  
   `drama`, `creativity`, `gambling`,  
   `solidarity`, `honor`, `empathy`
@@ -160,7 +160,7 @@
 | `coordination` | `coordination` | ✅ совпадает |
 | `logic` | `logic` | ✅ совпадает |
 | `rhetoric` | `rhetoric` | ✅ совпадает |
-| `analysis` | `analysis` | ✅ совпадает |
+| `knowledge` | `knowledge` | ✅ совпадает |
 | `authority` | `authority` | ✅ совпадает |
 | `suggestion` | `suggestion` | ✅ совпадает |
 | `courage` | `courage` | ✅ совпадает |

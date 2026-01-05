@@ -5,6 +5,7 @@ import { players, gameProgress, sceneLogs } from "../../db/schema";
 import { auth } from "../auth";
 import {
     awardXPAndLevelUp,
+    LEGACY_SKILL_ID_MAP,
     mergeFlags,
     mergeReputation,
     needsSkillsNormalization,
@@ -114,22 +115,25 @@ function applySkillDeltasFromChoices(
                 const skillIdRaw = typeof data.skillId === "string" ? data.skillId.trim() : "";
                 const amountRaw = data.amount;
                 if (!skillIdRaw || !isSafeId(skillIdRaw)) continue;
+                const skillId = LEGACY_SKILL_ID_MAP[skillIdRaw] ?? skillIdRaw;
                 const delta = clampInt(amountRaw, -MAX_SKILL_DELTA_PER_COMMIT, MAX_SKILL_DELTA_PER_COMMIT);
                 if (delta === 0) continue;
-                next[skillIdRaw] = clampSkillValue((next[skillIdRaw] ?? 0) + delta);
+                next[skillId] = clampSkillValue((next[skillId] ?? 0) + delta);
                 continue;
             }
 
-            // Support: { type: 'stat_modifier', stat: 'analysis', delta: 2 } or { stat: 'skill:analysis', delta: 2 }
+            // Support: { type: 'stat_modifier', stat: 'knowledge', delta: 2 } or { stat: 'skill:knowledge', delta: 2 } (legacy: 'analysis')
             if ((effect as any).type === "stat_modifier") {
                 const statRaw = typeof (effect as any).stat === "string" ? (effect as any).stat.trim() : "";
                 const deltaRaw = (effect as any).delta;
                 const delta = clampInt(deltaRaw, -MAX_SKILL_DELTA_PER_COMMIT, MAX_SKILL_DELTA_PER_COMMIT);
                 if (!statRaw || delta === 0) continue;
 
-                const skillId = statRaw.startsWith("skill:") ? statRaw.slice("skill:".length) : statRaw;
-                if (!skillId || !isSafeId(skillId)) continue;
-                if (skillId === "xp") continue;
+                const skillIdRaw = statRaw.startsWith("skill:") ? statRaw.slice("skill:".length) : statRaw;
+                if (!skillIdRaw || !isSafeId(skillIdRaw)) continue;
+                if (skillIdRaw === "xp") continue;
+
+                const skillId = LEGACY_SKILL_ID_MAP[skillIdRaw] ?? skillIdRaw;
 
                 next[skillId] = clampSkillValue((next[skillId] ?? 0) + delta);
             }

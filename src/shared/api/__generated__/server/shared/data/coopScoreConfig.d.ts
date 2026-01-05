@@ -1,7 +1,7 @@
 export declare const ROLE_TAG_MULTS: {
     readonly vorschlag: {
         readonly tech: 1.5;
-        readonly analysis: 1.4;
+        readonly knowledge: 1.4;
         readonly logic: 1.3;
         readonly investigation: 1.2;
         readonly perception: 1.1;
@@ -17,7 +17,7 @@ export declare const ROLE_TAG_MULTS: {
     };
     readonly valkyrie: {
         readonly tech: 1.2;
-        readonly analysis: 1.2;
+        readonly knowledge: 1.2;
         readonly logic: 1.1;
         readonly investigation: 1.1;
         readonly perception: 1.1;
@@ -33,7 +33,7 @@ export declare const ROLE_TAG_MULTS: {
     };
     readonly ghost: {
         readonly tech: 0.8;
-        readonly analysis: 1;
+        readonly knowledge: 1;
         readonly logic: 0.9;
         readonly investigation: 1.2;
         readonly perception: 1.2;
@@ -49,7 +49,7 @@ export declare const ROLE_TAG_MULTS: {
     };
     readonly shustrya: {
         readonly tech: 0.5;
-        readonly analysis: 0.8;
+        readonly knowledge: 0.8;
         readonly logic: 0.7;
         readonly investigation: 1;
         readonly perception: 0.9;
@@ -128,7 +128,7 @@ export declare const COOP_STATUSES: {
         readonly defaultTurns: 1;
         readonly mods: {
             readonly 'tag:tech': 0;
-            readonly 'tag:analysis': 0;
+            readonly 'tag:knowledge': 0;
         };
     };
 };

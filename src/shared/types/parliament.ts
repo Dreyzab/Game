@@ -34,7 +34,7 @@ export type VoiceId =
   // РАЗУМ (Mind)
   | 'logic'        // ЛОГИКА - Факты — твоя вера, вывод — твой меч.
   | 'rhetoric'     // РИТОРИКА - Язык острее стали.
-  | 'analysis'     // АНАЛИЗ - Ты знаешь, где слабое звено.
+  | 'knowledge'    // ЗНАНИЯ - Ты знаешь, где слабое звено.
   // СОЗНАНИЕ (Consciousness)
   | 'authority'    // АВТОРИТЕТ - Ты — вершина. Все остальные — пониже.
   | 'suggestion'   // ВНУШЕНИЕ - Идея уже в тебе. Она — моя.
@@ -104,7 +104,7 @@ export const ATTRIBUTE_GROUPS: Record<AttributeGroup, AttributeGroupDefinition> 
     description: 'Интеллектуальная обработка информации и стратегическое планирование.',
     icon: '🧠',
     color: '#3498db',
-    voices: ['logic', 'rhetoric', 'analysis'],
+    voices: ['logic', 'rhetoric', 'knowledge'],
     resourceMetadata: {
       id: 'mp',
       name: 'Mental Points',
@@ -387,17 +387,17 @@ export const PARLIAMENT_VOICES: Record<VoiceId, VoiceDefinition> = {
     }
   },
 
-  analysis: {
-    id: 'analysis',
-    name: 'Analysis',
-    nameRu: 'АНАЛИЗ',
+  knowledge: {
+    id: 'knowledge',
+    name: 'Knowledge',
+    nameRu: 'ЗНАНИЯ',
     alias: 'The Scanner',
     group: 'mind',
     icon: '🔍',
     motto: 'Ты знаешь, где слабое звено.',
     description: 'Раскрывает структуру противника (HP, Resistances). Значительно повышает урон по уязвимым местам и снижает шанс поломки техники.',
     combatEffects: [
-      { type: 'passive', stat: 'enemy_reveal', modifier: 1, description: 'Видеть HP врага при Analysis > 20' },
+      { type: 'passive', stat: 'enemy_reveal', modifier: 1, description: 'Видеть HP врага при Knowledge > 20' },
       { type: 'scaling', stat: 'vulnerability_damage', modifier: 0.5, description: '+0.5 к урону по уязвимостям' },
       { type: 'passive', stat: 'jam_reduction', modifier: 0.5, description: '-0.5% к шансу заклинивания за уровень' }
     ],
@@ -642,7 +642,7 @@ export const STARTING_VOICE_LEVELS: Record<VoiceId, number> = {
   // РАЗУМ
   logic: 45,
   rhetoric: 30,
-  analysis: 30,
+  knowledge: 30,
   // СОЗНАНИЕ
   authority: 30,
   suggestion: 30,

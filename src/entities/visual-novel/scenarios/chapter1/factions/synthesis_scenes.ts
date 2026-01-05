@@ -643,15 +643,15 @@ export const synthesisScenes: Record<string, Scene> = {
       },
       {
         id: 'distract',
-        text: '[АНАЛИЗ] Бросить что-то, чтобы отвлечь. (Сложность 7)',
+        text: '[ЗНАНИЯ] Бросить что-то, чтобы отвлечь. (Сложность 7)',
         presentation: {
           color: 'skill',
           icon: '🔧',
-          tooltip: 'Требуется АНАЛИЗ',
+          tooltip: 'Требуются ЗНАНИЯ',
         },
         availability: {
           skillCheck: {
-            skill: 'analysis',
+            skill: 'knowledge',
             difficulty: 7,
             successText: 'Отличная идея!',
             failureText: 'Они не отвлеклись...',

@@ -157,7 +157,7 @@ export const COOP_CHARACTERS: CoopCharacterTemplate[] = [
 
 Говорят, она может вытащить человека с того света — но никогда не обещает, что вытащит его в здравом уме.`,
     voiceModifiers: {
-      analysis: 15,
+      knowledge: 15,
       empathy: 20,
       coordination: 10,
       logic: 5,
@@ -197,7 +197,7 @@ export const COOP_CHARACTERS: CoopCharacterTemplate[] = [
 Предпочитает компанию машин людям — они, по его словам, «логичнее». Его дрон «Глаз» — единственный, кому он доверяет безоговорочно.`,
     voiceModifiers: {
       logic: 20,
-      analysis: 15,
+      knowledge: 15,
       creativity: 10,
       endurance: 15, // Can carry heavy loads
     },

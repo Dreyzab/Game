@@ -574,7 +574,7 @@ function getSequentialBroadcastFromFlags(flags: Record<string, any>): Sequential
 }
 
 const COOP_ARTIFACT_SCORE_BONUSES: Record<string, { bonus: number; tags?: string[] }> = {
-    artifact_tech_scanner: { bonus: 5, tags: ['analysis'] },
+    artifact_tech_scanner: { bonus: 5, tags: ['knowledge'] },
     artifact_moon_fungus_lantern: { bonus: 5, tags: ['visual'] },
 };
 

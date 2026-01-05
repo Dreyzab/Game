@@ -77,7 +77,7 @@ export const VOICE_TO_GROUP: Record<VoiceId, VoiceGroup> = {
   // Mind
   logic: 'mind',
   rhetoric: 'mind',
-  analysis: 'mind',
+  knowledge: 'mind',
   // Consciousness
   authority: 'consciousness',
   suggestion: 'consciousness',
@@ -104,7 +104,7 @@ export const VOICE_NAMES: Record<VoiceId, string> = {
   coordination: 'КООРДИНАЦИЯ',
   logic: 'ЛОГИКА',
   rhetoric: 'РИТОРИКА',
-  analysis: 'АНАЛИЗ',
+  knowledge: 'ЗНАНИЯ',
   authority: 'АВТОРИТЕТ',
   suggestion: 'ВНУШЕНИЕ',
   courage: 'ОТВАГА',

@@ -14,7 +14,7 @@ import { Text } from '@/shared/ui/components/Text'
 import { usePlayerProgress, useCreatePlayer } from '@/shared/hooks/usePlayer'
 import { authenticatedClient } from '@/shared/api/client'
 import { useDeviceId } from '@/shared/hooks/useDeviceId'
-import { getStartDestination, Routes } from '@/shared/lib/utils/navigation'
+import { Routes } from '@/shared/lib/utils/navigation'
 import { useAppAuth } from '@/shared/auth'
 import { clearLastCoopRoomCode, getLastCoopRoomCode } from '@/features/coop'
 
@@ -69,8 +69,9 @@ export function ModernHomePage() {
 
   const handleStartGame = async () => {
     // Просто отправляем на стартовый роут согласно прогрессу
-    const dest = getStartDestination(progress?.skillPoints)
-    navigate(dest)
+    // const dest = getStartDestination(progress?.skillPoints)
+    // navigate(dest)
+    navigate(`${Routes.VISUAL_NOVEL}/prologue_coupe_start`)
   }
 
   const handleCreatePlayer = async () => {

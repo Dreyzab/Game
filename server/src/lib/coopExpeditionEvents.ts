@@ -161,7 +161,7 @@ export function resolveExpeditionEvent(params: {
 
     const skillByRole: Partial<Record<CoopRoleId, string>> = {
       valkyrie: 'empathy',
-      vorschlag: 'analysis',
+      vorschlag: 'knowledge',
       ghost: 'perception',
       shustrya: 'solidarity',
     }

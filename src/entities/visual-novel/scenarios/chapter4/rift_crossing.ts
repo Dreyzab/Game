@@ -288,13 +288,13 @@ export const mimicEncounterInjections: PrivateInjection[] = [
 const libraryApproachInjections: PrivateInjection[] = [
   {
     id: 'library_analysis_structure',
-    voice: 'analysis',
+    voice: 'knowledge',
     voiceGroup: 'mind',
     threshold: 45,
     text: 'Структурные повреждения: 40%. Левое крыло — обвал. Центральный вход — завален. Но боковая дверь... открыта.',
     effect: 'terminal',
     priority: 8,
-    voiceName: 'АНАЛИЗ',
+    voiceName: 'ЗНАНИЯ',
     requiredFlag: 'knows_entry_points',
   },
   {
@@ -392,13 +392,13 @@ const dialogues: PolyphonicDialogue[] = [
     privateInjections: [
       {
         id: 'route_analysis_options',
-        voice: 'analysis',
+        voice: 'knowledge',
         voiceGroup: 'mind',
         threshold: 45,
         text: 'Площадь — открытое пространство. Уязвимы со всех сторон. Переулок — ограниченная видимость, но меньше шансов быть замеченными.',
         effect: 'terminal',
         priority: 8,
-        voiceName: 'АНАЛИЗ',
+        voiceName: 'ЗНАНИЯ',
       },
       {
         id: 'route_perception_danger',
@@ -490,13 +490,13 @@ const dialogues: PolyphonicDialogue[] = [
     privateInjections: [
       {
         id: 'thermal_analysis_type',
-        voice: 'analysis',
+        voice: 'knowledge',
         voiceGroup: 'mind',
         threshold: 50,
         text: 'Низкая температура. Вероятно, "Глыбы" — каменные конструкты. Медленные, но бронированные. Лобовая атака — самоубийство.',
         effect: 'terminal',
         priority: 9,
-        voiceName: 'АНАЛИЗ',
+        voiceName: 'ЗНАНИЯ',
       },
       {
         id: 'thermal_coordination_plan',
@@ -691,13 +691,13 @@ const dialogues: PolyphonicDialogue[] = [
       },
       {
         id: 'alley_analysis_route',
-        voice: 'analysis',
+        voice: 'knowledge',
         voiceGroup: 'mind',
         threshold: 45,
         text: 'Двести метров до выхода. Три поворота. Два тупика справа — избегай их.',
         effect: 'terminal',
         priority: 7,
-        voiceName: 'АНАЛИЗ',
+        voiceName: 'ЗНАНИЯ',
       },
     ],
     nextDialogue: 'rift_spatial_loop',
@@ -1196,14 +1196,14 @@ const dialogues: PolyphonicDialogue[] = [
       },
       {
         id: 'library_sewer',
-        text: '[Анализ] Канализация. Скрытно.',
+        text: '[Знания] Канализация. Скрытно.',
         nextDialogue: 'rift_library_sewer_entry',
-        requiredStat: { stat: 'analysis', value: 50 },
+        requiredStat: { stat: 'knowledge', value: 50 },
         requiredFlag: 'knows_entry_points',
         presentation: {
           color: 'cyan',
-          icon: 'analysis',
-          voiceHint: 'analysis',
+          icon: 'knowledge',
+          voiceHint: 'knowledge',
         },
         effects: {
           addFlags: ['chose_sewer_entry'],
@@ -1372,13 +1372,13 @@ const dialogues: PolyphonicDialogue[] = [
       },
       {
         id: 'roof_analysis_layout',
-        voice: 'analysis',
+        voice: 'knowledge',
         voiceGroup: 'mind',
         threshold: 45,
         text: 'Сверху видна планировка. Читальный зал — в центре. Подвал — слева. Там дрон. Там пленники.',
         effect: 'terminal',
         priority: 8,
-        voiceName: 'АНАЛИЗ',
+        voiceName: 'ЗНАНИЯ',
         onView: {
           addFlags: ['knows_library_layout'],
         },
@@ -1413,13 +1413,13 @@ const dialogues: PolyphonicDialogue[] = [
       },
       {
         id: 'sewer_analysis_stealth',
-        voice: 'analysis',
+        voice: 'knowledge',
         voiceGroup: 'mind',
         threshold: 40,
         text: 'Идеально для скрытного проникновения. Но выход в подвал — там могут быть охранники.',
         effect: 'terminal',
         priority: 7,
-        voiceName: 'АНАЛИЗ',
+        voiceName: 'ЗНАНИЯ',
       },
     ],
     nextScene: 'library_basement_stealth',

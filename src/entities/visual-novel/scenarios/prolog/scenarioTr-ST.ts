@@ -14,152 +14,523 @@ export const scenarios: Record<string, Scene> = {
   // STAGE 1: THE COUPE (Человек чего-то хочет)
   // ============================================================================
 
-  prologue_coupe_intro: {
-    id: 'prologue_coupe_intro',
+  prologue_coupe_start: {
+    id: 'prologue_coupe_start',
     background: COUPE_BACKGROUND,
     music: 'train_ambience',
-    characters: [
-      { id: 'bruno', name: 'Бруно Вебер', position: 'left', emotion: { primary: 'nervous' } },
-      { id: 'lena', name: 'Лена Рихтер', position: 'right', emotion: { primary: 'tired' } },
-      { id: 'adele', name: 'Адель', position: 'right', emotion: { primary: 'calm' } },
-      { id: 'otto', name: 'Отто Кляйн', position: 'left', emotion: { primary: 'grim' } },
-    ],
+    characters: [],
     dialogue: [
       {
         speaker: 'Рассказчик',
-        text: 'Мерный, убаюкивающий стук колёс. Дребезжание ложки в пустом стакане. Тесное купе пропахло табаком и усталостью.',
-        condition: { notFlag: 'prologue_visited_any' },
+        text: 'Стук колес. Дребезжание ложечки в чашке. За окном проносятся какие-то вспышки, идёт снег, а в купе уютно и тепло.',
+      },
+      {
+        speaker: 'Логика',
+        characterId: 'logic',
+        text: 'Как хорошо что я познакомился с этими людьми, иначе пришлось бы ехать в общем вагоне, а там посидеть на чемодане не всегда возможно.',
       },
       {
         speaker: 'Рассказчик',
-        text: 'Вы возвращаетесь к обсуждению.',
-        condition: { flag: 'prologue_visited_any' },
+        text: 'Время тянется, как остывшая смола. Надо чем-то занять руки.',
       },
       {
-        speaker: 'Рассказчик',
-        text: 'На столике — порезанное яблоко, роскошь в этих краях, и замусоленная колода карт. Четверо попутчиков, спаянных дорогой. Не друзья, но и не чужие.',
+        speaker: 'Солидарность',
+        characterId: 'solidarity',
+        text: 'Звук урчания желудка перекрывает стук колес. Угости их и это настроит всех на дружеский лад.',
+      },
+      {
+        speaker: 'Драма',
+        characterId: 'drama',
+        text: 'Скука-это грех. Покажи им фокус, прочитай их будущее. Мастера всегда знают, как завладеть вниманием',
+      },
+      {
+        speaker: 'Азарт',
+        characterId: 'gambler',
+        text: 'Четверо незнакомцев в замкнутом пространстве — идеальное уравнение для решения. Можно подумать, кто есть кто.',
       },
     ],
     choices: [
       {
-        id: 'prologue_coupe_look_bruno',
-        text: 'Посмотреть на Бруно.',
-        nextScene: 'prologue_coupe_bruno',
+        id: 'prologue_choice_sausage',
+        text: 'Нарезать колбасу используя свой армейский нож.',
+        nextScene: 'prologue_sausage_exec',
         effects: {
-          addFlags: ['prologue_visited_bruno', 'prologue_visited_any'],
-        },
-        availability: {
-          condition: {
-            notFlag: 'prologue_visited_bruno',
-          },
+          immediate: [
+            { type: 'skill_boost', data: { skillId: 'solidarity', amount: 2 } },
+            { type: 'skill_boost', data: { skillId: 'empathy', amount: 1 } },
+          ],
+          addFlags: ['prologue_start_sausage', 'prologue_has_valuables'],
         },
       },
       {
-        id: 'prologue_coupe_look_lena',
-        text: 'Слушать Лену.',
-        nextScene: 'prologue_coupe_lena',
+        id: 'prologue_choice_cards',
+        text: 'Погадать на картах.',
+        nextScene: 'prologue_cards_exec',
         effects: {
-          addFlags: ['prologue_visited_lena', 'prologue_visited_any'],
-        },
-        availability: {
-          condition: {
-            notFlag: 'prologue_visited_lena',
-          },
+          immediate: [
+            { type: 'skill_boost', data: { skillId: 'drama', amount: 2 } },
+            { type: 'skill_boost', data: { skillId: 'creativity', amount: 2 } },
+          ],
+          addFlags: ['prologue_start_cards'],
         },
       },
       {
-        id: 'prologue_coupe_look_adele',
-        text: 'Взглянуть на Адель.',
-        nextScene: 'prologue_coupe_adele',
+        id: 'prologue_choice_zippo',
+        text: 'Крутить в пальцах зажигалку.',
+        nextScene: 'prologue_lighter_exec',
         effects: {
-          addFlags: ['prologue_visited_adele', 'prologue_visited_any'],
-        },
-        availability: {
-          condition: {
-            flags: ['prologue_visited_lena'],
-            notFlag: 'prologue_visited_adele',
-          },
-        },
-      },
-      {
-        id: 'prologue_coupe_look_otto',
-        text: 'Посмотреть на Отто.',
-        nextScene: 'prologue_coupe_otto',
-        availability: {
-          condition: {
-            flags: ['prologue_visited_bruno', 'prologue_visited_lena', 'prologue_visited_adele'],
-          },
+          immediate: [
+            { type: 'skill_boost', data: { skillId: 'gambler', amount: 1 } },
+            { type: 'skill_boost', data: { skillId: 'logic', amount: 2 } },
+          ],
+          addFlags: ['prologue_start_zippo'],
         },
       },
     ],
   },
 
-  prologue_coupe_bruno: {
-    id: 'prologue_coupe_bruno',
-    background: COUPE_BACKGROUND,
-    characters: [{ id: 'bruno', name: 'Бруно Вебер', position: 'left' }],
+  prologue_sausage_exec: {
+    id: 'prologue_sausage_exec',
+    background: '/images/prolog/coupe4p.png',
+    characters: [
+      { id: 'bruno', name: 'Бруно Вебер', position: 'left', emotion: { primary: 'happy' } },
+      { id: 'otto', name: 'Отто Кляйн', position: 'left', emotion: { primary: 'calm' } },
+    ],
     dialogue: [
       {
-        speaker: 'Рассказчик',
-        text: 'Крепко сбитый мужчина средних лет. Его лицо изрезано мелкими шрамами, а руки, испачканные в мазуте, нервно теребят край старого плаща.',
+        speaker: 'Бруно Вебер',
+        text: 'Ох, спасибо, дружище! А то мой желудок уже начинает петь громче колес. Уважаю.',
+      },
+      {
+        speaker: 'Отто Кляйн',
+        text: 'Еда есть. Теперь нужно чем-то запить. У меня в термосе еще остался чай. Подставляйте чашки.',
       },
       {
         speaker: 'Рассказчик',
-        text: 'Бруно прерывает тишину.',
+        text: 'Бруно взял сложенные стопкой чашки и начал раздавать, в то время как Отто раскрутил термос и начал разливать по чашкам.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Колбаса нарезана, чай разлит. Тепло еды и питья смягчает атмосферу купе. Разговор сам собой заходит о еде.',
+      },
+      {
+        speaker: 'Адель',
+        characterId: 'adele',
+        text: 'Эх, колбаса — это хорошо, но я бы сейчас убила за пасту карбонару. Настоящую, с гуанчиале и пекорино. Не эту шляпу, которую делают в столовых.',
+      },
+      {
+        speaker: 'Лена Рихтер',
+        characterId: 'lena',
+        text: 'А я скучаю по борщу. Настоящему, с пампушками и сметаной. Мама готовила такой, что соседи в очередь становились.',
+      },
+      {
+        speaker: 'Отто Кляйн',
+        characterId: 'otto',
+        text: 'Лосось. Дикий. Слегка подкопченный. С каперсами и лимоном. Вот это — еда настоящего мужика.',
       },
       {
         speaker: 'Бруно Вебер',
-        text: 'Подъезжаем. Я узнаю этот дым. Промышленный Север, Зона Гамма. Там воздух на вкус как жженая резина... Хех, пахнет домом.',
+        characterId: 'bruno',
+        text: 'А я бы выпил хорошего сидра! Не блюдо конечно, но на этом топливе я работаю лучше всего.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Смех разливается по купе. На мгновение все забывают, что за окном — Мертвые Земли, а впереди — неизвестность.',
+      },
+    ],
+    nextScene: 'prologue_observe_selection',
+  },
+
+  prologue_cards_exec: {
+    id: 'prologue_cards_exec',
+    background: '/images/prolog/coupe4p.png',
+    characters: [
+      { id: 'bruno', name: 'Бруно Вебер', position: 'left' },
+      { id: 'adele', name: 'Адель', position: 'right' },
+      { id: 'lena', name: 'Лена Рихтер', position: 'right' },
+      { id: 'otto', name: 'Отто Кляйн', position: 'left' },
+    ],
+    dialogue: [
+      {
+        speaker: 'Рассказчик',
+        text: 'Ты достаешь старую, потертую колоду. Карты скользят в руках привычным жестом.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Карты мелькают в твоих руках с неестественной скоростью. Попутчики притихли.',
       },
       {
         speaker: 'Бруно Вебер',
-        text: 'Надеюсь, старина Дитер не забыл меня встретить. Он писал, что устроился у Артисанов. "Приезжай, — говорит, — Бруно, тут есть работа для тех, кто отличает детонатор от суппозитория".',
+        text: 'Ну ты даешь! То-то я не успевал тебе подкинуть карту, когда мы играли. Теперь понятно — ловкость рук!',
+      },
+      {
+        speaker: 'Адель',
+        text: 'Ого. А ты умеешь делать фокусы? Покажи что-нибудь.',
+      },
+      {
+        speaker: 'Лена Рихтер',
+        text: 'Фокусы... Они называют это магией.',
+      },
+      {
+        speaker: 'Отто Кляйн',
+        text: 'Магии не существует. Есть только уловки и отвлечение внимания.',
+      },
+      {
+        speaker: 'Драма',
+        characterId: 'drama',
+        text: 'Я читаю людей. Я чувствую их эмоции, как карты под пальцами. Сейчас посмотрим, кто есть кто.',
       },
     ],
-    nextScene: 'prologue_coupe_intro',
+    nextScene: 'prologue_cards_selection',
   },
 
-  prologue_coupe_lena: {
-    id: 'prologue_coupe_lena',
-    background: COUPE_BACKGROUND,
-    characters: [{ id: 'lena', name: 'Лена Рихтер', position: 'right' }],
+  prologue_lighter_exec: {
+    id: 'prologue_lighter_exec',
+    background: '/images/prolog/coupe4p.png',
+    characters: [
+      { id: 'bruno', name: 'Бруно Вебер', position: 'left' },
+      { id: 'adele', name: 'Адель', position: 'right' },
+      { id: 'lena', name: 'Лена Рихтер', position: 'right' },
+      { id: 'otto', name: 'Отто Кляйн', position: 'left' },
+    ],
+    dialogue: [
+      {
+        speaker: 'Азарт',
+        characterId: 'gambling',
+        text: 'Я уже знаю о них довольно много. Наблюдал. Слушал. Теперь я могу попытаться угадать, кто кем является.',
+      },
+      {
+        speaker: 'Анализ',
+        characterId: 'analysis',
+        text: 'Ответы где-то здесь, в их жестах и взглядах.',
+      },
+    ],
+    nextScene: 'prologue_observe_selection',
+  },
+
+  prologue_observe_selection: {
+    id: 'prologue_observe_selection',
+    background: '/images/prolog/coupe4p.png',
+    characters: [
+      { id: 'bruno', name: 'Бруно Вебер', position: 'left' },
+      { id: 'lena', name: 'Лена Рихтер', position: 'right' },
+      { id: 'adele', name: 'Адель', position: 'right' },
+      { id: 'otto', name: 'Отто Кляйн', position: 'left' },
+    ],
     dialogue: [
       {
         speaker: 'Рассказчик',
-        text: 'Женщина с уставшими глазами, в безупречно чистом, несмотря на дорожную пыль, медицинском халате под пальто. Она сосредоточенно пересчитывает ампулы в небольшой сумке.',
+        text: 'Ты внимательно изучаешь своих попутчиков.',
+      }
+    ],
+    choices: [
+      {
+        id: 'prologue_observe_bruno',
+        text: 'Присмотреться к Бруно.',
+        nextScene: 'prologue_observe_bruno',
+        effects: { addFlags: ['prologue_observed_bruno'] },
+        availability: { condition: { notFlag: 'prologue_observed_bruno' } }
       },
       {
-        speaker: 'Рассказчик',
-        text: 'Лена тяжело вздыхает и обращается к Бруно.',
+        id: 'prologue_observe_adele',
+        text: 'Присмотреться к Адель.',
+        nextScene: 'prologue_observe_adele',
+        effects: { addFlags: ['prologue_observed_adele'] },
+        availability: { condition: { notFlag: 'prologue_observed_adele' } }
       },
       {
-        speaker: 'Лена Рихтер',
-        text: 'Работу ты найдешь, Бруно. А вот найдешь ли ты горячую воду?',
+        id: 'prologue_observe_lena',
+        text: 'Присмотреться к Лене.',
+        nextScene: 'prologue_observe_lena',
+        effects: { addFlags: ['prologue_observed_lena'] },
+        availability: { condition: { notFlag: 'prologue_observed_lena' } }
       },
       {
-        speaker: 'Лена Рихтер',
-        text: 'Я сейчас душу бы продала не за работу, а за ванну. Настоящую, фаянсовую ванну. Полную кипятка. Чтобы смыть с себя эту... "Красную зону".',
-      },
-      {
-        speaker: 'Лена Рихтер',
-        text: 'Если в этом хваленом Фрайбурге есть ванна и кусок мыла, который пахнет лавандой, а не хлоркой — я остаюсь.',
+        id: 'prologue_observe_otto',
+        text: 'Присмотреться к Отто.',
+        nextScene: 'prologue_observe_otto',
       },
     ],
-    nextScene: 'prologue_coupe_intro',
   },
 
-  prologue_coupe_adele: {
-    id: 'prologue_coupe_adele',
-    background: COUPE_BACKGROUND,
-    characters: [{ id: 'adele', name: 'Адель', position: 'right' }],
+  prologue_cards_selection: {
+    id: 'prologue_cards_selection',
+    background: '/images/prolog/coupe4p.png',
+    characters: [
+      { id: 'bruno', name: 'Бруно Вебер', position: 'left' },
+      { id: 'adele', name: 'Адель', position: 'right' },
+      { id: 'lena', name: 'Лена Рихтер', position: 'right' },
+      { id: 'otto', name: 'Отто Кляйн', position: 'left' },
+    ],
     dialogue: [
       {
         speaker: 'Рассказчик',
-        text: 'Молодая особа с дерзким взглядом, одетая в яркую, но поношенную куртку. Она вальяжно развалилась на сиденье, закинув ногу на ногу.',
+        text: 'Карты шепчут. Кому из них ты откроешь завесу будущего?',
+      }
+    ],
+    choices: [
+      {
+        id: 'prologue_cards_read_bruno',
+        text: 'Предложить погадать Бруно.',
+        nextScene: 'prologue_cards_bruno',
+        effects: { addFlags: ['prologue_fortune_bruno', 'prologue_fortune_any'] },
+        availability: { condition: { notFlag: 'prologue_fortune_bruno' } }
       },
       {
+        id: 'prologue_cards_read_adele',
+        text: 'Предложить погадать Адель.',
+        nextScene: 'prologue_cards_adele',
+        effects: { addFlags: ['prologue_fortune_adele', 'prologue_fortune_any'] },
+        availability: { condition: { notFlag: 'prologue_fortune_adele' } }
+      },
+      {
+        id: 'prologue_cards_read_lena',
+        text: 'Предложить погадать Лене.',
+        nextScene: 'prologue_cards_lena',
+        effects: { addFlags: ['prologue_fortune_lena', 'prologue_fortune_any'] },
+        availability: { condition: { notFlag: 'prologue_fortune_lena' } }
+      },
+      {
+        id: 'prologue_cards_read_otto',
+        text: 'Предложить погадать Отто.',
+        nextScene: 'prologue_cards_otto',
+        availability: {
+          condition: {
+            flag: 'prologue_fortune_any'
+          }
+        }
+      },
+    ],
+  },
+
+  prologue_observe_bruno: {
+    id: 'prologue_observe_bruno',
+    background: '/images/prolog/coupe4p.png',
+    characters: [{ id: 'bruno', name: 'Бруно Вебер', position: 'center' }],
+    dialogue: [
+      {
+        speaker: 'Восприятие',
+        characterId: 'perception',
+        text: 'Крепкие руки, мозоли от инструментов. Но не фермер — слишком точные движения. Инженер? Механик?',
+      },
+      {
+        speaker: 'Анализ',
+        characterId: 'analysis',
+        text: 'Мазут под ногтями. Шрамы от ожогов. Он работал с машинами. Тяжёлыми машинами.',
+      },
+      {
+        speaker: 'Восприятие',
+        characterId: 'perception',
+        text: 'Его взгляд постоянно скачет между бумагами которые он расскидал на столе.',
+      },
+      {
+        speaker: 'Анализ',
+        characterId: 'analysis',
+        text: 'Заводской мастер? Нет, слишком независим. Скорее — вольный техник. Из тех, кто чинит то, что другие списали.',
+      },
+    ],
+    nextScene: 'prologue_observe_selection',
+  },
+
+  prologue_observe_adele: {
+    id: 'prologue_observe_adele',
+    background: '/images/prolog/coupe4p.png',
+    characters: [{ id: 'adele', name: 'Адель', position: 'center' }],
+    dialogue: [
+      {
+        speaker: 'Восприятие',
+        characterId: 'perception',
+        text: 'Дерзкий взгляд, но глаза постоянно сканируют выходы. Поза расслабленная, но мышцы готовы к рывку.',
+      },
+      {
+        speaker: 'Анализ',
+        characterId: 'analysis',
+        text: 'Она одета в дорогой и функциональный комбинезон. Больше похожий на униформу',
+      },
+      {
+        speaker: 'Анализ',
+        characterId: 'analysis',
+        text: 'Возможно работает курьером в одной из тех немногих компаний, которые делают доставку даже в карантинные зоны.',
+      },
+    ],
+    nextScene: 'prologue_observe_selection',
+  },
+
+  prologue_observe_lena: {
+    id: 'prologue_observe_lena',
+    background: '/images/prolog/coupe4p.png',
+    characters: [{ id: 'lena', name: 'Лена Рихтер', position: 'center' }],
+    dialogue: [
+      {
+        speaker: 'Восприятие',
+        characterId: 'perception',
+        text: 'Она одета в медицинский халат. Руки нежные, ногти ухоженные, заметны мазоли на указательном и большом пальце. ',
+      },
+      {
+        speaker: 'Логика',
+        characterId: 'logic',
+        text: 'Она хирург. ',
+      },
+      {
+        speaker: 'Восприятие',
+        characterId: 'perception',
+        text: 'Под глазами — тени от бессонных ночей. Но взгляд не потухший, скорее задумчивый.',
+      },
+      {
+        speaker: 'Логика',
+        characterId: 'logic',
+        text: 'Возможно хирург. ',
+      },
+    ],
+    nextScene: 'prologue_observe_selection',
+  },
+
+  prologue_observe_otto: {
+    id: 'prologue_observe_otto',
+    background: '/images/prolog/coupe4p.png',
+    characters: [{ id: 'otto', name: 'Отто Кляйн', position: 'center' }],
+    dialogue: [
+      {
+        speaker: 'Восприятие',
+        characterId: 'perception',
+        text: 'Военная выправка. Даже сидя он держит спину прямо. Руки на коленях — готов встать за секунду.',
+      },
+      {
+        speaker: 'Логика',
+        characterId: 'logic',
+        text: 'Шрамы под воротником. Татуировка едва видна "8" — номер подразделения?',
+      },
+      {
+        speaker: 'Эмпатия',
+        characterId: 'empathy',
+        text: 'Его взгляд тяжёлый, но не злой. Усталость человека, который видел слишком много.',
+      },
+      {
+        speaker: 'Логика',
+        characterId: 'logic',
+        text: 'Ветеран. Не офицер — нет высокомерия. Сержант или старшина. Тот, кто вытаскивал своих из огня.',
+      },
+    ],
+    nextScene: 'prologue_coupe_main_talk',
+  },
+
+  prologue_cards_bruno: {
+    id: 'prologue_cards_bruno',
+    background: '/images/prolog/coupe4p.png',
+    characters: [{ id: 'bruno', name: 'Бруно Вебер', position: 'center', emotion: { primary: 'serious' } }],
+    dialogue: [
+      {
         speaker: 'Рассказчик',
-        text: 'Адель усмехается, не глядя на остальных.',
+        text: 'Ты раскладываешь карты. Одна из них переворачивается — Отшельник. Фигура с фонарем, освещающим путь во тьме.',
+      },
+      {
+        speaker: 'Восприятие',
+        characterId: 'perception',
+        text: 'Свет во тьме. Он ищет что-то. Или кого-то.',
+      },
+      {
+        speaker: 'Главный Герой',
+        characterId: 'hero',
+        text: 'Карта говорит о приближении. Ты ходишь кругами, Бруно, но сейчас вышел на финишную прямую. То, что ты ищешь — ответы, человек, место — гораздо ближе, чем тебе кажется.',
+      },
+      {
+        speaker: 'Бруно Вебер',
+        text: '...Надеюсь, ты прав.',
+      },
+    ],
+    nextScene: 'prologue_cards_selection',
+  },
+
+  prologue_cards_adele: {
+    id: 'prologue_cards_adele',
+    background: '/images/prolog/coupe4p.png',
+    characters: [{ id: 'adele', name: 'Адель', position: 'center', emotion: { primary: 'tense' } }],
+    dialogue: [
+      {
+        speaker: 'Рассказчик',
+        text: 'Ты переворачиваешь карту. Луна. Но ты видишь больше, чем просто рисунок.',
+      },
+      {
+        speaker: 'Восприятие',
+        characterId: 'perception',
+        text: 'Красивая женщина с холодным лицом. В складках платья — кинжал. Или ключ. Она прячет больше, чем показывает.',
+      },
+      {
+        speaker: 'Главный Герой',
+        text: 'Эта карта означает тайну. Карта иллюзий, скрытности и манипуляций.',
+      },
+      {
+        speaker: 'Адель',
+        text: 'Опасная дама. Мне она нравится. Умеет постоять за себя.',
+      },
+    ],
+    nextScene: 'prologue_cards_selection',
+  },
+
+  prologue_cards_lena: {
+    id: 'prologue_cards_lena',
+    background: '/images/prolog/coupe4p.png',
+    characters: [{ id: 'lena', name: 'Лена Рихтер', position: 'center', emotion: { primary: 'fearful' } }],
+    dialogue: [
+      {
+        speaker: 'Рассказчик',
+        text: 'Ты переворачиваешь карту. Двойственное изображение: с одной стороны — Ангел с белыми крыльями, с другой — окровавленная коса Жнеца.',
+      },
+      {
+        speaker: 'Драма',
+        characterId: 'drama',
+        text: 'Свет и тьма. Жизнь и смерть. Она будет стоять на границе.',
+      },
+      {
+        speaker: 'Главный Герой',
+        text: 'Ты светлая душа, Лена. Однако карта говорит, что тебе придётся принимать решение на границе света и тьмы.',
+      },
+      {
+        speaker: 'Лена Рихтер',
+        text: ' Я врач! Я клятву давала! Я буду лечить, а не убивать!',
+      },
+    ],
+    nextScene: 'prologue_cards_selection',
+  },
+
+  prologue_cards_otto: {
+    id: 'prologue_cards_otto',
+    background: '/images/prolog/coupe4p.png',
+    characters: [{ id: 'otto', name: 'Отто Кляйн', position: 'center' }],
+    dialogue: [
+      {
+        speaker: 'Отто Кляйн',
+        text: 'Карты? Оставь их для тех, кто ищет утешения в сказках. Я не верю в судьбу. В окопах судьбу решает калибр снаряда и скорость твоей реакции.',
+      },
+      {
+        speaker: 'Отто Кляйн',
+        text: 'Заканчивай это всё. Давай лучше чаю попьём, пока он совсем не остыл. Нам ещё долго ехать.',
+      },
+    ],
+    nextScene: 'prologue_coupe_main_talk',
+  },
+
+  prologue_coupe_main_talk: {
+    id: 'prologue_coupe_main_talk',
+    background: '/images/prolog/coupe4p.png',
+    characters: [
+      { id: 'bruno', name: 'Бруно Вебер', position: 'left' },
+      { id: 'lena', name: 'Лена Рихтер', position: 'right' },
+      { id: 'adele', name: 'Адель', position: 'right' },
+      { id: 'otto', name: 'Отто Кляйн', position: 'left' },
+    ],
+    dialogue: [
+      {
+        speaker: 'Бруно Вебер',
+        text: 'Подъезжаем. Я узнаю эти горы.',
+      },
+      {
+        speaker: 'Бруно Вебер',
+        text: 'Надеюсь, старина Дитер не забыл меня встретить. Он писал, что устроился у Артисанов. "Приезжай, Бруно, тут есть работа для тех, кто отличает гайку и шайбу".',
+      },
+      {
+        speaker: 'Лена Рихтер',
+        text: 'Я сейчас душу бы продала не за работу, а за ванну. Настоящую, фаянсовую ванну. Наполненную доверху теплой водой и пеной. Чтобы смыть с себя эти прелести дальней дороги.',
       },
       {
         speaker: 'Адель',
@@ -167,78 +538,27 @@ export const scenarios: Record<string, Scene> = {
       },
       {
         speaker: 'Адель',
-        text: 'Я слышала, Мэр Фокс держит настоящих поваров. Настоящий стейк. С кровью. И бокал красного.',
+        text: 'В городе есть рабочая инфраструктура, так что за хорошую плату можно позволить себе сауну и массаж.',
       },
       {
         speaker: 'Адель',
-        text: 'Говорят, на "Теневом рынке" за кредиты можно купить даже свежие овощи. Вот это — цель. А помыться можно и в Рейне.',
-      },
-    ],
-    choices: [
-      {
-        id: 'prologue_adele_to_lena',
-        text: 'Слушать Лену.',
-        nextScene: 'prologue_coupe_lena_from_adele',
-        effects: {
-          addFlags: ['prologue_visited_lena', 'prologue_visited_adele', 'prologue_visited_any'],
-        },
-      },
-      {
-        id: 'prologue_adele_back',
-        text: 'Вернуться к общему разговору.',
-        nextScene: 'prologue_coupe_intro',
-      },
-    ],
-  },
-
-  prologue_coupe_lena_from_adele: {
-    id: 'prologue_coupe_lena_from_adele',
-    background: COUPE_BACKGROUND,
-    characters: [{ id: 'lena', name: 'Лена Рихтер', position: 'right' }],
-    dialogue: [
-      {
-        speaker: 'Рассказчик',
-        text: 'Лена Рихтер кривится, явно не разделяя энтузиазма Адель.',
+        text: 'Вот это — цель. А помыться можно и в Рейне.',
       },
       {
         speaker: 'Лена Рихтер',
-        text: 'В Рейне? Ты хоть представляешь, сколько там заразы сейчас? После таких "купаний" мне придется лечить тебя не от удовольствия, а от сыпи по всему телу.',
-      },
-      {
-        speaker: 'Лена Рихтер',
-        text: 'Но... ты права в одном. В этом городе каждый ищет что-то своё. Кто-то стейки, кто-то выживание. Я же просто хочу покоя.',
-      },
-    ],
-    nextScene: 'prologue_coupe_intro',
-  },
-
-  prologue_coupe_otto: {
-    id: 'prologue_coupe_otto',
-    background: '/images/prolog/1сцена4p.png',
-    characters: [{ id: 'otto', name: 'Отто Кляйн', position: 'left' }],
-    dialogue: [
-      {
-        speaker: 'Рассказчик',
-        text: 'Массивный старик с седой щетиной. Его военная выправка выдает в нем бывшего солдата, а тяжелый взгляд прикован к окну, за которым мелькают тени.',
-      },
-      {
-        speaker: 'Рассказчик',
-        text: 'Голос Отто звучит подобно треску сухого дерева.',
+        text: 'В Рейне? Ты хоть представляешь, какой там радиационный фон? После таких "купаний" мне придется лечить тебя от сыпи по всему телу.',
       },
       {
         speaker: 'Отто Кляйн',
-        characterId: 'otto',
-        text: 'Стейки, ванны... Вы как дети, честное слово.',
+        text: 'Массажи, ванны... Вы как дети, честное слово.',
       },
       {
         speaker: 'Отто Кляйн',
-        characterId: 'otto',
-        text: 'В Фрайбурге есть FJR, есть ОРДНУНГ, и есть комендантский час. Всё, что мне нужно — это кабак, где не разбавляют шнапс.',
+        text: 'В городе есть порядок, а значит и такие мелочи там будут . Всё, что мне нужно — это хороший бар, где не разбавляют.',
       },
       {
         speaker: 'Отто Кляйн',
-        characterId: 'otto',
-        text: 'Я хочу выпить. Так, чтобы внутри всё выжгло. Чтобы этот гул в голове заткнулся хотя бы на пару часов. А потом пойду в вербовочный пункт. "Железная леди" платит тем, кто умеет держать строй.',
+        text: 'Я хочу выпить. Так, чтобы внутри всё выжгло. А потом пойду в вербовочный пункт. "Железная леди" платит тем, кто соблюдает требования.',
       },
     ],
     nextScene: 'prologue_coupe_exit',
@@ -246,20 +566,22 @@ export const scenarios: Record<string, Scene> = {
 
   prologue_coupe_exit: {
     id: 'prologue_coupe_exit',
-    background: COUPE_BACKGROUND,
-    characters: [{ id: 'bruno', name: 'Бруно Вебер', position: 'left' }],
+    background: '/images/prolog/coupe4p.png',
+    characters: [{ id: 'otto', name: 'Отто Кляйн', position: 'left' }],
     dialogue: [
       {
-        speaker: 'Бруно Вебер',
+        speaker: 'Отто Кляйн',
+        characterId: 'otto',
         text: 'Ну, каждому своё. Главное — мы почти доехали. Дальше — проще. Ладно, пойду спрошу у контролёра почему мы еле плетёмся.',
       },
       {
         speaker: 'Рассказчик',
-        text: 'Бруно выходит из купе. Тебе тоже становится тесно. Хочется уединиться, подумать.',
+        text: 'Отто выходит из купе. Тебе тоже становится тесно. Хочется уединиться, подумать.',
       },
     ],
     nextScene: 'prologue_tambour_arrival',
   },
+
 
   // ============================================================================
   // STAGE 2: THE TAMBOUR (Выбор пути)
@@ -280,13 +602,25 @@ export const scenarios: Record<string, Scene> = {
         id: 'prologue_choice_cards',
         text: 'Достать потрёпанную колоду карт (Психика / Азарт).',
         nextScene: 'prologue_tambour_cards',
-        effects: { addFlags: ['prologue_cards'] },
+        effects: {
+          addFlags: ['prologue_cards'],
+          immediate: [
+            { type: 'skill_boost', data: { skillId: 'gambler', amount: 2 } },
+            { type: 'skill_boost', data: { skillId: 'drama', amount: 1 } },
+          ],
+        },
       },
       {
         id: 'prologue_choice_knife',
         text: 'Вытащить армейский нож (Сила / Бой).',
         nextScene: 'prologue_tambour_knife',
-        effects: { addFlags: ['prologue_knife'] },
+        effects: {
+          addFlags: ['prologue_knife'],
+          immediate: [
+            { type: 'skill_boost', data: { skillId: 'combat', amount: 2 } },
+            { type: 'skill_boost', data: { skillId: 'physics', amount: 1 } },
+          ],
+        },
       },
       {
         id: 'prologue_choice_smoke',
@@ -297,8 +631,8 @@ export const scenarios: Record<string, Scene> = {
           immediate: [
             // +1 Разум (интерпретируем как +1 к ключевому навыку группы mind: logic)
             { type: 'skill_boost', data: { skillId: 'logic', amount: 1 } },
-            // +2 Анализ
-            { type: 'skill_boost', data: { skillId: 'analysis', amount: 2 } },
+            // +2 Знания
+            { type: 'skill_boost', data: { skillId: 'knowledge', amount: 2 } },
           ],
         },
       },
@@ -317,19 +651,24 @@ export const scenarios: Record<string, Scene> = {
       },
       {
         speaker: 'Рассказчик',
-        text: 'Вдруг по потолку начинает что-то вибрировать и скрести. Скрежет металла о хитин.',
+        text: 'Вдруг по потолку начинает что-то вибрировать и скрести по направлению к окну.',
       },
       {
         speaker: 'Рассказчик',
         background: '/images/oknorazbil.png',
-        text: 'Окно тамбура разлетается вдребезги! Жуткие конечности, фасеточные глаза, нос, готовый выстрелить ядом!',
+        text: 'Окно тамбура разлетается вдребезги! Монстр просовывает свою голову, и ты можешь рассмотреть его во всей красе. Жуткие конечности, фасеточные глаза, хобот, готовый выстрелить ядом!',
       },
     ],
     choices: [
       {
         id: 'prologue_knife_reaction',
-        text: 'Метнуть нож прямо в глаз твари!',
+        text: 'Метнуть нож!',
         nextScene: 'prologue_tambour_knife_fight',
+      },
+      {
+        id: 'prologue_knife_kick',
+        text: 'Ударить ногой!',
+        nextScene: 'prologue_tambour_knife_kick',
       },
     ],
   },
@@ -349,7 +688,38 @@ export const scenarios: Record<string, Scene> = {
         id: 'prologue_knife_post_fight',
         text: 'Отдышаться.',
         nextScene: 'prologue_conductor_enter',
-        effects: { addFlags: ['prologue_monster_killed_solo'] }
+        effects: {
+          addFlags: ['prologue_monster_killed_solo'],
+          xp: 40
+        }
+      }
+    ]
+  },
+
+  prologue_tambour_knife_kick: {
+    id: 'prologue_tambour_knife_kick',
+    background: '/images/oknorazbil.png',
+    characters: [],
+    dialogue: [
+      {
+        speaker: 'Рассказчик',
+        text: 'При попытке просто снести монстра он успевает схватить тебя за ногу. В инерции падения тварь прорезает штанину и впивается в голень.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Ты, стиснув зубы от боли, вторым ударом всё же выпихиваешь её наружу.',
+      },
+    ],
+    choices: [
+      {
+        id: 'prologue_kick_post_fight',
+        text: 'Перевязать ногу.',
+        nextScene: 'prologue_conductor_enter',
+        effects: {
+          addFlags: ['prologue_monster_kicked'],
+          immediate: [{ type: 'hp_delta', data: { amount: -5 } }],
+          xp: 40
+        }
       }
     ]
   },
@@ -402,7 +772,10 @@ export const scenarios: Record<string, Scene> = {
         id: 'prologue_cards_post_fight',
         text: 'Спрятать фонарик.',
         nextScene: 'prologue_conductor_enter',
-        effects: { addFlags: ['prologue_monster_blinded'] }
+        effects: {
+          addFlags: ['prologue_monster_blinded'],
+          xp: 40
+        }
       }
     ]
   },
@@ -424,7 +797,7 @@ export const scenarios: Record<string, Scene> = {
       },
       {
         speaker: 'АНАЛИЗ',
-        characterId: 'analysis',
+        characterId: 'knowledge',
         text: 'Постукивания сверху. По крыше. Ритмично. Кто-то движется над тамбуром.',
       },
       {
@@ -448,6 +821,9 @@ export const scenarios: Record<string, Scene> = {
         id: 'prologue_smoke_grab_trunk',
         text: 'Схватить за хобот!',
         nextScene: 'prologue_tambour_smoke_grab',
+        effects: {
+          immediate: [{ type: 'hp_delta', data: { amount: -5 } }],
+        },
       },
       {
         id: 'prologue_smoke_escape',
@@ -472,7 +848,11 @@ export const scenarios: Record<string, Scene> = {
       },
       {
         speaker: 'Рассказчик',
-        text: 'Едкая жижа ударяет в стену и начинает шипеть, проедая металл.',
+        text: 'Едкая жижа ударяет в стену и начинает шипеть при контакте с поверхностью.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Ты чувствуешь, как одна из лап врезается тебе в бок и острую боль после удара.',
       },
       {
         speaker: 'Рассказчик',
@@ -484,10 +864,10 @@ export const scenarios: Record<string, Scene> = {
       },
       {
         speaker: 'Рассказчик',
-        text: 'Проводник включает прожектор, ослепляя тварь. Ты ловишь момент и ударом ноги отправляешь её прочь — в ночь за окном.',
+        text: 'Проводник включает прожектор, ослепляя тварь. Ты ловишь момент и ударом ноги отправляешь её прочь — в ночь за окном.'
       },
     ],
-    nextScene: 'prologue_conductor_dialogue_plan',
+    nextScene: 'prologue_coupe_start',
   },
 
   prologue_tambour_smoke_escape: {
@@ -508,19 +888,44 @@ export const scenarios: Record<string, Scene> = {
         text: 'Ощущение — как раскалённые капли металла. Дыхание сбивается, глаза слезятся.',
       },
       {
+        speaker: 'Проводник',
+        text: 'Что случилось?',
+      },
+      {
         speaker: 'Рассказчик',
-        text: 'Дверь распахивается вновь — Проводник уже здесь. Ты, стиснув зубы, киваешь на тамбур.',
+        text: 'Раздаётся за твоей спиной голос мужчины средних лет.',
       },
       {
         speaker: 'Герой',
-        text: 'ФОНАРЬ!',
+        text: 'Там монстр! Он разбил стекло и пытается пролезть!',
+      },
+      {
+        speaker: 'Проводник',
+        text: 'Ты резко открываешь, а я слеплю фонарём и приложу дубинкой!',
       },
       {
         speaker: 'Рассказчик',
-        text: 'Яркий луч прожектора ослепляет тварь. Проводник держит свет, а ты отталкиваешь её прочь ударом ноги.',
+        text: 'Монстр уже наполовину протиснулся в оконную раму. Проводник просовывает руку внутрь и включает свет.',
+      },
+      {
+        speaker: 'Проводник',
+        text: 'Резкий и яркий свет заставляет монстра биться в конвульсиях, и проводник, не теряя времени, наносит удар телескопической дубинкой.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Тварь вылетает из окна, а вы спешно захлопываете то, что осталось от рамы.',
       },
     ],
-    nextScene: 'prologue_conductor_dialogue_plan',
+    choices: [
+      {
+        id: 'prologue_smoke_escape_post',
+        text: 'Кивнуть проводнику.',
+        nextScene: 'prologue_conductor_dialogue_plan',
+        effects: {
+          xp: 40
+        }
+      }
+    ]
   },
 
   prologue_tambour_smoke_fight: {
@@ -530,15 +935,19 @@ export const scenarios: Record<string, Scene> = {
     dialogue: [
       {
         speaker: 'Герой',
-        text: 'ФОНАРЬ!',
+        text: 'Тут монстр! Нужен ФОНАРЬ!',
       },
       {
         speaker: 'Рассказчик',
-        text: 'Тлеющий бычок летит в морду твари. В ту же секунду дверь распахивается — Проводник с мощным прожектором заливает тамбур светом.',
+        text: 'Тлеющий бычок летит в глаз монстра, заставляя его биться в конвульсиях. Ты хватаешь хобот и направляешь зелёный плевок в сторону.',
       },
       {
         speaker: 'Рассказчик',
-        text: 'Монстр, ослепленный и сбитый с толку, получает удар прикладом и вылетает в ночь.',
+        text: 'В ту же секунду дверь распахивается — Проводник с мощным прожектором заливает тамбур светом.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Монстр, ослепленный и сбитый с толку, получает удар ногой и вылетает в ночь.',
       }
     ],
     choices: [
@@ -546,7 +955,10 @@ export const scenarios: Record<string, Scene> = {
         id: 'prologue_smoke_post_fight',
         text: 'Кивнуть проводнику.',
         nextScene: 'prologue_conductor_dialogue_plan',
-        effects: { addFlags: ['prologue_conductor_saved'] }
+        effects: {
+          addFlags: ['prologue_conductor_saved'],
+          xp: 40
+        }
       }
     ]
   },

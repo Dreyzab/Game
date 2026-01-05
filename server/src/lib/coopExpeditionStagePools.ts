@@ -138,7 +138,7 @@ export const COOP_EXPEDITION_STAGE_POOLS: Record<CoopExpeditionStagePoolId, Coop
     defaultModifiers: [
       { id: 'nightfall', label: 'Nightfall', weight: 1, scoreModifiers: { 'tag:visual': 0.8, 'tag:perception': 0.9 } },
       { id: 'toxic_mist', label: 'Toxic Mist', weight: 1, scoreModifiers: { 'tag:combat': 0.9, 'tag:reaction': 0.9 } },
-      { id: 'static_noise', label: 'Static Noise', weight: 1, scoreModifiers: { 'tag:tech': 0.9, 'tag:analysis': 0.9 } },
+      { id: 'static_noise', label: 'Static Noise', weight: 1, scoreModifiers: { 'tag:tech': 0.9, 'tag:knowledge': 0.9 } },
     ],
     stages: [
       {
@@ -359,4 +359,3 @@ export function generateExpeditionStageState(params: {
     deadlineEvents,
   }
 }
-

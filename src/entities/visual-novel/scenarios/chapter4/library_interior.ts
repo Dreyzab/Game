@@ -35,13 +35,13 @@ const libraryEntryInjections: PrivateInjection[] = [
   },
   {
     id: 'library_analysis_structure',
-    voice: 'analysis',
+    voice: 'knowledge',
     voiceGroup: 'mind',
     threshold: 45,
     text: 'Несущие конструкции повреждены на 60%. Здание может обрушиться. Двигаться осторожно. Не трогать стены.',
     effect: 'terminal',
     priority: 7,
-    voiceName: 'АНАЛИЗ',
+    voiceName: 'ЗНАНИЯ',
     onView: {
       addFlags: ['knows_structural_damage'],
     },
@@ -87,13 +87,13 @@ const droneDiscoveryInjections: PrivateInjection[] = [
   },
   {
     id: 'drone_analysis_damage',
-    voice: 'analysis',
+    voice: 'knowledge',
     voiceGroup: 'mind',
     threshold: 50,
     text: 'Дрон не упал. Его сбили. Следы энергетического оружия. Синтез знал, что он летит.',
     effect: 'terminal',
     priority: 8,
-    voiceName: 'АНАЛИЗ',
+    voiceName: 'ЗНАНИЯ',
     onView: {
       addFlags: ['drone_was_shot_down'],
     },
@@ -285,13 +285,13 @@ const dialogues: PolyphonicDialogue[] = [
     privateInjections: [
       {
         id: 'nav_analysis_layout',
-        voice: 'analysis',
+        voice: 'knowledge',
         voiceGroup: 'mind',
         threshold: 45,
         text: 'Дрон — в читальном зале. Пленники — вероятно, в подвале. Подвал слева, зал прямо.',
         effect: 'terminal',
         priority: 8,
-        voiceName: 'АНАЛИЗ',
+        voiceName: 'ЗНАНИЯ',
         requiredFlag: 'knows_library_layout',
       },
     ],
@@ -361,13 +361,13 @@ const dialogues: PolyphonicDialogue[] = [
     privateInjections: [
       {
         id: 'search_analysis_pattern',
-        voice: 'analysis',
+        voice: 'knowledge',
         voiceGroup: 'mind',
         threshold: 50,
         text: 'Царапающие следы — Сдвиги. Они патрулируют. Везде. Читальный зал охраняется. Подвал — возможно, тоже.',
         effect: 'terminal',
         priority: 8,
-        voiceName: 'АНАЛИЗ',
+        voiceName: 'ЗНАНИЯ',
         onView: {
           addFlags: ['knows_patrol_pattern'],
         },
@@ -918,13 +918,13 @@ const dialogues: PolyphonicDialogue[] = [
     privateInjections: [
       {
         id: 'listen_analysis_count',
-        voice: 'analysis',
+        voice: 'knowledge',
         voiceGroup: 'mind',
         threshold: 45,
         text: 'Четыре-пять дыханий. Один — ходит. Охранник или медик? Походка... механическая. Не человек.',
         effect: 'terminal',
         priority: 8,
-        voiceName: 'АНАЛИЗ',
+        voiceName: 'ЗНАНИЯ',
         onView: {
           addFlags: ['knows_basement_guard'],
         },

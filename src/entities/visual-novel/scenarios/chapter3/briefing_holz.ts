@@ -42,13 +42,13 @@ const timeWindowInjections: PrivateInjection[] = [
   },
   {
     id: 'briefing_analysis_structure',
-    voice: 'analysis',
+    voice: 'knowledge',
     voiceGroup: 'mind',
     threshold: 50,
     text: 'Сканирование сектора указывает на 40% вероятность структурного коллапса в подвале Библиотеки. Дрон не просто упал — он погребён. Нам понадобится тяжёлое оборудование или взрывчатка. В брифинге нет ни слова об инструментах для раскопок.',
     effect: 'terminal',
     priority: 8,
-    voiceName: 'АНАЛИЗ',
+    voiceName: 'ЗНАНИЯ',
     onView: {
       addFlags: ['knows_drone_buried'],
       unlockHint: 'Дрон под завалами — нужны инструменты',
@@ -243,13 +243,13 @@ const golemWarningInjections: PrivateInjection[] = [
 const equipmentInjections: PrivateInjection[] = [
   {
     id: 'equipment_analysis_inventory',
-    voice: 'analysis',
+    voice: 'knowledge',
     voiceGroup: 'mind',
     threshold: 45,
     text: 'Стандартный набор. Недостаточно. Нужны: термальный сканер, заряды направленного взрыва, минимум три флейра. Спроси о дополнительном снаряжении.',
     effect: 'terminal',
     priority: 8,
-    voiceName: 'АНАЛИЗ',
+    voiceName: 'ЗНАНИЯ',
     onView: {
       addFlags: ['needs_extra_equipment'],
     },
@@ -828,15 +828,15 @@ const dialogues: PolyphonicDialogue[] = [
       },
       {
         id: 'ask_about_equipment',
-        text: '[Анализ] Нам понадобится специальное снаряжение.',
+        text: '[Знания] Нам понадобится специальное снаряжение.',
         nextDialogue: 'briefing_equipment',
-        requiredStat: { stat: 'analysis', value: 45 },
+        requiredStat: { stat: 'knowledge', value: 45 },
         requiredFlag: 'needs_extra_equipment',
         presentation: {
           color: 'cyan',
-          icon: 'analysis',
-          tooltip: 'Проверка Анализа (45) — Требуется флаг',
-          voiceHint: 'analysis',
+          icon: 'knowledge',
+          tooltip: 'Проверка Знаний (45) — Требуется флаг',
+          voiceHint: 'knowledge',
         },
       },
     ],
@@ -960,15 +960,15 @@ const dialogues: PolyphonicDialogue[] = [
       },
       {
         id: 'request_explosives',
-        text: '[Анализ] Заряды направленного взрыва. Для расчистки завалов.',
+        text: '[Знания] Заряды направленного взрыва. Для расчистки завалов.',
         nextDialogue: 'briefing_equipment_explosives',
-        requiredStat: { stat: 'analysis', value: 50 },
+        requiredStat: { stat: 'knowledge', value: 50 },
         requiredFlag: 'knows_drone_buried',
         presentation: {
           color: 'cyan',
-          icon: 'analysis',
+          icon: 'knowledge',
           tooltip: 'Требуется флаг: знание о завалах',
-          voiceHint: 'analysis',
+          voiceHint: 'knowledge',
         },
       },
       {
@@ -1050,13 +1050,13 @@ const dialogues: PolyphonicDialogue[] = [
     privateInjections: [
       {
         id: 'explosives_analysis_test',
-        voice: 'analysis',
+        voice: 'knowledge',
         voiceGroup: 'mind',
         threshold: 40,
         text: 'Он понял, что мы знаем о завалах. Он не упоминал их в брифинге. Откуда мы знаем?',
         effect: 'terminal',
         priority: 8,
-        voiceName: 'АНАЛИЗ',
+        voiceName: 'ЗНАНИЯ',
       },
     ],
     nextDialogue: 'briefing_equipment_explosives_2',
@@ -1413,13 +1413,13 @@ const dialogues: PolyphonicDialogue[] = [
     privateInjections: [
       {
         id: 'sector4_analysis_routes',
-        voice: 'analysis',
+        voice: 'knowledge',
         voiceGroup: 'mind',
         threshold: 45,
         text: 'Три точки входа. Канализация — медленно, но скрытно. Крыша — рискованно, но быстро. Выбор зависит от времени и состава отряда.',
         effect: 'terminal',
         priority: 8,
-        voiceName: 'АНАЛИЗ',
+        voiceName: 'ЗНАНИЯ',
         onView: {
           addFlags: ['knows_entry_points'],
           unlockHint: 'Три входа: площадь (ловушка), канализация (скрытно), крыша (рискованно)',

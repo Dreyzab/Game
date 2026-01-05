@@ -12,7 +12,7 @@ export type AttributeGroup = 'body' | 'motorics' | 'mind' | 'consciousness' | 'p
 /**
  * Все 18 голосов Внутреннего Парламента
  */
-export type VoiceId = 'force' | 'resilience' | 'endurance' | 'perception' | 'reaction' | 'coordination' | 'logic' | 'rhetoric' | 'analysis' | 'authority' | 'suggestion' | 'courage' | 'gambling' | 'drama' | 'creativity' | 'empathy' | 'solidarity' | 'honor';
+export type VoiceId = 'force' | 'resilience' | 'endurance' | 'perception' | 'reaction' | 'coordination' | 'logic' | 'rhetoric' | 'knowledge' | 'authority' | 'suggestion' | 'courage' | 'gambling' | 'drama' | 'creativity' | 'empathy' | 'solidarity' | 'honor';
 export interface AttributeGroupDefinition {
     id: AttributeGroup;
     name: string;

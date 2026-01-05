@@ -5,7 +5,7 @@ export type CharacterRole = 'operative' | 'vanguard' | 'technician' | 'ghost' | 
 export interface AttributeBlock {
     force: number;      // Body: Strength, Endurance
     flow: number;       // Motorics: Agility, Reflexes
-    focus: number;      // Intellect: Analysis, Logic
+    focus: number;      // Intellect: Knowledge, Logic
     psyche: number;     // Emotions: Willpower, Charisma
 }
 
@@ -72,7 +72,7 @@ export const CHARACTER_TEMPLATES: Record<string, CharacterTemplate> = {
     'tech_specialist': {
         id: 'tech_specialist',
         name: 'Technician',
-        description: 'Support unit with high analysis capabilities.',
+        description: 'Support unit with high knowledge capabilities.',
         role: 'technician',
         attributes: { force: 2, flow: 4, focus: 8, psyche: 4 },
         baseStats: { hp: 80, ap: 3, wp: 40, initiative: 12 },
