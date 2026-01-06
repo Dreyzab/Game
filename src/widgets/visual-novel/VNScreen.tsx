@@ -14,7 +14,7 @@ import type {
     VisualNovelScene,
 } from '@/shared/types/visualNovel'
 import type { FloatingTextEvent } from '@/features/dreyzab-combat-simulator'
-import FloatingText from '@/features/dreyzab-combat-simulator/ui/components/FloatingText'
+import { FloatingText } from '@/features/dreyzab-combat-simulator'
 
 // Characters positioned on the left side of coupe4p.png
 const LEFT_SIDE_SPEAKERS = ['bruno', 'otto', 'auto_бруно-вебер', 'auto_отто-кляйн']
@@ -27,7 +27,7 @@ export interface VNScreenProps {
     choices: VisualNovelChoiceView[]
     isSceneCompleted: boolean
     isPending: boolean
-    flags: Record<string, unknown>
+    flags: Set<string> | Record<string, unknown>
     skills: Record<string, number>
     hp: number
     maxHp: number

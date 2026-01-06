@@ -62,7 +62,7 @@ export const CharacterSprites: React.FC<CharacterSpritesProps> = ({
             alt={activeCharacter.name}
             className="h-full w-auto object-contain transition-transform duration-500"
           />
-          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[150%] h-1/4 bg-gradient-to-t from-white/10 to-transparent blur-3xl -z-10" />
+          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[150%] h-1/4 bg-linear-to-t from-white/10 to-transparent blur-3xl -z-10" />
         </div>
       </div>
     </div>

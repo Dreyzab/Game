@@ -141,10 +141,10 @@ export const DialogueBox: React.FC<DialogueBoxProps> = ({
             </span>
           </div>
         )}
-        <div className="font-sans text-[17px] sm:text-[20px] leading-relaxed text-white/90 font-medium tracking-tight min-h-[3rem]">
+        <div className="font-sans text-[17px] sm:text-[20px] leading-relaxed text-white/90 font-medium tracking-tight min-h-12">
           {displayedText.slice(0, visibleCount)}
           {isTyping && (
-            <span className="inline-block w-1 h-5 bg-[color:var(--color-cyan)] ml-1 animate-pulse" />
+            <span className="inline-block w-1 h-5 bg-(--color-cyan) ml-1 animate-pulse" />
           )}
         </div>
 
