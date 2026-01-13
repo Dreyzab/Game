@@ -11,9 +11,9 @@ import {
     type DragStartEvent,
 } from '@dnd-kit/core'
 import { Backpack, Trophy, X, Terminal, Hourglass, RefreshCw, SquareTerminal } from 'lucide-react'
-import { NPC_CARDS } from '../model/constants'
 import type { Achievement, BattleSession, Combatant, CombatCard } from '../model/types'
 import { Side, CardType } from '../model/types'
+import { generateDeckForCombatant } from '../model/cardGenerator'
 import { SCENARIOS, type ScenarioId } from '../model/scenarios'
 import RankLane from './components/RankLane'
 import type { FloatingTextEvent } from './components/FloatingText'
@@ -21,6 +21,7 @@ import { sortTurnQueue, canPlayCard, rollAttack } from '../model/utils'
 import CombatCardUI from './components/CombatCardUI'
 import DraggableCombatCard from './components/DraggableCombatCard'
 import GaugeUI from './components/GaugeUI'
+import { toClampedPercent } from './components/combatUiMath'
 
 type DreyzabBattleResult = 'victory' | 'defeat'
 
@@ -65,6 +66,7 @@ type CardPlayTarget =
     | { type: 'player-rank'; rank: number }
 
 const MAX_RANK = 4
+const END_TURN_WP_RECOVERY = 10
 
 const fillEmptyRanks = (units: Combatant[]): Combatant[] => {
     const living = [...units]
@@ -219,6 +221,7 @@ export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default', ini
                             side: Side.PLAYER,
                             rank: cond.rank, // Talked Conductor's place
                             resources: { hp: 100, maxHp: 100, ap: 3, maxAp: 3, mp: 0, maxMp: 0, wp: 50, maxWp: 50, pp: 0, maxPp: 100 },
+                            equipment: ['hand_cannon'],
                             bonusAp: 0, initiative: 15, armor: 4, isDead: false,
                             effects: [], weaponHeat: 0, isJammed: false, ammo: 5,
                         }
@@ -233,7 +236,7 @@ export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default', ini
                         // Let's just push Bruno. `sortTurnQueue` handles order.
 
                         // Add Bruno cards
-                        const brunoCards = NPC_CARDS.filter(c => c.id.startsWith('bruno')).map(c => ({ ...c, ownerId: 'npc_bruno' }))
+                        const brunoCards = generateDeckForCombatant(bruno)
                         const newHand = [...prev.playerHand, ...brunoCards]
 
                         // Ensure turn queue is updated
@@ -316,15 +319,32 @@ export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default', ini
             let nextPlayers = [...prev.players]
             let nextEnemies = [...prev.enemies]
 
+            const recoverWp = (unit: Combatant) => {
+                if (unit.isDead) return unit
+                return {
+                    ...unit,
+                    resources: {
+                        ...unit.resources,
+                        wp: Math.min(unit.resources.maxWp, unit.resources.wp + END_TURN_WP_RECOVERY),
+                    },
+                }
+            }
+
             if (currentUnit?.side === Side.PLAYER) {
                 const playerIndex = nextPlayers.findIndex((p) => p.id === currentUnit.id)
                 if (playerIndex >= 0) {
                     const carryOver = currentUnit.resources.ap > 0 ? 1 : 0
+                    const recoveredUnit = recoverWp(currentUnit)
                     nextPlayers[playerIndex] = {
-                        ...currentUnit,
+                        ...recoveredUnit,
                         bonusAp: carryOver,
-                        resources: { ...currentUnit.resources, ap: 0 },
+                        resources: { ...recoveredUnit.resources, ap: 0 },
                     }
+                }
+            } else if (currentUnit?.side === Side.ENEMY) {
+                const enemyIndex = nextEnemies.findIndex((e) => e.id === currentUnit.id)
+                if (enemyIndex >= 0) {
+                    nextEnemies[enemyIndex] = recoverWp(currentUnit)
                 }
             }
 
@@ -667,19 +687,8 @@ export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default', ini
                 }
             })
 
-            if (autoAdvanceTimerRef.current !== null) window.clearTimeout(autoAdvanceTimerRef.current)
-            autoAdvanceTimerRef.current = window.setTimeout(() => {
-                const current = battleRef.current
-                if (current.phase !== 'PLAYER_TURN') return
-
-                const activePlayer = current.players.find((p) => p.id === current.activeUnitId)
-                if (!activePlayer) return
-
-                const allEnemiesDead = current.enemies.every((e) => e.isDead)
-                if (activePlayer.resources.ap <= 0 && !allEnemiesDead) advanceTurn()
-            }, 800)
         },
-        [advanceTurn, battle, selectedTargetId, unlockAchievement, addCombatEvent]
+        [battle, selectedTargetId, unlockAchievement, addCombatEvent]
     )
 
     const resetBattle = useCallback(() => {
@@ -732,6 +741,40 @@ export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default', ini
         () => battle.playerHand.filter((card) => card.ownerId === battle.activeUnitId),
         [battle.activeUnitId, battle.playerHand]
     )
+
+    useEffect(() => {
+        if (battle.phase !== 'PLAYER_TURN') return
+
+        const activePlayer = battle.players.find((p) => p.id === battle.activeUnitId)
+        if (!activePlayer || activePlayer.isDead) return
+
+        if (battle.enemies.every((e) => e.isDead)) return
+
+        const hasPlayableCard = activeHandCards.some((card) => canPlayCard({ session: battle, card }))
+        const shouldAutoAdvance = activePlayer.resources.ap <= 0 || !hasPlayableCard
+        if (!shouldAutoAdvance) return
+
+        if (autoAdvanceTimerRef.current !== null) window.clearTimeout(autoAdvanceTimerRef.current)
+        autoAdvanceTimerRef.current = window.setTimeout(() => {
+            const current = battleRef.current
+            if (current.phase !== 'PLAYER_TURN') return
+
+            const currentActivePlayer = current.players.find((p) => p.id === current.activeUnitId)
+            if (!currentActivePlayer || currentActivePlayer.isDead) return
+            if (current.enemies.every((e) => e.isDead)) return
+
+            const currentHand = current.playerHand.filter((card) => card.ownerId === current.activeUnitId)
+            const hasPlayable = currentHand.some((card) => canPlayCard({ session: current, card }))
+            if (currentActivePlayer.resources.ap <= 0 || !hasPlayable) advanceTurn()
+        }, 800)
+
+        return () => {
+            if (autoAdvanceTimerRef.current !== null) {
+                window.clearTimeout(autoAdvanceTimerRef.current)
+                autoAdvanceTimerRef.current = null
+            }
+        }
+    }, [activeHandCards, advanceTurn, battle, battle.activeUnitId, battle.enemies, battle.phase, battle.players])
 
     const resolveLocalPortrait = useCallback((unit: Combatant): string | null => {
         const id = unit.id.toLowerCase()
@@ -882,7 +925,7 @@ export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default', ini
                                             alt="portrait"
                                         />
                                         <div className="absolute bottom-0 left-0 right-0 h-0.5 md:h-1 bg-zinc-900">
-                                            <div className={`h-full ${isPlayer ? 'bg-blue-500' : 'bg-red-600'}`} style={{ width: `${(unit.resources.hp / unit.resources.maxHp) * 100}%` }} />
+                                            <div className="h-full bg-red-600" style={{ width: `${toClampedPercent(unit.resources.hp, unit.resources.maxHp)}%` }} />
                                         </div>
                                     </div>
                                 </div>
@@ -1041,10 +1084,12 @@ export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default', ini
                                     </div>
 
                                     {/* Vertical Indicators */}
-                                    <div className="flex flex-col gap-2 scale-90 md:scale-100 origin-left">
-                                        <GaugeUI value={activeUnit.resources.hp} max={activeUnit.resources.maxHp} label="HP" color="#ef4444" />
-                                        <GaugeUI value={activeUnit.resources.wp} max={activeUnit.resources.maxWp} label="WP" color="#3b82f6" />
-                                    </div>
+                                    {activePlayer ? (
+                                        <div className="flex flex-col gap-2 scale-90 md:scale-100 origin-left">
+                                            <GaugeUI value={activePlayer.resources.hp} max={activePlayer.resources.maxHp} label="HP" color="#ef4444" />
+                                            <GaugeUI value={activePlayer.resources.wp} max={activePlayer.resources.maxWp} label="WP" color="#3b82f6" />
+                                        </div>
+                                    ) : null}
                                 </>
                             ) : (
                                 <div className="p-4"><RefreshCw className="animate-spin text-zinc-600" size={24} /></div>

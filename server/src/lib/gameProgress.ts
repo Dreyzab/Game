@@ -1,36 +1,6 @@
-export const STARTING_SKILLS: Record<string, number> = {
-    // BODY
-    force: 30,
-    resilience: 30,
-    endurance: 30,
-    // MOTORICS
-    perception: 35,
-    reaction: 30,
-    coordination: 30,
-    // MIND
-    logic: 45,
-    rhetoric: 30,
-    knowledge: 30,
-    // CONSCIOUSNESS
-    authority: 30,
-    suggestion: 30,
-    courage: 30,
-    // PSYCHE
-    drama: 20,
-    creativity: 20,
-    gambling: 20,
-    // SOCIALITY
-    solidarity: 20,
-    honor: 20,
-    empathy: 20,
+import { STARTING_SKILLS } from "../shared/lib/stats";
 
-    // PROLOGUE META (stored in `skills` for now)
-    parl_union: 25,
-    parl_academy: 25,
-    parl_free_corps: 25,
-    parl_seekers: 25,
-    psi_exposure: 0,
-};
+export { STARTING_SKILLS };
 
 /**
  * Legacy skill ids used in older VN/progress content.

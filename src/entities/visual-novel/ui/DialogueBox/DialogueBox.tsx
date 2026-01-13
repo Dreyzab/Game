@@ -19,7 +19,7 @@ export interface DialogueBoxProps {
 }
 
 export const DialogueBox: React.FC<DialogueBoxProps> = ({
-  speakerName,
+
   speakerTitle,
   text,
   stageDirection,
@@ -133,14 +133,7 @@ export const DialogueBox: React.FC<DialogueBoxProps> = ({
         )}
         style={style}
       >
-        {/* Speaker Name Badge */}
-        {speakerName && (
-          <div className="mb-3 -mt-1">
-            <span className="inline-block px-3 py-1 text-xs sm:text-sm font-semibold uppercase tracking-wider text-cyan-300 bg-cyan-500/15 border border-cyan-500/30 rounded-lg shadow-[0_0_8px_rgba(6,182,212,0.2)]">
-              {speakerName}
-            </span>
-          </div>
-        )}
+
         <div className="font-sans text-[17px] sm:text-[20px] leading-relaxed text-white/90 font-medium tracking-tight min-h-12">
           {displayedText.slice(0, visibleCount)}
           {isTyping && (

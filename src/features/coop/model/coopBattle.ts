@@ -1,7 +1,8 @@
 import type { CoopEncounterState, CoopParticipant } from './store'
-import type { BattleSession, CombatCard, Combatant } from '@/features/dreyzab-combat-simulator/model/types'
+import type { BattleSession, Combatant } from '@/features/dreyzab-combat-simulator/model/types'
 import { Side } from '@/features/dreyzab-combat-simulator/model/types'
-import { INITIAL_PLAYER_HAND, ENEMY_TEMPLATES } from '@/features/dreyzab-combat-simulator/model/constants'
+import { ENEMY_TEMPLATES } from '@/features/dreyzab-combat-simulator/model/constants'
+import { generateDeckForCombatant } from '@/features/dreyzab-combat-simulator/model/cardGenerator'
 import { sortTurnQueue } from '@/features/dreyzab-combat-simulator/model/utils'
 
 function clampInt(value: unknown, min: number, max: number): number {
@@ -10,9 +11,7 @@ function clampInt(value: unknown, min: number, max: number): number {
   return Math.max(min, Math.min(max, Math.floor(num)))
 }
 
-function withOwner(card: CombatCard, ownerId: string): CombatCard {
-  return { ...card, id: `${ownerId}_${card.id}`, ownerId }
-}
+const DEFAULT_COOP_EQUIPMENT: string[] = ['glock_19', 'knife']
 
 function makeEnemy(params: { id: string; rank: number; templateIdx: number; threat: number; hpMult: number }): Combatant {
   const template = ENEMY_TEMPLATES[Math.min(Math.max(0, params.templateIdx), ENEMY_TEMPLATES.length - 1)]
@@ -79,6 +78,7 @@ export function createCoopBattleSession(params: { encounter: CoopEncounterState;
       side: Side.PLAYER,
       rank: clampInt(index + 1, 1, 4),
       resources: { hp, maxHp, ap, maxAp, mp: 0, maxMp: 0, wp, maxWp, pp: 0, maxPp: 100 },
+      equipment: DEFAULT_COOP_EQUIPMENT,
       bonusAp: 0,
       initiative: 0,
       armor: 3,
@@ -91,7 +91,7 @@ export function createCoopBattleSession(params: { encounter: CoopEncounterState;
   })
 
   const enemies = makeEnemies({ scenarioId: encounter.scenarioId, threat })
-  const playerHand = players.flatMap((p) => INITIAL_PLAYER_HAND.map((card) => withOwner(card, p.id)))
+  const playerHand = players.flatMap((p) => generateDeckForCombatant(p))
   const turnQueue = sortTurnQueue(players, enemies)
 
   return {

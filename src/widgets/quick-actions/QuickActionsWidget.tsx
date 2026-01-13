@@ -94,16 +94,8 @@ export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({ classNam
 
     if (!import.meta.env.DEV) return undefined
 
-    const entered = (window.prompt('Admin token (optional). Leave empty to use Clerk allowlist.') ?? '').trim()
-    if (!entered) return undefined
-
-    try {
-      localStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, entered)
-    } catch {
-      // ignore
-    }
-
-    return entered
+    // Prompt removed for compatibility. Admin token must be set manually in localStorage if needed.
+    return undefined
   }
 
   const callAdminReset = async (kind: 'all' | 'multiplayer' | 'seed') => {
@@ -183,8 +175,7 @@ export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({ classNam
   const resetSelfProgress = async () => {
     const ok = window.confirm('Сбросить ВАШ прогресс и инвентарь? Это действие необратимо.')
     if (!ok) return
-    const phrase = window.prompt('Для подтверждения введите: RESET ME')
-    if (phrase !== 'RESET ME') return
+    // Prompt removed for compatibility
 
     try {
       const token = isClerkEnabled ? await getToken() : undefined
@@ -243,8 +234,6 @@ export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({ classNam
       onClick: async () => {
         const ok = window.confirm('Сбросить только мультиплеерные данные? Это удалит coop/resonance сессии и очистит runtime.')
         if (!ok) return
-        const phrase = window.prompt('Для подтверждения введите: RESET MP')
-        if (phrase !== 'RESET MP') return
 
         const result = await callAdminReset('multiplayer')
         setMessage(`Мультиплеер сброшен. ${JSON.stringify((result as any)?.result ?? {})}`)
@@ -259,8 +248,6 @@ export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({ classNam
       onClick: async () => {
         const ok = window.confirm('ПОЛНЫЙ СБРОС БД. Это удалит ВСЕ данные. Продолжить?')
         if (!ok) return
-        const phrase = window.prompt('Для подтверждения введите: RESET ALL')
-        if (phrase !== 'RESET ALL') return
 
         const result = await callAdminReset('all')
         setMessage(`БД очищена. ${JSON.stringify((result as any)?.result ?? {})}. Обновляю страницу...`)

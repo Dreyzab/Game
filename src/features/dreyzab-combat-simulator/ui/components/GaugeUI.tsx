@@ -1,3 +1,5 @@
+import { toClampedPercent } from './combatUiMath'
+
 interface Props {
     value: number
     max: number
@@ -6,11 +8,20 @@ interface Props {
 }
 
 const GaugeUI = ({ value, max, label, color }: Props) => {
-    const percent = (value / max) * 100
+    const safeValue = Number.isFinite(value) ? value : 0
+    const safeMax = Number.isFinite(max) ? max : 0
+
+    const percent = toClampedPercent(safeValue, safeMax)
     const rotation = -90 + percent * 1.8
 
+    const displayValue = Math.floor(safeValue)
+    const displayMax = safeMax > 0 ? Math.floor(safeMax) : 0
+    const title = safeMax > 0
+        ? `${label}: ${displayValue}/${displayMax} (${Math.round(percent)}%)`
+        : `${label}: ${displayValue} (${Math.round(percent)}%)`
+
     return (
-        <div className="flex flex-col items-center w-14">
+        <div className="flex flex-col items-center w-14" title={title} aria-label={title} role="img">
             <div className="relative w-12 h-8 bg-zinc-950 rounded-t-full border border-zinc-800 overflow-hidden shadow-inner">
                 <div className="absolute inset-0 opacity-20 border-b border-zinc-800" />
                 <div
@@ -20,11 +31,10 @@ const GaugeUI = ({ value, max, label, color }: Props) => {
                 <div className="absolute bottom-[-2px] left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-zinc-600" />
             </div>
             <div className="text-[9px] font-bold text-zinc-500 mt-1 uppercase leading-none">
-                {label} <span className="text-zinc-300">{Math.floor(value)}</span>
+                {label} <span className="text-zinc-300">{displayValue}</span>
             </div>
         </div>
     )
 }
 
 export default GaugeUI
-

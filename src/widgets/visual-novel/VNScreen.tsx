@@ -13,8 +13,7 @@ import type {
     VisualNovelLine,
     VisualNovelScene,
 } from '@/shared/types/visualNovel'
-import type { FloatingTextEvent } from '@/features/dreyzab-combat-simulator'
-import { FloatingText } from '@/features/dreyzab-combat-simulator'
+import { FloatingText, type FloatingTextEvent } from '@/features/dreyzab-combat-simulator/index'
 
 // Characters positioned on the left side of coupe4p.png
 const LEFT_SIDE_SPEAKERS = ['bruno', 'otto', 'auto_бруно-вебер', 'auto_отто-кляйн']

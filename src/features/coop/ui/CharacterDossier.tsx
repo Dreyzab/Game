@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react'
 import { cn } from '@/shared/lib/utils/cn'
-import { ATTRIBUTE_GROUPS, PARLIAMENT_VOICES, STARTING_VOICE_LEVELS, type AttributeGroup, type VoiceId } from '@/shared/types/parliament'
+import { ATTRIBUTE_GROUPS, PARLIAMENT_VOICES, type AttributeGroup, type VoiceId } from '@/shared/types/parliament'
+import { STARTING_SKILLS } from '@/shared/lib/stats'
 import { ITEM_TEMPLATES } from '@/shared/data/itemTemplates'
 import { type CoopCharacterTemplate, calculateLoadoutWeight, getWeightCategory, WEIGHT_THRESHOLDS } from '../model/characters'
 
@@ -72,7 +73,7 @@ interface CharacterDossierProps {
 export const CharacterDossier: React.FC<CharacterDossierProps> = ({ character, className }) => {
     // Calculate character's voice levels with modifiers
     const getVoiceLevel = (voiceId: VoiceId): number => {
-        const base = STARTING_VOICE_LEVELS[voiceId]
+        const base = (STARTING_SKILLS as any)[voiceId]
         const modifier = character.voiceModifiers[voiceId] ?? 0
         return base + modifier
     }

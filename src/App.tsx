@@ -19,6 +19,8 @@ import TutorialBattlePage from '@/pages/TutorialBattlePage'
 import PvPPage from '@/pages/PvPPage'
 import CoopPage from '@/pages/CoopPage'
 import ResonancePage from '@/pages/ResonancePage'
+import SurvivalTVPage from '@/pages/SurvivalTVPage'
+import SurvivalPlayerPage from '@/pages/SurvivalPlayerPage'
 import { useQuestInventoryProtection } from '@/processes/quests-inventory'
 import { useQuestOutboxSync } from '@/processes/quests-sync'
 
@@ -72,6 +74,10 @@ function App() {
       {/* LCSD Coop Routes (no navbar for immersion) */}
       <Route path={RoutePaths.COOP} element={<CoopPage />} />
       <Route path="/coop/:roomCode/*" element={<CoopPage />} />
+
+      {/* Survival Mode Routes (no navbar for immersion) */}
+      <Route path={RoutePaths.SURVIVAL_TV} element={<SurvivalTVPage />} />
+      <Route path={RoutePaths.SURVIVAL_PLAYER} element={<SurvivalPlayerPage />} />
 
       {/* Fallback */}
       <Route path="*" element={<Navigate to={RoutePaths.HOME} replace />} />

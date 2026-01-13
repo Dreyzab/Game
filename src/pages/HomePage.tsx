@@ -217,6 +217,39 @@ export function ModernHomePage() {
               )}
             </div>
           </div>
+
+          {/* SURVIVAL MODE PANEL */}
+          <div className="panel-span-12">
+            <div className="glass-panel p-5 border border-amber-500/20 bg-gradient-to-br from-amber-950/20 to-transparent">
+              <div className="flex flex-col gap-1">
+                <Heading level={3} className="text-amber-400">
+                  ☢️ Режим Выживания
+                </Heading>
+                <Text size="sm" variant="muted">
+                  Локальный кооп с QR-кодами. Один экран — TV-база, телефоны — контроллеры.
+                </Text>
+              </div>
+
+              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Button
+                  variant="primary"
+                  size="lg"
+                  className="bg-amber-600 hover:bg-amber-500"
+                  onClick={() => navigate('/survival/player?mode=create')}
+                >
+                  Создать Комнату (GM)
+                </Button>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="border-amber-500/50 text-amber-400 hover:bg-amber-900/30"
+                  onClick={() => navigate('/survival/player?mode=join')}
+                >
+                  Присоединиться
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="panel-grid mb-10">

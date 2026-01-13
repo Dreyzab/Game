@@ -12,7 +12,207 @@
 @import "./shared/ui/styles/visualNovelChronicles.css";
 
 /* External fonts */
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Rajdhani:wght@400;600;700&family=Special+Elite&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Rajdhani:wght@400;600;700&family=Share+Tech+Mono&family=Special+Elite&display=swap');
+
+/* Survival Bunker (ported from /Projects) */
+.font-display {
+  font-family: 'Share Tech Mono', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    'Liberation Mono', 'Courier New', monospace;
+}
+
+/* Hex Survival Tactical Map theme */
+.bg-terminal-black {
+  background-color: #0a0a0a;
+}
+
+.bg-terminal-black\/80 {
+  background-color: rgba(10, 10, 10, 0.8);
+}
+
+.bg-terminal-black\/90 {
+  background-color: rgba(10, 10, 10, 0.9);
+}
+
+.text-terminal-green {
+  color: #00ff41;
+}
+
+.text-terminal-dim {
+  color: #008f11;
+}
+
+.border-hex-border {
+  border-color: #1a1a1a;
+}
+
+.border-terminal-green {
+  border-color: #00ff41;
+}
+
+.bg-terminal-green {
+  background-color: #00ff41;
+}
+
+.bg-terminal-green\/10 {
+  background-color: rgba(0, 255, 65, 0.1);
+}
+
+.hover\:bg-terminal-green:hover {
+  background-color: #00ff41;
+}
+
+/* Survival Datapad (ported from /tactical-datapad) */
+.survival-datapad-scanline-overlay {
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0),
+    rgba(255, 255, 255, 0) 50%,
+    rgba(0, 0, 0, 0.1) 50%,
+    rgba(0, 0, 0, 0.1)
+  );
+  background-size: 100% 4px;
+}
+
+@keyframes survival-datapad-scan {
+  0% {
+    top: 5%;
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    top: 95%;
+    opacity: 0;
+  }
+}
+
+.survival-datapad-scanline {
+  animation: survival-datapad-scan 2.5s ease-in-out infinite;
+}
+
+@keyframes survival-datapad-pulse-red {
+  0%,
+  100% {
+    box-shadow: 0 0 10px rgba(220, 38, 38, 0);
+    border-color: rgba(220, 38, 38, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(220, 38, 38, 0.6);
+    border-color: rgba(220, 38, 38, 1);
+  }
+}
+
+.survival-datapad .status-wounded {
+  animation: survival-datapad-pulse-red 1s infinite ease-in-out;
+}
+
+@keyframes survival-datapad-pulse-amber {
+  0%,
+  100% {
+    box-shadow: 0 0 5px rgba(245, 158, 11, 0.1);
+    border-color: rgba(245, 158, 11, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.4);
+    border-color: rgba(245, 158, 11, 0.9);
+  }
+}
+
+.survival-datapad .status-hungry {
+  animation: survival-datapad-pulse-amber 2s infinite ease-in-out;
+}
+
+@keyframes survival-datapad-breathe-green {
+  0%,
+  100% {
+    box-shadow: 0 0 5px rgba(16, 185, 129, 0.1);
+    border-color: rgba(16, 185, 129, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
+    border-color: rgba(16, 185, 129, 0.5);
+  }
+}
+
+.survival-datapad .status-healthy {
+  animation: survival-datapad-breathe-green 4s infinite ease-in-out;
+}
+
+@keyframes survival-datapad-crt-turn-on {
+  0% {
+    transform: scale(1, 0.002);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1, 0.002);
+    opacity: 1;
+  }
+  75% {
+    transform: scale(1, 1.1);
+  }
+  100% {
+    transform: scale(1, 1);
+    opacity: 1;
+  }
+}
+
+.survival-datapad .animate-crt {
+  animation: survival-datapad-crt-turn-on 0.2s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 2px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+@keyframes floatUp {
+  0% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes scan {
+  0% {
+    background-position: 0% 0%;
+  }
+  100% {
+    background-position: 0% 100%;
+  }
+}
+
+.animate-scan {
+  animation: scan 3s linear infinite;
+}
 
 /* Mapbox custom styles */
 .mapboxgl-map {

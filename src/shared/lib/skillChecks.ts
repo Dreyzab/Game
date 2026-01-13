@@ -6,7 +6,7 @@
  */
 
 import type { VoiceId } from '../types/parliament'
-import { STARTING_VOICE_LEVELS } from '../types/parliament'
+import { STARTING_SKILLS } from './stats'
 import { calculateSkillCheckXP } from '../types/experience'
 
 // ================== УРОВНИ СЛОЖНОСТИ ==================
@@ -187,7 +187,7 @@ function getEffectiveVoiceLevel(
     voiceLevels: Partial<Record<VoiceId, number>>,
     voiceId: VoiceId
 ): number {
-    const base = STARTING_VOICE_LEVELS[voiceId]
+    const base = (STARTING_SKILLS as any)[voiceId]
     const modifier = voiceLevels[voiceId] ?? 0
     return base + modifier
 }

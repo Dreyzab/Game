@@ -25,6 +25,7 @@ interface VisualNovelSessionState {
   startSession: (sceneId: string) => void
   trackScene: (sceneId: string) => void
   recordChoice: (payload: { sceneId: string; lineId?: string; choice: VisualNovelChoice }) => void
+  applySystemHpChange: (delta: number, sceneId: string) => void
   consumePayload: (finishedAt: number) => null | {
     sceneId: string
     startedAt: number
@@ -247,6 +248,40 @@ export const useVisualNovelSessionStore = create<VisualNovelSessionState>((set, 
         pendingQuests: nextQuests,
       }
     }),
+  applySystemHpChange: (delta, sceneId) => {
+    const safeSceneId = typeof sceneId === 'string' ? sceneId.trim() : ''
+    const amount = typeof delta === 'number' && Number.isFinite(delta) ? Math.trunc(delta) : 0
+    if (!safeSceneId || amount === 0) return
+
+    const MAX_HP_DELTA_PER_EFFECT = 50
+
+    set((state) => {
+      const nextChoices = [...state.choices]
+      const now = Date.now()
+      let remaining = amount
+      let offset = 0
+
+      while (remaining !== 0) {
+        const chunk =
+          Math.abs(remaining) > MAX_HP_DELTA_PER_EFFECT
+            ? Math.sign(remaining) * MAX_HP_DELTA_PER_EFFECT
+            : remaining
+        remaining -= chunk
+        offset += 1
+        nextChoices.push({
+          sceneId: safeSceneId,
+          choiceId: 'system_hp_change',
+          effects: [{ type: 'immediate', action: 'hp_delta', data: { amount: chunk } }],
+          timestamp: now + offset,
+        })
+      }
+
+      return {
+        choices: nextChoices,
+        pendingHpDelta: state.pendingHpDelta + amount,
+      }
+    })
+  },
   consumePayload: (finishedAt) => {
     const state = get()
     if (!state.rootSceneId) {

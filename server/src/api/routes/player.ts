@@ -7,6 +7,9 @@ import { needsSkillsNormalization, normalizeSkills, STARTING_SKILLS } from "../.
 import { deriveOnboardingSkills, ONBOARDING_SKILLS_APPLIED_FLAG } from "../../lib/onboarding";
 import { randomBytes, scryptSync } from "node:crypto";
 import { resetSelf } from "../../services/playerReset";
+import { awardItemsToPlayer } from "../../lib/itemAward";
+import { items } from "../../db/schema";
+import { inArray } from "drizzle-orm";
 
 const DEFAULT_SCENE_ID = 'prologue_coupe_start';
 const NICKNAME_FLAG = 'nickname_set';
@@ -205,11 +208,11 @@ export const playerRoutes = (app: Elysia) =>
                     });
 
                     return { player: toPublicPlayer(newPlayer), created: true };
-                 }, {
-                     body: t.Object({
-                         name: t.Optional(t.String()) // Optional explicit name
-                     })
-                 })
+                }, {
+                    body: t.Object({
+                        name: t.Optional(t.String()) // Optional explicit name
+                    })
+                })
 
                 // POST /player/city-registration - finalize onboarding registration (clerk/password)
                 .post("/city-registration", async ({ user, body, headers }) => {
@@ -427,6 +430,23 @@ export const playerRoutes = (app: Elysia) =>
                         patch.currentScene = desiredScene;
                     }
 
+                    // STARTING ITEMS GRANT
+                    // Check if player has the "starting_items_granted" flag
+                    if (!nextFlags['starting_items_granted']) {
+                        // Double check actual inventory to be safe (optional but good for idempotency)
+                        // For now we trust the flag + this check ensures we set it.
+
+                        await awardItemsToPlayer(playerId, [
+                            { itemId: 'knife', quantity: 1 },
+                            { itemId: 'backpack_civilian', quantity: 1 },
+                            { itemId: 'cigarette_case', quantity: 1 },
+                            { itemId: 'sausage_slice', quantity: 2 },
+                        ]);
+
+                        nextFlags['starting_items_granted'] = true;
+                        patch.flags = nextFlags;
+                    }
+
                     const [updatedProgress] = await db.update(gameProgress)
                         .set(patch as any)
                         .where(eq(gameProgress.id, progress.id))
@@ -462,4 +482,4 @@ export const playerRoutes = (app: Elysia) =>
                     const result = await resetSelf(user as any, player.id);
                     return { ok: true, reset: true, result };
                 })
-         );
+        );

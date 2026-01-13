@@ -14,6 +14,7 @@ import {
 } from "../../lib/gameProgress";
 import { awardItemsToPlayer } from "../../lib/itemAward";
 import { hasItemTemplate } from "../../lib/itemTemplates";
+import { calculateMaxResources } from "../../shared/lib/stats";
 
 const DEFAULT_SCENE_ID = 'prologue_coupe_start';
 
@@ -27,7 +28,6 @@ const MAX_XP_DELTA = 500;
 const MAX_SKILL_DELTA_PER_COMMIT = 10;
 const MAX_SKILL_VALUE = 100;
 const MAX_HP_DELTA_PER_COMMIT = 50;
-const DEFAULT_MAX_HP = 100;
 const MAX_REPUTATION_ENTRIES = 20;
 const MAX_REPUTATION_DELTA = 100;
 
@@ -47,22 +47,15 @@ function clampSkillValue(value: number): number {
     return Math.max(0, Math.min(MAX_SKILL_VALUE, Math.trunc(value)));
 }
 
-function clampHp(value: number, maxHp: number): number {
-    const safeMax = Math.max(1, Math.trunc(maxHp));
-    return Math.max(0, Math.min(safeMax, Math.trunc(value)));
-}
+
 
 function applyHpDeltasFromChoices(
     baseHpRaw: unknown,
-    baseMaxHpRaw: unknown,
+    maxHp: number,
     choices: Array<{ effects: unknown }>
-): { hp: number; maxHp: number } {
-    const maxHp = typeof baseMaxHpRaw === 'number' && Number.isFinite(baseMaxHpRaw)
-        ? Math.max(1, Math.trunc(baseMaxHpRaw))
-        : DEFAULT_MAX_HP;
-
+): { hp: number } {
     let hp = typeof baseHpRaw === 'number' && Number.isFinite(baseHpRaw)
-        ? clampHp(baseHpRaw, maxHp)
+        ? Math.max(0, Math.min(maxHp, Math.trunc(baseHpRaw)))
         : maxHp;
 
     for (const choice of choices) {
@@ -78,7 +71,7 @@ function applyHpDeltasFromChoices(
                 const amountRaw = (data as any).amount;
                 const delta = clampInt(amountRaw, -MAX_HP_DELTA_PER_COMMIT, MAX_HP_DELTA_PER_COMMIT);
                 if (delta === 0) continue;
-                hp = clampHp(hp + delta, maxHp);
+                hp = Math.max(0, Math.min(maxHp, hp + delta));
                 continue;
             }
 
@@ -88,12 +81,12 @@ function applyHpDeltasFromChoices(
                 if (statRaw !== 'hp' && statRaw !== 'health') continue;
                 const delta = clampInt((effect as any).delta, -MAX_HP_DELTA_PER_COMMIT, MAX_HP_DELTA_PER_COMMIT);
                 if (delta === 0) continue;
-                hp = clampHp(hp + delta, maxHp);
+                hp = Math.max(0, Math.min(maxHp, hp + delta));
             }
         }
     }
 
-    return { hp, maxHp };
+    return { hp };
 }
 
 function applySkillDeltasFromChoices(
@@ -378,9 +371,12 @@ export const vnRoutes = (app: Elysia) =>
                         normalizedSkills,
                         choices.map((entry) => ({ effects: entry.effects }))
                     );
+
+                    const maxResources = calculateMaxResources(nextSkills);
+
                     const hpPatch = applyHpDeltasFromChoices(
                         (progress as any).hp,
-                        (progress as any).maxHp,
+                        maxResources.hp,
                         choices.map((entry) => ({ effects: entry.effects }))
                     );
 
@@ -390,7 +386,9 @@ export const vnRoutes = (app: Elysia) =>
                         flags,
                         skills: nextSkills,
                         hp: hpPatch.hp,
-                        maxHp: hpPatch.maxHp,
+                        maxHp: maxResources.hp,
+                        maxStamina: maxResources.ap,
+                        maxMorale: maxResources.mp,
                         level: xpResult.level,
                         xp: xpResult.xp,
                         skillPoints: xpResult.skillPoints,

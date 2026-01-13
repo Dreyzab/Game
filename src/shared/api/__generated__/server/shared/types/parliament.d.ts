@@ -63,10 +63,6 @@ export declare function getVoiceGroup(voiceId: VoiceId): AttributeGroup;
  */
 export declare function getVoicesByGroup(group: AttributeGroup): VoiceDefinition[];
 /**
- * Начальные значения голосов для нового персонажа
- */
-export declare const STARTING_VOICE_LEVELS: Record<VoiceId, number>;
-/**
  * Получить случайный комментарий голоса
  */
 export declare function getVoiceComment(voiceId: VoiceId, situation: 'onSuccess' | 'onFailure' | 'onCritical' | 'onExhaustion'): string;

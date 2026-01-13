@@ -21,7 +21,7 @@ export interface CombatPosition {
 }
 export type Posture = 'neutral' | 'aggressive' | 'defensive' | 'evasive';
 export type WeaponType = 'pistol' | 'shotgun' | 'rifle' | 'sniper' | 'melee_knife' | 'melee_blunt' | 'melee_spear' | 'fist';
-export type DamageType = 'physical' | 'crushing' | 'piercing' | 'slashing' | 'electric' | 'fire' | 'poison' | 'sonic' | 'ritual' | 'ice';
+export type DamageType = 'physical' | 'crushing' | 'piercing' | 'slashing' | 'electric' | 'fire' | 'poison' | 'sonic' | 'ritual' | 'ice' | 'explosive';
 /**
  * Протокол "Холодная Сталь" (Cold Steel Protocol)
  * Трансформация оружия при 0 патронов

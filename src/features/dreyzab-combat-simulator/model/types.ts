@@ -42,6 +42,12 @@ export interface Combatant {
 
     resources: CombatantResources
 
+    /**
+     * Item template ids (from `src/shared/data/itemTemplates.ts`) that should be used
+     * to generate this combatant's cards.
+     */
+    equipment?: string[]
+
     bonusAp: number
     initiative: number
     armor: number
@@ -56,12 +62,20 @@ export interface Combatant {
     scannedLevel?: number // 0=none, 1=basic, 2=detailed
 }
 
+import type { DamageType } from '../../../shared/types/combat'
+
 export const CardType = {
     ATTACK: 'attack',
     DEFENSE: 'defense',
     MOVEMENT: 'movement',
     VOICE: 'voice',
     ANALYSIS: 'analysis',
+    ITEM: 'item',
+    REACTION: 'reaction',
+    COLD_STEEL: 'cold_steel',
+    POSTURE: 'posture',
+    JAMMED: 'jammed',
+    DEBT: 'debt',
 } as const
 
 export type CardType = (typeof CardType)[keyof typeof CardType]
@@ -73,10 +87,12 @@ export interface CombatCard {
     apCost: number
     staminaCost: number
     damage: number
+    damageType?: DamageType
     optimalRange: number[]
     description: string
     jamChance: number
     ownerId?: string
+    effects?: any[]
 }
 
 export interface Achievement {

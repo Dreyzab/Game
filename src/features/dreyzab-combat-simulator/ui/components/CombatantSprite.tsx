@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import type { Combatant } from '../../model/types'
 import { Side } from '../../model/types'
+import { toClampedPercent } from './combatUiMath'
 
 interface Props {
     combatant: Combatant
@@ -75,14 +76,14 @@ const CombatantSprite = ({ combatant, isTargeted, onClick }: Props) => {
                     <div className="h-0.5 w-full bg-zinc-950 rounded-px overflow-hidden">
                         <div
                             className="h-full bg-red-600 transition-all duration-500"
-                            style={{ width: `${(combatant.resources.hp / combatant.resources.maxHp) * 100}%` }}
+                            style={{ width: `${toClampedPercent(combatant.resources.hp, combatant.resources.maxHp)}%` }}
                         />
                     </div>
                     {/* WP Bar */}
                     <div className="h-0.5 w-full bg-zinc-950 rounded-px overflow-hidden">
                         <div
                             className="h-full bg-blue-500 transition-all duration-500"
-                            style={{ width: `${(combatant.resources.wp / combatant.resources.maxWp) * 100}%` }}
+                            style={{ width: `${toClampedPercent(combatant.resources.wp, combatant.resources.maxWp)}%` }}
                         />
                     </div>
                     <div className="flex justify-between items-center px-0.5 font-mono text-[8px] md:text-[9px] leading-none">
@@ -117,4 +118,3 @@ const CombatantSprite = ({ combatant, isTargeted, onClick }: Props) => {
 }
 
 export default CombatantSprite
-

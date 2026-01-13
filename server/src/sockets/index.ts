@@ -32,13 +32,43 @@ export const wsRoutes = (app: Elysia) =>
                     ws.subscribe(`coop:${code}`);
                     // console.log(`Socket ${ws.id} subscribed to coop:${code}`);
                 }
+
+                // Survival mode socket handlers
+                if (type === "survival:join") {
+                    const { sessionId } = payload;
+                    ws.subscribe(`survival:${sessionId}`);
+                    // console.log(`Socket ${ws.id} subscribed to survival:${sessionId}`);
+                }
             },
         })
         .onStart(() => {
+            // Coop event bus listener
             eventBus.on('coop_update', ({ roomId, data }) => {
                 app.server?.publish(`coop:${roomId}`, JSON.stringify({
                     type: 'coop_update',
                     data
+                }));
+            });
+
+            // Survival event bus listeners
+            eventBus.on('survival_update', ({ sessionId, state }) => {
+                app.server?.publish(`survival:${sessionId}`, JSON.stringify({
+                    type: 'survival:state_update',
+                    data: state
+                }));
+            });
+
+            eventBus.on('survival_log', ({ sessionId, entry }) => {
+                app.server?.publish(`survival:${sessionId}`, JSON.stringify({
+                    type: 'survival:log_entry',
+                    data: entry
+                }));
+            });
+
+            eventBus.on('survival_timer', ({ sessionId, timerSeconds }) => {
+                app.server?.publish(`survival:${sessionId}`, JSON.stringify({
+                    type: 'survival:timer_sync',
+                    data: { timerSeconds }
                 }));
             });
         });

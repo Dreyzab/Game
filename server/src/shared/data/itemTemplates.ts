@@ -604,6 +604,32 @@ export const ITEM_TEMPLATES: Record<string, ItemTemplate> = {
         },
         tags: ['backpack'],
     },
+    backpack_civilian: {
+        id: 'backpack_civilian',
+        name: 'Городской рюкзак',
+        description: 'Обычный рюкзак. Не очень вместительный, но лучше, чем карманы.',
+        kind: 'backpack',
+        rarity: 'common',
+        icon: '🎒',
+        baseStats: {
+            weight: 1.0,
+            width: 2,
+            height: 2,
+            capacity: 12,
+            containerConfig: { width: 4, height: 3, name: 'Backpack' },
+        },
+        tags: ['backpack'],
+    },
+    cigarette_case: {
+        id: 'cigarette_case',
+        name: 'Портсигар',
+        description: 'Старый металлический портсигар. На удачу.',
+        kind: 'misc',
+        rarity: 'common',
+        icon: '🚬',
+        baseStats: { weight: 0.2, width: 1, height: 1 },
+        tags: ['misc', 'container'], // functional container behavior handled via logic or just misc for now
+    },
     belt_tool: {
         id: 'belt_tool',
         name: 'Пояс с инструментами',
@@ -681,6 +707,16 @@ export const ITEM_TEMPLATES: Record<string, ItemTemplate> = {
         icon: 'can',
         baseStats: { weight: 0.5, width: 1, height: 1 },
         tags: ['sustenance'],
+    },
+    sausage_slice: {
+        id: 'sausage_slice',
+        name: 'Кусок колбасы',
+        description: 'Жирная, питательная краковская колбаса. Восстанавливает силы.',
+        kind: 'consumable',
+        rarity: 'common',
+        icon: '🍖',
+        baseStats: { weight: 0.2, width: 1, height: 1 },
+        tags: ['sustenance', 'healing'],
     },
 
     // ============ ARTIFACTS ============

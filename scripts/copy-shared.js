@@ -75,7 +75,7 @@ copyDirRecursive(DATA_SRC, DATA_DEST)
 
 // Selected shared libs that are safe for server usage.
 ensureDir(LIB_DEST)
-for (const filename of ['itemPricing.ts', 'skillChecks.ts']) {
+for (const filename of ['itemPricing.ts', 'skillChecks.ts', 'stats.ts']) {
   const srcPath = join(LIB_SRC, filename)
   const destPath = join(LIB_DEST, filename)
   if (!existsSync(srcPath)) continue

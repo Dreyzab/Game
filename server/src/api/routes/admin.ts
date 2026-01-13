@@ -24,7 +24,11 @@ function isAllowedAdmin(user: AuthedUser | null, headers: Record<string, string 
     return tokenHeader === adminToken
   }
 
-  // 3) Dev fallback: if explicit token not configured, disallow by default (safer)
+  // 3) Dev fallback: allow in development
+  if (process.env.NODE_ENV !== 'production') {
+    return true
+  }
+
   return false
 }
 

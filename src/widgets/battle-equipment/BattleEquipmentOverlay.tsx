@@ -28,6 +28,8 @@ import {
     type InventoryItemType,
     type ItemTemplate,
 } from '@/features/trinity-protocol-inventory'
+import { useAppAuth } from '@/shared/auth'
+import { useDeviceId } from '@/shared/hooks/useDeviceId'
 
 type Props = {
     onClose: () => void
@@ -37,6 +39,8 @@ type Props = {
 export default function BattleEquipmentOverlay({ onClose, title }: Props) {
     const { initialize, moveItemToGrid, equipItem, items, templates, equipment } = useTrinityInventoryStore()
     const [activeId, setActiveId] = useState<string | null>(null)
+    const { getToken } = useAppAuth()
+    const { deviceId } = useDeviceId()
 
     const sensors = useSensors(
         useSensor(MouseSensor, {
@@ -48,8 +52,12 @@ export default function BattleEquipmentOverlay({ onClose, title }: Props) {
     )
 
     useEffect(() => {
-        initialize()
-    }, [initialize])
+        const init = async () => {
+            const token = await getToken()
+            initialize(token || undefined, deviceId)
+        }
+        init()
+    }, [initialize, getToken, deviceId])
 
     const handleDragStart = (event: DragStartEvent) => {
         setActiveId(event.active.id as string)

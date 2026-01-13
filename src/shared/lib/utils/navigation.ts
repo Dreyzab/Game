@@ -42,6 +42,10 @@ export const Routes = {
   COOP_BATTLE: '/coop/:roomCode/battle',
   COOP_RESULTS: '/coop/:roomCode/results',
   RESONANCE: '/resonance',
+  // Survival Mode
+  SURVIVAL_TV: '/survival/tv/:sessionId',
+  SURVIVAL_PLAYER: '/survival/player',
 } as const
 
 export type RoutePath = typeof Routes[keyof typeof Routes]
+

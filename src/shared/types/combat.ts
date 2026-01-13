@@ -51,6 +51,7 @@ export type DamageType =
   | 'sonic'
   | 'ritual'  // Cult/magic damage
   | 'ice'     // Ice Golem, cold attacks
+  | 'explosive' // Grenades
 
 /**
  * Протокол "Холодная Сталь" (Cold Steel Protocol)

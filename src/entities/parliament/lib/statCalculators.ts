@@ -1,4 +1,7 @@
 import { PARLIAMENT_VOICES, type VoiceId } from '@/shared/types/parliament'
+import { type MaxResources, calculateMaxResources } from '@/shared/lib/stats'
+
+export { type MaxResources, calculateMaxResources };
 
 export interface DerivedStats {
     meleeDamageBonus: number
@@ -9,15 +12,6 @@ export interface DerivedStats {
     stagger: number
     maxStaminaBonus: number // Deprecated, kept for compat
     accuracyBonus: number
-}
-
-export interface MaxResources {
-    hp: number
-    ap: number
-    mp: number
-    wp: number
-    pp: number
-    sp: number // Personal contribution to Team SP
 }
 
 /**
@@ -79,48 +73,6 @@ export function calculateDerivedStats(skills: Partial<Record<VoiceId, number>>):
         })
 
     return stats
-}
-
-/**
- * Calculates Maximum Resource pools based on character skills
- * Uses strict formulas with Math.floor for all scaling
- */
-export function calculateMaxResources(skills: Partial<Record<VoiceId, number>>): MaxResources {
-    const get = (id: VoiceId) => skills[id] || 0
-
-    // HP (Body): 50 + Force*0.5 + Resilience*1.0 + Endurance*0.5
-    const hp = 50 + Math.floor(
-        get('force') * 0.5 +
-        get('resilience') * 1.0 +
-        get('endurance') * 0.5
-    )
-
-    // AP (Motorics): 2 + (Reaction + Coordination) / 40. Clamped [2, 10]
-    const rawAp = 2 + Math.floor((get('reaction') + get('coordination')) / 40)
-    const ap = Math.min(10, Math.max(2, rawAp))
-
-    // MP (Mind): 20 + Logic*0.5 + Knowledge*0.5
-    const mp = 20 + Math.floor(
-        get('logic') * 0.5 +
-        get('knowledge') * 0.5
-    )
-
-    // WP (Consciousness): 20 + Authority*0.5 + Courage*0.5 + Suggestion*0.2
-    const wp = 20 + Math.floor(
-        get('authority') * 0.5 +
-        get('courage') * 0.5 +
-        get('suggestion') * 0.2
-    )
-
-    // PP (Psyche): Fixed 100
-    const pp = 100
-
-    // SP (Sociality): Personal contribution = floor((Empathy + Solidarity + Honor) / 10)
-    const sp = Math.floor(
-        (get('empathy') + get('solidarity') + get('honor')) / 10
-    )
-
-    return { hp, ap, mp, wp, pp, sp }
 }
 
 /**

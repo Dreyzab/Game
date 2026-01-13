@@ -1,4 +1,5 @@
-export declare const STARTING_SKILLS: Record<string, number>;
+import { STARTING_SKILLS } from "../shared/lib/stats";
+export { STARTING_SKILLS };
 /**
  * Legacy skill ids used in older VN/progress content.
  * We keep a mapping to migrate existing saves to canonical 18-voice IDs.

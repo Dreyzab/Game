@@ -398,5 +398,31 @@ export const WEAPON_CARDS: Record<string, WeaponCardTemplate[]> = {
       damageType: 'piercing',
     },
   ],
+  // ============ CONSUMABLES / TOOLS ============
+  grenade: [
+    {
+      name: 'Frag Grenade',
+      type: 'attack',
+      apCost: 2,
+      staminaCost: 20,
+      damageMult: 1.0, // Base stats damage (50) might be too high if mult is 1, but let's stick to simple logic
+      optimalRange: [2, 3, 4],
+      description: 'Explosive area damage.',
+      damageType: 'explosive',
+      effects: [{ type: 'aoe_rank', description: 'Explosion' }]
+    }
+  ],
+  field_medkit: [
+    {
+      name: 'First Aid',
+      type: 'voice', // Voice/Support type
+      apCost: 2,
+      staminaCost: 20,
+      damageMult: 0,
+      optimalRange: [],
+      description: 'Heal target for 20 HP.',
+      effects: [{ type: 'heal', value: 20, description: 'Heal 20' }]
+    }
+  ]
 }
 

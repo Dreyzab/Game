@@ -13,6 +13,7 @@ import { presenceRoutes } from "./api/routes/presence";
 import { masteryRoutes } from "./api/routes/mastery";
 import { resonanceRoutes } from "./api/routes/resonance";
 import { adminRoutes } from "./api/routes/admin";
+import { survivalRoutes } from "./api/routes/survival";
 import { wsRoutes } from "./sockets";
 
 export const app = new Elysia()
@@ -25,6 +26,7 @@ export const app = new Elysia()
     .use(combatRoutes)
     .use(vnRoutes)
     .use(coopRoutes)
+    .use(survivalRoutes)
     .use(resonanceRoutes)
     .use(pvpRoutes)
     .use(presenceRoutes)

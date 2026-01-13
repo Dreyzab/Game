@@ -628,36 +628,6 @@ export function getVoicesByGroup(group: AttributeGroup): VoiceDefinition[] {
 }
 
 /**
- * Начальные значения голосов для нового персонажа
- */
-export const STARTING_VOICE_LEVELS: Record<VoiceId, number> = {
-  // ТЕЛО
-  force: 30,
-  resilience: 30,
-  endurance: 30,
-  // МОТОРИКА
-  perception: 35,
-  reaction: 30,
-  coordination: 30,
-  // РАЗУМ
-  logic: 45,
-  rhetoric: 30,
-  knowledge: 30,
-  // СОЗНАНИЕ
-  authority: 30,
-  suggestion: 30,
-  courage: 30,
-  // ПСИХИКА
-  gambling: 20,
-  drama: 20,
-  creativity: 20,
-  // СОЦИАЛЬНОСТЬ
-  empathy: 20,
-  solidarity: 20,
-  honor: 20
-}
-
-/**
  * Получить случайный комментарий голоса
  */
 export function getVoiceComment(

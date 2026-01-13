@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAppAuth } from '@/shared/auth'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Layout } from '@/widgets/layout'
@@ -7,6 +7,7 @@ import { Heading } from '@/shared/ui/components/Heading'
 import { Text } from '@/shared/ui/components/Text'
 import { Button } from '@/shared/ui/components/Button'
 import { authenticatedClient } from '@/shared/api/client'
+import { calculateMaxResources } from '@/shared/lib/stats'
 import { useDeviceId } from '@/shared/hooks/useDeviceId'
 import { VNScreen } from '@/widgets/visual-novel'
 import { DEFAULT_VN_SCENE_ID } from '@/entities/visual-novel/model/scenes'
@@ -29,6 +30,7 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
   const queryClient = useQueryClient()
   const { sceneId: routeSceneId } = useParams<{ sceneId?: string }>()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   type CommitPayload = NonNullable<ReturnType<typeof consumePayload>>
   type ImmediateEffect = Extract<VisualNovelChoiceEffect, { type: 'immediate' }>
 
@@ -37,9 +39,11 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
   const trackScene = useVisualNovelSessionStore((state) => state.trackScene)
   const recordChoice = useVisualNovelSessionStore((state) => state.recordChoice)
   const consumePayload = useVisualNovelSessionStore((state) => state.consumePayload)
+  const applySystemHpChange = useVisualNovelSessionStore((state) => state.applySystemHpChange)
   const pendingHpDelta = useVisualNovelSessionStore((state) => state.pendingHpDelta)
 
   const [floatingEvents, setFloatingEvents] = useState<FloatingTextEvent[]>([])
+  const appliedHpDeltaKeyRef = useRef<string | null>(null)
 
   const [isNicknamePromptOpen, setNicknamePromptOpen] = useState(false)
   const [nicknameDraft, setNicknameDraft] = useState('')
@@ -93,6 +97,36 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
     },
   })
 
+  // Fetch Inventory to determine loadout
+  const myInventoryQuery = useQuery({
+    queryKey: ['myInventory'],
+    enabled: isLoaded,
+    retry: false,
+    queryFn: async () => {
+      const token = await getToken()
+      const client = authenticatedClient(token || undefined, deviceId)
+      const { data, error } = await client.inventory.get()
+      if (error) throw error
+      return data
+    },
+  })
+
+  const currentEquipment = useMemo(() => {
+    const data = myInventoryQuery.data
+    if (!data || 'error' in data || !('equipment' in data)) return []
+    const eq = data.equipment as Record<string, any>
+    const weapons: string[] = []
+
+    if (eq.primary?.templateId) weapons.push(eq.primary.templateId)
+    if (eq.secondary?.templateId) weapons.push(eq.secondary.templateId)
+    if (eq.melee?.templateId) weapons.push(eq.melee.templateId)
+
+    // Also check quick slots for grenades/consumables logic?
+    // For now, let's stick to main weapons as per task description.
+
+    return weapons
+  }, [myInventoryQuery.data])
+
   const initialSceneId =
     lockedSceneId ?? routeSceneId ?? vnStateQuery.data?.progress?.currentScene ?? DEFAULT_VN_SCENE_ID
   const initialFlags = useMemo(() => {
@@ -115,18 +149,27 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
     return merged
   }, [pendingAttributeDeltas, vnStateQuery.data])
 
-  const hp = useMemo(() => {
+  const resources = useMemo(() => {
+    const maxResources = calculateMaxResources(attributes)
+
     const baseHpRaw = (vnStateQuery.data as any)?.progress?.hp
-    const baseMaxHpRaw = (vnStateQuery.data as any)?.progress?.maxHp
-    const maxHp =
-      typeof baseMaxHpRaw === 'number' && Number.isFinite(baseMaxHpRaw) ? Math.max(1, Math.trunc(baseMaxHpRaw)) : 100
     const baseHp =
       typeof baseHpRaw === 'number' && Number.isFinite(baseHpRaw)
-        ? Math.max(0, Math.min(maxHp, Math.trunc(baseHpRaw)))
-        : maxHp
-    const nextHp = Math.max(0, Math.min(maxHp, baseHp + pendingHpDelta))
-    return { hp: nextHp, maxHp }
-  }, [pendingHpDelta, vnStateQuery.data])
+        ? Math.max(0, Math.min(maxResources.hp, Math.trunc(baseHpRaw)))
+        : maxResources.hp
+    const nextHp = Math.max(0, Math.min(maxResources.hp, baseHp + pendingHpDelta))
+
+    return {
+      hp: nextHp,
+      maxHp: maxResources.hp,
+      ap: maxResources.ap,
+      maxAp: maxResources.ap,
+      mp: maxResources.mp,
+      maxMp: maxResources.mp,
+      wp: maxResources.wp,
+      maxWp: maxResources.wp,
+    }
+  }, [attributes, pendingHpDelta, vnStateQuery.data])
 
   const handleImmediateEffects = useCallback(
     (sceneId: string, choice: VisualNovelChoice) => {
@@ -181,7 +224,16 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
           buildUrl(Routes.BATTLE, {
             returnScene: pickSceneId(data.returnScene) ?? sceneId,
             defeatScene: pickSceneId(data.defeatScene) ?? sceneId,
+            scenarioId: pickSceneId(data.enemyKey),
             enemyKey: pickSceneId(data.enemyKey),
+            hp: String(resources.hp),
+            maxHp: String(resources.maxHp),
+            ap: String(resources.ap),
+            maxAp: String(resources.maxAp),
+            mp: String(resources.mp),
+            maxMp: String(resources.maxMp),
+            wp: String(resources.wp),
+            maxWp: String(resources.maxWp),
           })
         )
         return
@@ -195,11 +247,19 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
             returnScene: pickSceneId(data.returnScene) ?? 'combat_tutorial_victory',
             defeatScene: pickSceneId(data.defeatScene) ?? 'combat_tutorial_defeat',
             scenarioId: pickSceneId(data.enemyKey),
+            hp: String(resources.hp),
+            maxHp: String(resources.maxHp),
+            ap: String(resources.ap),
+            maxAp: String(resources.maxAp),
+            mp: String(resources.mp),
+            maxMp: String(resources.maxMp),
+            wp: String(resources.wp),
+            maxWp: String(resources.maxWp),
           })
         )
       }
     },
-    [navigate, setNicknameError, setNicknamePromptOpen]
+    [navigate, resources.ap, resources.hp, resources.maxAp, resources.maxHp, resources.maxMp, resources.maxWp, resources.mp, resources.wp, setNicknameError, setNicknamePromptOpen, currentEquipment]
   )
 
   const viewModel = useVisualNovelViewModel(
@@ -246,6 +306,26 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
     vnStateQuery.isError,
     vnStateQuery.isLoading,
   ])
+
+  useEffect(() => {
+    const hpDeltaParam = searchParams.get('hpDelta')
+    if (!hpDeltaParam) return
+    if (rootSceneId !== initialSceneId) return
+
+    const key = `${initialSceneId}:${hpDeltaParam}`
+    if (appliedHpDeltaKeyRef.current === key) return
+
+    appliedHpDeltaKeyRef.current = key
+
+    const parsedDelta = Number(hpDeltaParam)
+    if (Number.isFinite(parsedDelta) && parsedDelta !== 0) {
+      applySystemHpChange(Math.trunc(parsedDelta), initialSceneId)
+    }
+
+    const nextParams = new URLSearchParams(searchParams)
+    nextParams.delete('hpDelta')
+    setSearchParams(nextParams, { replace: true })
+  }, [applySystemHpChange, initialSceneId, rootSceneId, searchParams, setSearchParams])
 
   useEffect(() => {
     trackScene(viewModel.scene.id)
@@ -377,8 +457,8 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
         isPending={viewModel.isPending}
         flags={viewModel.flags}
         skills={attributes}
-        hp={hp.hp}
-        maxHp={hp.maxHp}
+        hp={resources.hp}
+        maxHp={resources.maxHp}
         floatingEvents={floatingEvents}
         onAdvance={viewModel.goNext}
         onChoice={viewModel.choose}
