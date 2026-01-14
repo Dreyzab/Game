@@ -11,7 +11,7 @@ import { useDeviceId } from '@/shared/hooks/useDeviceId'
 import { API_BASE_URL } from '@/shared/api/client'
 import { SurvivalBunkerDashboard } from '@/features/survival-bunker'
 import { SurvivalDatapad } from '@/features/survival-datapad'
-import { SurvivalHexMap } from '@/features/survival-hex-map'
+import { SurvivalMapbox } from '@/features/survival-hex-map'
 import { SurvivalMapEditor } from '@/features/survival-hex-map/ui/SurvivalMapEditor'
 import type {
     SurvivalEvent,
@@ -835,7 +835,7 @@ export default function SurvivalPlayerPage() {
                 ) : baseMode === 'map' ? (
                     <div className="min-h-screen bg-black text-white flex items-center justify-center">SCHEMATIC VIEW PLACEHOLDER</div>
                 ) : baseMode === 'hexmap' ? (
-                    <SurvivalHexMap />
+                    <SurvivalMapbox />
                 ) : baseMode === 'datapad' ? (
                     <SurvivalDatapad
                         session={session}

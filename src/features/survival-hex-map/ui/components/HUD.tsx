@@ -122,7 +122,7 @@ export const HUD = ({ player, turn, selectedHex, mapData, visibleHexes, onMove, 
             )}
 
             <div className="text-xs text-gray-500 mb-4">
-              DISTANCE: {dist}km | COST: {moveCost} AP
+              DISTANCE: {dist * 25}m | COST: {moveCost} AP
             </div>
 
             <button

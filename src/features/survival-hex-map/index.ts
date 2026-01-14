@@ -4,3 +4,4 @@
  */
 
 export { SurvivalHexMap } from './ui/SurvivalHexMap'
+export { SurvivalMapbox } from './ui/SurvivalMapbox'
