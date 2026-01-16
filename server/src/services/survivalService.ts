@@ -558,25 +558,31 @@ function applyStaminaRegen(state: SurvivalState, ticks: number): boolean {
         if (ensurePlayerStamina(player)) changed = true
         const pos = ensurePlayerHexPos(player)
 
+        let stamina = player.stamina ?? DEFAULT_STAMINA
+        const maxStamina = player.maxStamina ?? DEFAULT_STAMINA
+
         const baseRegen = STAMINA_REGEN_PER_TICK * ticks
         const regen = isBunkerHex(pos) ? baseRegen * STAMINA_REGEN_BUNKER_MULTIPLIER : baseRegen
-        if (regen > 0 && player.stamina < player.maxStamina) {
-            player.stamina = Math.min(player.maxStamina, player.stamina + regen)
+        if (regen > 0 && stamina < maxStamina) {
+            stamina = Math.min(maxStamina, stamina + regen)
+            player.stamina = stamina
             changed = true
         }
 
-        if (player.stamina >= player.maxStamina) continue
-        if (player.maxStamina - player.stamina < STAMINA_REGEN_MIN_MISSING) continue
+        if (stamina >= maxStamina) continue
+        if (maxStamina - stamina < STAMINA_REGEN_MIN_MISSING) continue
 
         for (let i = 0; i < ticks; i += 1) {
-            if (player.stamina >= player.maxStamina) break
+            if (stamina >= maxStamina) break
             if (consumeInventoryItemByTag(player, 'sustenance')) {
-                player.stamina = Math.min(player.maxStamina, player.stamina + STAMINA_REGEN_FOOD_RESTORE)
+                stamina = Math.min(maxStamina, stamina + STAMINA_REGEN_FOOD_RESTORE)
+                player.stamina = stamina
                 changed = true
             }
-            if (player.stamina >= player.maxStamina) break
+            if (stamina >= maxStamina) break
             if (consumeInventoryItemByTag(player, 'water')) {
-                player.stamina = Math.min(player.maxStamina, player.stamina + STAMINA_REGEN_WATER_RESTORE)
+                stamina = Math.min(maxStamina, stamina + STAMINA_REGEN_WATER_RESTORE)
+                player.stamina = stamina
                 changed = true
             }
         }
