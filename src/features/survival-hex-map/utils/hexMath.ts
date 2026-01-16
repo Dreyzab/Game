@@ -43,17 +43,27 @@ export const getNeighbors = (hex: HexCoordinate): HexCoordinate[] => {
 }
 
 // Simple BFS pathfinding for uniform movement cost
-export const getPath = (start: HexCoordinate, end: HexCoordinate, map: HexCell[]): HexCoordinate[] => {
+export const getPath = (
+  start: HexCoordinate,
+  end: HexCoordinate,
+  mapData: Map<string, HexCell> | HexCell[]
+): HexCoordinate[] => {
   const queue: HexCoordinate[] = [start]
   const cameFrom: Record<string, HexCoordinate | null> = {}
   const startKey = `${start.q},${start.r}`
   cameFrom[startKey] = null
 
-  const mapSet = new Set(map.map((h) => `${h.q},${h.r}`))
+  // Normalize to Map for O(1) access if array passed (fallback)
+  // Ideally caller should pass a Map
+  let map: Map<string, HexCell>
+  if (Array.isArray(mapData)) {
+    map = new Map(mapData.map(h => [`${h.q},${h.r}`, h]))
+  } else {
+    map = mapData
+  }
 
   while (queue.length > 0) {
     const current = queue.shift()!
-    const currentKey = `${current.q},${current.r}`
 
     if (current.q === end.q && current.r === end.r) {
       break
@@ -62,7 +72,11 @@ export const getPath = (start: HexCoordinate, end: HexCoordinate, map: HexCell[]
     const neighbors = getNeighbors(current)
     for (const next of neighbors) {
       const nextKey = `${next.q},${next.r}`
-      if (mapSet.has(nextKey) && !(nextKey in cameFrom)) {
+      const cell = map.get(nextKey)
+
+      // Check if valid hex AND not an obstacle (except if it's the target?)
+      // Usually you can't enter an obstacle. 
+      if (cell && !cell.isObstacle && !(nextKey in cameFrom)) {
         cameFrom[nextKey] = current
         queue.push(next)
       }
@@ -76,7 +90,7 @@ export const getPath = (start: HexCoordinate, end: HexCoordinate, map: HexCell[]
   const path: HexCoordinate[] = []
   while (current) {
     path.push(current)
-    const key = `${current.q},${current.r}`
+    const key: string = `${current.q},${current.r}`
     current = cameFrom[key] || null
     if (current?.q === start.q && current?.r === start.r) {
       path.push(start)

@@ -1,6 +1,6 @@
-import type { HexCell, HexCoordinate, ResourceType, SurvivalPlayer } from '../../types'
+import type { HexCell, HexCoordinate, SurvivalPlayer } from '../../types'
 import { getHexDistance, hexToString } from '../../utils/hexMath'
-import { getPossibleLoot } from '../../data/lootTables'
+import { InspectorPanel } from './InspectorPanel'
 
 interface HUDProps {
   player: SurvivalPlayer
@@ -8,33 +8,54 @@ interface HUDProps {
   selectedHex: HexCoordinate | null
   mapData: HexCell[]
   visibleHexes: Set<string>
-  onMove: () => void
+  onMove: () => void | Promise<void>
   onEndTurn: () => void
+  movementStatus?: {
+    destination: HexCoordinate
+    etaSeconds: number | null
+  } | null
+  movementPool?: {
+    current: number
+    max: number
+    label: string
+  }
+  movementStats?: {
+    distance: number
+    moveCost: number
+    isReachable: boolean
+    moveCostUnit?: string
+  } | null
 }
 
-export const HUD = ({ player, turn, selectedHex, mapData, visibleHexes, onMove, onEndTurn }: HUDProps) => {
+function formatEta(seconds: number): string {
+  const s = Math.max(0, Math.floor(seconds))
+  const mm = Math.floor(s / 60)
+  const ss = s % 60
+  return `${mm.toString().padStart(2, '0')}:${ss.toString().padStart(2, '0')}`
+}
+
+export const HUD = ({
+  player,
+  turn,
+  selectedHex,
+  mapData,
+  visibleHexes,
+  onMove,
+  onEndTurn,
+  movementStatus,
+  movementPool,
+  movementStats,
+}: HUDProps) => {
   const selectedCell = selectedHex ? mapData.find((h) => h.q === selectedHex.q && h.r === selectedHex.r) : null
   const dist = selectedHex ? getHexDistance(player.position, selectedHex) : 0
   const moveCost = dist
-
   const isVisible = selectedHex ? visibleHexes.has(hexToString(selectedHex)) : false
-
-  const getResourceLabel = (type: ResourceType) => {
-    switch (type) {
-      case 'SCRAP':
-        return <span className="text-gray-400">SCRAP HEAP</span>
-      case 'FOOD':
-        return <span className="text-green-400">GAME TRAIL</span>
-      case 'WATER':
-        return <span className="text-blue-400">WATER SOURCE</span>
-      case 'FUEL':
-        return <span className="text-orange-400">FUEL DEPOT</span>
-      case 'TECH':
-        return <span className="text-purple-400">TECH CACHE</span>
-      default:
-        return <span className="text-gray-600">NONE</span>
-    }
-  }
+  const pool = movementPool ?? { current: player.ap, max: player.maxAp, label: 'ACTION_PTS' }
+  const movementDistance = movementStats?.distance ?? dist
+  const movementCost = movementStats?.moveCost ?? moveCost
+  const movementReachable = movementStats?.isReachable ?? true
+  const moveCostUnit = movementStats?.moveCostUnit ?? (pool.label === 'STAMINA' ? 'STAMINA' : 'AP')
+  const poolPercent = pool.max > 0 ? Math.min(100, (pool.current / pool.max) * 100) : 0
 
   return (
     <>
@@ -60,15 +81,27 @@ export const HUD = ({ player, turn, selectedHex, mapData, visibleHexes, onMove, 
         <div className="bg-terminal-black/90 border-l-4 border-terminal-green p-4 backdrop-blur-sm shadow-lg shadow-green-900/10">
           <h3 className="text-terminal-dim text-xs font-bold mb-3 uppercase tracking-wider">Operator Status</h3>
 
+          {movementStatus && (
+            <div className="mb-4 border border-cyan-500/30 bg-cyan-950/20 rounded p-2">
+              <div className="text-[10px] text-cyan-300 uppercase tracking-widest">Movement</div>
+              <div className="text-xs text-white">
+                В пути → ({movementStatus.destination.q}, {movementStatus.destination.r})
+              </div>
+              <div className="text-[10px] text-cyan-200/80 font-mono">
+                ETA: {movementStatus.etaSeconds === null ? '…' : formatEta(movementStatus.etaSeconds)}
+              </div>
+            </div>
+          )}
+
           <div className="mb-4">
             <div className="flex justify-between text-xs mb-1">
-              <span className="text-terminal-green">ACTION_PTS</span>
+              <span className="text-terminal-green">{pool.label}</span>
               <span className="text-white">
-                {player.ap} / {player.maxAp}
+                {pool.current} / {pool.max}
               </span>
             </div>
             <div className="h-2 bg-gray-800 w-full rounded-sm overflow-hidden">
-              <div className="h-full bg-terminal-green transition-all duration-300" style={{ width: `${(player.ap / player.maxAp) * 100}%` }} />
+              <div className="h-full bg-terminal-green transition-all duration-300" style={{ width: `${poolPercent}%` }} />
             </div>
           </div>
 
@@ -86,56 +119,16 @@ export const HUD = ({ player, turn, selectedHex, mapData, visibleHexes, onMove, 
 
       <div className="absolute bottom-6 right-6 flex flex-col gap-4 items-end pointer-events-auto">
         {selectedCell && (
-          <div className="bg-terminal-black/90 border border-hex-border p-4 w-64 backdrop-blur-sm mb-2 text-right">
-            <h4 className="text-white font-bold mb-1 uppercase tracking-wider">{selectedCell.biome}</h4>
-
-            {isVisible ? (
-              <>
-                <div className="flex justify-end items-center gap-2 mb-2 text-sm font-mono border-b border-gray-800 pb-2">
-                  <span className="text-gray-500 text-xs">DETECTED:</span>
-                  {getResourceLabel(selectedCell.resource)}
-                </div>
-
-                <div className="mb-2">
-                  <span className="text-gray-500 text-xs block mb-1">POSSIBLE FINDS:</span>
-                  <div className="flex flex-wrap justify-end gap-1">
-                    {getPossibleLoot(selectedCell.biome, selectedCell.resource).map((item) => (
-                      <span key={item} className="text-[10px] bg-gray-800 text-gray-300 px-1 py-0.5 rounded border border-gray-700">
-                        {item}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="text-xs text-gray-400 mb-2">
-                  THREAT:{' '}
-                  <span className={selectedCell.threatLevel === 'SAFE' ? 'text-green-400' : 'text-red-400'}>
-                    {selectedCell.threatLevel}
-                  </span>
-                </div>
-              </>
-            ) : (
-              <div className="flex flex-col items-end gap-1 mb-3 border-b border-gray-800 pb-2">
-                <div className="text-yellow-600 font-bold text-xs animate-pulse">SIGNAL LOST</div>
-                <div className="text-gray-500 text-xs italic">Move closer to scan</div>
-              </div>
-            )}
-
-            <div className="text-xs text-gray-500 mb-4">
-              DISTANCE: {dist * 25}m | COST: {moveCost} AP
-            </div>
-
-            <button
-              onClick={onMove}
-              disabled={player.ap < moveCost}
-              className={`w-full py-2 px-4 text-sm font-bold border transition-colors ${player.ap >= moveCost
-                ? 'bg-terminal-green/10 border-terminal-green text-terminal-green hover:bg-terminal-green hover:text-black'
-                : 'bg-gray-800/50 border-gray-700 text-gray-500 cursor-not-allowed'
-                }`}
-            >
-              {player.ap >= moveCost ? 'INITIATE MOVEMENT' : 'INSUFFICIENT AP'}
-            </button>
-          </div>
+          <InspectorPanel
+            cell={selectedCell}
+            visible={isVisible}
+            distance={movementDistance}
+            moveCost={movementCost}
+            playerAp={pool.current}
+            isReachable={movementReachable}
+            moveCostUnit={moveCostUnit}
+            onMove={onMove}
+          />
         )}
 
         <button

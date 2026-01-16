@@ -201,6 +201,8 @@ export interface EventEffect {
     recruitNpc?: { id: string; name: string; dailyCost: number; passiveBonus: Partial<BaseResources> }
     /** Triggers a follow-up event */
     triggerEventId?: string
+    /** Patch session flags (server applies this to state.flags) */
+    setFlags?: Record<string, unknown>
     /** Log message to broadcast */
     logMessage?: string
     /** Success chance (0-100, undefined = guaranteed) */
@@ -230,6 +232,8 @@ export type EventTag = 'trader' | 'combat' | 'loot' | 'npc' | 'hazard' | 'miniga
 export interface SurvivalEvent {
     id: string
     zone: ZoneType
+    /** If set, this event is tied to a hex on the tactical map */
+    hex?: { q: number; r: number }
     title: string
     text: string
     imageUrl?: string
@@ -252,6 +256,121 @@ export interface SurvivalEvent {
 
 export type CrisisLevel = 'calm' | 'warning' | 'crisis'
 
+// ============================================================================
+// SESSION PHASES (IN-GAME TIME)
+// ============================================================================
+
+/**
+ * High-level day cycle phase (drives rules like monster movement).
+ * - `start`: Morning briefing (06:00 game time)
+ * - `day`: Main gameplay (daytime)
+ * - `monsters`: Main gameplay + monster movement (night)
+ */
+export type SurvivalCyclePhase = 'start' | 'day' | 'monsters'
+
+// ============================================================================
+// WORLD TIME (SERVER-AUTHORITATIVE, LORE TIME)
+// ============================================================================
+
+/**
+ * Canonical world time is stored as lore milliseconds on the server.
+ * The server advances it using a timeScale factor (lore_ms per real_ms).
+ *
+ * Day cycle rules (design):
+ * - A full lore day (24h) passes in 12 real minutes.
+ * - "Day start" is at 06:00 lore time (used for daily events/reset).
+ */
+export interface SurvivalWorldTimeConfig {
+    /** Lore time scale factor: lore_ms per real_ms (default 120). */
+    timeScale: number
+    /** Real duration of one full lore day, in milliseconds (default 12 minutes). */
+    realDayDurationMs: number
+    /** Lore minute-of-day that marks the start of a new day (default 06:00). */
+    dayStartMinute: number
+}
+
+export const DEFAULT_SURVIVAL_TIME_CONFIG: SurvivalWorldTimeConfig = {
+    timeScale: 120,
+    realDayDurationMs: 12 * 60 * 1000,
+    dayStartMinute: 6 * 60,
+}
+
+/**
+ * Calculate deterministic GameDayID from world time
+ * Used on both client and server to check "is it the same day?"
+ * @param worldTimeMs - World time in lore milliseconds
+ * @param dayStartMinute - Minute of day when day starts (default 6:00 = 360)
+ * @returns Integer day ID (1-based)
+ */
+export function getGameDayId(worldTimeMs: number, dayStartMinute = 6 * 60): number {
+    const dayStartMs = dayStartMinute * 60 * 1000
+    const loreDayMs = 24 * 60 * 60 * 1000
+    const dayIndex = Math.floor((worldTimeMs - dayStartMs) / loreDayMs)
+    return Math.max(1, dayIndex + 1)
+}
+
+/**
+ * Calculate distance between two hex positions (axial coordinates)
+ * Standard formula: max(|Δq|, |Δr|, |Δq+Δr|)
+ */
+export function hexDistance(a: { q: number; r: number }, b: { q: number; r: number }): number {
+    const dq = Math.abs(a.q - b.q)
+    const dr = Math.abs(a.r - b.r)
+    const ds = Math.abs((a.q + a.r) - (b.q + b.r))
+    return Math.max(dq, dr, ds)
+}
+
+// ============================================================================
+// DAILY EVENTS & ZONE INTERACTIONS
+// ============================================================================
+
+export type DailyEventType = 'traders_arrived' | 'crisis'
+
+export interface DailyEventState {
+    id: string
+    type: DailyEventType
+    title: string
+    description: string
+    /** Lore timestamp when the event became active. */
+    startedAtWorldTimeMs: number
+    /** Lore timestamp when the event expires (typically next day start). */
+    endsAtWorldTimeMs: number
+    /** Optional choices for interactive events */
+    options?: EventOption[]
+    /** Whether the event has been resolved */
+    resolved?: boolean
+    /** Which option was chosen (if any) */
+    chosenOptionId?: string
+}
+
+export type ZoneActionId = 'scavenge'
+
+export interface ZoneActionLock {
+    lockedByPlayerId: number | null
+    /** Lore timestamp when the lock lease expires (to recover from disconnects). */
+    lockExpiresAtWorldTimeMs: number | null
+}
+
+export interface ZoneActionInProgress {
+    actionId: ZoneActionId
+    startedByPlayerId: number
+    /** Lore timestamp when the action completes. */
+    completesAtWorldTimeMs: number
+}
+
+export interface ZoneActionState {
+    chargesPerDay: number
+    chargesRemaining: number
+    lock: ZoneActionLock
+    inProgress: ZoneActionInProgress | null
+}
+
+export interface ZoneState {
+    actions: Record<ZoneActionId, ZoneActionState>
+    /** Lore timestamp of last daily reset applied to this zone. */
+    lastDailyResetWorldTimeMs: number | null
+}
+
 /** Player's personal inventory (on their phone) */
 export interface PlayerInventory {
     items: Array<{ templateId: string; quantity: number }>
@@ -266,7 +385,30 @@ export interface SurvivalPlayer {
     isWounded: boolean
     currentZone: ZoneType | null
     activeEventId: string | null
+    /** Full event object for persistence (replaces in-memory Map) */
+    activeEvent?: SurvivalEvent | null
+    /** If present, player is performing an exclusive zone action. */
+    activeZoneActionId?: ZoneActionId | null
     joinedAt: number
+
+    // === Map Movement (server-authoritative) ===
+    /** Current hex position on the map (axial coordinates) */
+    hexPos?: { q: number; r: number } | null
+    /** Current stamina for movement */
+    stamina?: number
+    /** Maximum stamina */
+    maxStamina?: number
+    /** Movement in progress (null if stationary) */
+    movementState?: {
+        /** Path to walk through */
+        path: Array<{ q: number; r: number }>
+        /** Lore timestamp when movement started (server-authoritative). */
+        startedAtWorldTimeMs?: number
+        /** Lore duration per hex step (server-authoritative). */
+        msPerHex?: number
+        /** Lore timestamp when player arrives at destination */
+        arriveAtWorldTimeMs: number
+    } | null
 }
 
 /** Activity log entry shown on TV */
@@ -294,6 +436,15 @@ export interface SurvivalState {
     hostPlayerId: number
     status: 'lobby' | 'active' | 'paused' | 'ended'
 
+    // In-game time & phases
+    /** Canonical lore time (server authoritative). */
+    worldTimeMs: number
+    worldDay: number
+    /** Minutes since midnight (0..1439) */
+    worldTimeMinutes: number
+    phase: SurvivalCyclePhase
+    phaseStartedAt: number
+
     // Timer (in seconds, counts down)
     timerSeconds: number
     timerStartedAt: number | null
@@ -319,6 +470,15 @@ export interface SurvivalState {
 
     // Zone visit counters (for ambush system)
     zoneVisits: Record<ZoneType, number>
+
+    // World time config (server authoritative; clients may display it)
+    timeConfig?: SurvivalWorldTimeConfig
+
+    // Daily global event (06:00→06:00 window)
+    dailyEvent?: DailyEventState | null
+
+    // Shared zone state (exclusive interactions/locks)
+    zones?: Record<ZoneType, ZoneState>
 
     createdAt: number
     updatedAt: number
@@ -364,5 +524,11 @@ export interface SurvivalSocketEvents {
     'survival:state_update': { sessionId: string; state: SurvivalState }
     'survival:log_entry': { sessionId: string; entry: LogEntry }
     'survival:crisis': { sessionId: string; level: CrisisLevel; eventId?: string }
-    'survival:timer_sync': { sessionId: string; timerSeconds: number }
+    'survival:timer_sync': {
+        sessionId: string
+        timerSeconds: number
+        worldDay?: number
+        worldTimeMinutes?: number
+        phase?: SurvivalCyclePhase
+    }
 }

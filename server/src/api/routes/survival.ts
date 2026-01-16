@@ -6,10 +6,11 @@
 import { Elysia, t } from "elysia"
 import { auth } from "../auth"
 import { survivalService } from "../../services/survivalService"
+import { traderService } from "../../services/traderService"
 import { db } from "../../db"
 import { players } from "../../db/schema"
 import { eq } from "drizzle-orm"
-import type { PlayerRole, ZoneType } from "../../shared/types/survival"
+import type { PlayerRole, ZoneType, ZoneActionId } from "../../shared/types/survival"
 
 // Helper to get internal player ID from auth user
 async function getPlayerId(user: { id: string; type: 'clerk' | 'guest' }): Promise<number | null> {
@@ -38,6 +39,12 @@ function normalizeRole(role?: string): PlayerRole | undefined {
 function normalizeZone(zone?: string): ZoneType | undefined {
     if (!zone) return undefined
     if (['kitchen', 'bathroom', 'bedroom', 'corridor', 'living_room'].includes(zone)) return zone as ZoneType
+    return undefined
+}
+
+function normalizeZoneAction(action?: string): ZoneActionId | undefined {
+    if (!action) return undefined
+    if (['scavenge'].includes(action)) return action as ZoneActionId
     return undefined
 }
 
@@ -152,6 +159,30 @@ export const survivalRoutes = (app: Elysia) =>
                     })
                 })
 
+                // Start an exclusive zone action (e.g. scavenge) with server lock + ETA
+                .post("/sessions/:id/zone-action", async ({ user, params, body }) => {
+                    if (!user) return { error: "Unauthorized", status: 401 }
+                    const playerId = await getPlayerId(user as any)
+                    if (!playerId) return { error: "Player profile not found", status: 404 }
+
+                    const zone = normalizeZone(body.zoneId)
+                    if (!zone) return { error: "Invalid zone", status: 400 }
+                    const actionId = normalizeZoneAction(body.actionId)
+                    if (!actionId) return { error: "Invalid action", status: 400 }
+
+                    try {
+                        const result = await survivalService.startZoneAction(params.id, playerId, zone, actionId)
+                        return result
+                    } catch (e: any) {
+                        return { error: e.message, status: 400 }
+                    }
+                }, {
+                    body: t.Object({
+                        zoneId: t.String(),
+                        actionId: t.String(),
+                    })
+                })
+
                 // Resolve event option
                 .post("/sessions/:id/resolve", async ({ user, params, body }) => {
                     if (!user) return { error: "Unauthorized", status: 401 }
@@ -198,6 +229,111 @@ export const survivalRoutes = (app: Elysia) =>
                             templateId: t.String(),
                             quantity: t.Number(),
                         })),
+                    })
+                })
+
+                // Move player to target hex
+                .post("/sessions/:id/move", async ({ user, params, body }) => {
+                    if (!user) return { error: "Unauthorized", status: 401 }
+                    const playerId = await getPlayerId(user as any)
+                    if (!playerId) return { error: "Player profile not found", status: 404 }
+
+                    try {
+                        const result = await survivalService.movePlayer(
+                            params.id,
+                            playerId,
+                            body.targetHex
+                        )
+                        return result
+                    } catch (e: any) {
+                        return { error: e.message, status: 400 }
+                    }
+                }, {
+                    body: t.Object({
+                        targetHex: t.Object({
+                            q: t.Number(),
+                            r: t.Number(),
+                        })
+                    })
+                })
+
+                // Get trader inventory (only when traders_arrived event is active)
+                .get("/sessions/:id/trader", async ({ user, params }) => {
+                    if (!user) return { error: "Unauthorized", status: 401 }
+                    const playerId = await getPlayerId(user as any)
+                    if (!playerId) return { error: "Player profile not found", status: 404 }
+
+                    const session = survivalService.getSession(params.id)
+                    if (!session) return { error: "Session not found", status: 404 }
+
+                    // Check if traders are here
+                    if (session.dailyEvent?.type !== 'traders_arrived') {
+                        return { error: "Traders not available today", status: 400 }
+                    }
+
+                    const player = session.players[playerId]
+                    const inventory = traderService.getTraderInventory(params.id, player)
+
+                    if (!inventory) {
+                        // Generate inventory on first access
+                        const newInventory = traderService.generateTraderInventory(params.id)
+                        return {
+                            inventory: player?.role === 'face'
+                                ? newInventory.map(i => ({ ...i, price: Math.floor(i.price * 0.5) }))
+                                : newInventory
+                        }
+                    }
+
+                    return { inventory }
+                })
+
+                // Buy item from trader
+                .post("/sessions/:id/trader/buy", async ({ user, params, body }) => {
+                    if (!user) return { error: "Unauthorized", status: 401 }
+                    const playerId = await getPlayerId(user as any)
+                    if (!playerId) return { error: "Player profile not found", status: 404 }
+
+                    const session = survivalService.getSession(params.id)
+                    if (!session) return { error: "Session not found", status: 404 }
+
+                    if (session.dailyEvent?.type !== 'traders_arrived') {
+                        return { error: "Traders not available", status: 400 }
+                    }
+
+                    const player = session.players[playerId]
+                    if (!player) return { error: "Player not in session", status: 404 }
+
+                    const result = traderService.buyFromTrader(session, player, body.templateId, body.quantity)
+                    return result
+                }, {
+                    body: t.Object({
+                        templateId: t.String(),
+                        quantity: t.Number({ minimum: 1, multipleOf: 1 }),
+                    })
+                })
+
+                // Sell item to trader
+                .post("/sessions/:id/trader/sell", async ({ user, params, body }) => {
+                    if (!user) return { error: "Unauthorized", status: 401 }
+                    const playerId = await getPlayerId(user as any)
+                    if (!playerId) return { error: "Player profile not found", status: 404 }
+
+                    const session = survivalService.getSession(params.id)
+                    if (!session) return { error: "Session not found", status: 404 }
+
+                    if (session.dailyEvent?.type !== 'traders_arrived') {
+                        return { error: "Traders not available", status: 400 }
+                    }
+
+                    const player = session.players[playerId]
+                    if (!player) return { error: "Player not in session", status: 404 }
+
+                    const result = traderService.sellToTrader(session, player, body.templateId, body.quantity)
+                    return result
+                }, {
+                    body: t.Object({
+                        templateId: t.String(),
+                        quantity: t.Number({ minimum: 1, multipleOf: 1 }),
                     })
                 })
         )

@@ -2,24 +2,31 @@
 .flex {
   display: flex;
 }
+
 .flex-col {
   flex-direction: column;
 }
+
 .items-center {
   align-items: center;
 }
+
 .justify-center {
   justify-content: center;
 }
+
 .justify-between {
   justify-content: space-between;
 }
+
 .gap-4 {
   gap: var(--space-4);
 }
+
 .gap-8 {
   gap: var(--space-8);
 }
+
 .gap-16 {
   gap: var(--space-16);
 }
@@ -27,16 +34,20 @@
 .m-0 {
   margin: 0;
 }
+
 .mt-8 {
   margin-top: var(--space-8);
 }
+
 .mb-8 {
   margin-bottom: var(--space-8);
 }
+
 .mx-8 {
   margin-left: var(--space-8);
   margin-right: var(--space-8);
 }
+
 .my-8 {
   margin-top: var(--space-8);
   margin-bottom: var(--space-8);
@@ -45,18 +56,22 @@
 .p-0 {
   padding: 0;
 }
+
 .py-8 {
   padding-top: var(--space-8);
   padding-bottom: var(--space-8);
 }
+
 .px-8 {
   padding-left: var(--space-8);
   padding-right: var(--space-8);
 }
+
 .py-16 {
   padding-top: var(--space-16);
   padding-bottom: var(--space-16);
 }
+
 .px-16 {
   padding-left: var(--space-16);
   padding-right: var(--space-16);
@@ -65,6 +80,7 @@
 .block {
   display: block;
 }
+
 .hidden {
   display: none;
 }
@@ -152,6 +168,7 @@
   .stat-value {
     font-size: var(--font-size-2xl);
   }
+
   .panel-section-title {
     font-size: var(--font-size-xs);
     letter-spacing: 0.24em;
@@ -162,6 +179,7 @@
   .stat-value {
     font-size: var(--font-size-xl);
   }
+
   .stat-label {
     font-size: 10px;
     letter-spacing: 0.2em;
@@ -209,6 +227,7 @@
   .quick-action {
     transition: border-color var(--duration-fast) var(--ease-standard);
   }
+
   .quick-action:hover {
     transform: none;
     box-shadow: var(--shadow-md);
@@ -312,6 +331,7 @@
 }
 
 @media (max-width: 1023px) {
+
   .panel-span-12,
   .panel-span-8,
   .panel-span-7,
@@ -325,6 +345,7 @@
 }
 
 @media (max-width: 767px) {
+
   .panel-span-12,
   .panel-span-8,
   .panel-span-7,
@@ -476,7 +497,10 @@
 
 /* VN Mobile Optimization */
 @media (max-width: 768px) {
-  button, a, [role="button"] {
+
+  button,
+  a,
+  [role="button"] {
     min-height: 44px;
     min-width: 44px;
   }
@@ -487,7 +511,10 @@
 }
 
 @media (max-width: 480px) {
-  button, a, [role="button"] {
+
+  button,
+  a,
+  [role="button"] {
     min-height: 40px;
     min-width: 40px;
     font-size: var(--font-size-sm);
@@ -500,6 +527,7 @@
 
 /* Touch-specific optimizations */
 @media (hover: none) and (pointer: coarse) {
+
   .quick-action:hover,
   .map-toolbar-button:hover,
   .map-filter-pill:hover {
@@ -515,18 +543,24 @@
 
 /* Optimized marker and popup animations */
 @keyframes marker-pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     box-shadow: 0 0 0 0 rgba(var(--color-primary-rgb, var(--color-teal-500-rgb)), 0.4);
   }
+
   50% {
     box-shadow: 0 0 0 var(--space-8) rgba(var(--color-primary-rgb, var(--color-teal-500-rgb)), 0);
   }
 }
 
 @keyframes marker-glow {
-  0%, 100% {
+
+  0%,
+  100% {
     filter: brightness(1) saturate(1.2);
   }
+
   50% {
     filter: brightness(1.2) saturate(1.5);
   }
@@ -537,6 +571,7 @@
     opacity: 0;
     transform: scale(0.8) translateY(var(--space-10));
   }
+
   100% {
     opacity: 1;
     transform: scale(1) translateY(0);
@@ -631,10 +666,13 @@ body[data-choices-open='1'] .scanline {
 
 /* QR animations optimized for GPU */
 @keyframes qr-pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: scale(1);
     opacity: 0.6;
   }
+
   50% {
     transform: scale(1.15);
     opacity: 0.9;
@@ -642,10 +680,13 @@ body[data-choices-open='1'] .scanline {
 }
 
 @keyframes qr-pulse-outer {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: scale(1);
     opacity: 0.4;
   }
+
   50% {
     transform: scale(1.25);
     opacity: 0.7;
@@ -653,10 +694,13 @@ body[data-choices-open='1'] .scanline {
 }
 
 @keyframes qr-glow {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 0.3;
     transform: scale(0.95);
   }
+
   50% {
     opacity: 0.6;
     transform: scale(1.1);
@@ -684,4 +728,44 @@ body[data-choices-open='1'] .scanline {
   width: 100% !important;
   height: 100% !important;
   height: 100vh !important;
+}
+
+/* Mobile-safe viewport with fallback */
+.h-screen-safe {
+  height: 100vh;
+  height: 100dvh;
+}
+
+/* Safe area positioning */
+.bottom-safe {
+  bottom: calc(1rem + env(safe-area-inset-bottom));
+}
+
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Z-index utilities */
+.z-base {
+  z-index: var(--z-base);
+}
+
+.z-overlay {
+  z-index: var(--z-overlay);
+}
+
+.z-modal {
+  z-index: var(--z-modal);
+}
+
+.z-toast {
+  z-index: var(--z-toast);
+}
+
+.z-tooltip {
+  z-index: var(--z-tooltip);
 }

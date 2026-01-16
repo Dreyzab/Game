@@ -1,6 +1,7 @@
 import { Elysia, t } from "elysia";
 import { auth } from "../api/auth";
 import { eventBus } from "../lib/bus";
+import { getSession } from "../services/survivalService";
 
 // Simple in-memory room manager
 // In prod, this should sync with Redis for horizontal scaling
@@ -39,6 +40,30 @@ export const wsRoutes = (app: Elysia) =>
                     ws.subscribe(`survival:${sessionId}`);
                     // console.log(`Socket ${ws.id} subscribed to survival:${sessionId}`);
                 }
+
+                // Time sync (NTP-style) for survival mode
+                if (type === "survival:time_ping") {
+                    const serverT1 = Date.now(); // receive time
+                    const { sessionId, clientT0 } = payload;
+
+                    // Get worldTimeMs from session
+                    const state = getSession(sessionId);
+                    const worldTimeMs = state?.worldTimeMs ?? 0;
+
+                    const serverT2 = Date.now(); // send time
+                    ws.send(JSON.stringify({
+                        type: "survival:time_pong",
+                        data: {
+                            clientT0,
+                            serverT1,
+                            serverT2,
+                            worldTimeMs,
+                            worldDay: state?.worldDay ?? 1,
+                            worldTimeMinutes: state?.worldTimeMinutes ?? 360,
+                            phase: state?.phase ?? 'start',
+                        }
+                    }));
+                }
             },
         })
         .onStart(() => {
@@ -65,10 +90,10 @@ export const wsRoutes = (app: Elysia) =>
                 }));
             });
 
-            eventBus.on('survival_timer', ({ sessionId, timerSeconds }) => {
+            eventBus.on('survival_timer', ({ sessionId, timerSeconds, worldDay, worldTimeMinutes, phase }) => {
                 app.server?.publish(`survival:${sessionId}`, JSON.stringify({
                     type: 'survival:timer_sync',
-                    data: { timerSeconds }
+                    data: { timerSeconds, worldDay, worldTimeMinutes, phase }
                 }));
             });
         });

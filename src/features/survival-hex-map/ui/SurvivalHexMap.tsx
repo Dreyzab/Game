@@ -72,6 +72,25 @@ export const SurvivalHexMap = ({ initialMap: providedMap }: SurvivalHexMapProps 
     return visible
   }, [gameState?.player.position, gameState?.map])
 
+  const currentPath = useMemo(() => {
+    if (!gameState || !selectedHex) return []
+    return getPath(gameState.player.position, selectedHex, gameState.map)
+  }, [gameState, selectedHex])
+
+  const movementStats = useMemo(() => {
+    if (!gameState || !selectedHex) return null
+    const distance = getHexDistance(gameState.player.position, selectedHex)
+    const isSameHex = distance === 0
+    const hasPath = currentPath.length > 0
+    const moveCost = hasPath ? Math.max(0, currentPath.length - 1) : 0
+    return {
+      distance,
+      moveCost,
+      isReachable: hasPath && !isSameHex,
+      moveCostUnit: 'AP',
+    }
+  }, [gameState, selectedHex, currentPath])
+
   const handleHexClick = useCallback(
     (hex: HexCell) => {
       if (!gameState || isMoving) return
@@ -91,9 +110,10 @@ export const SurvivalHexMap = ({ initialMap: providedMap }: SurvivalHexMapProps 
   )
 
   const handleMove = useCallback(() => {
-    if (!gameState || !selectedHex) return
+    if (!gameState || !selectedHex || isMoving) return
 
-    const path = getPath(gameState.player.position, selectedHex, gameState.map)
+    const path = currentPath
+    if (path.length < 2) return
     const cost = Math.max(0, path.length - 1)
 
     if (cost > gameState.player.ap) {
@@ -127,7 +147,7 @@ export const SurvivalHexMap = ({ initialMap: providedMap }: SurvivalHexMapProps 
       setSelectedHex(null)
       setIsMoving(false)
     }, 500)
-  }, [gameState, selectedHex])
+  }, [gameState, selectedHex, isMoving, currentPath])
 
   const handleEndTurn = useCallback(() => {
     setGameState((prev) => {
@@ -166,6 +186,7 @@ export const SurvivalHexMap = ({ initialMap: providedMap }: SurvivalHexMapProps 
         visibleHexes={visibleHexes}
         onMove={handleMove}
         onEndTurn={handleEndTurn}
+        movementStats={movementStats}
       />
 
       <HexGrid

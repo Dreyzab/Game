@@ -3,52 +3,54 @@ export interface HexCoordinate {
   r: number
 }
 
-export enum BiomeType {
-  BUNKER = 'BUNKER',
-  WASTELAND = 'WASTELAND',
-  FOREST = 'FOREST',
-  URBAN = 'URBAN',
-  INDUSTRIAL = 'INDUSTRIAL',
-  WATER = 'WATER',
-  HOSPITAL = 'HOSPITAL',
-  POLICE = 'POLICE',
-  RIVER = 'RIVER',
-  FACTORY = 'FACTORY',
-  CITY_HIGH = 'CITY_HIGH',
-  ADMIN = 'ADMIN',
-  SKYSCRAPER = 'SKYSCRAPER',
-  FIRE_STATION = 'FIRE_STATION',
-  MALL = 'MALL',
-  RAILWAY_DEPOT = 'RAILWAY_DEPOT',
-  BUILDING_LOW = 'BUILDING_LOW',
-  PARKING_LOW = 'PARKING_LOW',
-  WAREHOUSE = 'WAREHOUSE',
-  GAS_STATION = 'GAS_STATION',
-  SCAVENGER_CAMP = 'SCAVENGER_CAMP',
-  ARMY_BASE = 'ARMY_BASE',
-  AIRPORT = 'AIRPORT',
-  ROAD_HIGH = 'ROAD_HIGH',
-  ROAD_LOW = 'ROAD_LOW',
-  ROAD_CITY = 'ROAD_CITY',
-  ROAD_FOREST = 'ROAD_FOREST',
-}
+// String literal union type for biomes (compatible with erasableSyntaxOnly)
+export type BiomeType =
+  | 'BUNKER'
+  | 'WASTELAND'
+  | 'FOREST'
+  | 'URBAN'
+  | 'INDUSTRIAL'
+  | 'WATER'
+  | 'HOSPITAL'
+  | 'POLICE'
+  | 'RIVER'
+  | 'FACTORY'
+  | 'CITY_HIGH'
+  | 'ADMIN'
+  | 'SKYSCRAPER'
+  | 'FIRE_STATION'
+  | 'MALL'
+  | 'RAILWAY_DEPOT'
+  | 'BUILDING_LOW'
+  | 'PARKING_LOW'
+  | 'WAREHOUSE'
+  | 'GAS_STATION'
+  | 'SCAVENGER_CAMP'
+  | 'ARMY_BASE'
+  | 'AIRPORT'
+  | 'ROAD_HIGH'
+  | 'ROAD_LOW'
+  | 'ROAD_CITY'
+  | 'ROAD_FOREST'
 
-export enum ThreatLevel {
-  SAFE = 'SAFE',
-  LOW = 'LOW',
-  MEDIUM = 'MEDIUM',
-  HIGH = 'HIGH',
-  EXTREME = 'EXTREME',
-}
+// Array of all biome values for iteration
+export const BIOME_VALUES: BiomeType[] = [
+  'BUNKER', 'WASTELAND', 'FOREST', 'URBAN', 'INDUSTRIAL', 'WATER',
+  'HOSPITAL', 'POLICE', 'RIVER', 'FACTORY', 'CITY_HIGH', 'ADMIN',
+  'SKYSCRAPER', 'FIRE_STATION', 'MALL', 'RAILWAY_DEPOT', 'BUILDING_LOW',
+  'PARKING_LOW', 'WAREHOUSE', 'GAS_STATION', 'SCAVENGER_CAMP', 'ARMY_BASE',
+  'AIRPORT', 'ROAD_HIGH', 'ROAD_LOW', 'ROAD_CITY', 'ROAD_FOREST'
+]
 
-export enum ResourceType {
-  NONE = 'NONE',
-  SCRAP = 'SCRAP',
-  FOOD = 'FOOD',
-  WATER = 'WATER',
-  FUEL = 'FUEL',
-  TECH = 'TECH',
-}
+export type ThreatLevel = 'SAFE' | 'LOW' | 'MEDIUM' | 'HIGH' | 'EXTREME'
+
+// Array of all threat level values for iteration
+export const THREAT_VALUES: ThreatLevel[] = ['SAFE', 'LOW', 'MEDIUM', 'HIGH', 'EXTREME']
+
+export type ResourceType = 'NONE' | 'SCRAP' | 'FOOD' | 'WATER' | 'FUEL' | 'TECH'
+
+// Array of all resource type values for iteration
+export const RESOURCE_VALUES: ResourceType[] = ['NONE', 'SCRAP', 'FOOD', 'WATER', 'FUEL', 'TECH']
 
 export interface HexCell extends HexCoordinate {
   biome: BiomeType

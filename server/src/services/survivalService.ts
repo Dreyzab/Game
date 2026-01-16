@@ -4,6 +4,9 @@
  */
 
 import { eventBus } from '../lib/bus'
+import { db } from '../db'
+import { survivalSessions } from '../db/schema/survivalSessions'
+import { sql, eq, and, gt } from 'drizzle-orm'
 import {
     type SurvivalState,
     type SurvivalPlayer,
@@ -14,24 +17,1055 @@ import {
     type CrisisLevel,
     type SurvivalEvent,
     type EventEffect,
-    type PlayerInventory,
+    type SurvivalCyclePhase,
+    type DailyEventState,
+    type DailyEventType,
+    type ZoneActionId,
+    type ZoneState,
     DEFAULT_BASE_RESOURCES,
     PLAYER_ROLES,
+    DEFAULT_SURVIVAL_TIME_CONFIG,
+    ZONE_DEFINITIONS,
 } from '../shared/types/survival'
 import { getEventById, rollRandomEvent } from '../lib/survivalEvents'
+import { generateHexMap, getHexCell, hexToString as serverHexToString, type HexCell } from '../shared/hexmap/mapGenerator'
+import { ITEM_TEMPLATES } from '../shared/data/itemTemplates'
+import { STAMINA_COST_PER_HEX } from '../shared/data/survivalConfig'
+
+type HexEncounterType = 'enemy' | 'survivor' | 'trap' | 'loot'
+
+function hexKey(hex: { q: number; r: number }): string {
+    return `${hex.q},${hex.r}`
+}
+
+function hexFlagVisited(key: string): string { return `hex_visited:${key}` }
+function hexFlagScouted(key: string): string { return `hex_scouted:${key}` }
+function hexFlagCleared(key: string): string { return `hex_cleared:${key}` }
+function hexFlagEncounterType(key: string): string { return `hex_encounter:${key}` }
 
 // ============================================================================
-// IN-MEMORY SESSION STORAGE
+// IN-MEMORY SESSION STORAGE (hot-cache, persisted to PostgreSQL)
 // ============================================================================
 
 /** Active sessions indexed by sessionId */
 const sessions = new Map<string, SurvivalState>()
 
-/** Active events per player (playerId -> event) */
+/** Active events per player (playerId -> event) - DEPRECATED: moved to SurvivalPlayer.activeEvent */
 const activeEvents = new Map<number, SurvivalEvent>()
 
 /** Timer intervals per session */
 const timerIntervals = new Map<string, NodeJS.Timeout>()
+
+// ============================================================================
+// POSTGRESQL PERSISTENCE (Write-through with throttle)
+// ============================================================================
+
+const PERSIST_THROTTLE_MS = 5000 // Throttle tick-based persists to every 5 seconds
+const MAX_LOG_ENTRIES = 100 // Limit log size to prevent JSONB bloat
+const lastPersistAt = new Map<string, number>() // sessionId -> last persist timestamp
+
+/**
+ * Persist session state to PostgreSQL (write-through)
+ * Called immediately on critical events, throttled on ticks
+ */
+async function persistSession(state: SurvivalState, force = false): Promise<void> {
+    const now = Date.now()
+    const lastPersist = lastPersistAt.get(state.sessionId) ?? 0
+
+    // Throttle non-forced persists
+    if (!force && now - lastPersist < PERSIST_THROTTLE_MS) {
+        return
+    }
+
+    // Limit log size to prevent JSONB bloat
+    if (state.log.length > MAX_LOG_ENTRIES) {
+        state.log = state.log.slice(-MAX_LOG_ENTRIES)
+    }
+
+    try {
+        await db.insert(survivalSessions)
+            .values({
+                sessionId: state.sessionId,
+                state,
+                status: state.status,
+                version: 1,
+                lastRealTickAt: lastRealTickAt.get(state.sessionId) ?? now,
+                expiresAt: sql`now() + interval '24 hours'`,
+            })
+            .onConflictDoUpdate({
+                target: survivalSessions.sessionId,
+                set: {
+                    state,
+                    status: state.status,
+                    version: sql`${survivalSessions.version} + 1`,
+                    lastRealTickAt: lastRealTickAt.get(state.sessionId) ?? now,
+                    updatedAt: sql`now()`,
+                    expiresAt: sql`now() + interval '24 hours'`,
+                }
+            })
+
+        lastPersistAt.set(state.sessionId, now)
+    } catch (error) {
+        console.error(`[SurvivalService] Failed to persist session ${state.sessionId}:`, error)
+    }
+}
+
+/**
+ * Initialize survival service - recover active sessions from database on server start
+ */
+export async function initSurvivalService(): Promise<void> {
+    console.log('[SurvivalService] Initializing - recovering active sessions from database...')
+
+    try {
+        const activeSessions = await db.select().from(survivalSessions)
+            .where(and(
+                eq(survivalSessions.status, 'active'),
+                gt(survivalSessions.expiresAt, sql`now()`)
+            ))
+
+        for (const row of activeSessions) {
+            const state = row.state as SurvivalState
+            sessions.set(row.sessionId, state)
+            // FREEZE policy: set lastRealTickAt to now() to prevent worldTime jump
+            lastRealTickAt.set(row.sessionId, Date.now())
+            // Restart tick interval
+            startTickInterval(row.sessionId)
+            console.log(`[SurvivalService] Recovered session ${row.sessionId} (day ${state.worldDay})`)
+        }
+
+        console.log(`[SurvivalService] Recovered ${activeSessions.length} active sessions`)
+    } catch (error) {
+        console.error('[SurvivalService] Failed to recover sessions:', error)
+    }
+}
+
+/**
+ * Start tick interval for a session
+ */
+function startTickInterval(sessionId: string): void {
+    // Clear existing interval if any
+    const existingInterval = timerIntervals.get(sessionId)
+    if (existingInterval) {
+        clearInterval(existingInterval)
+    }
+
+    const interval = setInterval(() => {
+        // For multi-instance: use tickSessionWithLock
+        // For MVP (single node): use tickSession directly (faster, no DB roundtrip)
+        tickSession(sessionId)
+    }, 1000)
+    timerIntervals.set(sessionId, interval)
+}
+
+/**
+ * Hash string to integer for pg_advisory_lock
+ */
+function hashStringToInt(str: string): number {
+    let hash = 0
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i)
+        hash = ((hash << 5) - hash) + char
+        hash = hash & hash // Convert to 32-bit integer
+    }
+    return Math.abs(hash)
+}
+
+/**
+ * Tick session with advisory lock (for multi-instance deployments)
+ * Uses pg_try_advisory_xact_lock inside transaction for automatic unlock
+ * NOTE: For MVP single-node, tickSession() is called directly for performance
+ */
+async function tickSessionWithLock(sessionId: string): Promise<void> {
+    const lockId = hashStringToInt(sessionId)
+
+    try {
+        await db.transaction(async (tx) => {
+            const result = await tx.execute(sql`SELECT pg_try_advisory_xact_lock(${lockId}) as acquired`)
+            const acquired = (result as any)[0]?.acquired
+
+            if (!acquired) {
+                // Another instance is already ticking this session
+                return
+            }
+
+            // Execute tick logic within the transaction
+            tickSession(sessionId)
+        })
+    } catch (error) {
+        console.error(`[SurvivalService] tickSessionWithLock error for ${sessionId}:`, error)
+    }
+}
+
+// ============================================================================
+// IN-GAME TIME & PHASES
+// ============================================================================
+
+const MINUTES_PER_DAY = 24 * 60
+const LORE_DAY_MS = 24 * 60 * 60 * 1000
+const DAY_START_MINUTE = DEFAULT_SURVIVAL_TIME_CONFIG.dayStartMinute // 06:00
+const DAY_START_MS = DAY_START_MINUTE * 60 * 1000
+// Briefing window in lore minutes. With 12 real minutes per day, 120 lore minutes ~= 1 real minute.
+const START_PHASE_DURATION_MINUTES = 120
+const MONSTERS_START_MINUTE = 18 * 60 // 18:00
+
+// Monster movement tick frequency during monsters phase (lore minutes)
+const MONSTER_TICK_INTERVAL_MINUTES = 120
+const monsterMinutesAccumulator = new Map<string, number>() // sessionId -> minutes since last monster tick
+const staminaMinutesAccumulator = new Map<string, number>() // sessionId -> minutes since last stamina regen tick
+
+// Track last real tick time per session to compute delta reliably
+const lastRealTickAt = new Map<string, number>() // sessionId -> Date.now() ms
+
+function formatWorldTime(minutesSinceMidnight: number): string {
+    const mins = ((minutesSinceMidnight % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY
+    const hh = Math.floor(mins / 60)
+    const mm = mins % 60
+    return `${hh.toString().padStart(2, '0')}:${mm.toString().padStart(2, '0')}`
+}
+
+function getCyclePhase(minutesSinceMidnight: number): SurvivalCyclePhase {
+    const m = ((minutesSinceMidnight % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY
+
+    if (m >= DAY_START_MINUTE && m < DAY_START_MINUTE + START_PHASE_DURATION_MINUTES) return 'start'
+    if (m >= DAY_START_MINUTE + START_PHASE_DURATION_MINUTES && m < MONSTERS_START_MINUTE) return 'day'
+    return 'monsters'
+}
+
+function getTimeOfDayMinutesFromWorldTimeMs(worldTimeMs: number): number {
+    const timeOfDayMs = ((worldTimeMs % LORE_DAY_MS) + LORE_DAY_MS) % LORE_DAY_MS
+    return Math.floor(timeOfDayMs / 60000)
+}
+
+function getWorldDayFromWorldTimeMs(worldTimeMs: number): number {
+    // Day 1 starts at DAY_START_MS (06:00). Crossing 06:00 increments the day.
+    const daysSinceStart = Math.floor((worldTimeMs - DAY_START_MS) / LORE_DAY_MS)
+    return Math.max(1, daysSinceStart + 1)
+}
+
+function getNextDayStartWorldTimeMs(worldTimeMs: number): number {
+    const dayIndex = Math.floor((worldTimeMs - DAY_START_MS) / LORE_DAY_MS)
+    return DAY_START_MS + (dayIndex + 1) * LORE_DAY_MS
+}
+
+function computeRealSecondsUntil(nextWorldTimeMs: number, worldTimeMs: number, timeScale: number): number {
+    const remainingLoreMs = Math.max(0, nextWorldTimeMs - worldTimeMs)
+    const remainingRealMs = remainingLoreMs / timeScale
+    return Math.ceil(remainingRealMs / 1000)
+}
+
+function advanceWorldTimeMs(sessionId: string, state: SurvivalState, nowRealMs: number): { minutesAdvanced: number; dayIndexChanged: boolean } {
+    const cfg = state.timeConfig ?? DEFAULT_SURVIVAL_TIME_CONFIG
+    const prevWorldTimeMs = state.worldTimeMs
+    const prevMinutes = state.worldTimeMinutes
+    const prevDayIndex = Math.floor((prevWorldTimeMs - DAY_START_MS) / LORE_DAY_MS)
+
+    const last = lastRealTickAt.get(sessionId) ?? nowRealMs
+    const deltaRealMs = Math.max(0, nowRealMs - last)
+    lastRealTickAt.set(sessionId, nowRealMs)
+
+    state.worldTimeMs = prevWorldTimeMs + deltaRealMs * cfg.timeScale
+    state.worldTimeMinutes = getTimeOfDayMinutesFromWorldTimeMs(state.worldTimeMs)
+    state.worldDay = getWorldDayFromWorldTimeMs(state.worldTimeMs)
+
+    const nextDayIndex = Math.floor((state.worldTimeMs - DAY_START_MS) / LORE_DAY_MS)
+    const dayIndexChanged = nextDayIndex !== prevDayIndex
+
+    // Approx minutes advanced (for monster tick accumulator). Wrap is at midnight, not at 06:00 day-start.
+    let minutesAdvanced = state.worldTimeMinutes - prevMinutes
+    if (minutesAdvanced < 0) minutesAdvanced += MINUTES_PER_DAY
+
+    return { minutesAdvanced, dayIndexChanged }
+}
+
+function shouldPlayerBeSafeFromMonsters(player: SurvivalPlayer): boolean {
+    // Treat base zone as safe. Players without a zone are assumed at base.
+    return player.currentZone === null || player.currentZone === 'living_room'
+}
+
+function tickMonsters(state: SurvivalState): boolean {
+    // Return true if state was changed (wounds/resources/log)
+    let changed = false
+
+    // Example: players outside base risk wounds during monster phase
+    for (const player of Object.values(state.players)) {
+        if (player.isWounded) continue
+        if (shouldPlayerBeSafeFromMonsters(player)) continue
+
+        // Base danger chance; defense reduces it a bit
+        const defense = state.resources.defense
+        const baseChance = 0.08
+        const mitigation = Math.min(0.06, defense * 0.01)
+        const chance = Math.max(0.02, baseChance - mitigation)
+
+        if (Math.random() < chance) {
+            player.isWounded = true
+            state.log.push(createLogEntry(player.playerId, player.playerName, 'Попал под атаку монстров ночью и получил ранение!', 'combat'))
+            changed = true
+        }
+    }
+
+    // Example: low defense causes nightly base damage
+    if (state.resources.defense < 2 && Math.random() < 0.15) {
+        state.resources.morale = Math.max(0, state.resources.morale - 5)
+        state.log.push(createLogEntry(null, null, 'Монстры прорвались к периметру базы. Мораль падает.', 'crisis'))
+        changed = true
+    }
+
+    return changed
+}
+
+// ============================================================================
+// DAILY EVENTS & ZONE INTERACTIONS (SERVER AUTHORITATIVE)
+// ============================================================================
+
+const ALL_ZONES: ZoneType[] = ['kitchen', 'bathroom', 'bedroom', 'corridor', 'living_room']
+
+function generateDailyEventId(type: DailyEventType): string {
+    return `daily_${type}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+}
+
+function getZoneNameRu(zoneId: ZoneType): string {
+    return ZONE_DEFINITIONS[zoneId]?.nameRu ?? zoneId
+}
+
+function ensureZonesInitialized(state: SurvivalState): void {
+    const zones = (state.zones ??= {} as Record<ZoneType, ZoneState>)
+
+    for (const z of ALL_ZONES) {
+        if (!zones[z]) {
+            zones[z] = {
+                actions: {
+                    scavenge: {
+                        chargesPerDay: 1,
+                        chargesRemaining: 1,
+                        lock: { lockedByPlayerId: null, lockExpiresAtWorldTimeMs: null },
+                        inProgress: null,
+                    },
+                },
+                lastDailyResetWorldTimeMs: null,
+            }
+        }
+    }
+}
+
+function resetZonesForNewDay(state: SurvivalState): void {
+    ensureZonesInitialized(state)
+    const nowWorld = state.worldTimeMs
+
+    for (const z of ALL_ZONES) {
+        const zone = state.zones![z]
+        // Reset daily charges; keep simple for MVP (tune later per biome/threat/visits)
+        zone.actions.scavenge.chargesPerDay = z === 'living_room' ? 0 : 1
+        zone.actions.scavenge.chargesRemaining = zone.actions.scavenge.chargesPerDay
+
+        // Release locks at day start; also clear in-progress (lease safety)
+        zone.actions.scavenge.lock.lockedByPlayerId = null
+        zone.actions.scavenge.lock.lockExpiresAtWorldTimeMs = null
+        zone.actions.scavenge.inProgress = null
+
+        zone.lastDailyResetWorldTimeMs = nowWorld
+    }
+}
+
+function rollDailyGlobalEvent(state: SurvivalState): DailyEventState | null {
+    // MVP: simple weighted roll. Tune later based on resources/crisis history.
+    const r = Math.random()
+    let type: DailyEventType | null = null
+    if (r < 0.2) type = 'traders_arrived'
+    else if (r < 0.3) type = 'crisis'
+
+    if (!type) return null
+
+    const startedAtWorldTimeMs = state.worldTimeMs
+    const endsAtWorldTimeMs = getNextDayStartWorldTimeMs(state.worldTimeMs)
+
+    if (type === 'traders_arrived') {
+        return {
+            id: generateDailyEventId(type),
+            type,
+            title: 'Торговцы у бункера',
+            description: 'У входа в бункер появились торговцы. Можно обменять ресурсы и редкие предметы.',
+            startedAtWorldTimeMs,
+            endsAtWorldTimeMs,
+        }
+    }
+
+    return {
+        id: generateDailyEventId(type),
+        type,
+        title: 'Кризис дня',
+        description: 'Новый кризис обрушился на базу. Придётся выбирать, чем пожертвовать.',
+        startedAtWorldTimeMs,
+        endsAtWorldTimeMs,
+    }
+}
+
+function applyDailyEventSideEffects(state: SurvivalState): void {
+    // Keep it minimal & readable. Effects can be moved into data files later.
+    const ev = state.dailyEvent
+    if (!ev) {
+        state.crisisLevel = 'calm'
+        return
+    }
+
+    if (ev.type === 'crisis') {
+        state.crisisLevel = 'crisis'
+        state.resources.morale = Math.max(0, state.resources.morale - 10)
+    } else {
+        state.crisisLevel = 'calm'
+    }
+}
+
+function onDayStart(state: SurvivalState): void {
+    // Reset interactions first (so players standing in zones immediately see refreshed options)
+    resetZonesForNewDay(state)
+
+    // Roll global daily event and apply its baseline effects
+    state.dailyEvent = rollDailyGlobalEvent(state)
+    applyDailyEventSideEffects(state)
+
+    const time = formatWorldTime(state.worldTimeMinutes)
+    if (state.dailyEvent) {
+        state.log.push(createLogEntry(null, null, `ДЕНЬ ${state.worldDay} — ${time}. ${state.dailyEvent.title}.`, 'system'))
+    } else {
+        state.log.push(createLogEntry(null, null, `ДЕНЬ ${state.worldDay} — ${time}. Начало дня.`, 'system'))
+    }
+
+    // Activate interactions in zones where players are currently located
+    for (const player of Object.values(state.players)) {
+        if (!player.currentZone) continue
+        const z = player.currentZone
+        const zoneState = state.zones?.[z]
+        const scavenge = zoneState?.actions.scavenge
+        if (!scavenge) continue
+
+        if (scavenge.chargesRemaining > 0) {
+            state.log.push(createLogEntry(player.playerId, player.playerName, `В ${getZoneNameRu(z)} доступно взаимодействие: ОБЫСК (${scavenge.chargesRemaining}x)`, 'system'))
+        }
+    }
+
+    // Also keep the existing “morning briefing” flavor + possible zone events
+    runMorningBriefing(state)
+}
+
+function processZoneActions(state: SurvivalState): boolean {
+    if (!state.zones) return false
+    let changed = false
+
+    for (const z of ALL_ZONES) {
+        const zone = state.zones[z]
+        if (!zone) continue
+
+        const action = zone.actions.scavenge
+        if (!action?.inProgress) continue
+
+        if (state.worldTimeMs >= action.inProgress.completesAtWorldTimeMs) {
+            const player = state.players[action.inProgress.startedByPlayerId]
+            if (player) {
+                // MVP loot: based on zone primaryLoot.
+                const loot = ZONE_DEFINITIONS[z]?.primaryLoot ?? []
+                const templateId =
+                    loot.includes('food') ? 'canned_food'
+                        : loot.includes('fuel') ? 'fuel'
+                            : loot.includes('medicine') ? 'bandage'
+                                : 'scrap'
+
+                const qty = 1 + Math.floor(Math.random() * 2)
+                const existing = player.inventory.items.find(i => i.templateId === templateId)
+                if (existing) existing.quantity += qty
+                else player.inventory.items.push({ templateId, quantity: qty })
+
+                player.activeZoneActionId = null
+                state.log.push(createLogEntry(player.playerId, player.playerName, `Завершил ОБЫСК в ${getZoneNameRu(z)} и нашёл ${qty}x ${templateId}`, 'loot'))
+                changed = true
+            }
+
+            // Release lock and clear progress
+            action.inProgress = null
+            action.lock.lockedByPlayerId = null
+            action.lock.lockExpiresAtWorldTimeMs = null
+            changed = true
+        }
+    }
+
+    return changed
+}
+
+const STAMINA_REGEN_INTERVAL_MINUTES = 60
+const STAMINA_REGEN_PER_TICK = 1
+const STAMINA_REGEN_BUNKER_MULTIPLIER = 3
+const STAMINA_REGEN_FOOD_RESTORE = 10
+const STAMINA_REGEN_WATER_RESTORE = 10
+const STAMINA_REGEN_MIN_MISSING = 10
+
+function ensurePlayerStamina(player: SurvivalPlayer): boolean {
+    let changed = false
+    if (player.stamina === undefined || !Number.isFinite(player.stamina)) {
+        player.stamina = DEFAULT_STAMINA
+        changed = true
+    }
+    if (player.maxStamina === undefined || !Number.isFinite(player.maxStamina)) {
+        player.maxStamina = DEFAULT_STAMINA
+        changed = true
+    }
+    if (player.stamina < 0) {
+        player.stamina = 0
+        changed = true
+    }
+    if (player.maxStamina < 1) {
+        player.maxStamina = DEFAULT_STAMINA
+        changed = true
+    }
+    if (player.stamina > player.maxStamina) {
+        player.stamina = player.maxStamina
+        changed = true
+    }
+    return changed
+}
+
+function ensurePlayerHexPos(player: SurvivalPlayer): { q: number; r: number } {
+    if (!player.hexPos) {
+        player.hexPos = { q: 0, r: 0 }
+    }
+    return player.hexPos
+}
+
+function isBunkerHex(pos: { q: number; r: number }): boolean {
+    return pos.q === 0 && pos.r === 0
+}
+
+function consumeInventoryItemByTag(player: SurvivalPlayer, tag: string): boolean {
+    const items = player.inventory.items
+    for (let i = 0; i < items.length; i += 1) {
+        const entry = items[i]
+        if (!entry || entry.quantity <= 0) continue
+        const template = ITEM_TEMPLATES[entry.templateId]
+        if (!template?.tags?.includes(tag)) continue
+        entry.quantity -= 1
+        if (entry.quantity <= 0) {
+            items.splice(i, 1)
+        }
+        return true
+    }
+    return false
+}
+
+function applyStaminaRegen(state: SurvivalState, ticks: number): boolean {
+    let changed = false
+    if (ticks <= 0) return false
+
+    for (const player of Object.values(state.players)) {
+        if (ensurePlayerStamina(player)) changed = true
+        const pos = ensurePlayerHexPos(player)
+
+        const baseRegen = STAMINA_REGEN_PER_TICK * ticks
+        const regen = isBunkerHex(pos) ? baseRegen * STAMINA_REGEN_BUNKER_MULTIPLIER : baseRegen
+        if (regen > 0 && player.stamina < player.maxStamina) {
+            player.stamina = Math.min(player.maxStamina, player.stamina + regen)
+            changed = true
+        }
+
+        if (player.stamina >= player.maxStamina) continue
+        if (player.maxStamina - player.stamina < STAMINA_REGEN_MIN_MISSING) continue
+
+        for (let i = 0; i < ticks; i += 1) {
+            if (player.stamina >= player.maxStamina) break
+            if (consumeInventoryItemByTag(player, 'sustenance')) {
+                player.stamina = Math.min(player.maxStamina, player.stamina + STAMINA_REGEN_FOOD_RESTORE)
+                changed = true
+            }
+            if (player.stamina >= player.maxStamina) break
+            if (consumeInventoryItemByTag(player, 'water')) {
+                player.stamina = Math.min(player.maxStamina, player.stamina + STAMINA_REGEN_WATER_RESTORE)
+                changed = true
+            }
+        }
+    }
+
+    return changed
+}
+
+function processStaminaRegen(state: SurvivalState, sessionId: string, minutesAdvanced: number): boolean {
+    if (minutesAdvanced <= 0) return false
+
+    const prevMinutes = staminaMinutesAccumulator.get(sessionId) ?? 0
+    const accumulated = prevMinutes + minutesAdvanced
+
+    if (accumulated < STAMINA_REGEN_INTERVAL_MINUTES) {
+        staminaMinutesAccumulator.set(sessionId, accumulated)
+        return false
+    }
+
+    const ticks = Math.floor(accumulated / STAMINA_REGEN_INTERVAL_MINUTES)
+    staminaMinutesAccumulator.set(sessionId, accumulated % STAMINA_REGEN_INTERVAL_MINUTES)
+
+    return applyStaminaRegen(state, ticks)
+}
+
+/**
+ * Process player movement arrivals - called from tickSession
+ */
+function processPlayerArrivals(state: SurvivalState): boolean {
+    let changed = false
+
+    for (const player of Object.values(state.players)) {
+        if (!player.movementState) continue
+        ensurePlayerHexPos(player)
+        const movement = player.movementState
+        const path = movement.path
+        if (!path || path.length < 2) {
+            player.movementState = null
+            changed = true
+            continue
+        }
+
+        const msPerHex =
+            (typeof movement.msPerHex === 'number' && Number.isFinite(movement.msPerHex))
+                ? movement.msPerHex
+                : MOVEMENT_MS_PER_HEX
+
+        const totalSteps = path.length - 1
+        const startedAtWorldTimeMs =
+            (typeof movement.startedAtWorldTimeMs === 'number' && Number.isFinite(movement.startedAtWorldTimeMs))
+                ? movement.startedAtWorldTimeMs
+                : Math.max(0, movement.arriveAtWorldTimeMs - totalSteps * msPerHex)
+
+        const progressedLoreMs = Math.max(0, state.worldTimeMs - startedAtWorldTimeMs)
+        const stepIndex = Math.min(totalSteps, Math.max(0, Math.floor(progressedLoreMs / msPerHex)))
+
+        const currentPos = player.hexPos ?? { q: 0, r: 0 }
+        let currentIndex = path.findIndex((h) => h.q === currentPos.q && h.r === currentPos.r)
+        if (currentIndex < 0) currentIndex = 0
+
+        if (stepIndex > currentIndex) {
+            for (let i = currentIndex + 1; i <= stepIndex; i += 1) {
+                const step = path[i]
+                state.flags[hexFlagVisited(hexKey(step))] = true
+            }
+            player.hexPos = path[stepIndex]
+            changed = true
+        }
+
+        // Check if player has arrived
+        if (state.worldTimeMs >= movement.arriveAtWorldTimeMs) {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H1',location:'server/src/services/survivalService.ts:processPlayerArrivals(arrive)',message:'Player arrived; before event assignment',data:{playerId:player.playerId,playerName:player.playerName,hasMovementState:Boolean(player.movementState),activeEventId:player.activeEventId ?? null,activeEventPresent:Boolean(player.activeEvent),hexPos:player.hexPos ?? null,worldTimeMs:state.worldTimeMs,arriveAtWorldTimeMs:movement.arriveAtWorldTimeMs},timestamp:Date.now()})}).catch(()=>{});
+            // #endregion
+            // Update position to destination (last element in path)
+            const destination = path[path.length - 1]
+            if (!player.hexPos || player.hexPos.q !== destination.q || player.hexPos.r !== destination.r) {
+                player.hexPos = destination
+                state.flags[hexFlagVisited(hexKey(destination))] = true
+                changed = true
+            }
+            const key = hexKey(destination)
+
+            state.log.push(createLogEntry(
+                player.playerId,
+                player.playerName,
+                `Arrived at (${destination.q}, ${destination.r})`,
+                'action'
+            ))
+
+            // Clear movement state
+            player.movementState = null
+
+            // Hex interaction: on arrival, offer scouting unless cleared already
+            if (!player.activeEventId) {
+                const cleared = state.flags[hexFlagCleared(key)] === true
+                if (!cleared) {
+                    const { hexSeed, hexRadius } = getHexMapConfigFromFlags(state.flags)
+                    const cell = getHexCell(hexRadius, hexSeed, destination)
+                    if (cell) {
+                        const intro = generateHexEncounterEvent(cell)
+                        player.activeEventId = intro.id
+                        player.activeEvent = intro
+                        // #region agent log
+                        fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H1',location:'server/src/services/survivalService.ts:processPlayerArrivals(assignEvent)',message:'Assigned hex encounter event on arrival',data:{playerId:player.playerId,eventId:intro.id,eventTitle:intro.title,hex:intro.hex ?? null,destination,clearedFlag:cleared},timestamp:Date.now()})}).catch(()=>{});
+                        // #endregion
+                        state.log.push(createLogEntry(
+                            player.playerId,
+                            player.playerName,
+                            `Arrived at encounter (${destination.q}, ${destination.r}) - awaiting action`,
+                            'action'
+                        ))
+                    }
+                }
+            }
+
+            changed = true
+        }
+    }
+
+    return changed
+}
+
+function getHexMapConfigFromFlags(flags: Record<string, unknown> | undefined): { hexSeed: number; hexRadius: number } {
+    const seedRaw = flags?.hexMapSeed
+    const radiusRaw = flags?.hexMapRadius
+
+    const hexSeed = (typeof seedRaw === 'number' && Number.isFinite(seedRaw)) ? Math.floor(seedRaw) : 1_337
+    const hexRadius = (typeof radiusRaw === 'number' && Number.isFinite(radiusRaw)) ? Math.max(1, Math.floor(radiusRaw)) : 14
+
+    return { hexSeed, hexRadius }
+}
+
+function mapHexToZone(cell: HexCell): ZoneType {
+    switch (cell.resource) {
+        case 'FOOD':
+        case 'WATER':
+            return 'kitchen'
+        case 'SCRAP':
+            return 'bedroom'
+        case 'FUEL':
+            return 'corridor'
+        case 'TECH':
+            return 'corridor'
+        default:
+            // fallback by threat
+            return cell.threatLevel === 'SAFE' ? 'living_room' : 'corridor'
+    }
+}
+
+function threatToSuccessChance(threat: HexCell['threatLevel']): number {
+    switch (threat) {
+        case 'SAFE': return 85
+        case 'LOW': return 75
+        case 'MEDIUM': return 60
+        case 'HIGH': return 45
+        case 'EXTREME': return 30
+        default: return 60
+    }
+}
+
+function randomLootForHex(cell: HexCell): Array<{ templateId: string; quantity: number }> {
+    // Keep item ids aligned with ITEM_TEMPLATES
+    switch (cell.resource) {
+        case 'FOOD':
+            return [{ templateId: 'canned_food', quantity: 1 + Math.floor(Math.random() * 2) }]
+        case 'WATER':
+            return [{ templateId: 'canteen', quantity: 1 }]
+        case 'SCRAP':
+            return [{ templateId: 'scrap', quantity: 1 + Math.floor(Math.random() * 3) }]
+        case 'TECH':
+            return Math.random() < 0.5
+                ? [{ templateId: 'repair_kit_small', quantity: 1 }]
+                : [{ templateId: 'radio', quantity: 1 }]
+        case 'FUEL':
+            // No unified "fuel item" in templates; model as base resource for now via EventEffect.resourceDelta elsewhere.
+            return [{ templateId: 'scrap', quantity: 1 }]
+        default:
+            return [{ templateId: 'scrap', quantity: 1 }]
+    }
+}
+
+function generateHexEncounterEvent(cell: HexCell): SurvivalEvent {
+    const id = `hex_${cell.q}_${cell.r}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+    const zone = mapHexToZone(cell)
+    const baseChance = threatToSuccessChance(cell.threatLevel)
+    const loot = randomLootForHex(cell)
+
+    const fuelDelta = cell.resource === 'FUEL' ? 1 : 0
+    const baseEffect: EventEffect = {
+        grantItems: loot,
+        resourceDelta: fuelDelta > 0 ? { fuel: fuelDelta } : undefined,
+        logMessage: `обыскал сектор (${cell.q}, ${cell.r})`,
+        successChance: baseChance,
+        failureEffect: cell.threatLevel === 'HIGH' || cell.threatLevel === 'EXTREME'
+            ? { woundPlayer: true, logMessage: `попал в неприятности на гексе (${cell.q}, ${cell.r})` }
+            : { resourceDelta: { morale: -5 }, logMessage: `ничего не нашёл и потерял уверенность` },
+    }
+
+    return {
+        id,
+        zone,
+        hex: { q: cell.q, r: cell.r },
+        title: `${cell.biome} • ${cell.threatLevel}${cell.resource !== 'NONE' ? ` • ${cell.resource}` : ''}`,
+        text:
+            `Вы добрались до нового сектора (${cell.q}, ${cell.r}).\n` +
+            `Биом: ${cell.biome}. Угроза: ${cell.threatLevel}.` +
+            (cell.resource !== 'NONE' ? ` Здесь можно найти: ${cell.resource}.` : ''),
+        options: [
+            {
+                id: 'scout_hex',
+                text: '[РАЗВЕДАТЬ СЕКТОР]',
+                effect: {
+                    logMessage: `разведал сектор (${cell.q}, ${cell.r})`,
+                    successChance: Math.min(95, baseChance + 10),
+                    setFlags: {
+                        [hexFlagScouted(hexKey({ q: cell.q, r: cell.r }))]: true,
+                    },
+                    triggerEventId: '__HEX_ENCOUNTER__',
+                    failureEffect: {
+                        resourceDelta: { morale: -5 },
+                        logMessage: 'разведка сорвалась — пришлось отступить',
+                    },
+                },
+            },
+            {
+                id: 'scout_hex_scout',
+                text: '[РАЗВЕДАТЬ СЕКТОР] (Разведчик)',
+                requiredRole: 'scout',
+                effect: {
+                    logMessage: `разведал сектор (${cell.q}, ${cell.r}) (разведчик)`,
+                    successChance: Math.min(98, baseChance + 25),
+                    setFlags: {
+                        [hexFlagScouted(hexKey({ q: cell.q, r: cell.r }))]: true,
+                    },
+                    triggerEventId: '__HEX_ENCOUNTER__',
+                    failureEffect: {
+                        resourceDelta: { morale: -3 },
+                        logMessage: 'даже разведчик не нашёл безопасного подхода',
+                    },
+                },
+            },
+            {
+                id: 'leave',
+                text: '[НЕ РИСКОВАТЬ]',
+                effect: { logMessage: `решил не рисковать в секторе (${cell.q}, ${cell.r})` },
+            },
+        ],
+        tags: ['story'],
+    }
+}
+
+function pickHexEncounterType(state: SurvivalState, cell: HexCell): HexEncounterType {
+    const key = hexKey({ q: cell.q, r: cell.r })
+    const stored = state.flags[hexFlagEncounterType(key)]
+    if (stored === 'enemy' || stored === 'survivor' || stored === 'trap' || stored === 'loot') {
+        return stored
+    }
+
+    // Weighted by threat/resource (simple MVP tuning)
+    const r = Math.random()
+    let t: HexEncounterType = 'loot'
+
+    if (cell.threatLevel === 'EXTREME') {
+        t = r < 0.65 ? 'enemy' : r < 0.85 ? 'trap' : 'loot'
+    } else if (cell.threatLevel === 'HIGH') {
+        t = r < 0.45 ? 'enemy' : r < 0.70 ? 'trap' : r < 0.85 ? 'survivor' : 'loot'
+    } else if (cell.threatLevel === 'MEDIUM') {
+        t = r < 0.25 ? 'enemy' : r < 0.45 ? 'trap' : r < 0.70 ? 'survivor' : 'loot'
+    } else {
+        t = r < 0.10 ? 'enemy' : r < 0.20 ? 'trap' : r < 0.50 ? 'survivor' : 'loot'
+    }
+
+    // Nudge by resource
+    if (cell.resource === 'TECH' && t === 'loot' && Math.random() < 0.4) t = 'trap'
+    if (cell.resource === 'FOOD' && t === 'enemy' && Math.random() < 0.3) t = 'loot'
+
+    state.flags[hexFlagEncounterType(key)] = t
+    return t
+}
+
+function generateHexEncounterFollowUp(state: SurvivalState, cell: HexCell): SurvivalEvent {
+    const key = hexKey({ q: cell.q, r: cell.r })
+    const zone = mapHexToZone(cell)
+    const baseChance = threatToSuccessChance(cell.threatLevel)
+    const t = pickHexEncounterType(state, cell)
+
+    const commonHex = { q: cell.q, r: cell.r }
+    const clearFlags = {
+        [hexFlagCleared(key)]: true,
+    } as Record<string, unknown>
+
+    if (t === 'enemy') {
+        return {
+            id: `hex_enemy_${cell.q}_${cell.r}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+            zone,
+            hex: commonHex,
+            title: `ВРАГ • ${cell.threatLevel}`,
+            text: `В секторе (${cell.q}, ${cell.r}) слышны шаги и шёпот. Кто-то рядом.`,
+            options: [
+                {
+                    id: 'fight',
+                    text: '[АТАКОВАТЬ]',
+                    effect: {
+                        successChance: Math.max(20, baseChance - 10),
+                        grantItems: randomLootForHex(cell),
+                        logMessage: 'устранил угрозу и забрал добычу',
+                        setFlags: clearFlags,
+                        failureEffect: { woundPlayer: true, resourceDelta: { morale: -10 }, logMessage: 'получил ранение в стычке' },
+                    },
+                },
+                {
+                    id: 'sneak',
+                    text: '[ПРОКРАСТЬСЯ] (Разведчик)',
+                    requiredRole: 'scout',
+                    effect: {
+                        successChance: Math.min(95, baseChance + 20),
+                        logMessage: 'обошёл врага и тихо ушёл',
+                        // Not cleared if you sneak away
+                        setFlags: { [hexFlagVisited(key)]: true },
+                        failureEffect: { woundPlayer: true, logMessage: 'враг заметил — пришлось драться и получил ранение' },
+                    },
+                },
+                {
+                    id: 'retreat',
+                    text: '[ОТСТУПИТЬ]',
+                    effect: { logMessage: 'отступил, не вступая в бой' },
+                },
+            ],
+            tags: ['combat'],
+        }
+    }
+
+    if (t === 'survivor') {
+        return {
+            id: `hex_survivor_${cell.q}_${cell.r}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+            zone,
+            hex: commonHex,
+            title: 'ВЫЖИВШИЙ',
+            text: `Вы встречаете выжившего в секторе (${cell.q}, ${cell.r}). Он напуган, но готов говорить.`,
+            options: [
+                {
+                    id: 'recruit',
+                    text: '[ПРИГЛАСИТЬ НА БАЗУ] (-1 Еда)',
+                    cost: { food: 1 },
+                    effect: {
+                        recruitNpc: {
+                            id: `hex_survivor_${key}`,
+                            name: 'Выживший',
+                            dailyCost: 1,
+                            passiveBonus: { morale: 2 },
+                        },
+                        logMessage: 'привёл выжившего на базу',
+                        setFlags: clearFlags,
+                    },
+                },
+                {
+                    id: 'trade',
+                    text: '[ОБМЕНЯТЬСЯ]',
+                    effect: {
+                        grantItems: [{ templateId: 'radio', quantity: 1 }],
+                        logMessage: 'обменялся с выжившим',
+                        setFlags: clearFlags,
+                    },
+                },
+                {
+                    id: 'leave',
+                    text: '[УЙТИ]',
+                    effect: { logMessage: 'не стал вмешиваться' },
+                },
+            ],
+            tags: ['npc'],
+        }
+    }
+
+    if (t === 'trap') {
+        return {
+            id: `hex_trap_${cell.q}_${cell.r}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+            zone,
+            hex: commonHex,
+            title: `ЛОВУШКА • ${cell.threatLevel}`,
+            text: `Сектор (${cell.q}, ${cell.r}) выглядит подозрительно: провода, растяжки, следы капкана.`,
+            options: [
+                {
+                    id: 'disarm',
+                    text: '[ОБЕЗВРЕДИТЬ] (Техник)',
+                    requiredRole: 'techie',
+                    effect: {
+                        successChance: Math.min(95, baseChance + 25),
+                        grantItems: [{ templateId: 'scrap', quantity: 3 }],
+                        logMessage: 'обезвредил ловушку и собрал детали',
+                        setFlags: clearFlags,
+                        failureEffect: { woundPlayer: true, resourceDelta: { morale: -10 }, logMessage: 'сработала ловушка' },
+                    },
+                },
+                {
+                    id: 'risk',
+                    text: '[РИСКНУТЬ]',
+                    effect: {
+                        successChance: Math.max(20, baseChance - 20),
+                        grantItems: [{ templateId: 'scrap', quantity: 2 }],
+                        logMessage: 'проскочил через ловушки и что-то нашёл',
+                        setFlags: clearFlags,
+                        failureEffect: { woundPlayer: true, logMessage: 'попал в ловушку' },
+                    },
+                },
+                { id: 'retreat', text: '[ОТСТУПИТЬ]', effect: { logMessage: 'отступил' } },
+            ],
+            tags: ['hazard'],
+        }
+    }
+
+    // loot
+    const fuelDelta = cell.resource === 'FUEL' ? 1 : 0
+    return {
+        id: `hex_loot_${cell.q}_${cell.r}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        zone,
+        hex: commonHex,
+        title: 'НАХОДКА',
+        text: `После разведки вы нашли точку для обыска в секторе (${cell.q}, ${cell.r}).`,
+        options: [
+            {
+                id: 'scavenge',
+                text: '[ОБЫСКАТЬ]',
+                effect: {
+                    successChance: Math.min(95, baseChance + 5),
+                    grantItems: randomLootForHex(cell),
+                    resourceDelta: fuelDelta > 0 ? { fuel: fuelDelta } : undefined,
+                    logMessage: 'собрал полезное и ушёл',
+                    setFlags: clearFlags,
+                    failureEffect: { resourceDelta: { morale: -5 }, logMessage: 'ничего ценного не нашёл' },
+                },
+            },
+            { id: 'leave', text: '[УЙТИ]', effect: { logMessage: 'решил не тратить время' } },
+        ],
+        tags: ['loot'],
+    }
+}
+
+function runMorningBriefing(state: SurvivalState): void {
+    const time = formatWorldTime(state.worldTimeMinutes)
+    state.log.push(createLogEntry(null, null, `Сводка: ${time}.`, 'system'))
+
+    // Example: Cataclysm/crisis announcement & objectives
+    if (state.crisisLevel === 'crisis') {
+        state.log.push(createLogEntry(null, null, '⚠️ КАТАКЛИЗМ: ситуация критическая. Укрепите базу и обеспечьте ресурсы.', 'crisis'))
+        state.log.push(createLogEntry(null, null, 'ЗАДАЧИ: +еда/+мораль, усилить защиту, вернуть раненых в базу.', 'system'))
+    } else if (state.crisisLevel === 'warning') {
+        state.log.push(createLogEntry(null, null, '⚠️ ПРЕДУПРЕЖДЕНИЕ: признаки надвигающегося катаклизма. Подготовьтесь.', 'system'))
+    }
+
+    // Location-linked morning events: if players stayed in zones, they may get a zone event
+    for (const player of Object.values(state.players)) {
+        if (!player.currentZone) continue
+        if (player.activeEventId) continue
+        if (player.currentZone === 'living_room') continue
+
+        const event = rollRandomEvent(player.currentZone, state.flags, state.zoneVisits[player.currentZone] ?? 0)
+        if (!event) continue
+
+        player.activeEventId = event.id
+        player.activeEvent = event // Store full event for persistence
+        state.log.push(createLogEntry(player.playerId, player.playerName, `Утреннее событие в ${player.currentZone}: ${event.title}`, 'action'))
+    }
+
+}
+
+function onPhaseChanged(state: SurvivalState, prevPhase: SurvivalCyclePhase, nextPhase: SurvivalCyclePhase): void {
+    const time = formatWorldTime(state.worldTimeMinutes)
+
+    if (nextPhase === 'start') {
+        // New day start at 06:00
+        onDayStart(state)
+        return
+    }
+
+    if (prevPhase !== nextPhase) {
+        const label =
+            nextPhase === 'day'
+                ? 'Дневная фаза'
+                : nextPhase === 'monsters'
+                    ? 'Ночная фаза: монстры активны'
+                    : 'Начало дня'
+
+        state.log.push(createLogEntry(null, null, `${time}. ${label}.`, 'system'))
+    }
+
+    // Tick loop will broadcast the updated state
+}
 
 // ============================================================================
 // UTILITY FUNCTIONS
@@ -84,6 +1118,9 @@ function broadcastLogEntry(sessionId: string, entry: LogEntry) {
 export async function createSession(hostPlayerId: number, hostName: string = 'Host'): Promise<SurvivalState> {
     const sessionId = generateSessionId()
     const now = Date.now()
+    // Hex map config (used by both server encounter generation and client rendering)
+    const hexMapSeed = Math.floor(Math.random() * 2_000_000_000)
+    const hexMapRadius = 14
 
     const hostPlayer: SurvivalPlayer = {
         playerId: hostPlayerId,
@@ -94,13 +1131,25 @@ export async function createSession(hostPlayerId: number, hostName: string = 'Ho
         currentZone: null,
         activeEventId: null,
         joinedAt: now,
+        hexPos: { q: 0, r: 0 },
+        stamina: DEFAULT_STAMINA,
+        maxStamina: DEFAULT_STAMINA,
     }
 
     const state: SurvivalState = {
         sessionId,
         hostPlayerId,
         status: 'lobby',
-        timerSeconds: 600, // 10 minutes default
+
+        // Canonical server time (lore ms). Start aligned to 06:00.
+        worldTimeMs: DAY_START_MS,
+        worldDay: 1,
+        worldTimeMinutes: DAY_START_MINUTE,
+        phase: 'start',
+        phaseStartedAt: now,
+
+        // Countdown shown in UI: real seconds until next 06:00 day-start (full day = 12 real minutes)
+        timerSeconds: Math.ceil(DEFAULT_SURVIVAL_TIME_CONFIG.realDayDurationMs / 1000),
         timerStartedAt: null,
         crisisLevel: 'calm',
         crisisEventId: null,
@@ -108,7 +1157,13 @@ export async function createSession(hostPlayerId: number, hostName: string = 'Ho
         npcs: [],
         players: { [hostPlayerId]: hostPlayer },
         log: [createLogEntry(null, null, 'Сессия создана', 'system')],
-        flags: {},
+        flags: {
+            hexMapSeed,
+            hexMapRadius,
+        },
+        timeConfig: { ...DEFAULT_SURVIVAL_TIME_CONFIG },
+        dailyEvent: null,
+        zones: undefined,
         zoneVisits: {
             kitchen: 0,
             bathroom: 0,
@@ -121,6 +1176,10 @@ export async function createSession(hostPlayerId: number, hostName: string = 'Ho
     }
 
     sessions.set(sessionId, state)
+
+    // Persist immediately (critical event)
+    await persistSession(state, true)
+
     return state
 }
 
@@ -128,7 +1187,21 @@ export async function createSession(hostPlayerId: number, hostName: string = 'Ho
  * Get a session by ID
  */
 export function getSession(sessionId: string): SurvivalState | undefined {
-    return sessions.get(sessionId)
+    const state = sessions.get(sessionId)
+    if (!state) return undefined
+
+    let changed = false
+    for (const player of Object.values(state.players)) {
+        if (ensurePlayerStamina(player)) changed = true
+        const hadHexPos = Boolean(player.hexPos)
+        ensurePlayerHexPos(player)
+        if (!hadHexPos) changed = true
+    }
+    if (changed) {
+        state.updatedAt = Date.now()
+    }
+
+    return state
 }
 
 /**
@@ -155,6 +1228,15 @@ export async function joinSession(
 
         if (playerName && existingPlayer.playerName !== playerName) {
             existingPlayer.playerName = playerName
+            changed = true
+        }
+
+        if (ensurePlayerStamina(existingPlayer)) {
+            changed = true
+        }
+        const hadHexPos = Boolean(existingPlayer.hexPos)
+        ensurePlayerHexPos(existingPlayer)
+        if (!hadHexPos) {
             changed = true
         }
 
@@ -192,6 +1274,9 @@ export async function joinSession(
         currentZone: null,
         activeEventId: null,
         joinedAt: Date.now(),
+        hexPos: { q: 0, r: 0 },
+        stamina: DEFAULT_STAMINA,
+        maxStamina: DEFAULT_STAMINA,
     }
 
     // If enforcer, grant starting pistol
@@ -202,6 +1287,9 @@ export async function joinSession(
     state.players[playerId] = player
     state.log.push(createLogEntry(playerId, playerName, `присоединился к сессии`, 'system'))
     state.updatedAt = Date.now()
+
+    // Persist immediately (critical event)
+    await persistSession(state, true)
 
     broadcastUpdate(sessionId, state)
     return state
@@ -250,15 +1338,32 @@ export async function startSession(sessionId: string, playerId: number): Promise
     if (state.status !== 'lobby') throw new Error('Session already started')
 
     state.status = 'active'
-    state.timerStartedAt = Date.now()
+    const startedAt = Date.now()
+    state.timerStartedAt = startedAt
+
+    // Initialize time config and canonical lore time (aligned to 06:00).
+    state.timeConfig = { ...(state.timeConfig ?? DEFAULT_SURVIVAL_TIME_CONFIG) }
+    state.worldTimeMs = DAY_START_MS
+    state.worldDay = 1
+    state.worldTimeMinutes = DAY_START_MINUTE
+    state.phase = 'start'
+    state.phaseStartedAt = startedAt
+
+    // Store last real tick for delta-based advancement.
+    lastRealTickAt.set(sessionId, startedAt)
+
+    // Countdown to next day-start in real seconds
+    state.timerSeconds = Math.ceil((state.timeConfig.realDayDurationMs ?? DEFAULT_SURVIVAL_TIME_CONFIG.realDayDurationMs) / 1000)
+    monsterMinutesAccumulator.set(sessionId, 0)
+    onDayStart(state)
     state.log.push(createLogEntry(null, null, 'СЕССИЯ НАЧАЛАСЬ! Таймер запущен.', 'system'))
     state.updatedAt = Date.now()
 
-    // Start server-side timer tick
-    const interval = setInterval(() => {
-        tickSession(sessionId)
-    }, 1000)
-    timerIntervals.set(sessionId, interval)
+    // Start server-side timer tick (use helper function)
+    startTickInterval(sessionId)
+
+    // Persist immediately (critical event - session started)
+    await persistSession(state, true)
 
     broadcastUpdate(sessionId, state)
     return state
@@ -276,26 +1381,99 @@ function tickSession(sessionId: string) {
             clearInterval(interval)
             timerIntervals.delete(sessionId)
         }
+        lastRealTickAt.delete(sessionId)
+        monsterMinutesAccumulator.delete(sessionId)
+        staminaMinutesAccumulator.delete(sessionId)
         return
     }
 
-    state.timerSeconds = Math.max(0, state.timerSeconds - 1)
+    // Backward-compatible defaults (in case of older in-memory state)
+    if (typeof state.worldDay !== 'number') state.worldDay = 1
+    if (typeof state.worldTimeMinutes !== 'number') state.worldTimeMinutes = DAY_START_MINUTE
+    if (typeof (state as any).worldTimeMs !== 'number') (state as any).worldTimeMs = DAY_START_MS
+    if (!state.timeConfig) state.timeConfig = { ...DEFAULT_SURVIVAL_TIME_CONFIG }
+    if (!state.phase) state.phase = getCyclePhase(state.worldTimeMinutes)
+    if (!state.phaseStartedAt) state.phaseStartedAt = Date.now()
+    ensureZonesInitialized(state)
+
+    let shouldBroadcast = false
+    const prevPhase = state.phase
+
+    const nowRealMs = Date.now()
+
+    // Advance canonical lore time using real delta + timeScale
+    const { minutesAdvanced, dayIndexChanged } = advanceWorldTimeMs(sessionId, state, nowRealMs)
+
+    // Update countdown: real seconds until next 06:00 day-start
+    const nextDayStartWorldMs = getNextDayStartWorldTimeMs(state.worldTimeMs)
+    state.timerSeconds = computeRealSecondsUntil(nextDayStartWorldMs, state.worldTimeMs, state.timeConfig.timeScale)
+
+    // Handle phase transitions based on new time-of-day
+    const nextPhase = getCyclePhase(state.worldTimeMinutes)
+    if (nextPhase !== prevPhase) {
+        state.phase = nextPhase
+        state.phaseStartedAt = nowRealMs
+        onPhaseChanged(state, prevPhase, nextPhase)
+        shouldBroadcast = true
+    } else if (dayIndexChanged && nextPhase === 'start') {
+        // Safety: if time jumps but phase didn't change, still trigger day-start.
+        onDayStart(state)
+        shouldBroadcast = true
+    }
+
+    // Process completion of exclusive zone actions (scavenge, etc.)
+    if (processZoneActions(state)) {
+        shouldBroadcast = true
+    }
+
+    // Stamina regeneration (bunker + consumables)
+    if (processStaminaRegen(state, sessionId, minutesAdvanced)) {
+        shouldBroadcast = true
+    }
+
+    // Process player arrivals (hex movement)
+    if (processPlayerArrivals(state)) {
+        shouldBroadcast = true
+    }
+    // Phase 3: monsters move (tracked in minutes to avoid relying on exact modulo hits)
+    if (state.phase === 'monsters') {
+        const prevMonsterMinutes = monsterMinutesAccumulator.get(sessionId) ?? 0
+        const accumulated = prevMonsterMinutes + minutesAdvanced
+
+        if (accumulated >= MONSTER_TICK_INTERVAL_MINUTES) {
+            const ticks = Math.floor(accumulated / MONSTER_TICK_INTERVAL_MINUTES)
+            for (let i = 0; i < ticks; i += 1) {
+                if (tickMonsters(state)) shouldBroadcast = true
+            }
+            monsterMinutesAccumulator.set(sessionId, accumulated % MONSTER_TICK_INTERVAL_MINUTES)
+        } else {
+            monsterMinutesAccumulator.set(sessionId, accumulated)
+        }
+    } else {
+        monsterMinutesAccumulator.set(sessionId, 0)
+    }
+
     state.updatedAt = Date.now()
 
-    // Check for crisis thresholds
-    if (state.timerSeconds <= 0 && state.crisisLevel !== 'crisis') {
-        state.crisisLevel = 'crisis'
-        state.log.push(createLogEntry(null, null, '⚠️ КРИЗИС! Время вышло!', 'crisis'))
-        triggerCrisisEvent(sessionId)
-    } else if (state.timerSeconds <= 120 && state.crisisLevel === 'calm') {
-        state.crisisLevel = 'warning'
-        state.log.push(createLogEntry(null, null, '⚡ ВНИМАНИЕ! Осталось 2 минуты!', 'system'))
+    if (shouldBroadcast) {
+        broadcastUpdate(sessionId, state)
     }
 
     // Broadcast timer sync periodically (every 5 seconds to reduce traffic)
     if (state.timerSeconds % 5 === 0) {
-        eventBus.emit('survival_timer', { sessionId, timerSeconds: state.timerSeconds })
+        eventBus.emit('survival_timer', {
+            sessionId,
+            timerSeconds: state.timerSeconds,
+            worldDay: state.worldDay,
+            worldTimeMinutes: state.worldTimeMinutes,
+            phase: state.phase,
+        })
     }
+
+    // Throttled persist (every 5 seconds, not forced)
+    persistSession(state, false).catch(err => {
+        console.error(`[SurvivalService] Tick persist error for ${sessionId}:`, err)
+    })
 }
 
 /**
@@ -341,6 +1519,13 @@ export async function enterZone(
     state.zoneVisits[zoneId] = (state.zoneVisits[zoneId] || 0) + 1
     player.currentZone = zoneId
 
+    // Ensure zone interactions exist; entering a zone may expose available interactions immediately.
+    ensureZonesInitialized(state)
+    const scavengeState = state.zones?.[zoneId]?.actions.scavenge
+    if (scavengeState && scavengeState.chargesRemaining > 0) {
+        state.log.push(createLogEntry(playerId, player.playerName, `В ${getZoneNameRu(zoneId)} доступно: ОБЫСК (${scavengeState.chargesRemaining}x)`, 'system'))
+    }
+
     // Scout preview for zone info
     let zoneInfo: { threatLevel: string; lootQuality: string } | undefined
     if (player.role === 'scout') {
@@ -356,7 +1541,7 @@ export async function enterZone(
 
     if (event) {
         player.activeEventId = event.id
-        activeEvents.set(playerId, event)
+        player.activeEvent = event // Store full event for persistence
         state.log.push(createLogEntry(playerId, player.playerName, `вошёл в ${zoneId}`, 'action'))
     } else {
         state.log.push(createLogEntry(playerId, player.playerName, `обыскал ${zoneId}, но ничего не нашёл`, 'action'))
@@ -369,10 +1554,86 @@ export async function enterZone(
 }
 
 /**
- * Get the active event for a player
+ * Start an exclusive zone action (e.g. Scavenge) with server lock + ETA.
  */
-export function getActiveEvent(playerId: number): SurvivalEvent | undefined {
-    return activeEvents.get(playerId)
+export async function startZoneAction(
+    sessionId: string,
+    playerId: number,
+    zoneId: ZoneType,
+    actionId: ZoneActionId
+): Promise<{ success: boolean; message: string; state: SurvivalState }> {
+    const state = sessions.get(sessionId)
+    if (!state) throw new Error('Session not found')
+    if (state.status !== 'active') throw new Error('Session not active')
+
+    const player = state.players[playerId]
+    if (!player) throw new Error('Player not in session')
+    if (player.currentZone !== zoneId) throw new Error('Player not in the requested zone')
+    if (player.activeEventId) throw new Error('Player is busy with an event')
+    if (player.activeZoneActionId) throw new Error('Player is already performing an action')
+
+    ensureZonesInitialized(state)
+    const zone = state.zones![zoneId]
+    const action = zone.actions[actionId]
+
+    // Validate charges
+    if (action.chargesRemaining <= 0) {
+        return { success: false, message: 'Действие недоступно: лимит исчерпан', state }
+    }
+
+    // Validate & acquire lock (lease)
+    const nowWorld = state.worldTimeMs
+    const leaseMs = 10 * 60 * 1000 // 10 lore minutes
+    const lockExpired = action.lock.lockExpiresAtWorldTimeMs !== null && action.lock.lockExpiresAtWorldTimeMs <= nowWorld
+
+    if (action.lock.lockedByPlayerId !== null && !lockExpired && action.lock.lockedByPlayerId !== playerId) {
+        return { success: false, message: 'Действие занято другим игроком', state }
+    }
+
+    // If there was a stale lock/progress, clear it
+    if (lockExpired) {
+        action.lock.lockedByPlayerId = null
+        action.lock.lockExpiresAtWorldTimeMs = null
+        action.inProgress = null
+    }
+
+    if (action.inProgress) {
+        return { success: false, message: 'Действие уже выполняется', state }
+    }
+
+    action.lock.lockedByPlayerId = playerId
+    action.lock.lockExpiresAtWorldTimeMs = nowWorld + leaseMs
+
+    // Reserve charge and schedule completion
+    action.chargesRemaining -= 1
+    const durationMs = actionId === 'scavenge' ? 60 * 60 * 1000 : 30 * 60 * 1000 // 60 lore minutes default
+    action.inProgress = {
+        actionId,
+        startedByPlayerId: playerId,
+        completesAtWorldTimeMs: nowWorld + durationMs,
+    }
+
+    player.activeZoneActionId = actionId
+    state.log.push(createLogEntry(playerId, player.playerName, `Начал ОБЫСК в ${getZoneNameRu(zoneId)} (ETA: ${Math.round(durationMs / 60000)} мин)`, 'action'))
+
+    state.updatedAt = Date.now()
+
+    // Persist immediately (critical event - zone action started)
+    await persistSession(state, true)
+
+    broadcastUpdate(sessionId, state)
+
+    return { success: true, message: 'Действие начато', state }
+}
+
+/**
+ * Get the active event for a player (from session state, not in-memory Map)
+ */
+export function getActiveEvent(sessionId: string, playerId: number): SurvivalEvent | undefined {
+    const state = sessions.get(sessionId)
+    if (!state) return undefined
+    const player = state.players[playerId]
+    return player?.activeEvent ?? undefined
 }
 
 /**
@@ -390,7 +1651,7 @@ export async function resolveOption(
     const player = state.players[playerId]
     if (!player) throw new Error('Player not in session')
 
-    const event = activeEvents.get(playerId)
+    const event = player.activeEvent
     if (!event || event.id !== eventId) throw new Error('Event not active')
 
     const option = event.options.find(o => o.id === optionId)
@@ -441,12 +1702,31 @@ export async function resolveOption(
     const logMessage = effectToApply.logMessage || `выбрал "${option.text}"`
     state.log.push(createLogEntry(playerId, player.playerName, logMessage, 'action'))
 
-    // Clear active event
-    player.activeEventId = null
-    player.currentZone = null
-    activeEvents.delete(playerId)
+    // Follow-up event chain (optional)
+    const followUp = effectToApply.triggerEventId
+        ? getNextEventFromTrigger(state, player, effectToApply.triggerEventId)
+        : null
+
+    if (followUp) {
+        player.activeEventId = followUp.id
+        player.activeEvent = followUp
+        // Keep currentZone as-is (hex events use currentZone=null anyway)
+    } else {
+        // Clear active event
+        player.activeEventId = null
+        player.activeEvent = null // Clear persisted event
+        player.currentZone = null
+    }
+
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H2',location:'server/src/services/survivalService.ts:resolveOption(post)',message:'Resolved option; event state after resolution',data:{playerId,prevEventId:eventId,optionId,success,followUpEventId:followUp?.id ?? null,activeEventIdAfter:player.activeEventId ?? null,activeEventPresentAfter:Boolean(player.activeEvent),currentZoneAfter:player.currentZone ?? null},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
 
     state.updatedAt = Date.now()
+
+    // Persist immediately (critical event - option resolved)
+    await persistSession(state, true)
+
     broadcastUpdate(sessionId, state)
 
     return {
@@ -454,6 +1734,22 @@ export async function resolveOption(
         effect: effectToApply,
         message: effectToApply.logMessage || (success ? 'Успех!' : 'Неудача...'),
     }
+}
+
+function getNextEventFromTrigger(state: SurvivalState, player: SurvivalPlayer, triggerEventId: string): SurvivalEvent | null {
+    // Special dynamic chain for hex encounters
+    if (triggerEventId === '__HEX_ENCOUNTER__') {
+        const hex = player.activeEvent?.hex
+        if (!hex) return null
+        const { hexSeed, hexRadius } = getHexMapConfigFromFlags(state.flags)
+        const cell = getHexCell(hexRadius, hexSeed, hex)
+        if (!cell) return null
+        return generateHexEncounterFollowUp(state, cell)
+    }
+
+    // Static events from registry
+    const ev = getEventById(triggerEventId)
+    return ev ?? null
 }
 
 /**
@@ -494,6 +1790,17 @@ function applyEffect(state: SurvivalState, player: SurvivalPlayer, effect: Event
             ...effect.recruitNpc,
             recruitedAt: Date.now(),
         })
+    }
+
+    // Patch flags
+    if (effect.setFlags) {
+        for (const [k, v] of Object.entries(effect.setFlags)) {
+            if (v === null) {
+                delete (state.flags as any)[k]
+            } else {
+                state.flags[k] = v
+            }
+        }
     }
 }
 
@@ -547,8 +1854,161 @@ export async function transferToBase(
     }
 
     state.updatedAt = Date.now()
+    // Persist immediately (critical event - items transferred)
+    await persistSession(state, true)
+
     broadcastUpdate(sessionId, state)
     return state
+}
+
+// ============================================================================
+// MAP MOVEMENT (SERVER-AUTHORITATIVE)
+// ============================================================================
+
+const DEFAULT_STAMINA = 100
+const MOVEMENT_MS_PER_HEX = 30 * 60 * 1000 // 30 lore minutes per hex
+
+function findPathBfs(
+    map: Map<string, HexCell>,
+    start: { q: number; r: number },
+    end: { q: number; r: number }
+): Array<{ q: number; r: number }> {
+    const startKey = serverHexToString(start)
+    const endKey = serverHexToString(end)
+    if (!map.has(startKey) || !map.has(endKey)) return []
+    if (startKey === endKey) return [start]
+
+    const queue: Array<{ q: number; r: number }> = [start]
+    const cameFrom = new Map<string, string | null>()
+    cameFrom.set(startKey, null)
+
+    const neighbors = (h: { q: number; r: number }) => ([
+        { q: h.q + 1, r: h.r },
+        { q: h.q + 1, r: h.r - 1 },
+        { q: h.q, r: h.r - 1 },
+        { q: h.q - 1, r: h.r },
+        { q: h.q - 1, r: h.r + 1 },
+        { q: h.q, r: h.r + 1 },
+    ])
+
+    while (queue.length > 0) {
+        const current = queue.shift()!
+        const currentKey = serverHexToString(current)
+        if (currentKey === endKey) break
+
+        for (const nxt of neighbors(current)) {
+            const k = serverHexToString(nxt)
+            if (cameFrom.has(k)) continue
+            const cell = map.get(k)
+            if (!cell) continue
+            if (cell.isObstacle) continue
+            cameFrom.set(k, currentKey)
+            queue.push(nxt)
+        }
+    }
+
+    if (!cameFrom.has(endKey)) return []
+
+    const path: Array<{ q: number; r: number }> = []
+    let cur: string | null = endKey
+    while (cur) {
+        const [qStr, rStr] = cur.split(',')
+        path.push({ q: Number(qStr), r: Number(rStr) })
+        cur = cameFrom.get(cur) ?? null
+    }
+    path.reverse()
+    return path
+}
+
+/**
+ * Move player to target hex (server-authoritative)
+ */
+export async function movePlayer(
+    sessionId: string,
+    playerId: number,
+    targetHex: { q: number; r: number }
+): Promise<{ success: boolean; message: string; arriveAtWorldTimeMs?: number }> {
+    const state = sessions.get(sessionId)
+    if (!state) throw new Error('Session not found')
+    if (state.status !== 'active') throw new Error('Session not active')
+
+    const player = state.players[playerId]
+    if (!player) throw new Error('Player not in session')
+
+    // Initialize defaults if missing
+    ensurePlayerStamina(player)
+    ensurePlayerHexPos(player)
+
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H1',location:'server/src/services/survivalService.ts:movePlayer(entry)',message:'Move request received',data:{sessionId,playerId,targetHex,activeEventId:player.activeEventId ?? null,activeEventPresent:Boolean(player.activeEvent),hasMovementState:Boolean(player.movementState),hexPos:player.hexPos ?? null,stamina:player.stamina ?? null,worldTimeMs:state.worldTimeMs},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+
+    // Can't move while already moving
+    if (player.movementState) {
+        return { success: false, message: 'Already moving' }
+    }
+
+    // Can't move while in active event
+    if (player.activeEventId) {
+        return { success: false, message: 'Resolve current event first' }
+    }
+
+    const currentPos = player.hexPos ?? { q: 0, r: 0 }
+    if (currentPos.q === targetHex.q && currentPos.r === targetHex.r) {
+        return { success: false, message: 'Already at destination' }
+    }
+
+    const { hexSeed, hexRadius } = getHexMapConfigFromFlags(state.flags)
+    const map = generateHexMap(hexRadius, hexSeed)
+    const path = findPathBfs(map, currentPos, targetHex)
+    if (path.length < 2) {
+        return { success: false, message: 'No valid path to destination' }
+    }
+    const distance = Math.max(0, path.length - 1)
+
+    // Check stamina
+    const staminaCost = distance * STAMINA_COST_PER_HEX
+    if (player.stamina < staminaCost) {
+        return { success: false, message: `Insufficient stamina (need ${staminaCost}, have ${player.stamina})` }
+    }
+
+    // Calculate ETA
+    const travelTimeMs = distance * MOVEMENT_MS_PER_HEX
+    const arriveAtWorldTimeMs = state.worldTimeMs + travelTimeMs
+
+    // Deduct stamina and set movement state
+    player.stamina -= staminaCost
+    player.movementState = {
+        path,
+        startedAtWorldTimeMs: state.worldTimeMs,
+        msPerHex: MOVEMENT_MS_PER_HEX,
+        arriveAtWorldTimeMs,
+    }
+
+    state.log.push(createLogEntry(
+        playerId,
+        player.playerName,
+        `начал движение к (${targetHex.q}, ${targetHex.r}) — ETA: ${Math.round(travelTimeMs / 60000)} мин`,
+        'action'
+    ))
+    state.updatedAt = Date.now()
+
+    // Persist immediately (critical event - movement started)
+    await persistSession(state, true)
+
+    broadcastUpdate(sessionId, state)
+
+    return { success: true, message: 'Movement started', arriveAtWorldTimeMs }
+}
+
+/**
+ * Hex distance utility (imported from shared types)
+ */
+function hexDistance(a: { q: number; r: number }, b: { q: number; r: number }): number {
+    const dq = Math.abs(a.q - b.q)
+    const dr = Math.abs(a.r - b.r)
+    const ds = Math.abs((a.q + a.r) - (b.q + b.r))
+    return Math.max(dq, dr, ds)
 }
 
 // ============================================================================
@@ -556,13 +2016,16 @@ export async function transferToBase(
 // ============================================================================
 
 export const survivalService = {
+    initSurvivalService,
     createSession,
     getSession,
     joinSession,
     selectRole,
     startSession,
     enterZone,
+    startZoneAction,
     getActiveEvent,
     resolveOption,
     transferToBase,
+    movePlayer,
 }

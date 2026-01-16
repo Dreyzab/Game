@@ -3,7 +3,7 @@ import { HexGrid } from './components/HexGrid'
 import { generateMap } from '../services/mapGenerator'
 import { hexToString } from '../utils/hexMath'
 import type { BiomeType, GameState, HexCell, HexCoordinate, ResourceType, ThreatLevel } from '../types'
-import { BiomeType as BiomeEnum, ResourceType as ResourceEnum, ThreatLevel as ThreatEnum } from '../types'
+import { BIOME_VALUES, RESOURCE_VALUES, THREAT_VALUES } from '../types'
 
 const MAP_RADIUS = 8
 
@@ -16,11 +16,10 @@ export const SurvivalMapEditor = ({ onExit }: SurvivalMapEditorProps) => {
     const [selectedHex, setSelectedHex] = useState<HexCoordinate | null>(null)
     const [hoveredHex, setHoveredHex] = useState<HexCoordinate | null>(null)
 
-
     // Editor Tools
-    const [paintBiome, setPaintBiome] = useState<BiomeType>(BiomeEnum.WASTELAND)
-    const [paintResource, setPaintResource] = useState<ResourceType>(ResourceEnum.NONE)
-    const [paintThreat, setPaintThreat] = useState<ThreatLevel>(ThreatEnum.LOW)
+    const [paintBiome, setPaintBiome] = useState<BiomeType>('WASTELAND')
+    const [paintResource, setPaintResource] = useState<ResourceType>('NONE')
+    const [paintThreat, setPaintThreat] = useState<ThreatLevel>('LOW')
     const [brushMode, setBrushMode] = useState<'paint' | 'select'>('select')
 
     // Save/Load System
@@ -214,7 +213,7 @@ export const SurvivalMapEditor = ({ onExit }: SurvivalMapEditorProps) => {
                                 onChange={e => setPaintBiome(e.target.value as BiomeType)}
                                 className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm outline-none focus:border-amber-500"
                             >
-                                {Object.values(BiomeEnum).map(b => (
+                                {BIOME_VALUES.map(b => (
                                     <option key={b} value={b}>{b}</option>
                                 ))}
                             </select>
@@ -227,7 +226,7 @@ export const SurvivalMapEditor = ({ onExit }: SurvivalMapEditorProps) => {
                                 onChange={e => setPaintResource(e.target.value as ResourceType)}
                                 className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm outline-none focus:border-amber-500"
                             >
-                                {Object.values(ResourceEnum).map(r => (
+                                {RESOURCE_VALUES.map(r => (
                                     <option key={r} value={r}>{r}</option>
                                 ))}
                             </select>
@@ -240,7 +239,7 @@ export const SurvivalMapEditor = ({ onExit }: SurvivalMapEditorProps) => {
                                 onChange={e => setPaintThreat(e.target.value as ThreatLevel)}
                                 className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm outline-none focus:border-amber-500"
                             >
-                                {Object.values(ThreatEnum).map(t => (
+                                {THREAT_VALUES.map(t => (
                                     <option key={t} value={t}>{t}</option>
                                 ))}
                             </select>

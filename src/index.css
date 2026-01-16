@@ -63,13 +63,11 @@
 
 /* Survival Datapad (ported from /tactical-datapad) */
 .survival-datapad-scanline-overlay {
-  background: linear-gradient(
-    to bottom,
-    rgba(255, 255, 255, 0),
-    rgba(255, 255, 255, 0) 50%,
-    rgba(0, 0, 0, 0.1) 50%,
-    rgba(0, 0, 0, 0.1)
-  );
+  background: linear-gradient(to bottom,
+      rgba(255, 255, 255, 0),
+      rgba(255, 255, 255, 0) 50%,
+      rgba(0, 0, 0, 0.1) 50%,
+      rgba(0, 0, 0, 0.1));
   background-size: 100% 4px;
 }
 
@@ -78,12 +76,15 @@
     top: 5%;
     opacity: 0;
   }
+
   10% {
     opacity: 1;
   }
+
   90% {
     opacity: 1;
   }
+
   100% {
     top: 95%;
     opacity: 0;
@@ -95,11 +96,13 @@
 }
 
 @keyframes survival-datapad-pulse-red {
+
   0%,
   100% {
     box-shadow: 0 0 10px rgba(220, 38, 38, 0);
     border-color: rgba(220, 38, 38, 0.4);
   }
+
   50% {
     box-shadow: 0 0 30px rgba(220, 38, 38, 0.6);
     border-color: rgba(220, 38, 38, 1);
@@ -111,11 +114,13 @@
 }
 
 @keyframes survival-datapad-pulse-amber {
+
   0%,
   100% {
     box-shadow: 0 0 5px rgba(245, 158, 11, 0.1);
     border-color: rgba(245, 158, 11, 0.4);
   }
+
   50% {
     box-shadow: 0 0 20px rgba(245, 158, 11, 0.4);
     border-color: rgba(245, 158, 11, 0.9);
@@ -127,11 +132,13 @@
 }
 
 @keyframes survival-datapad-breathe-green {
+
   0%,
   100% {
     box-shadow: 0 0 5px rgba(16, 185, 129, 0.1);
     border-color: rgba(16, 185, 129, 0.2);
   }
+
   50% {
     box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
     border-color: rgba(16, 185, 129, 0.5);
@@ -147,13 +154,16 @@
     transform: scale(1, 0.002);
     opacity: 0;
   }
+
   50% {
     transform: scale(1, 0.002);
     opacity: 1;
   }
+
   75% {
     transform: scale(1, 1.1);
   }
+
   100% {
     transform: scale(1, 1);
     opacity: 1;
@@ -162,6 +172,22 @@
 
 .survival-datapad .animate-crt {
   animation: survival-datapad-crt-turn-on 0.2s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+}
+
+/* Respect user preference for reduced motion */
+@media (prefers-reduced-motion: reduce) {
+
+  .survival-datapad-scanline,
+  .survival-datapad .status-wounded,
+  .survival-datapad .status-hungry,
+  .survival-datapad .status-healthy,
+  .survival-datapad .animate-crt {
+    animation: none;
+  }
+
+  .survival-datapad-scanline-overlay {
+    background: none;
+  }
 }
 
 .custom-scrollbar::-webkit-scrollbar {
@@ -186,6 +212,7 @@
     transform: translateY(0);
     opacity: 1;
   }
+
   100% {
     transform: translateY(-20px);
     opacity: 0;
@@ -196,6 +223,7 @@
   0% {
     transform: translateX(0);
   }
+
   100% {
     transform: translateX(-50%);
   }
@@ -205,6 +233,7 @@
   0% {
     background-position: 0% 0%;
   }
+
   100% {
     background-position: 0% 100%;
   }
@@ -304,12 +333,15 @@
   }
 
   .dreyzab-battle .dreyzab-battlefield {
-    padding-top: 1.25rem !important;   /* was pt-12 */
-    padding-bottom: 1.25rem !important; /* was pb-28 */
+    padding-top: 1.25rem !important;
+    /* was pt-12 */
+    padding-bottom: 1.25rem !important;
+    /* was pb-28 */
   }
 
   .dreyzab-battle .dreyzab-lane-sprite-area {
-    align-items: center !important; /* override items-end */
+    align-items: center !important;
+    /* override items-end */
   }
 }
 
@@ -321,13 +353,13 @@
   perspective: 1000px;
 }
 
-.dreyzab-battle .card-fan > * {
+.dreyzab-battle .card-fan>* {
   margin: 0 -10px;
   transition: transform 0.2s, margin 0.2s;
   z-index: 1;
 }
 
-.dreyzab-battle .card-fan > *:hover {
+.dreyzab-battle .card-fan>*:hover {
   transform: translateY(-20px) scale(1.1) !important;
   margin: 0 5px;
   z-index: 10;
@@ -358,18 +390,23 @@
   0% {
     transform: translate(0);
   }
+
   20% {
     transform: translate(-2px, 2px);
   }
+
   40% {
     transform: translate(-2px, -2px);
   }
+
   60% {
     transform: translate(2px, 2px);
   }
+
   80% {
     transform: translate(2px, -2px);
   }
+
   100% {
     transform: translate(0);
   }

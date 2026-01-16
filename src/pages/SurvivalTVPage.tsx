@@ -30,6 +30,20 @@ function formatTime(seconds: number): string {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
 }
 
+function formatWorldTimeMinutes(minutes: number): string {
+    const normalized = ((minutes % (24 * 60)) + (24 * 60)) % (24 * 60)
+    const hh = Math.floor(normalized / 60)
+    const mm = normalized % 60
+    return `${hh.toString().padStart(2, '0')}:${mm.toString().padStart(2, '0')}`
+}
+
+function formatPhaseLabel(phase: SurvivalState['phase']): string {
+    if (phase === 'start') return 'НАЧАЛО ДНЯ'
+    if (phase === 'day') return 'ДЕНЬ'
+    if (phase === 'monsters') return 'НОЧЬ (МОНСТРЫ)'
+    return String(phase)
+}
+
 function ResourceBar({ label, icon, value, max, color }: {
     label: string
     icon: string
@@ -117,8 +131,21 @@ export default function SurvivalTVPage() {
     useEffect(() => {
         if (!sessionId) return
 
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-        const ws = new WebSocket(`${protocol}//${window.location.host}/ws`)
+        const apiWsUrl = (() => {
+            try {
+                const apiUrl = new URL(API_BASE_URL)
+                apiUrl.protocol = apiUrl.protocol === 'https:' ? 'wss:' : 'ws:'
+                apiUrl.pathname = '/ws'
+                apiUrl.search = ''
+                apiUrl.hash = ''
+                return apiUrl.toString()
+            } catch {
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+                return `${protocol}//${window.location.host}/ws`
+            }
+        })()
+
+        const ws = new WebSocket(apiWsUrl)
 
         ws.onopen = () => {
             setConnected(true)
@@ -130,10 +157,17 @@ export default function SurvivalTVPage() {
                 const msg = JSON.parse(event.data)
                 if (msg.type === 'survival:state_update') {
                     setState(msg.data)
-                } else if (msg.type === 'survival:timer_sync' && state) {
-                    setState((prev) => prev ? { ...prev, timerSeconds: msg.data.timerSeconds } : null)
-                } else if (msg.type === 'survival:log_entry' && state) {
-                    setState((prev) => prev ? { ...prev, log: [...prev.log, msg.data] } : null)
+                } else if (msg.type === 'survival:timer_sync') {
+                    setState((prev) => {
+                        if (!prev) return prev
+                        const next = { ...prev, timerSeconds: msg.data.timerSeconds }
+                        if (typeof msg.data.worldDay === 'number') next.worldDay = msg.data.worldDay
+                        if (typeof msg.data.worldTimeMinutes === 'number') next.worldTimeMinutes = msg.data.worldTimeMinutes
+                        if (typeof msg.data.phase === 'string') next.phase = msg.data.phase
+                        return next
+                    })
+                } else if (msg.type === 'survival:log_entry') {
+                    setState((prev) => prev ? { ...prev, log: [...prev.log, msg.data] } : prev)
                 }
             } catch (e) {
                 console.error('WS parse error', e)
@@ -194,6 +228,9 @@ export default function SurvivalTVPage() {
                         {formatTime(state.timerSeconds)}
                     </div>
                     <div className="text-sm text-gray-400">
+                        <div className="text-xs text-gray-500 font-mono">
+                            DAY {state.worldDay} • {formatWorldTimeMinutes(state.worldTimeMinutes)} • {formatPhaseLabel(state.phase)}
+                        </div>
                         {state.status === 'lobby' && 'Ожидание игроков...'}
                         {state.status === 'active' && 'Игра идёт'}
                         {state.status === 'paused' && 'Пауза'}

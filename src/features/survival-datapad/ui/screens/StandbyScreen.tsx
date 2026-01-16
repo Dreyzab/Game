@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Database, Scan, Trash2, X } from 'lucide-react'
 import { cn } from '@/shared/lib/utils/cn'
 import { ITEM_TEMPLATES } from '@/shared/data/itemTemplates'
@@ -17,6 +17,27 @@ interface StandbyScreenProps {
   onStartSession?: () => void
   onTransferToBase: (templateId: string, quantity: number) => void
   isLoading: boolean
+}
+
+function formatWorldTimeMinutes(minutes: number): string {
+  const normalized = ((minutes % (24 * 60)) + (24 * 60)) % (24 * 60)
+  const hh = Math.floor(normalized / 60)
+  const mm = normalized % 60
+  return `${hh.toString().padStart(2, '0')}:${mm.toString().padStart(2, '0')}`
+}
+
+function formatPhaseLabel(phase: SurvivalState['phase']): string {
+  if (phase === 'start') return 'MORNING'
+  if (phase === 'day') return 'DAY'
+  if (phase === 'monsters') return 'NIGHT / MONSTERS'
+  return String(phase)
+}
+
+function formatEta(seconds: number): string {
+  const s = Math.max(0, Math.floor(seconds))
+  const mm = Math.floor(s / 60)
+  const ss = s % 60
+  return `${mm.toString().padStart(2, '0')}:${ss.toString().padStart(2, '0')}`
 }
 
 function getDatapadStatus(session: SurvivalState, player: SurvivalPlayer): DatapadStatus {
@@ -49,10 +70,40 @@ export function StandbyScreen({
   isLoading,
 }: StandbyScreenProps) {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null)
+  const [movementEtaSeconds, setMovementEtaSeconds] = useState<number | null>(null)
+  const timeSyncRef = useRef<{ worldTimeMs: number; perfMs: number; timeScale: number } | null>(null)
 
   const theme = player.role ? DATAPAD_ROLE_THEMES[player.role] : DATAPAD_FALLBACK_THEME
   const status = useMemo(() => getDatapadStatus(session, player), [session, player])
   const inventory = useMemo(() => mapInventory(player), [player])
+
+  // Keep a sync point to estimate world time between websocket updates
+  useEffect(() => {
+    const timeScaleRaw = session.timeConfig?.timeScale
+    const timeScale = (typeof timeScaleRaw === 'number' && Number.isFinite(timeScaleRaw)) ? timeScaleRaw : 120
+    timeSyncRef.current = { worldTimeMs: session.worldTimeMs, perfMs: performance.now(), timeScale }
+  }, [session.worldTimeMs, session.timeConfig?.timeScale])
+
+  useEffect(() => {
+    const movement = player.movementState
+    if (!movement?.arriveAtWorldTimeMs) {
+      setMovementEtaSeconds(null)
+      return
+    }
+
+    const tick = () => {
+      const sync = timeSyncRef.current
+      if (!sync) return
+      const worldNow = sync.worldTimeMs + Math.max(0, performance.now() - sync.perfMs) * sync.timeScale
+      const remainingLoreMs = Math.max(0, movement.arriveAtWorldTimeMs - worldNow)
+      const remainingRealSeconds = Math.ceil((remainingLoreMs / sync.timeScale) / 1000)
+      setMovementEtaSeconds(Number.isFinite(remainingRealSeconds) ? remainingRealSeconds : null)
+    }
+
+    tick()
+    const id = window.setInterval(tick, 250)
+    return () => window.clearInterval(id)
+  }, [player.movementState])
 
   let headerBorderColor = theme.borderColor
   let statusBadgeColor = theme.color
@@ -81,6 +132,8 @@ export function StandbyScreen({
   const activeItem = inventory.find((i) => i.templateId === selectedTemplateId) ?? null
   const canScan = session.status === 'active'
   const canStart = session.status === 'lobby' && Boolean(onStartSession)
+  const movement = player.movementState
+  const movementDestination = movement?.path?.length ? movement.path[movement.path.length - 1] : null
 
   const handleScanClick = () => {
     if (!canScan || isLoading) return
@@ -102,6 +155,17 @@ export function StandbyScreen({
             <h1 className="text-xl font-bold text-white tracking-widest">{player.playerName}</h1>
             <p className={cn('text-xs opacity-80 uppercase', theme.color)}>CLASS: {theme.name}</p>
             <p className="text-[10px] text-gray-600 mt-1">SESSION: {session.sessionId}</p>
+            <p className="text-[10px] text-gray-600">
+              DAY {session.worldDay} • {formatWorldTimeMinutes(session.worldTimeMinutes)} • {formatPhaseLabel(session.phase)}
+            </p>
+            {movementDestination && (
+              <div className="mt-2 border border-cyan-500/30 bg-cyan-950/20 rounded px-2 py-1">
+                <div className="text-[10px] text-cyan-200/80 font-mono">
+                  В пути → ({movementDestination.q}, {movementDestination.r}) • До прибытия:{' '}
+                  {movementEtaSeconds === null ? '…' : formatEta(movementEtaSeconds)}
+                </div>
+              </div>
+            )}
           </div>
           <div className="text-right">
             <p className="text-[10px] text-gray-500 uppercase">VITALS MONITOR</p>
@@ -147,6 +211,9 @@ export function StandbyScreen({
         {session.status !== 'active' && (
           <div className="mt-2 border border-amber-500/30 bg-amber-900/10 rounded-lg p-3 text-amber-200 text-xs">
             <div>Waiting for host to start the session…</div>
+            <div className="mt-2 text-[10px] text-amber-200/70 font-mono">
+              hostPlayerId={String(session.hostPlayerId)} • yourPlayerId={String(player.playerId)}
+            </div>
             {canStart && (
               <button
                 className="mt-3 w-full border border-amber-500/40 bg-amber-950/40 text-amber-100 py-3 uppercase tracking-widest hover:bg-amber-900/40 disabled:opacity-50"
@@ -163,7 +230,7 @@ export function StandbyScreen({
         )}
       </main>
 
-      <div className="fixed bottom-0 left-0 w-full p-4 bg-gradient-to-t from-black via-black to-transparent z-20 space-y-3">
+      <div className="fixed bottom-0 left-0 w-full p-4 bg-linear-to-t from-black via-black to-transparent z-20 space-y-3">
         <button
           onClick={handleScanClick}
           disabled={!canScan || isLoading}

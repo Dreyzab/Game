@@ -4,4 +4,4 @@
  */
 
 export { SurvivalDatapad } from './ui/SurvivalDatapad'
-
+export { useSurvivalTimeSync } from './model/useSurvivalTimeSync'

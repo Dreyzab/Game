@@ -8,3 +8,4 @@ export * from './resonance';
 export * from './npcs';
 export * from './attributes';
 export * from './coop';
+export * from './survivalSessions';

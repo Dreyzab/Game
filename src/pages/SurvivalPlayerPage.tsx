@@ -3,7 +3,7 @@
  * Flow: Join/Create -> Character Select -> Base (see players) -> Zones (QR)
  */
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { cn } from '@/shared/lib/utils/cn'
 import { useAppAuth } from '@/shared/auth'
@@ -12,7 +12,9 @@ import { API_BASE_URL } from '@/shared/api/client'
 import { SurvivalBunkerDashboard } from '@/features/survival-bunker'
 import { SurvivalDatapad } from '@/features/survival-datapad'
 import { SurvivalMapbox } from '@/features/survival-hex-map'
+import { generateMap } from '@/features/survival-hex-map/services/mapGenerator'
 import { SurvivalMapEditor } from '@/features/survival-hex-map/ui/SurvivalMapEditor'
+import { ModeSwitcher, type SurvivalMode } from '@/features/survival-hex-map/ui/components/ModeSwitcher'
 import type {
     SurvivalEvent,
     SurvivalPlayer,
@@ -312,7 +314,7 @@ function BaseView({
             </section>
 
             {/* QR Scan Prompt */}
-            <section className="bg-gradient-to-br from-amber-900/20 to-transparent rounded-xl p-6 text-center border border-amber-500/30">
+            <section className="bg-linear-to-br from-amber-900/20 to-transparent rounded-xl p-6 text-center border border-amber-500/30">
                 <div className="text-5xl mb-3">📷</div>
                 <p className="text-gray-300 mb-4">Отсканируй QR-код зоны для разведки</p>
                 <button
@@ -438,10 +440,23 @@ export default function SurvivalPlayerPage() {
     const [session, setSession] = useState<SurvivalState | null>(null)
     const [player, setPlayer] = useState<SurvivalPlayer | null>(null)
     const [activeEvent, setActiveEvent] = useState<SurvivalEvent | null>(null)
-    const [baseMode, setBaseMode] = useState<'datapad' | 'bunker' | 'controller' | 'map' | 'hexmap'>('datapad')
+    const [baseMode, setBaseMode] = useState<SurvivalMode>('datapad')
     const [error, setError] = useState<string | null>(null)
     const [isLoading, setIsLoading] = useState(false)
     const [message, setMessage] = useState<string | null>(null)
+
+    const hexMapConfig = useMemo(() => {
+        const flags = session?.flags
+        const seedRaw = flags ? (flags['hexMapSeed'] as unknown) : undefined
+        const radiusRaw = flags ? (flags['hexMapRadius'] as unknown) : undefined
+        const seed = (typeof seedRaw === 'number' && Number.isFinite(seedRaw)) ? Math.floor(seedRaw) : 1337
+        const radius = (typeof radiusRaw === 'number' && Number.isFinite(radiusRaw)) ? Math.max(1, Math.floor(radiusRaw)) : 14
+        return { seed, radius }
+    }, [session?.flags])
+
+    const hexInitialMap = useMemo(() => {
+        return generateMap(hexMapConfig.radius, hexMapConfig.seed)
+    }, [hexMapConfig.radius, hexMapConfig.seed])
 
     // Auth headers
     const getAuthHeaders = useCallback(async () => {
@@ -451,6 +466,72 @@ export default function SurvivalPlayerPage() {
         if (deviceId) headers['X-Device-Id'] = deviceId
         return headers
     }, [getToken, deviceId])
+
+    // WebSocket connection for real-time session updates (timer, phases, wounds, etc.)
+    useEffect(() => {
+        if (!sessionId) return
+
+        const apiWsUrl = (() => {
+            try {
+                const apiUrl = new URL(API_BASE_URL)
+                apiUrl.protocol = apiUrl.protocol === 'https:' ? 'wss:' : 'ws:'
+                apiUrl.pathname = '/ws'
+                apiUrl.search = ''
+                apiUrl.hash = ''
+                return apiUrl.toString()
+            } catch {
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+                return `${protocol}//${window.location.host}/ws`
+            }
+        })()
+
+        const ws = new WebSocket(apiWsUrl)
+
+        ws.onopen = () => {
+            ws.send(JSON.stringify({ type: 'survival:join', payload: { sessionId } }))
+        }
+
+        ws.onmessage = (event) => {
+            try {
+                const msg = JSON.parse(event.data)
+                if (msg.type === 'survival:state_update') {
+                    setSession(msg.data)
+                    setPlayer((prev) => {
+                        const playerId = prev?.playerId
+                        if (!playerId) return prev
+                        const updated = msg.data?.players?.[playerId]
+                        if (updated) {
+                            // #region agent log
+                            fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H2',location:'src/pages/SurvivalPlayerPage.tsx:ws.onmessage(state_update)',message:'WS state_update for player',data:{playerId,updatedActiveEventId:updated.activeEventId ?? null,updatedActiveEventPresent:Boolean(updated.activeEvent),updatedActiveEventIdObj:(updated.activeEvent as any)?.id ?? null,updatedMovementStatePresent:Boolean((updated as any).movementState),baseMode},timestamp:Date.now()})}).catch(()=>{});
+                            // #endregion
+                            // Sync active encounter from server state (zone events + hex encounters)
+                            if (updated.activeEventId) {
+                                if (updated.activeEvent) setActiveEvent(updated.activeEvent)
+                            } else {
+                                setActiveEvent(null)
+                            }
+                        }
+                        return updated ?? prev
+                    })
+                } else if (msg.type === 'survival:timer_sync') {
+                    setSession((prev) => {
+                        if (!prev) return prev
+                        const next = { ...prev, timerSeconds: msg.data.timerSeconds }
+                        if (typeof msg.data.worldDay === 'number') next.worldDay = msg.data.worldDay
+                        if (typeof msg.data.worldTimeMinutes === 'number') next.worldTimeMinutes = msg.data.worldTimeMinutes
+                        if (typeof msg.data.phase === 'string') next.phase = msg.data.phase
+                        return next
+                    })
+                } else if (msg.type === 'survival:log_entry') {
+                    setSession((prev) => prev ? { ...prev, log: [...prev.log, msg.data] } : prev)
+                }
+            } catch (e) {
+                console.error('WS parse error', e)
+            }
+        }
+
+        return () => ws.close()
+    }, [sessionId])
 
     // Create session
     const handleCreateSession = useCallback(async () => {
@@ -719,6 +800,43 @@ export default function SurvivalPlayerPage() {
         }
     }, [sessionId, player?.playerId, getAuthHeaders])
 
+    const handleMoveOnHexMap = useCallback(async (targetHex: { q: number; r: number }) => {
+        if (!sessionId) return false
+        if (session && session.status !== 'active') {
+            setError('Сессия не запущена: попроси хоста нажать START')
+            return false
+        }
+        try {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H1',location:'src/pages/SurvivalPlayerPage.tsx:handleMoveOnHexMap(pre)',message:'User requested move',data:{sessionId,targetHex,baseMode,clientActiveEventId:activeEvent?.id ?? null,clientHasActiveEvent:Boolean(activeEvent),playerId:player?.playerId ?? null,playerActiveEventId:player?.activeEventId ?? null,playerHasMovementState:Boolean(player?.movementState)},timestamp:Date.now()})}).catch(()=>{});
+            // #endregion
+            const headers = await getAuthHeaders()
+            const res = await fetch(`${API_BASE_URL}/survival/sessions/${sessionId}/move`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ targetHex }),
+            })
+            const data = await res.json()
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H1',location:'src/pages/SurvivalPlayerPage.tsx:handleMoveOnHexMap(post)',message:'Move response received',data:{sessionId,targetHex,httpStatus:res.status,success:(data as any)?.success ?? null,message:(data as any)?.message ?? null,error:(data as any)?.error ?? null},timestamp:Date.now()})}).catch(()=>{});
+            // #endregion
+            if (data?.success === false) {
+                setError(String(data.message || 'Не удалось начать движение'))
+                return false
+            } else if (data?.success === true) {
+                setMessage(String(data.message || 'Движение начато'))
+                return true
+            } else if (data?.error) {
+                setError(String(data.error))
+                return false
+            }
+        } catch {
+            setError('Ошибка при движении по карте')
+            return false
+        }
+        return false
+    }, [sessionId, session, getAuthHeaders])
+
     // Handle zone from URL
     useEffect(() => {
         if (zoneParam && sessionId && phase === 'base') {
@@ -761,65 +879,20 @@ export default function SurvivalPlayerPage() {
     if (phase === 'base' && session && player) {
         return (
             <>
-                {player.playerId === session.hostPlayerId && (
-                    <div className="fixed bottom-4 right-4 z-[60] flex gap-2">
-                        <button
-                            onClick={() => setBaseMode('datapad')}
-                            className={cn(
-                                'px-4 py-2 rounded-lg border text-sm font-bold transition-colors',
-                                baseMode === 'datapad'
-                                    ? 'bg-emerald-700 border-emerald-400 text-white'
-                                    : 'bg-gray-900/60 border-gray-700 text-gray-300 hover:bg-gray-800'
-                            )}
-                        >
-                            DATAPAD
-                        </button>
-                        <button
-                            onClick={() => setBaseMode('map')}
-                            className={cn(
-                                'px-4 py-2 rounded-lg border text-sm font-bold transition-colors',
-                                baseMode === 'map'
-                                    ? 'bg-blue-700 border-blue-400 text-white'
-                                    : 'bg-gray-900/60 border-gray-700 text-gray-300 hover:bg-gray-800'
-                            )}
-                        >
-                            Схема
-                        </button>
-                        <button
-                            onClick={() => setBaseMode('hexmap')}
-                            className={cn(
-                                'px-4 py-2 rounded-lg border text-sm font-bold transition-colors',
-                                baseMode === 'hexmap'
-                                    ? 'bg-indigo-700 border-indigo-400 text-white'
-                                    : 'bg-gray-900/60 border-gray-700 text-gray-300 hover:bg-gray-800'
-                            )}
-                        >
-                            Карта
-                        </button>
-                        <button
-                            onClick={() => setBaseMode('bunker')}
-                            className={cn(
-                                'px-4 py-2 rounded-lg border text-sm font-bold transition-colors',
-                                baseMode === 'bunker'
-                                    ? 'bg-cyan-700 border-cyan-400 text-white'
-                                    : 'bg-gray-900/60 border-gray-700 text-gray-300 hover:bg-gray-800'
-                            )}
-                        >
-                            Бункер
-                        </button>
-                        <button
-                            onClick={() => setBaseMode('controller')}
-                            className={cn(
-                                'px-4 py-2 rounded-lg border text-sm font-bold transition-colors',
-                                baseMode === 'controller'
-                                    ? 'bg-amber-700 border-amber-400 text-white'
-                                    : 'bg-gray-900/60 border-gray-700 text-gray-300 hover:bg-gray-800'
-                            )}
-                        >
-                            Контроллер
-                        </button>
-                    </div>
-                )}
+                {/* Skip to content link for accessibility */}
+                <a
+                    href="#main-content"
+                    className="fixed top-2 left-2 z-100 -translate-y-[150%] focus:translate-y-0 bg-terminal-green text-black font-bold px-4 py-2 rounded shadow-lg transition-transform"
+                >
+                    Перейти к контенту
+                </a>
+                <ModeSwitcher
+                    mode={baseMode}
+                    onChange={setBaseMode}
+                    showStart={session.status === 'lobby'}
+                    canStart={player.playerId === session.hostPlayerId && !isLoading}
+                    onStart={handleStartSession}
+                />
                 {error && (
                     <div className="fixed top-4 left-4 right-4 bg-red-900/60 border border-red-500 rounded-lg p-3 text-red-100 text-center z-50">
                         {error}
@@ -830,43 +903,71 @@ export default function SurvivalPlayerPage() {
                         {message}
                     </div>
                 )}
-                {baseMode === 'bunker' ? (
-                    <SurvivalBunkerDashboard session={session} />
-                ) : baseMode === 'map' ? (
-                    <div className="min-h-screen bg-black text-white flex items-center justify-center">SCHEMATIC VIEW PLACEHOLDER</div>
-                ) : baseMode === 'hexmap' ? (
-                    <SurvivalMapbox />
-                ) : baseMode === 'datapad' ? (
-                    <SurvivalDatapad
-                        session={session}
-                        player={player}
-                        activeEvent={activeEvent}
-                        isLoading={isLoading}
-                        error={error}
-                        message={message}
-                        onEnterZone={handleEnterZone}
-                        onResolveOption={handleResolveOptionDatapad}
-                        onTransferToBase={handleTransfer}
-                        onStartSession={player.playerId === session.hostPlayerId ? handleStartSession : undefined}
-                        onCloseEvent={handleCloseEvent}
-                    />
-                ) : activeEvent ? (
-                    <EventCard
-                        event={activeEvent}
-                        playerRole={player.role}
-                        playerInventory={player.inventory.items}
-                        onSelectOption={handleResolveOption}
-                        isLoading={isLoading}
-                    />
-                ) : (
-                    <BaseView
-                        session={session}
-                        player={player}
-                        onEnterZone={handleEnterZone}
-                        onTransfer={handleTransfer}
-                        isLoading={isLoading}
-                    />
-                )}
+                <main id="main-content" tabIndex={-1} className="outline-none">
+                    {baseMode === 'bunker' ? (
+                        <SurvivalBunkerDashboard session={session} />
+                    ) : baseMode === 'map' ? (
+                        <div className="min-h-screen bg-black text-white flex items-center justify-center">SCHEMATIC VIEW PLACEHOLDER</div>
+                    ) : baseMode === 'hexmap' ? (
+                        <div className="relative">
+                            <SurvivalMapbox
+                                initialMap={hexInitialMap}
+                                serverPlayerHexPos={player.hexPos ?? { q: 0, r: 0 }}
+                                serverStamina={player.stamina ?? null}
+                                serverMaxStamina={player.maxStamina ?? null}
+                                serverIsMoving={Boolean(player.movementState)}
+                                serverMovementState={player.movementState ?? null}
+                                serverWorldTimeMs={session.worldTimeMs}
+                                serverTimeScale={session.timeConfig?.timeScale}
+                                onMoveRequest={handleMoveOnHexMap}
+                            />
+
+                            {/* Important: hex movement can create a blocking activeEvent on arrival.
+                               In hexmap mode we must still show a way to resolve it, otherwise player is stuck. */}
+                            {activeEvent ? (
+                                <div className="fixed inset-0 z-60">
+                                    <EventCard
+                                        event={activeEvent}
+                                        playerRole={player.role}
+                                        playerInventory={player.inventory.items}
+                                        onSelectOption={handleResolveOption}
+                                        isLoading={isLoading}
+                                    />
+                                </div>
+                            ) : null}
+                        </div>
+                    ) : baseMode === 'datapad' ? (
+                        <SurvivalDatapad
+                            session={session}
+                            player={player}
+                            activeEvent={activeEvent}
+                            isLoading={isLoading}
+                            error={error}
+                            message={message}
+                            onEnterZone={handleEnterZone}
+                            onResolveOption={handleResolveOptionDatapad}
+                            onTransferToBase={handleTransfer}
+                            onStartSession={handleStartSession}
+                            onCloseEvent={handleCloseEvent}
+                        />
+                    ) : activeEvent ? (
+                        <EventCard
+                            event={activeEvent}
+                            playerRole={player.role}
+                            playerInventory={player.inventory.items}
+                            onSelectOption={handleResolveOption}
+                            isLoading={isLoading}
+                        />
+                    ) : (
+                        <BaseView
+                            session={session}
+                            player={player}
+                            onEnterZone={handleEnterZone}
+                            onTransfer={handleTransfer}
+                            isLoading={isLoading}
+                        />
+                    )}
+                </main>
             </>
         )
     }
@@ -886,4 +987,3 @@ export default function SurvivalPlayerPage() {
         </div>
     )
 }
-
