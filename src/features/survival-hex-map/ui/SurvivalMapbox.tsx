@@ -5,7 +5,7 @@ import { generateMap } from '../services/mapGenerator'
 import { getHexDistance, getPath, hexToString } from '../utils/hexMath'
 import { DEFAULT_MAP_CENTER, GEO_HEX_SIZE_METERS, getMapBounds, hexToGeo, mapToGeoJSON } from '../utils/geoMath'
 import { HUD } from './components/HUD'
-import { STAMINA_COST_PER_HEX } from '@/shared/data/survivalConfig'
+import { STAMINA_COST_PER_HEX } from '@/shared/data/survivalConfig.ts'
 import { createLayerManager } from '@/shared/lib/mapbox'
 import { HexTooltip } from './components/HexTooltip'
 import { BiomeLegend } from './components/BiomeLegend'
@@ -299,6 +299,25 @@ export const SurvivalMapbox = ({
     const routePulseFrameRef = useRef<number | null>(null)
     const serverTimeSyncRef = useRef<{ worldTimeMs: number; perfMs: number; timeScale: number } | null>(null)
     const [serverEtaSeconds, setServerEtaSeconds] = useState<number | null>(null)
+    const debugRef = useRef<{
+        mapInitRuns: number
+        mapRemovedRuns: number
+        walkEffectRuns: number
+        walkEffectLastAt: number
+        layersEffectRuns: number
+        layersEffectLastAt: number
+        nonFatalMapErrors: number
+        nonFatalLastAt: number
+    }>({
+        mapInitRuns: 0,
+        mapRemovedRuns: 0,
+        walkEffectRuns: 0,
+        walkEffectLastAt: 0,
+        layersEffectRuns: 0,
+        layersEffectLastAt: 0,
+        nonFatalMapErrors: 0,
+        nonFatalLastAt: 0,
+    })
 
     // Callback ref to detect when container is mounted
     const setMapContainerRef = (node: HTMLDivElement | null) => {
@@ -310,8 +329,12 @@ export const SurvivalMapbox = ({
     }
 
     // Initialize game state
+    // IMPORTANT: do NOT depend on `onMoveRequest` function identity or server position,
+    // otherwise the map state can be reset on every WS update (visible as "flicker").
     useEffect(() => {
-        const serverMode = Boolean(serverPlayerHexPos || onMoveRequest)
+        if (gameState) return
+
+        const serverMode = useServerMovement || Boolean(serverPlayerHexPos)
 
         if (!serverMode && persistenceKey) {
             const persisted = loadPersistedGameState(persistenceKey)
@@ -338,17 +361,22 @@ export const SurvivalMapbox = ({
             initialMap = generateMap(MAP_RADIUS)
         }
 
+        const origin = serverPlayerHexPos ?? { q: 0, r: 0 }
         const revealed: string[] = []
         initialMap.forEach((hex) => {
-            if (getHexDistance({ q: 0, r: 0 }, hex) <= VIEW_RADIUS) {
+            if (getHexDistance(origin, hex) <= VIEW_RADIUS) {
                 revealed.push(`${hex.q},${hex.r}`)
             }
         })
 
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'flicker-post-fix',hypothesisId:'F1',location:'SurvivalMapbox.tsx:initGameState(useEffect)',message:'Initialized gameState once',data:{serverMode,origin,revealedCount:revealed.length},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
+
         setGameState({
             map: initialMap,
             player: {
-                position: { q: 0, r: 0 },
+                position: origin,
                 ap: INITIAL_AP,
                 maxAp: 10,
                 health: 100,
@@ -358,7 +386,7 @@ export const SurvivalMapbox = ({
             revealedHexes: new Set(revealed),
             turn: 1,
         })
-    }, [providedMap, persistenceKey, serverPlayerHexPos, onMoveRequest])
+    }, [gameState, providedMap, persistenceKey, useServerMovement, serverPlayerHexPos])
 
     // Persist game state (per-session/per-player) when enabled
     useEffect(() => {
@@ -421,6 +449,11 @@ export const SurvivalMapbox = ({
     useEffect(() => {
         // Skip if no container or map already exists
         if (!mapContainer.current || map.current) return
+        const dbg = debugRef.current
+        dbg.mapInitRuns += 1
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'flicker-pre-fix',hypothesisId:'F1',location:'SurvivalMapbox.tsx:initMapbox(useEffect)',message:'Mapbox init useEffect entered',data:{containerReady,alreadyHasMap:Boolean(map.current),mapInitRuns:dbg.mapInitRuns},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
 
         console.log('[SurvivalMapbox] Initializing Mapbox...')
         console.log('[SurvivalMapbox] Token present:', !!mapboxgl.accessToken)
@@ -499,6 +532,16 @@ export const SurvivalMapbox = ({
                     setMapError(message || 'Map loading error')
                 } else {
                     console.warn('[SurvivalMapbox] Non-fatal error:', e.error)
+                    const now = Date.now()
+                    const last = debugRef.current.nonFatalLastAt
+                    debugRef.current.nonFatalMapErrors += 1
+                    debugRef.current.nonFatalLastAt = now
+                    // Log only if errors are frequent (potential flicker cause)
+                    if (now - last < 1000 || debugRef.current.nonFatalMapErrors <= 3) {
+                        // #region agent log
+                        fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'flicker-pre-fix',hypothesisId:'F3',location:'SurvivalMapbox.tsx:newMap.on(error)',message:'Mapbox non-fatal error event',data:{status:status ?? null,message:message || null,nonFatalCount:debugRef.current.nonFatalMapErrors,deltaMs:now-last},timestamp:Date.now()})}).catch(()=>{});
+                        // #endregion
+                    }
                 }
             })
 
@@ -509,6 +552,10 @@ export const SurvivalMapbox = ({
 
         return () => {
             if (map.current) {
+                dbg.mapRemovedRuns += 1
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'flicker-pre-fix',hypothesisId:'F1',location:'SurvivalMapbox.tsx:initMapbox(cleanup)',message:'Mapbox cleanup removing map',data:{mapRemovedRuns:dbg.mapRemovedRuns},timestamp:Date.now()})}).catch(()=>{});
+                // #endregion
                 map.current.remove()
                 map.current = null
                 setMapLoaded(false)
@@ -1049,6 +1096,18 @@ export const SurvivalMapbox = ({
             : 30 * 60 * 1000
 
         const path = serverMovementState?.path ?? null
+        {
+            const now = Date.now()
+            const prev = debugRef.current.walkEffectLastAt
+            debugRef.current.walkEffectRuns += 1
+            debugRef.current.walkEffectLastAt = now
+            // Log if this effect is thrashing (runs too often)
+            if (prev && now - prev < 500) {
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'flicker-pre-fix',hypothesisId:'F2',location:'SurvivalMapbox.tsx:serverWalkEffect(entry)',message:'Server-walk effect reran quickly (possible flicker)',data:{deltaMs:now-prev,walkEffectRuns:debugRef.current.walkEffectRuns,hasPath:Boolean(path&&path.length>=2),mapLoaded},timestamp:Date.now()})}).catch(()=>{});
+                // #endregion
+            }
+        }
         if (!path || path.length < 2) {
             // No active movement; keep ETA cleared and stop animation loop.
             if (serverWalkFrameRef.current) cancelAnimationFrame(serverWalkFrameRef.current)
@@ -1099,14 +1158,27 @@ export const SurvivalMapbox = ({
         const mid = 'rgba(255,255,255,0.85)'
         const edge = 'rgba(0,255,255,0.20)'
 
-        const buildGradient = (center: number): mapboxgl.Expression => {
+        const buildGradient = (t01: number): mapboxgl.Expression => {
             // Single forward-moving pulse from 0->1 (start->destination).
-            // No wrap: when it reaches the end, it restarts at the start.
-            const left = Math.max(0, center - PULSE_WIDTH / 2)
-            const right = Math.min(1, center + PULSE_WIDTH / 2)
+            // IMPORTANT: Mapbox requires STRICTLY increasing stop inputs for interpolate().
+            // When we clamp to [0,1], stops can become equal near the edges (e.g. 0,0,...), which throws.
             const feather = 0.05
-            const leftFeather = Math.max(0, left - feather)
-            const rightFeather = Math.min(1, right + feather)
+            const eps = 1e-4
+            const margin = (PULSE_WIDTH / 2) + feather + eps
+            if (margin * 2 >= 1) {
+                return ['interpolate', ['linear'], ['line-progress'], 0, base, 1, base] as unknown as mapboxgl.Expression
+            }
+
+            // Keep the pulse away from 0 and 1 so all stop inputs remain strictly ascending.
+            const center = margin + Math.min(1, Math.max(0, t01)) * (1 - 2 * margin)
+            const left = center - PULSE_WIDTH / 2
+            const right = center + PULSE_WIDTH / 2
+            const leftFeather = left - feather
+            const rightFeather = right + feather
+
+            // #region agent log
+            // Log only if something goes wrong (avoid per-frame spam).
+            // #endregion
 
             return [
                 'interpolate',
@@ -1122,13 +1194,38 @@ export const SurvivalMapbox = ({
             ] as unknown as mapboxgl.Expression
         }
 
+        let loggedGradientIssue = false
         const pulse = () => {
             const t = (performance.now() % PULSE_PERIOD_MS) / PULSE_PERIOD_MS
             try {
-                m.setPaintProperty('PLAYER_ROUTE', 'line-gradient', buildGradient(t) as any)
+                const expr = buildGradient(t) as any
+                // Validate stop order once (Mapbox throws if not strictly increasing).
+                if (!loggedGradientIssue && Array.isArray(expr) && expr[0] === 'interpolate') {
+                    const stops: number[] = []
+                    for (let i = 3; i < expr.length; i += 2) {
+                        if (typeof expr[i] === 'number') stops.push(expr[i])
+                    }
+                    let badAt: number | null = null
+                    for (let i = 1; i < stops.length; i += 1) {
+                        if (!(stops[i] > stops[i - 1])) { badAt = i; break }
+                    }
+                    if (badAt !== null) {
+                        loggedGradientIssue = true
+                        // #region agent log
+                        fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'post-fix',hypothesisId:'M2',location:'SurvivalMapbox.tsx:pulse(validateGradient)',message:'Non-ascending interpolate stops detected',data:{t,stops,badAt},timestamp:Date.now()})}).catch(()=>{});
+                        // #endregion
+                    }
+                }
+                m.setPaintProperty('PLAYER_ROUTE', 'line-gradient', expr)
                 // Keep glow constant; gradient only on the thin route line for readability.
-            } catch {
-                // ignore if layer missing (style reload)
+            } catch (e) {
+                if (!loggedGradientIssue) {
+                    loggedGradientIssue = true
+                    // #region agent log
+                    fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'post-fix',hypothesisId:'M2',location:'SurvivalMapbox.tsx:pulse(setPaintProperty)',message:'setPaintProperty line-gradient threw',data:{t,errorMessage:(e as any)?.message ?? String(e)},timestamp:Date.now()})}).catch(()=>{});
+                    // #endregion
+                }
+                // ignore if layer missing (style reload) or transient errors
             }
             routePulseFrameRef.current = requestAnimationFrame(pulse)
         }
@@ -1219,6 +1316,18 @@ export const SurvivalMapbox = ({
         if (!map.current || !mapLoaded || !layersInitialized.current || !gameState || !hexGeoJSON) return
 
         const m = map.current
+        {
+            const now = Date.now()
+            const prev = debugRef.current.layersEffectLastAt
+            debugRef.current.layersEffectRuns += 1
+            debugRef.current.layersEffectLastAt = now
+            // Only log if this effect is running very frequently (can cause visible blinking due to filter churn).
+            if (prev && now - prev < 200) {
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'flicker-pre-fix',hypothesisId:'F4',location:'SurvivalMapbox.tsx:layersDynamicEffect(entry)',message:'Layers dynamic effect running very frequently',data:{deltaMs:now-prev,layersEffectRuns:debugRef.current.layersEffectRuns,mapLoaded,selectedHex:Boolean(selectedHex),pathSetSize:pathSet.size,revealedCount:gameState.revealedHexes.size,visibleCount:visibleHexes.size},timestamp:Date.now()})}).catch(()=>{});
+                // #endregion
+            }
+        }
 
         // Update path filter
         const pathIds = Array.from(pathSet)
