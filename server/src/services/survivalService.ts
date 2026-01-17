@@ -1944,6 +1944,7 @@ export async function movePlayer(
     // Initialize defaults if missing
     ensurePlayerStamina(player)
     ensurePlayerHexPos(player)
+    const stamina = player.stamina ?? DEFAULT_STAMINA
 
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H1',location:'server/src/services/survivalService.ts:movePlayer(entry)',message:'Move request received',data:{sessionId,playerId,targetHex,activeEventId:player.activeEventId ?? null,activeEventPresent:Boolean(player.activeEvent),hasMovementState:Boolean(player.movementState),hexPos:player.hexPos ?? null,stamina:player.stamina ?? null,worldTimeMs:state.worldTimeMs},timestamp:Date.now()})}).catch(()=>{});
@@ -1974,8 +1975,8 @@ export async function movePlayer(
 
     // Check stamina
     const staminaCost = distance * STAMINA_COST_PER_HEX
-    if (player.stamina < staminaCost) {
-        return { success: false, message: `Insufficient stamina (need ${staminaCost}, have ${player.stamina})` }
+    if (stamina < staminaCost) {
+        return { success: false, message: `Insufficient stamina (need ${staminaCost}, have ${stamina})` }
     }
 
     // Calculate ETA
@@ -1983,7 +1984,7 @@ export async function movePlayer(
     const arriveAtWorldTimeMs = state.worldTimeMs + travelTimeMs
 
     // Deduct stamina and set movement state
-    player.stamina -= staminaCost
+    player.stamina = stamina - staminaCost
     player.movementState = {
         path,
         startedAtWorldTimeMs: state.worldTimeMs,
