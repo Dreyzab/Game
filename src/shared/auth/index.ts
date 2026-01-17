@@ -1,5 +1,6 @@
 export { clerkPublishableKey, isAuthDisabled, isClerkEnabled } from './config'
-export { ClerkAuthBridge, GuestAuthProvider, useAppAuth } from './AppAuthContext'
-export type { AppAuth, AppUser } from './AppAuthContext'
+export { ClerkAuthBridge, GuestAuthProvider } from './AppAuthContext'
+export { useAppAuth } from './appAuth'
+export type { AppAuth, AppUser } from './appAuth'
 
 

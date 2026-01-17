@@ -3,7 +3,7 @@
  * Flow: Join/Create -> Character Select -> Base (see players) -> Zones (QR)
  */
 
-import { useEffect, useMemo, useState, useCallback } from 'react'
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { cn } from '@/shared/lib/utils/cn'
 import { useAppAuth } from '@/shared/auth'
@@ -441,9 +441,14 @@ export default function SurvivalPlayerPage() {
     const [player, setPlayer] = useState<SurvivalPlayer | null>(null)
     const [activeEvent, setActiveEvent] = useState<SurvivalEvent | null>(null)
     const [baseMode, setBaseMode] = useState<SurvivalMode>('datapad')
+    const baseModeRef = useRef(baseMode)
     const [error, setError] = useState<string | null>(null)
     const [isLoading, setIsLoading] = useState(false)
     const [message, setMessage] = useState<string | null>(null)
+
+    useEffect(() => {
+        baseModeRef.current = baseMode
+    }, [baseMode])
 
     const hexMapConfig = useMemo(() => {
         const flags = session?.flags
@@ -502,7 +507,7 @@ export default function SurvivalPlayerPage() {
                         const updated = msg.data?.players?.[playerId]
                         if (updated) {
                             // #region agent log
-                            fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H2',location:'src/pages/SurvivalPlayerPage.tsx:ws.onmessage(state_update)',message:'WS state_update for player',data:{playerId,updatedActiveEventId:updated.activeEventId ?? null,updatedActiveEventPresent:Boolean(updated.activeEvent),updatedActiveEventIdObj:(updated.activeEvent as any)?.id ?? null,updatedMovementStatePresent:Boolean((updated as any).movementState),baseMode},timestamp:Date.now()})}).catch(()=>{});
+                            fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H2',location:'src/pages/SurvivalPlayerPage.tsx:ws.onmessage(state_update)',message:'WS state_update for player',data:{playerId,updatedActiveEventId:updated.activeEventId ?? null,updatedActiveEventPresent:Boolean(updated.activeEvent),updatedActiveEventIdObj:(updated.activeEvent as any)?.id ?? null,updatedMovementStatePresent:Boolean((updated as any).movementState),baseMode: baseModeRef.current},timestamp:Date.now()})}).catch(()=>{});
                             // #endregion
                             // Sync active encounter from server state (zone events + hex encounters)
                             if (updated.activeEventId) {
@@ -835,7 +840,16 @@ export default function SurvivalPlayerPage() {
             return false
         }
         return false
-    }, [sessionId, session, getAuthHeaders])
+    }, [
+        activeEvent,
+        baseMode,
+        getAuthHeaders,
+        player?.activeEventId,
+        player?.movementState,
+        player?.playerId,
+        session,
+        sessionId,
+    ])
 
     // Handle zone from URL
     useEffect(() => {

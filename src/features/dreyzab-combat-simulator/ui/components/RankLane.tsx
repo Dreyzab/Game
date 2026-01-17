@@ -1,5 +1,5 @@
-import type { Combatant } from '../../model/types'
-import { Side } from '../../model/types'
+import type { Combatant } from '@/entities/dreyzab-combat-simulator/model/types'
+import { Side } from '@/entities/dreyzab-combat-simulator/model/types'
 import CombatantSprite from './CombatantSprite'
 import FloatingText from './FloatingText'
 import type { FloatingTextEvent } from './FloatingText'

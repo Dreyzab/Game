@@ -1,6 +1,6 @@
 import type { Combatant, CombatCard } from './types'
 import { generateWeaponCardsForWeaponId } from './weaponCards'
-import { ITEM_TEMPLATES } from '../../../shared/data/itemTemplates'
+import { ITEM_TEMPLATES } from '@/shared/data/itemTemplates'
 
 export function generateDeckForCombatant(combatant: Combatant): CombatCard[] {
   const hand: CombatCard[] = []

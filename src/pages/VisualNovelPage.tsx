@@ -259,7 +259,7 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
         )
       }
     },
-    [navigate, resources.ap, resources.hp, resources.maxAp, resources.maxHp, resources.maxMp, resources.maxWp, resources.mp, resources.wp, setNicknameError, setNicknamePromptOpen, currentEquipment]
+    [navigate, resources.ap, resources.hp, resources.maxAp, resources.maxHp, resources.maxMp, resources.maxWp, resources.mp, resources.wp, setNicknameError, setNicknamePromptOpen]
   )
 
   const viewModel = useVisualNovelViewModel(

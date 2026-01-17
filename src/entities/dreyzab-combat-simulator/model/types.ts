@@ -62,7 +62,7 @@ export interface Combatant {
     scannedLevel?: number // 0=none, 1=basic, 2=detailed
 }
 
-import type { DamageType } from '../../../shared/types/combat'
+import type { DamageType } from '@/shared/types/combat'
 
 export const CardType = {
     ATTACK: 'attack',

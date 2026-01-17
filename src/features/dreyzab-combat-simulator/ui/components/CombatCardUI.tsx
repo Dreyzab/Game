@@ -3,8 +3,8 @@ import type { CSSProperties } from 'react'
 import { forwardRef } from 'react'
 import { motion, type HTMLMotionProps } from 'framer-motion'
 import { Crosshair, Move, ShieldAlert, Zap, ChevronsUp, Activity } from 'lucide-react'
-import type { CombatCard } from '../../model/types'
-import { CardType } from '../../model/types'
+import type { CombatCard } from '@/entities/dreyzab-combat-simulator/model/types'
+import { CardType } from '@/entities/dreyzab-combat-simulator/model/types'
 
 interface Props extends Omit<HTMLMotionProps<'div'>, 'onClick'> {
     card: CombatCard

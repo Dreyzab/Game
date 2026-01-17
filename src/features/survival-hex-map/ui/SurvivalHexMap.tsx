@@ -59,7 +59,7 @@ export const SurvivalHexMap = ({ initialMap: providedMap }: SurvivalHexMapProps 
       revealedHexes: new Set(revealed),
       turn: 1,
     })
-  }, [])
+  }, [providedMap])
 
   const visibleHexes = useMemo(() => {
     if (!gameState) return new Set<string>()
@@ -70,7 +70,7 @@ export const SurvivalHexMap = ({ initialMap: providedMap }: SurvivalHexMapProps 
       }
     })
     return visible
-  }, [gameState?.player.position, gameState?.map])
+  }, [gameState, gameState?.player.position, gameState?.map])
 
   const currentPath = useMemo(() => {
     if (!gameState || !selectedHex) return []

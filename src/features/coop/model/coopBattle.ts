@@ -1,9 +1,9 @@
 import type { CoopEncounterState, CoopParticipant } from './store'
-import type { BattleSession, Combatant } from '@/features/dreyzab-combat-simulator/model/types'
-import { Side } from '@/features/dreyzab-combat-simulator/model/types'
-import { ENEMY_TEMPLATES } from '@/features/dreyzab-combat-simulator/model/constants'
-import { generateDeckForCombatant } from '@/features/dreyzab-combat-simulator/model/cardGenerator'
-import { sortTurnQueue } from '@/features/dreyzab-combat-simulator/model/utils'
+import type { BattleSession, Combatant } from '@/entities/dreyzab-combat-simulator/model/types'
+import { Side } from '@/entities/dreyzab-combat-simulator/model/types'
+import { ENEMY_TEMPLATES } from '@/entities/dreyzab-combat-simulator/model/constants'
+import { generateDeckForCombatant } from '@/entities/dreyzab-combat-simulator/model/cardGenerator'
+import { sortTurnQueue } from '@/entities/dreyzab-combat-simulator/model/utils'
 
 function clampInt(value: unknown, min: number, max: number): number {
   const num = typeof value === 'number' && Number.isFinite(value) ? value : Number(value)

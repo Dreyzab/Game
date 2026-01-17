@@ -3,9 +3,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { DreyzabBattle, type BattleSession } from '@/features/dreyzab-combat-simulator'
 import { BattleEquipmentOverlay } from '@/widgets/battle-equipment'
 import { Routes } from '@/shared/lib/utils/navigation'
-import { SCENARIOS, type ScenarioId } from '@/features/dreyzab-combat-simulator/model/scenarios'
-import { sortTurnQueue } from '@/features/dreyzab-combat-simulator/model/utils'
-import { Side } from '@/features/dreyzab-combat-simulator/model/types'
+import { SCENARIOS, type ScenarioId } from '@/entities/dreyzab-combat-simulator/model/scenarios'
+import { sortTurnQueue } from '@/entities/dreyzab-combat-simulator/model/utils'
+import { Side } from '@/entities/dreyzab-combat-simulator/model/types'
 
 export default function TutorialBattlePage() {
   const navigate = useNavigate()
@@ -88,7 +88,18 @@ export default function TutorialBattlePage() {
 
     const patchedHp = patchedSession.players.find((p) => p.id === 'p1')?.resources.hp ?? baseHp
     return { scenarioId: resolvedScenarioId, initialSession: patchedSession, initialHp: Math.trunc(patchedHp) }
-  }, [requestedHpRaw, scenarioIdParam])
+  }, [
+    equipmentParam,
+    requestedApRaw,
+    requestedHpRaw,
+    requestedMaxApRaw,
+    requestedMaxHpRaw,
+    requestedMaxMpRaw,
+    requestedMaxWpRaw,
+    requestedMpRaw,
+    requestedWpRaw,
+    scenarioIdParam,
+  ])
 
   const handleComplete = useCallback(
     (result: 'victory' | 'defeat', finalSession?: BattleSession) => {

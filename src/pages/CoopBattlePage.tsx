@@ -21,7 +21,7 @@ export const CoopBattlePage: React.FC = () => {
   const initialSession = useMemo(() => {
     if (!room || !encounter || encounter.status !== 'active') return null
     return createCoopBattleSession({ encounter, participants: room.participants })
-  }, [encounter?.id, room, room?.participants])
+  }, [encounter, room, room?.participants])
 
   const handleBattleEnd = useCallback(
     async (result: 'victory' | 'defeat', finalSession?: BattleSession) => {

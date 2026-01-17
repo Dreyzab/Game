@@ -134,7 +134,7 @@ export const VNScreen: React.FC<VNScreenProps> = ({
         }
 
         return 'center center'
-    }, [bgImage, currentLine?.speakerId, scene.id, lastNonInternalPosition])
+    }, [bgImage, currentLine?.speakerId, scene.id, lastNonInternalPosition, INTERNAL_VOICES])
 
     // Update last non-internal position
     useEffect(() => {
@@ -143,7 +143,7 @@ export const VNScreen: React.FC<VNScreenProps> = ({
         if (!isInternalVoice && cameraPosition !== lastNonInternalPosition) {
             setLastNonInternalPosition(cameraPosition)
         }
-    }, [cameraPosition, currentLine?.speakerId, lastNonInternalPosition])
+    }, [cameraPosition, currentLine?.speakerId, lastNonInternalPosition, INTERNAL_VOICES])
 
     return (
         <div className="vn-chronicles relative w-full h-screen overflow-hidden bg-black text-white selection:bg-cyan-500/30">
