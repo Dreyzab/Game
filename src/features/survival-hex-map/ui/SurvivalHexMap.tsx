@@ -70,7 +70,7 @@ export const SurvivalHexMap = ({ initialMap: providedMap }: SurvivalHexMapProps 
       }
     })
     return visible
-  }, [gameState, gameState?.player.position, gameState?.map])
+  }, [gameState])
 
   const currentPath = useMemo(() => {
     if (!gameState || !selectedHex) return []

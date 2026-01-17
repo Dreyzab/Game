@@ -1,7 +1,6 @@
 import React, { useCallback, useMemo, useRef } from 'react'
 import { DreyzabBattle, type BattleSession } from '@/features/dreyzab-combat-simulator'
-import { useCoopStore } from '@/features/coop'
-import { createCoopBattleSession, extractCoopBattleResults } from '@/features/coop/model/coopBattle'
+import { createCoopBattleSession, extractCoopBattleResults, useCoopStore } from '@/features/coop'
 import { useMyPlayer } from '@/shared/hooks/useMyPlayer'
 import { Heading } from '@/shared/ui/components/Heading'
 import { Text } from '@/shared/ui/components/Text'
@@ -21,7 +20,7 @@ export const CoopBattlePage: React.FC = () => {
   const initialSession = useMemo(() => {
     if (!room || !encounter || encounter.status !== 'active') return null
     return createCoopBattleSession({ encounter, participants: room.participants })
-  }, [encounter, room, room?.participants])
+  }, [encounter, room])
 
   const handleBattleEnd = useCallback(
     async (result: 'victory' | 'defeat', finalSession?: BattleSession) => {

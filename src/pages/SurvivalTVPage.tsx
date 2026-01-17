@@ -119,7 +119,7 @@ export default function SurvivalTVPage() {
                 } else {
                     setError(data.error || 'Session not found')
                 }
-            } catch (e) {
+            } catch {
                 setError('Failed to load session')
             }
         }

@@ -11,10 +11,7 @@ import { useDeviceId } from '@/shared/hooks/useDeviceId'
 import { API_BASE_URL } from '@/shared/api/client'
 import { SurvivalBunkerDashboard } from '@/features/survival-bunker'
 import { SurvivalDatapad } from '@/features/survival-datapad'
-import { SurvivalMapbox } from '@/features/survival-hex-map'
-import { generateMap } from '@/features/survival-hex-map/services/mapGenerator'
-import { SurvivalMapEditor } from '@/features/survival-hex-map/ui/SurvivalMapEditor'
-import { ModeSwitcher, type SurvivalMode } from '@/features/survival-hex-map/ui/components/ModeSwitcher'
+import { ModeSwitcher, SurvivalMapEditor, SurvivalMapbox, generateMap, type SurvivalMode } from '@/features/survival-hex-map'
 import type {
     SurvivalEvent,
     SurvivalPlayer,

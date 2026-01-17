@@ -37,7 +37,7 @@ export const generateMap = (radius: number, seed: number = Date.now()): HexCell[
       let biome: BiomeType = 'WASTELAND'
       let threat: ThreatLevel = 'LOW'
       const elevation = rng.next()
-      let isObstacle = false
+      const isObstacle = false
       let resource: ResourceType = 'NONE'
 
       const noise = rng.next()

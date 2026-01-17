@@ -97,36 +97,6 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
     },
   })
 
-  // Fetch Inventory to determine loadout
-  const myInventoryQuery = useQuery({
-    queryKey: ['myInventory'],
-    enabled: isLoaded,
-    retry: false,
-    queryFn: async () => {
-      const token = await getToken()
-      const client = authenticatedClient(token || undefined, deviceId)
-      const { data, error } = await client.inventory.get()
-      if (error) throw error
-      return data
-    },
-  })
-
-  const currentEquipment = useMemo(() => {
-    const data = myInventoryQuery.data
-    if (!data || 'error' in data || !('equipment' in data)) return []
-    const eq = data.equipment as Record<string, any>
-    const weapons: string[] = []
-
-    if (eq.primary?.templateId) weapons.push(eq.primary.templateId)
-    if (eq.secondary?.templateId) weapons.push(eq.secondary.templateId)
-    if (eq.melee?.templateId) weapons.push(eq.melee.templateId)
-
-    // Also check quick slots for grenades/consumables logic?
-    // For now, let's stick to main weapons as per task description.
-
-    return weapons
-  }, [myInventoryQuery.data])
-
   const initialSceneId =
     lockedSceneId ?? routeSceneId ?? vnStateQuery.data?.progress?.currentScene ?? DEFAULT_VN_SCENE_ID
   const initialFlags = useMemo(() => {

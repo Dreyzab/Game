@@ -5,3 +5,6 @@
 
 export { SurvivalHexMap } from './ui/SurvivalHexMap'
 export { SurvivalMapbox } from './ui/SurvivalMapbox'
+export { SurvivalMapEditor } from './ui/SurvivalMapEditor'
+export { ModeSwitcher, type SurvivalMode } from './ui/components/ModeSwitcher'
+export { generateMap } from './services/mapGenerator'

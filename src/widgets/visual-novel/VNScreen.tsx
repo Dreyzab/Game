@@ -87,13 +87,13 @@ export const VNScreen: React.FC<VNScreenProps> = ({
     }, [])
 
     // Internal voices that should NOT change camera position
-    const INTERNAL_VOICES = [
+    const internalVoices = useMemo(() => [
         'narrator', 'рассказчик', 'hero', 'главный герой',
         'logic', 'логика', 'analysis', 'анализ', 'perception', 'восприятие',
         'empathy', 'эмпатия', 'drama', 'драма', 'gambler', 'азарт',
         'solidarity', 'солидарность', 'creativity', 'креативность',
         'knowledge', 'знания', 'внутренний голос', 'auto_'
-    ]
+    ], [])
 
     // Dynamic camera position based on speaker or scene (for coupe4p.png)
     const [lastNonInternalPosition, setLastNonInternalPosition] = useState('center center')
@@ -106,7 +106,7 @@ export const VNScreen: React.FC<VNScreenProps> = ({
         const sceneId = scene.id?.toLowerCase() ?? ''
 
         // Check if this is an internal voice - keep previous position
-        const isInternalVoice = INTERNAL_VOICES.some(voice => speakerId.includes(voice))
+        const isInternalVoice = internalVoices.some(voice => speakerId.includes(voice))
         if (isInternalVoice && speakerId !== '') {
             return lastNonInternalPosition
         }
@@ -134,16 +134,16 @@ export const VNScreen: React.FC<VNScreenProps> = ({
         }
 
         return 'center center'
-    }, [bgImage, currentLine?.speakerId, scene.id, lastNonInternalPosition, INTERNAL_VOICES])
+    }, [bgImage, currentLine?.speakerId, scene.id, lastNonInternalPosition, internalVoices])
 
     // Update last non-internal position
     useEffect(() => {
         const speakerId = currentLine?.speakerId?.toLowerCase() ?? ''
-        const isInternalVoice = INTERNAL_VOICES.some(voice => speakerId.includes(voice))
+        const isInternalVoice = internalVoices.some(voice => speakerId.includes(voice))
         if (!isInternalVoice && cameraPosition !== lastNonInternalPosition) {
             setLastNonInternalPosition(cameraPosition)
         }
-    }, [cameraPosition, currentLine?.speakerId, lastNonInternalPosition, INTERNAL_VOICES])
+    }, [cameraPosition, currentLine?.speakerId, lastNonInternalPosition, internalVoices])
 
     return (
         <div className="vn-chronicles relative w-full h-screen overflow-hidden bg-black text-white selection:bg-cyan-500/30">
