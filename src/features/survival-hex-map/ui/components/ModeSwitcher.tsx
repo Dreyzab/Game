@@ -53,11 +53,11 @@ export function ModeSwitcher({
             data: {
                 mode,
                 // Using typeof on undeclared identifier is runtime-safe; TS needs ignore.
-                // @ts-expect-error
+                // @ts-expect-error debug
                 typeof_showStart: typeof showStart,
-                // @ts-expect-error
+                // @ts-expect-error debug
                 typeof_canStart: typeof canStart,
-                // @ts-expect-error
+                // @ts-expect-error debug
                 typeof_onStart: typeof onStart,
             },
             timestamp: Date.now(),
