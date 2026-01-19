@@ -401,10 +401,15 @@ const CORRIDOR_EVENTS: SurvivalEvent[] = [
                 text: '[АТАКОВАТЬ] (Нужен Пистолет)',
                 requiredItem: 'pistol',
                 effect: {
-                    successChance: 60,
+                    battleScenarioId: 'scorpion_nest',
+                    logMessage: 'вступил в бой с бандитами',
                     grantItems: [{ templateId: 'ammo', quantity: 10 }],
-                    logMessage: 'победил бандитов',
-                    failureEffect: { woundPlayer: true, logMessage: 'был ранен в перестрелке' },
+                    resourceDelta: { fuel: 1 },
+                    failureEffect: {
+                        woundPlayer: true,
+                        resourceDelta: { morale: -20 },
+                        logMessage: 'был тяжело ранен бандитами'
+                    },
                 },
             },
             {
@@ -460,6 +465,29 @@ const LIVING_ROOM_EVENTS: SurvivalEvent[] = [
         tags: ['story'],
         weight: 50,
     },
+    {
+        id: 'living_room_strange_memory',
+        zone: 'living_room',
+        title: 'Странное Воспоминание',
+        text: 'Вы находите старый дневник. Когда вы открываете его, пространство вокруг начинает искажаться...',
+        options: [
+            {
+                id: 'enter_memory',
+                text: '[ПОГРУЗИТЬСЯ В ВОСПОМИНАНИЕ]',
+                effect: {
+                    vnSceneId: 'prologue_tambour_smoke_grab',
+                    logMessage: 'погрузился в странное видение'
+                }
+            },
+            {
+                id: 'ignore_memory',
+                text: '[ИГНОРИРОВАТЬ]',
+                effect: { logMessage: 'отбросил странные мысли' }
+            }
+        ],
+        tags: ['story'],
+        weight: 20
+    }
 ]
 
 // ============================================================================

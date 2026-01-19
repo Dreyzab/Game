@@ -207,6 +207,44 @@ export const survivalRoutes = (app: Elysia) =>
                     })
                 })
 
+                // Complete battle and apply results
+                .post("/sessions/:id/complete-battle", async ({ user, params, body }) => {
+                    if (!user) return { error: "Unauthorized", status: 401 }
+                    const playerId = await getPlayerId(user as any)
+                    if (!playerId) return { error: "Player profile not found", status: 404 }
+
+                    try {
+                        const result = await survivalService.completeBattle(
+                            params.id,
+                            playerId,
+                            body.result as any,
+                            body.hp
+                        )
+                        return result
+                    } catch (e: any) {
+                        return { error: e.message, status: 400 }
+                    }
+                }, {
+                    body: t.Object({
+                        result: t.String(), // 'victory' | 'defeat' | 'flee'
+                        hp: t.Optional(t.Number()),
+                    })
+                })
+
+                // Consume transition flag (clear it after navigation)
+                .post("/sessions/:id/consume-transition", async ({ user, params }) => {
+                    if (!user) return { error: "Unauthorized", status: 401 }
+                    const playerId = await getPlayerId(user as any)
+                    if (!playerId) return { error: "Player profile not found", status: 404 }
+
+                    try {
+                        const result = await survivalService.consumeTransition(params.id, playerId)
+                        return result
+                    } catch (e: any) {
+                        return { error: e.message, status: 400 }
+                    }
+                })
+
                 // Transfer items to base
                 .post("/sessions/:id/transfer", async ({ user, params, body }) => {
                     if (!user) return { error: "Unauthorized", status: 401 }

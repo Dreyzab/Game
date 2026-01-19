@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import { type CSSProperties, memo } from 'react'
 import { useDraggable } from '@dnd-kit/core'
 import type { CombatCard } from '@/entities/dreyzab-combat-simulator/model/types'
 import CombatCardUI from './CombatCardUI'
@@ -11,7 +11,7 @@ type Props = {
     className?: string
 }
 
-export default function DraggableCombatCard({ card, disabled = false, onClick, style, className }: Props) {
+const DraggableCombatCard = ({ card, disabled = false, onClick, style, className }: Props) => {
     const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
         id: card.id,
         disabled,
@@ -37,3 +37,5 @@ export default function DraggableCombatCard({ card, disabled = false, onClick, s
         />
     )
 }
+
+export default memo(DraggableCombatCard)

@@ -26,6 +26,7 @@ import {
     PLAYER_ROLES,
     DEFAULT_SURVIVAL_TIME_CONFIG,
     ZONE_DEFINITIONS,
+    type EventOption,
 } from '../shared/types/survival'
 import { getEventById, rollRandomEvent } from '../lib/survivalEvents'
 import { generateHexMap, getHexCell, hexToString as serverHexToString, type HexCell } from '../shared/hexmap/mapGenerator'
@@ -655,7 +656,7 @@ function processPlayerArrivals(state: SurvivalState): boolean {
         // Check if player has arrived
         if (state.worldTimeMs >= movement.arriveAtWorldTimeMs) {
             // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H1',location:'server/src/services/survivalService.ts:processPlayerArrivals(arrive)',message:'Player arrived; before event assignment',data:{playerId:player.playerId,playerName:player.playerName,hasMovementState:Boolean(player.movementState),activeEventId:player.activeEventId ?? null,activeEventPresent:Boolean(player.activeEvent),hexPos:player.hexPos ?? null,worldTimeMs:state.worldTimeMs,arriveAtWorldTimeMs:movement.arriveAtWorldTimeMs},timestamp:Date.now()})}).catch(()=>{});
+            fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: 'debug-session', runId: 'pre-fix', hypothesisId: 'H1', location: 'server/src/services/survivalService.ts:processPlayerArrivals(arrive)', message: 'Player arrived; before event assignment', data: { playerId: player.playerId, playerName: player.playerName, hasMovementState: Boolean(player.movementState), activeEventId: player.activeEventId ?? null, activeEventPresent: Boolean(player.activeEvent), hexPos: player.hexPos ?? null, worldTimeMs: state.worldTimeMs, arriveAtWorldTimeMs: movement.arriveAtWorldTimeMs }, timestamp: Date.now() }) }).catch(() => { });
             // #endregion
             // Update position to destination (last element in path)
             const destination = path[path.length - 1]
@@ -687,7 +688,7 @@ function processPlayerArrivals(state: SurvivalState): boolean {
                         player.activeEventId = intro.id
                         player.activeEvent = intro
                         // #region agent log
-                        fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H1',location:'server/src/services/survivalService.ts:processPlayerArrivals(assignEvent)',message:'Assigned hex encounter event on arrival',data:{playerId:player.playerId,eventId:intro.id,eventTitle:intro.title,hex:intro.hex ?? null,destination,clearedFlag:cleared},timestamp:Date.now()})}).catch(()=>{});
+                        fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: 'debug-session', runId: 'pre-fix', hypothesisId: 'H1', location: 'server/src/services/survivalService.ts:processPlayerArrivals(assignEvent)', message: 'Assigned hex encounter event on arrival', data: { playerId: player.playerId, eventId: intro.id, eventTitle: intro.title, hex: intro.hex ?? null, destination, clearedFlag: cleared }, timestamp: Date.now() }) }).catch(() => { });
                         // #endregion
                         state.log.push(createLogEntry(
                             player.playerId,
@@ -771,15 +772,75 @@ function generateHexEncounterEvent(cell: HexCell): SurvivalEvent {
     const baseChance = threatToSuccessChance(cell.threatLevel)
     const loot = randomLootForHex(cell)
 
+    const isDanger = cell.threatLevel === 'HIGH' || cell.threatLevel === 'EXTREME'
+    const combatScenario = cell.threatLevel === 'EXTREME' ? 'boss_train_prologue' : 'scorpion_nest'
+
     const fuelDelta = cell.resource === 'FUEL' ? 1 : 0
     const baseEffect: EventEffect = {
         grantItems: loot,
         resourceDelta: fuelDelta > 0 ? { fuel: fuelDelta } : undefined,
         logMessage: `обыскал сектор (${cell.q}, ${cell.r})`,
         successChance: baseChance,
-        failureEffect: cell.threatLevel === 'HIGH' || cell.threatLevel === 'EXTREME'
-            ? { woundPlayer: true, logMessage: `попал в неприятности на гексе (${cell.q}, ${cell.r})` }
+        failureEffect: isDanger
+            ? {
+                // Combat transition on failure
+                battleScenarioId: combatScenario,
+                logMessage: `наткнулся на врагов при обыске (${cell.q}, ${cell.r})`,
+                // Success rewards
+                grantItems: loot,
+
+                failureEffect: {
+                    woundPlayer: true,
+                    logMessage: `еле унёс ноги с сектора (${cell.q}, ${cell.r})`
+                }
+            }
             : { resourceDelta: { morale: -5 }, logMessage: `ничего не нашёл и потерял уверенность` },
+    }
+
+    const options: EventOption[] = [
+        {
+            id: 'search_hex',
+            text: '[ОБЫСКАТЬ СЕКТОР]',
+            effect: baseEffect
+        },
+        {
+            id: 'scout_hex',
+            text: '[РАЗВЕДАТЬ] (Разведчик)',
+            requiredRole: 'scout',
+            effect: {
+                logMessage: `разведал сектор (${cell.q}, ${cell.r})`,
+                successChance: 100,
+                resourceDelta: { morale: 1 },
+                setFlags: { [hexFlagScouted(hexKey(cell))]: true }
+            }
+        },
+        {
+            id: 'leave',
+            text: '[ОТСТУПИТЬ]',
+            effect: { logMessage: `решил не рисковать в секторе (${cell.q}, ${cell.r})` }
+        }
+    ]
+
+    // Direct combat option for high threat
+    if (isDanger) {
+        options.push({
+            id: 'clear_threat',
+            text: '[ЗАЧИСТИТЬ УГРОЗУ]',
+            effect: {
+                battleScenarioId: combatScenario,
+                logMessage: `начал зачистку сектора (${cell.q}, ${cell.r})`,
+                // Success rewards
+                resourceDelta: { morale: 5, defense: 1 },
+                grantItems: [{ templateId: 'ammo', quantity: 5 }],
+                setFlags: { [hexFlagCleared(hexKey(cell))]: true },
+
+                failureEffect: {
+                    woundPlayer: true,
+                    resourceDelta: { morale: -10 },
+                    logMessage: `провалил зачистку сектора`
+                }
+            }
+        })
     }
 
     return {
@@ -791,47 +852,9 @@ function generateHexEncounterEvent(cell: HexCell): SurvivalEvent {
             `Вы добрались до нового сектора (${cell.q}, ${cell.r}).\n` +
             `Биом: ${cell.biome}. Угроза: ${cell.threatLevel}.` +
             (cell.resource !== 'NONE' ? ` Здесь можно найти: ${cell.resource}.` : ''),
-        options: [
-            {
-                id: 'scout_hex',
-                text: '[РАЗВЕДАТЬ СЕКТОР]',
-                effect: {
-                    logMessage: `разведал сектор (${cell.q}, ${cell.r})`,
-                    successChance: Math.min(95, baseChance + 10),
-                    setFlags: {
-                        [hexFlagScouted(hexKey({ q: cell.q, r: cell.r }))]: true,
-                    },
-                    triggerEventId: '__HEX_ENCOUNTER__',
-                    failureEffect: {
-                        resourceDelta: { morale: -5 },
-                        logMessage: 'разведка сорвалась — пришлось отступить',
-                    },
-                },
-            },
-            {
-                id: 'scout_hex_scout',
-                text: '[РАЗВЕДАТЬ СЕКТОР] (Разведчик)',
-                requiredRole: 'scout',
-                effect: {
-                    logMessage: `разведал сектор (${cell.q}, ${cell.r}) (разведчик)`,
-                    successChance: Math.min(98, baseChance + 25),
-                    setFlags: {
-                        [hexFlagScouted(hexKey({ q: cell.q, r: cell.r }))]: true,
-                    },
-                    triggerEventId: '__HEX_ENCOUNTER__',
-                    failureEffect: {
-                        resourceDelta: { morale: -3 },
-                        logMessage: 'даже разведчик не нашёл безопасного подхода',
-                    },
-                },
-            },
-            {
-                id: 'leave',
-                text: '[НЕ РИСКОВАТЬ]',
-                effect: { logMessage: `решил не рисковать в секторе (${cell.q}, ${cell.r})` },
-            },
-        ],
-        tags: ['story'],
+        options,
+        tags: isDanger ? ['combat', 'loot'] : ['loot'],
+        weight: 100,
     }
 }
 
@@ -1725,7 +1748,7 @@ export async function resolveOption(
     }
 
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H2',location:'server/src/services/survivalService.ts:resolveOption(post)',message:'Resolved option; event state after resolution',data:{playerId,prevEventId:eventId,optionId,success,followUpEventId:followUp?.id ?? null,activeEventIdAfter:player.activeEventId ?? null,activeEventPresentAfter:Boolean(player.activeEvent),currentZoneAfter:player.currentZone ?? null},timestamp:Date.now()})}).catch(()=>{});
+    fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: 'debug-session', runId: 'pre-fix', hypothesisId: 'H2', location: 'server/src/services/survivalService.ts:resolveOption(post)', message: 'Resolved option; event state after resolution', data: { playerId, prevEventId: eventId, optionId, success, followUpEventId: followUp?.id ?? null, activeEventIdAfter: player.activeEventId ?? null, activeEventPresentAfter: Boolean(player.activeEvent), currentZoneAfter: player.currentZone ?? null }, timestamp: Date.now() }) }).catch(() => { });
     // #endregion
 
     state.updatedAt = Date.now()
@@ -1762,43 +1785,24 @@ function getNextEventFromTrigger(state: SurvivalState, player: SurvivalPlayer, t
  * Apply an event effect to state and player
  */
 function applyEffect(state: SurvivalState, player: SurvivalPlayer, effect: EventEffect) {
-    // Resource changes
     if (effect.resourceDelta) {
-        for (const [resource, delta] of Object.entries(effect.resourceDelta)) {
-            if (delta) {
-                const key = resource as keyof BaseResources
-                state.resources[key] = Math.max(0, (state.resources[key] || 0) + delta)
+        for (const [res, amount] of Object.entries(effect.resourceDelta)) {
+            if (amount && state.resources[res as keyof BaseResources] !== undefined) {
+                state.resources[res as keyof BaseResources] += amount
             }
         }
     }
-
-    // Grant items to player inventory
     if (effect.grantItems) {
         for (const item of effect.grantItems) {
             const existing = player.inventory.items.find(i => i.templateId === item.templateId)
-            if (existing) {
-                existing.quantity += item.quantity
-            } else {
-                player.inventory.items.push({ ...item })
-            }
+            if (existing) existing.quantity += item.quantity
+            else player.inventory.items.push({ templateId: item.templateId, quantity: item.quantity })
         }
     }
-
-    // Wound player
     if (effect.woundPlayer) {
         player.isWounded = true
         state.resources.morale = Math.max(0, state.resources.morale - 10)
     }
-
-    // Recruit NPC
-    if (effect.recruitNpc) {
-        state.npcs.push({
-            ...effect.recruitNpc,
-            recruitedAt: Date.now(),
-        })
-    }
-
-    // Patch flags
     if (effect.setFlags) {
         for (const [k, v] of Object.entries(effect.setFlags)) {
             if (v === null) {
@@ -1808,6 +1812,129 @@ function applyEffect(state: SurvivalState, player: SurvivalPlayer, effect: Event
             }
         }
     }
+
+    // Combat Transition (DEFERRED)
+    if (effect.battleScenarioId) {
+        syncCombatResources(player)
+        player.pendingBattle = {
+            scenarioId: effect.battleScenarioId,
+            successEffect: {
+                ...effect,
+                battleScenarioId: undefined, // Avoid recursion
+                failureEffect: undefined
+            },
+            failureEffect: effect.failureEffect
+        }
+    }
+
+    // VN Transition (DEFERRED)
+    if (effect.vnSceneId) {
+        player.pendingVN = { sceneId: effect.vnSceneId }
+    }
+
+    // Recruit NPC
+    if (effect.recruitNpc) {
+        state.npcs.push({
+            ...effect.recruitNpc,
+            recruitedAt: Date.now(),
+        })
+    }
+}
+
+/**
+ * Helper to ensure player has initial combat resources based on survival stats
+ */
+export function syncCombatResources(player: SurvivalPlayer) {
+    const maxHp = 100
+    const currentHp = player.isWounded ? 60 : 100
+    const stamina = player.stamina || 100
+    const maxAp = 3
+    const currentAp = Math.max(1, Math.min(3, Math.floor(stamina / 33)))
+
+    player.combatResources = {
+        hp: currentHp,
+        maxHp: maxHp,
+        ap: currentAp,
+        maxAp: maxAp,
+        mp: 50,
+        maxMp: 50,
+        wp: 40,
+        maxWp: 40,
+    }
+}
+
+/**
+ * Complete a pending battle and apply results
+ */
+export async function completeBattle(
+    sessionId: string,
+    playerId: number,
+    result: 'victory' | 'defeat' | 'flee',
+    finalCombatHp?: number
+): Promise<{ success: boolean; message: string; state: SurvivalState }> {
+    const state = sessions.get(sessionId)
+    if (!state) throw new Error('Session not found')
+
+    const player = state.players[playerId]
+    if (!player) throw new Error('Player not in session')
+
+    const pending = player.pendingBattle
+    if (!pending) {
+        return { success: false, message: 'No battle pending', state }
+    }
+
+    // Clear pending state
+    player.pendingBattle = null
+
+    // Apply outcome effects
+    if (result === 'victory') {
+        applyEffect(state, player, pending.successEffect)
+        state.log.push(createLogEntry(playerId, player.playerName, `одержал победу в бою (${pending.scenarioId})`, 'combat'))
+    } else {
+        const failEffect = pending.failureEffect || { woundPlayer: true }
+        applyEffect(state, player, failEffect)
+        state.log.push(createLogEntry(playerId, player.playerName, `отступил или проиграл в бою (${pending.scenarioId})`, 'combat'))
+    }
+
+    // Update survival health based on final combat HP
+    if (typeof finalCombatHp === 'number') {
+        if (finalCombatHp <= 0) {
+            player.isWounded = true
+            state.resources.morale = Math.max(0, state.resources.morale - 20)
+        } else if (finalCombatHp < 40) {
+            player.isWounded = true
+        }
+    }
+
+    state.updatedAt = Date.now()
+    await persistSession(state, true)
+    broadcastUpdate(sessionId, state)
+
+    return { success: true, message: 'Battle result applied', state }
+}
+
+/**
+ * Clear any pending transition flags (after navigation started)
+ */
+export async function consumeTransition(
+    sessionId: string,
+    playerId: number
+): Promise<{ success: boolean; state: SurvivalState }> {
+    const state = sessions.get(sessionId)
+    if (!state) throw new Error('Session not found')
+
+    const player = state.players[playerId]
+    if (!player) throw new Error('Player not in session')
+
+    player.pendingVN = null
+    // pendingBattle is cleared in completeBattle, but let's be safe if needed
+    // player.pendingBattle = null 
+
+    state.updatedAt = Date.now()
+    await persistSession(state, false) // No need for heavy log if just flag clear
+    broadcastUpdate(sessionId, state)
+
+    return { success: true, state }
 }
 
 // ============================================================================
@@ -1947,7 +2074,7 @@ export async function movePlayer(
     const stamina = player.stamina ?? DEFAULT_STAMINA
 
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H1',location:'server/src/services/survivalService.ts:movePlayer(entry)',message:'Move request received',data:{sessionId,playerId,targetHex,activeEventId:player.activeEventId ?? null,activeEventPresent:Boolean(player.activeEvent),hasMovementState:Boolean(player.movementState),hexPos:player.hexPos ?? null,stamina:player.stamina ?? null,worldTimeMs:state.worldTimeMs},timestamp:Date.now()})}).catch(()=>{});
+    fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: 'debug-session', runId: 'pre-fix', hypothesisId: 'H1', location: 'server/src/services/survivalService.ts:movePlayer(entry)', message: 'Move request received', data: { sessionId, playerId, targetHex, activeEventId: player.activeEventId ?? null, activeEventPresent: Boolean(player.activeEvent), hasMovementState: Boolean(player.movementState), hexPos: player.hexPos ?? null, stamina: player.stamina ?? null, worldTimeMs: state.worldTimeMs }, timestamp: Date.now() }) }).catch(() => { });
     // #endregion
 
     // Can't move while already moving
@@ -2033,6 +2160,8 @@ export const survivalService = {
     startZoneAction,
     getActiveEvent,
     resolveOption,
+    completeBattle,
+    consumeTransition,
     transferToBase,
     movePlayer,
 }

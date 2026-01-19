@@ -345,7 +345,12 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
       sceneId: viewModel.scene.id,
       payload,
     })
-  }, [commitMutation, consumePayload, viewModel.scene.id])
+
+    const returnPathRaw = searchParams.get('returnPath') || (window.history.state?.usr?.returnPath as string | undefined)
+    if (returnPathRaw && returnPathRaw.startsWith('/')) {
+      navigate(returnPathRaw)
+    }
+  }, [commitMutation, consumePayload, navigate, searchParams, viewModel.scene.id])
 
   const handleExitRef = useRef(handleExit)
   useEffect(() => {

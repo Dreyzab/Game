@@ -4560,6 +4560,45 @@ export declare const app: Elysia<"", {
     survival: {
         sessions: {
             ":id": {
+                "zone-action": {
+                    post: {
+                        body: {
+                            actionId: string;
+                            zoneId: string;
+                        };
+                        params: {
+                            id: string;
+                        } & {};
+                        query: unknown;
+                        headers: unknown;
+                        response: {
+                            200: {
+                                success: boolean;
+                                message: string;
+                                state: import("./shared/types/survival").SurvivalState;
+                            } | {
+                                error: any;
+                                status: number;
+                            };
+                            422: {
+                                type: "validation";
+                                on: string;
+                                summary?: string;
+                                message?: string;
+                                found?: unknown;
+                                property?: string;
+                                expected?: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+    };
+} & {
+    survival: {
+        sessions: {
+            ":id": {
                 resolve: {
                     post: {
                         body: {
@@ -4576,6 +4615,80 @@ export declare const app: Elysia<"", {
                                 success: boolean;
                                 effect: import("./shared/types/survival").EventEffect;
                                 message: string;
+                            } | {
+                                error: any;
+                                status: number;
+                            };
+                            422: {
+                                type: "validation";
+                                on: string;
+                                summary?: string;
+                                message?: string;
+                                found?: unknown;
+                                property?: string;
+                                expected?: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+    };
+} & {
+    survival: {
+        sessions: {
+            ":id": {
+                "complete-battle": {
+                    post: {
+                        body: {
+                            hp?: number | undefined;
+                            result: string;
+                        };
+                        params: {
+                            id: string;
+                        } & {};
+                        query: unknown;
+                        headers: unknown;
+                        response: {
+                            200: {
+                                success: boolean;
+                                message: string;
+                                state: import("./shared/types/survival").SurvivalState;
+                            } | {
+                                error: any;
+                                status: number;
+                            };
+                            422: {
+                                type: "validation";
+                                on: string;
+                                summary?: string;
+                                message?: string;
+                                found?: unknown;
+                                property?: string;
+                                expected?: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+    };
+} & {
+    survival: {
+        sessions: {
+            ":id": {
+                "consume-transition": {
+                    post: {
+                        body: unknown;
+                        params: {
+                            id: string;
+                        } & {};
+                        query: unknown;
+                        headers: unknown;
+                        response: {
+                            200: {
+                                success: boolean;
+                                state: import("./shared/types/survival").SurvivalState;
                             } | {
                                 error: any;
                                 status: number;
@@ -4630,6 +4743,164 @@ export declare const app: Elysia<"", {
                                 found?: unknown;
                                 property?: string;
                                 expected?: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+    };
+} & {
+    survival: {
+        sessions: {
+            ":id": {
+                move: {
+                    post: {
+                        body: {
+                            targetHex: {
+                                q: number;
+                                r: number;
+                            };
+                        };
+                        params: {
+                            id: string;
+                        } & {};
+                        query: unknown;
+                        headers: unknown;
+                        response: {
+                            200: {
+                                success: boolean;
+                                message: string;
+                                arriveAtWorldTimeMs?: number;
+                            } | {
+                                error: any;
+                                status: number;
+                            };
+                            422: {
+                                type: "validation";
+                                on: string;
+                                summary?: string;
+                                message?: string;
+                                found?: unknown;
+                                property?: string;
+                                expected?: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+    };
+} & {
+    survival: {
+        sessions: {
+            ":id": {
+                trader: {
+                    get: {
+                        body: unknown;
+                        params: {
+                            id: string;
+                        } & {};
+                        query: unknown;
+                        headers: unknown;
+                        response: {
+                            200: {
+                                error: string;
+                                status: number;
+                                inventory?: undefined;
+                            } | {
+                                inventory: import("./services/traderService").TraderInventoryItem[];
+                                error?: undefined;
+                                status?: undefined;
+                            };
+                            422: {
+                                type: "validation";
+                                on: string;
+                                summary?: string;
+                                message?: string;
+                                found?: unknown;
+                                property?: string;
+                                expected?: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+    };
+} & {
+    survival: {
+        sessions: {
+            ":id": {
+                trader: {
+                    buy: {
+                        post: {
+                            body: {
+                                templateId: string;
+                                quantity: number;
+                            };
+                            params: {
+                                id: string;
+                            } & {};
+                            query: unknown;
+                            headers: unknown;
+                            response: {
+                                200: {
+                                    success: boolean;
+                                    message: string;
+                                } | {
+                                    error: string;
+                                    status: number;
+                                };
+                                422: {
+                                    type: "validation";
+                                    on: string;
+                                    summary?: string;
+                                    message?: string;
+                                    found?: unknown;
+                                    property?: string;
+                                    expected?: string;
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+        };
+    };
+} & {
+    survival: {
+        sessions: {
+            ":id": {
+                trader: {
+                    sell: {
+                        post: {
+                            body: {
+                                templateId: string;
+                                quantity: number;
+                            };
+                            params: {
+                                id: string;
+                            } & {};
+                            query: unknown;
+                            headers: unknown;
+                            response: {
+                                200: {
+                                    success: boolean;
+                                    message: string;
+                                } | {
+                                    error: string;
+                                    status: number;
+                                };
+                                422: {
+                                    type: "validation";
+                                    on: string;
+                                    summary?: string;
+                                    message?: string;
+                                    found?: unknown;
+                                    property?: string;
+                                    expected?: string;
+                                };
                             };
                         };
                     };

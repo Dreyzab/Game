@@ -1,32 +1,29 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, type ReactNode, memo } from 'react'
 import {
     DndContext,
     DragOverlay,
     MouseSensor,
     TouchSensor,
-    useDroppable,
     useSensor,
     useSensors,
-    type DragEndEvent,
-    type DragStartEvent,
+    useDroppable,
 } from '@dnd-kit/core'
 import { Backpack, Trophy, X, Terminal, Hourglass, RefreshCw, SquareTerminal } from 'lucide-react'
-import type { Achievement, BattleSession, Combatant, CombatCard } from '@/entities/dreyzab-combat-simulator/model/types'
-import { Side, CardType } from '@/entities/dreyzab-combat-simulator/model/types'
-import { generateDeckForCombatant } from '@/entities/dreyzab-combat-simulator/model/cardGenerator'
-import { SCENARIOS, type ScenarioId } from '@/entities/dreyzab-combat-simulator/model/scenarios'
+import type { BattleSession } from '@/entities/dreyzab-combat-simulator/model/types'
+import { Side } from '@/entities/dreyzab-combat-simulator/model/types'
+import type { ScenarioId } from '@/entities/dreyzab-combat-simulator/model/scenarios'
 import RankLane from './components/RankLane'
-import type { FloatingTextEvent } from './components/FloatingText'
-import { sortTurnQueue, canPlayCard, rollAttack } from '@/entities/dreyzab-combat-simulator/model/utils'
+import { canPlayCard } from '@/entities/dreyzab-combat-simulator/model/utils'
 import CombatCardUI from './components/CombatCardUI'
 import DraggableCombatCard from './components/DraggableCombatCard'
 import GaugeUI from './components/GaugeUI'
+import VoiceOverlay from './components/VoiceOverlay'
 import { toClampedPercent } from './components/combatUiMath'
-
-type DreyzabBattleResult = 'victory' | 'defeat'
+import { useDreyzabBattle, type DreyzabBattleResult } from '../model/useDreyzabBattle'
 
 type DreyzabBattleProps = {
     onBattleEnd?: (result: DreyzabBattleResult, finalSession?: BattleSession) => void
+    side?: 'player' | 'enemy' // For future pvp?
     scenarioId?: ScenarioId
     initialSession?: BattleSession
     renderEquipmentOverlay?: (props: { onClose: () => void; title?: string }) => ReactNode
@@ -42,7 +39,7 @@ type BattleDropZoneProps = {
     children: ReactNode
 }
 
-const BattleDropZone = ({ id, disabled, data, isActive, isValid, highlightClassName, children }: BattleDropZoneProps) => {
+const BattleDropZone = memo(({ id, disabled, data, isActive, isValid, highlightClassName, children }: BattleDropZoneProps) => {
     const { setNodeRef, isOver } = useDroppable({ id, disabled, data })
 
     return (
@@ -59,118 +56,41 @@ const BattleDropZone = ({ id, disabled, data, isActive, isValid, highlightClassN
             )}
         </div>
     )
-}
+})
 
-type CardPlayTarget =
-    | { type: 'enemy'; enemyId: string }
-    | { type: 'player-rank'; rank: number }
 
-const MAX_RANK = 4
-const END_TURN_WP_RECOVERY = 10
-
-const fillEmptyRanks = (units: Combatant[]): Combatant[] => {
-    const living = [...units]
-        .filter((unit) => !unit.isDead)
-        .sort((a, b) => a.rank - b.rank || a.id.localeCompare(b.id))
-
-    const nextRankById = new Map<string, number>()
-    living.forEach((unit, index) => {
-        nextRankById.set(unit.id, Math.min(MAX_RANK, index + 1))
-    })
-
-    return units.map((unit) => {
-        if (unit.isDead) return unit
-        const nextRank = nextRankById.get(unit.id)
-        if (!nextRank || nextRank === unit.rank) return unit
-        return { ...unit, rank: nextRank }
-    })
-}
-
-const INITIAL_ACHIEVEMENTS: Achievement[] = [
-    {
-        id: 'first_win',
-        title: 'First Drop',
-        description: 'Complete your first successful mission.',
-        icon: 'ÐYZî',
-        unlocked: false,
-    },
-    {
-        id: 'no_damage',
-        title: 'Untouchable',
-        description: 'Win a battle without taking any damage.',
-        icon: 'ÐY>­‹÷?',
-        unlocked: false,
-    },
-    {
-        id: 'tactical_genius',
-        title: 'Tactical Genius',
-        description: 'Perform 3 attacks in a single turn.',
-        icon: 'ÐYõÿ',
-        unlocked: false,
-    },
-    {
-        id: 'survivor',
-        title: 'Last Breath',
-        description: 'Win a battle with less than 10% HP remaining.',
-        icon: 'ÐY¸÷',
-        unlocked: false,
-    },
-    {
-        id: 'scorpion_slayer',
-        title: 'Scorpion Slayer',
-        description: 'Neutralize a Rail Scorpion.',
-        icon: "ÐYÝ'",
-        unlocked: false,
-    },
-]
-
-const ACHIEVEMENTS_STORAGE_KEY = 'dreyzab_achievements'
-
-const readAchievements = (): Achievement[] => {
-    const saved = localStorage.getItem(ACHIEVEMENTS_STORAGE_KEY)
-    if (!saved) return INITIAL_ACHIEVEMENTS
-    try {
-        const parsed = JSON.parse(saved) as unknown
-        if (!Array.isArray(parsed)) return INITIAL_ACHIEVEMENTS
-        return parsed as Achievement[]
-    } catch {
-        return INITIAL_ACHIEVEMENTS
-    }
-}
-
-const writeAchievements = (value: Achievement[]) => {
-    localStorage.setItem(ACHIEVEMENTS_STORAGE_KEY, JSON.stringify(value))
-}
-
-const createInitialSession = (params: {
-    scenarioId: ScenarioId
-    initialSession?: BattleSession
-}): { session: BattleSession; defaultTargetId: string | null } => {
-    const session = params.initialSession ?? (SCENARIOS[params.scenarioId] ?? SCENARIOS['default'])()
-
-    return {
-        session,
-        defaultTargetId: session.enemies[0]?.id ?? null,
-    }
-}
 
 // Battle component
 export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default', initialSession, renderEquipmentOverlay }: DreyzabBattleProps) {
-    const [initial] = useState(() => createInitialSession({ scenarioId, initialSession }))
-    const [battle, setBattle] = useState<BattleSession>(initial.session)
-    const [selectedTargetId, setSelectedTargetId] = useState<string | null>(initial.defaultTargetId)
-    const [achievements, setAchievements] = useState<Achievement[]>(() => readAchievements())
-    const [showAchievements, setShowAchievements] = useState(false)
-    const [showEquipment, setShowEquipment] = useState(false)
-    const [combatEvents, setCombatEvents] = useState<(FloatingTextEvent & { unitId: string })[]>([])
-    const [activeDragCardId, setActiveDragCardId] = useState<string | null>(null)
+    const {
+        battle,
+        achievements,
+        showAchievements,
+        setShowAchievements,
+        showEquipment,
+        setShowEquipment,
+        combatEvents,
+        voiceEvents,
+        selectedTargetId,
+        setSelectedTargetId,
+
+        activeDraggedCard,
+        dragHighlightClassName,
+        validEnemyDropIds,
+        validPlayerRankDrops,
+        activeHandCards,
+        activePlayer,
+        activeUnit,
+        playCard,
+        advanceTurn,
+        handleDragStart,
+        handleDragCancel,
+        handleDragEnd,
+        resetBattle,
+        resolvePortrait
+    } = useDreyzabBattle({ onBattleEnd, scenarioId, initialSession })
 
     const logEndRef = useRef<HTMLDivElement>(null)
-    const battleRef = useRef<BattleSession>(battle)
-    const enemyActionTimerRef = useRef<number | null>(null)
-    const autoAdvanceTimerRef = useRef<number | null>(null)
-    const reportedResultRef = useRef<DreyzabBattleResult | null>(null)
-    const scriptedEventTriggeredRef = useRef(false)
 
     const sensors = useSensors(
         useSensor(MouseSensor, {
@@ -181,524 +101,9 @@ export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default', ini
         })
     )
 
-    const addCombatEvent = useCallback((unitId: string, text: string, type: 'damage' | 'heal' | 'miss' | 'debuff' | 'buff') => {
-        const id = Math.random().toString(36).substr(2, 9)
-        const color = type === 'damage' ? '#ef4444' :
-            type === 'heal' ? '#10b981' :
-                type === 'debuff' ? '#a855f7' :
-                    type === 'buff' ? '#3b82f6' :
-                        '#fbbf24'
-        setCombatEvents((prev) => [...prev, { id, text, color, unitId }])
-
-        // Auto-cleanup
-        setTimeout(() => {
-            setCombatEvents((prev) => prev.filter((e) => e.id !== id))
-        }, 2000)
-    }, [])
-
-    useEffect(() => {
-        if (scenarioId !== 'boss_train_prologue') return
-        if (scriptedEventTriggeredRef.current) return
-
-        if (battle.turnCount >= 2 && battle.phase === 'ENEMY_TURN') {
-            const condIdx = battle.players.findIndex(p => p.id === 'npc_cond' && !p.isDead)
-            if (condIdx >= 0) {
-                scriptedEventTriggeredRef.current = true
-
-                setTimeout(() => {
-                    setBattle(prev => {
-                        const newLogs = [...prev.logs, "!!! ЭКЗЕКУТОР РАЗРЫВАЕТ ПРОВОДНИКА !!!", "Бруно: «Лови подарочек, тварь!»"]
-
-                        const players = [...prev.players]
-                        // Kill conductor
-                        const cond = players[condIdx]
-                        players[condIdx] = { ...cond, isDead: true, resources: { ...cond.resources, hp: 0 } }
-
-                        // Create Bruno
-                        const bruno: Combatant = {
-                            id: 'npc_bruno',
-                            name: 'Бруно Вебер',
-                            side: Side.PLAYER,
-                            rank: cond.rank, // Talked Conductor's place
-                            resources: { hp: 100, maxHp: 100, ap: 3, maxAp: 3, mp: 0, maxMp: 0, wp: 50, maxWp: 50, pp: 0, maxPp: 100 },
-                            equipment: ['hand_cannon'],
-                            bonusAp: 0, initiative: 15, armor: 4, isDead: false,
-                            effects: [], weaponHeat: 0, isJammed: false, ammo: 5,
-                        }
-
-                        // Determine new set of players (keep dead conductor for log/visual or remove?)
-                        // If we remove him, rank management is easier. 
-                        // Let's replace him in array but mark dead, and push Bruno.
-                        // Actually, let's swap him out active duty to avoid clutter or stacking.
-                        // But seeing the body is cool using `isDead`.
-                        // Problem: 2 units on same rank?
-                        // Hack: Move Bruno to Rank 1 and shift others? No.
-                        // Let's just push Bruno. `sortTurnQueue` handles order.
-
-                        // Add Bruno cards
-                        const brunoCards = generateDeckForCombatant(bruno)
-                        const newHand = [...prev.playerHand, ...brunoCards]
-
-                        // Ensure turn queue is updated
-                        const newPlayers = [...players, bruno]
-                        const newQueue = sortTurnQueue(newPlayers, prev.enemies)
-
-                        return {
-                            ...prev,
-                            players: newPlayers,
-                            turnQueue: newQueue,
-                            playerHand: newHand,
-                            logs: newLogs
-                        }
-                    })
-                    addCombatEvent('npc_cond', 'FATAL', 'damage')
-                }, 1500)
-            }
-        }
-    }, [battle.turnCount, battle.phase, battle.players, scenarioId, addCombatEvent])
-
-    useEffect(() => {
-        battleRef.current = battle
-    }, [battle])
-
-    useEffect(() => {
-        if (!onBattleEnd) return
-
-        if (battle.phase === 'VICTORY' && reportedResultRef.current !== 'victory') {
-            reportedResultRef.current = 'victory'
-            onBattleEnd('victory', battleRef.current)
-        }
-
-        if (battle.phase === 'DEFEAT' && reportedResultRef.current !== 'defeat') {
-            reportedResultRef.current = 'defeat'
-            onBattleEnd('defeat', battleRef.current)
-        }
-
-        if (battle.phase !== 'VICTORY' && battle.phase !== 'DEFEAT') {
-            reportedResultRef.current = null
-        }
-    }, [battle.phase, onBattleEnd])
-
-    useEffect(() => {
-        writeAchievements(achievements)
-    }, [achievements])
-
-    const unlockAchievement = useCallback((id: string) => {
-        setAchievements((prev) => {
-            const achievement = prev.find((a) => a.id === id)
-            if (achievement && !achievement.unlocked) {
-                return prev.map((a) => (a.id === id ? { ...a, unlocked: true } : a))
-            }
-            return prev
-        })
-    }, [])
-
     useEffect(() => {
         logEndRef.current?.scrollIntoView({ behavior: 'smooth' })
     }, [battle.logs])
-
-    const clearTimers = useCallback(() => {
-        if (enemyActionTimerRef.current !== null) {
-            window.clearTimeout(enemyActionTimerRef.current)
-            enemyActionTimerRef.current = null
-        }
-        if (autoAdvanceTimerRef.current !== null) {
-            window.clearTimeout(autoAdvanceTimerRef.current)
-            autoAdvanceTimerRef.current = null
-        }
-    }, [])
-
-    const advanceTurn = useCallback(() => {
-        clearTimers()
-        setBattle((prev) => {
-            if (prev.phase === 'VICTORY' || prev.phase === 'DEFEAT') return prev
-
-            const currentIdx = prev.turnQueue.indexOf(prev.activeUnitId ?? '')
-            const currentUnit = [...prev.players, ...prev.enemies].find((u) => u.id === prev.activeUnitId)
-
-            let nextPlayers = [...prev.players]
-            let nextEnemies = [...prev.enemies]
-
-            const recoverWp = (unit: Combatant) => {
-                if (unit.isDead) return unit
-                return {
-                    ...unit,
-                    resources: {
-                        ...unit.resources,
-                        wp: Math.min(unit.resources.maxWp, unit.resources.wp + END_TURN_WP_RECOVERY),
-                    },
-                }
-            }
-
-            if (currentUnit?.side === Side.PLAYER) {
-                const playerIndex = nextPlayers.findIndex((p) => p.id === currentUnit.id)
-                if (playerIndex >= 0) {
-                    const carryOver = currentUnit.resources.ap > 0 ? 1 : 0
-                    const recoveredUnit = recoverWp(currentUnit)
-                    nextPlayers[playerIndex] = {
-                        ...recoveredUnit,
-                        bonusAp: carryOver,
-                        resources: { ...recoveredUnit.resources, ap: 0 },
-                    }
-                }
-            } else if (currentUnit?.side === Side.ENEMY) {
-                const enemyIndex = nextEnemies.findIndex((e) => e.id === currentUnit.id)
-                if (enemyIndex >= 0) {
-                    nextEnemies[enemyIndex] = recoverWp(currentUnit)
-                }
-            }
-
-            let nextIdx = (currentIdx + 1) % prev.turnQueue.length
-            const isNewRound = nextIdx === 0
-
-            if (isNewRound) {
-                nextPlayers = nextPlayers.map((p) => ({
-                    ...p,
-                    resources: { ...p.resources, ap: p.resources.maxAp + p.bonusAp },
-                    bonusAp: 0,
-                }))
-                nextEnemies = nextEnemies.map((e) => ({
-                    ...e,
-                    resources: { ...e.resources, ap: e.resources.maxAp },
-                }))
-
-                const newQueue = sortTurnQueue(nextPlayers, nextEnemies)
-                const nextId = newQueue[0] ?? null
-                const nextUnit = [...nextPlayers, ...nextEnemies].find((u) => u.id === nextId)
-
-                return {
-                    ...prev,
-                    players: nextPlayers,
-                    enemies: nextEnemies,
-                    activeUnitId: nextId,
-                    turnQueue: newQueue,
-                    phase: nextUnit?.side === Side.PLAYER ? 'PLAYER_TURN' : 'ENEMY_TURN',
-                    turnCount: prev.turnCount + 1,
-                    stats: { ...prev.stats, attacksInOneTurn: 0 },
-                }
-            }
-
-            let safetyCounter = 0
-            while (safetyCounter < prev.turnQueue.length) {
-                const nextIdCandidate = prev.turnQueue[nextIdx]
-                const unit = [...nextPlayers, ...nextEnemies].find((u) => u.id === nextIdCandidate)
-                if (unit && !unit.isDead) break
-                nextIdx = (nextIdx + 1) % prev.turnQueue.length
-                safetyCounter++
-            }
-
-            const nextId = prev.turnQueue[nextIdx] ?? null
-            const nextUnit = [...nextPlayers, ...nextEnemies].find((u) => u.id === nextId)
-
-            return {
-                ...prev,
-                players: nextPlayers,
-                enemies: nextEnemies,
-                activeUnitId: nextId,
-                phase: nextUnit?.side === Side.PLAYER ? 'PLAYER_TURN' : 'ENEMY_TURN',
-                stats: { ...prev.stats, attacksInOneTurn: 0 },
-            }
-        })
-    }, [clearTimers])
-
-    const resolveEnemyAction = useCallback(
-        (enemyId: string) => {
-            setBattle((prev) => {
-                if (prev.phase !== 'ENEMY_TURN') return prev
-
-                const enemyIndex = prev.enemies.findIndex((e) => e.id === enemyId)
-                if (enemyIndex < 0) return prev
-
-                const enemy = prev.enemies[enemyIndex]
-                if (enemy.isDead) return prev
-
-                const players = prev.players.map((p) => ({ ...p }))
-                const enemies = prev.enemies.map((e) => ({ ...e }))
-                const nextLogs = [...prev.logs]
-
-                const alivePlayers = players.filter((p) => !p.isDead)
-                if (alivePlayers.length === 0) return prev
-
-                const distanceTo = (player: Combatant) => enemy.rank + player.rank - 1
-                const sortedTargets = [...alivePlayers].sort((a, b) => distanceTo(a) - distanceTo(b))
-                const target = sortedTargets[0]
-
-                const enemyName = enemy.name.toLowerCase()
-                const isSmallScorpion = enemyName.includes('мал') && enemyName.includes('скор')
-                const isMediumScorpion = enemyName.includes('сред') && enemyName.includes('скор')
-
-                const applyDamage = (
-                    playerId: string,
-                    opts: { accuracy: number; baseDamage: number; label: string; ignoreArmor?: boolean }
-                ) => {
-                    const targetIndex = players.findIndex((p) => p.id === playerId)
-                    if (targetIndex < 0) return 0
-
-                    const defender = players[targetIndex]
-                    if (defender.isDead) return 0
-
-                    const attackResult = rollAttack(enemy, defender, opts.accuracy)
-                    if (!attackResult.hit) {
-                        nextLogs.push(
-                            `${defender.name} dodges ${enemy.name}'s ${opts.label}! (${attackResult.dodgeChance}% dodge from ${defender.resources.ap} unused AP)`
-                        )
-                        addCombatEvent(defender.id, 'DODGE!', 'miss')
-                        return 0
-                    }
-
-                    const dmg = Math.max(1, opts.ignoreArmor ? opts.baseDamage : opts.baseDamage - defender.armor)
-                    const nextHp = Math.max(0, defender.resources.hp - dmg)
-                    players[targetIndex] = {
-                        ...defender,
-                        resources: { ...defender.resources, hp: nextHp },
-                        isDead: nextHp <= 0,
-                    }
-                    nextLogs.push(
-                        `${enemy.name} uses ${opts.label}: ${dmg} DMG to ${defender.name}! (roll: ${attackResult.roll}/${attackResult.needed})`
-                    )
-                    addCombatEvent(defender.id, `-${dmg}`, 'damage')
-                    if (nextHp <= 0) nextLogs.push(`${defender.name} offline.`)
-                    return dmg
-                }
-
-                let damageDealt = 0
-                const distance = distanceTo(target)
-
-                if (isMediumScorpion && distance <= 3) {
-                    const inRange = sortedTargets.filter((p) => distanceTo(p) <= 3).slice(0, 2)
-                    if (inRange.length >= 2) {
-                        nextLogs.push(`${enemy.name} lashes out with its tail!`)
-                        damageDealt += applyDamage(inRange[0].id, { accuracy: 70, baseDamage: 12, label: 'Tail Sting' })
-                        damageDealt += applyDamage(inRange[1].id, { accuracy: 70, baseDamage: 12, label: 'Tail Sting' })
-                    } else if (distance <= 2) {
-                        damageDealt += applyDamage(target.id, { accuracy: 75, baseDamage: 14, label: 'Claw Strike' })
-                    } else {
-                        enemies[enemyIndex] = { ...enemies[enemyIndex], rank: Math.max(1, enemy.rank - 1) }
-                        nextLogs.push(`${enemy.name} advances to rank ${enemies[enemyIndex].rank}.`)
-                    }
-                } else if (isSmallScorpion && distance <= 2) {
-                    damageDealt += applyDamage(target.id, { accuracy: 75, baseDamage: 12, label: 'Claw Strike' })
-                } else if (distance > 2) {
-                    enemies[enemyIndex] = { ...enemies[enemyIndex], rank: Math.max(1, enemy.rank - 1) }
-                    nextLogs.push(`${enemy.name} advances to rank ${enemies[enemyIndex].rank}.`)
-                } else {
-                    // Default enemy strike
-                    damageDealt += applyDamage(target.id, {
-                        accuracy: 70,
-                        baseDamage: 10,
-                        label: 'Strike',
-                        ignoreArmor: enemy.name === 'Mutant Marauder',
-                    })
-                }
-
-                const nextPlayers = fillEmptyRanks(players)
-                const nextEnemies = fillEmptyRanks(enemies)
-
-                const allPlayersDead = nextPlayers.every((p) => p.isDead)
-
-                return {
-                    ...prev,
-                    players: nextPlayers,
-                    enemies: nextEnemies,
-                    logs: nextLogs,
-                    stats: { ...prev.stats, damageTaken: prev.stats.damageTaken + damageDealt },
-                    phase: allPlayersDead ? 'DEFEAT' : prev.phase,
-                }
-            })
-
-            if (autoAdvanceTimerRef.current !== null) window.clearTimeout(autoAdvanceTimerRef.current)
-            autoAdvanceTimerRef.current = window.setTimeout(() => {
-                const current = battleRef.current
-                if (current.phase === 'DEFEAT' || current.phase === 'VICTORY') return
-                advanceTurn()
-            }, 500)
-        },
-        [advanceTurn, addCombatEvent]
-    )
-
-    useEffect(() => {
-        if (enemyActionTimerRef.current !== null) window.clearTimeout(enemyActionTimerRef.current)
-
-        if (battle.phase !== 'ENEMY_TURN' || !battle.activeUnitId) return
-        const activeUnit = [...battle.players, ...battle.enemies].find((u) => u.id === battle.activeUnitId)
-        if (!activeUnit || activeUnit.side !== Side.ENEMY || activeUnit.isDead) return
-
-        enemyActionTimerRef.current = window.setTimeout(() => resolveEnemyAction(activeUnit.id), 1000)
-        return () => {
-            if (enemyActionTimerRef.current !== null) window.clearTimeout(enemyActionTimerRef.current)
-        }
-    }, [battle.activeUnitId, battle.enemies, battle.phase, battle.players, resolveEnemyAction])
-
-    const playCard = useCallback(
-        (card: CombatCard, target?: CardPlayTarget) => {
-            if (!canPlayCard({ session: battle, card })) return
-
-            setBattle((prev) => {
-                if (prev.phase !== 'PLAYER_TURN') return prev
-
-                const playerIndex = prev.players.findIndex((p) => p.id === prev.activeUnitId)
-                if (playerIndex < 0) return prev
-
-                const players = prev.players.map((p) => ({ ...p }))
-                const enemies = prev.enemies.map((e) => ({ ...e }))
-                const nextLogs = [...prev.logs]
-
-                const actingPlayer = players[playerIndex]
-                if (actingPlayer.resources.ap < card.apCost || actingPlayer.resources.wp < card.staminaCost) return prev
-
-                const spendCosts = (unit: Combatant) => ({
-                    ...unit,
-                    resources: {
-                        ...unit.resources,
-                        ap: unit.resources.ap - card.apCost,
-                        wp: unit.resources.wp - card.staminaCost,
-                    },
-                })
-
-                let nextAttacksInTurn = prev.stats.attacksInOneTurn
-
-                if (card.type === CardType.ATTACK) {
-                    const enemyId = target?.type === 'enemy' ? target.enemyId : selectedTargetId
-                    const targetIndex = enemies.findIndex((e) => e.id === enemyId)
-                    const enemy = targetIndex >= 0 ? enemies[targetIndex] : null
-
-                    if (!enemy || enemy.isDead) {
-                        nextLogs.push('No valid target.')
-                        return { ...prev, logs: nextLogs }
-                    }
-
-                    const dist = Math.abs(enemy.rank + actingPlayer.rank - 1)
-                    const inRange = card.optimalRange.length === 0 || card.optimalRange.includes(dist)
-
-                    if (!inRange) {
-                        nextLogs.push(`${actingPlayer.name} cannot reach ${enemy.name} with ${card.name}.`)
-                        return { ...prev, logs: nextLogs }
-                    }
-
-                    const nextPlayer = spendCosts(actingPlayer)
-                    players[playerIndex] = nextPlayer
-                    nextAttacksInTurn++
-
-                    // Perform hit roll with dodge system
-                    const attackResult = rollAttack(nextPlayer, enemy, 75) // Player base accuracy 75%
-
-                    if (attackResult.hit) {
-                        // Hit - deal damage
-                        let damage = Math.floor(card.damage - enemy.armor)
-                        damage = Math.max(1, damage)
-
-                        const nextHp = Math.max(0, enemy.resources.hp - damage)
-                        enemies[targetIndex] = {
-                            ...enemy,
-                            resources: { ...enemy.resources, hp: nextHp },
-                            isDead: nextHp <= 0,
-                        }
-
-                        if (nextHp <= 0 && enemy.name === 'Rail Scorpion') unlockAchievement('scorpion_slayer')
-                        nextLogs.push(`${nextPlayer.name} uses ${card.name}: ${damage} DMG to ${enemy.name}! (roll: ${attackResult.roll}/${attackResult.needed})`)
-                        addCombatEvent(enemy.id, `-${damage}`, 'damage')
-                    } else {
-                        // Miss - enemy dodged
-                        nextLogs.push(`${enemy.name} dodges ${nextPlayer.name}'s ${card.name}! (${attackResult.dodgeChance}% dodge from ${enemy.resources.ap} AP)`)
-                        addCombatEvent(enemy.id, 'DODGE!', 'miss')
-                    }
-                } else if (card.type === CardType.MOVEMENT) {
-                    const desiredRank = target?.type === 'player-rank' ? target.rank : actingPlayer.rank - 1
-                    const isAdjacent = Math.abs(desiredRank - actingPlayer.rank) === 1
-                    const inBounds = desiredRank >= 1 && desiredRank <= 4
-
-                    if (!isAdjacent || !inBounds) {
-                        nextLogs.push(`${actingPlayer.name} cannot reposition there.`)
-                        return { ...prev, logs: nextLogs }
-                    }
-
-                    const nextPlayer = spendCosts(actingPlayer)
-
-                    const occupantIndex = players.findIndex(
-                        (p) => p.id !== nextPlayer.id && !p.isDead && p.rank === desiredRank
-                    )
-
-                    if (occupantIndex >= 0) {
-                        players[occupantIndex] = { ...players[occupantIndex], rank: nextPlayer.rank }
-                    }
-
-                    players[playerIndex] = { ...nextPlayer, rank: desiredRank }
-                    nextLogs.push(`${nextPlayer.name} repositions to rank ${desiredRank}.`)
-                } else if (card.type === CardType.VOICE) {
-                    const nextPlayer = spendCosts(actingPlayer)
-                    players[playerIndex] = {
-                        ...nextPlayer,
-                        resources: {
-                            ...nextPlayer.resources,
-                            wp: Math.min(nextPlayer.resources.maxWp, nextPlayer.resources.wp + 30),
-                        },
-                    }
-                    nextLogs.push(`${players[playerIndex].name} stabilizes vitals.`)
-                    addCombatEvent(actingPlayer.id, '+30 WP', 'heal')
-                } else if (card.type === CardType.ANALYSIS) {
-                    const enemyId = target?.type === 'enemy' ? target.enemyId : selectedTargetId
-                    const targetIndex = enemies.findIndex((e) => e.id === enemyId)
-                    const enemy = targetIndex >= 0 ? enemies[targetIndex] : null
-
-                    if (!enemy || enemy.isDead) {
-                        nextLogs.push('No valid target for analysis.')
-                        return { ...prev, logs: nextLogs }
-                    }
-
-                    const nextPlayer = spendCosts(actingPlayer)
-                    players[playerIndex] = nextPlayer
-
-                    const currentScan = enemy.scannedLevel || 0
-                    const nextScan = Math.min(2, currentScan + 1)
-
-                    enemies[targetIndex] = {
-                        ...enemy,
-                        scannedLevel: nextScan
-                    }
-
-                    // Log info based on scan level
-                    let info = ''
-                    if (nextScan >= 1) info += `HP: ${enemy.resources.hp}/${enemy.resources.maxHp} | ARM: ${enemy.armor}`
-                    if (nextScan >= 2) info += ` | AP: ${enemy.resources.ap} | THR: ${enemy.threatLevel || 'Unknown'}`
-
-                    nextLogs.push(`${nextPlayer.name} scans ${enemy.name}. Analysis: [${info}]`)
-                    addCombatEvent(enemy.id, 'SCANNED', 'debuff') // Visual feedback
-                } else if (card.type === CardType.DEFENSE) {
-                    nextLogs.push('Defense protocols unavailable.')
-                    return { ...prev, logs: nextLogs }
-                }
-
-                const nextPlayers = fillEmptyRanks(players)
-                const nextEnemies = fillEmptyRanks(enemies)
-                const allDead = nextEnemies.every((e) => e.isDead)
-
-                if (allDead) {
-                    unlockAchievement('first_win')
-                    if (prev.stats.damageTaken === 0) unlockAchievement('no_damage')
-                }
-
-                return {
-                    ...prev,
-                    players: nextPlayers,
-                    enemies: nextEnemies,
-                    logs: nextLogs,
-                    phase: allDead ? 'VICTORY' : prev.phase,
-                    stats: { ...prev.stats, attacksInOneTurn: nextAttacksInTurn },
-                }
-            })
-
-        },
-        [battle, selectedTargetId, unlockAchievement, addCombatEvent]
-    )
-
-    const resetBattle = useCallback(() => {
-        clearTimers()
-        const next = createInitialSession({ scenarioId, initialSession })
-        setBattle(next.session)
-        setSelectedTargetId(next.defaultTargetId)
-        setShowAchievements(false)
-        reportedResultRef.current = null
-    }, [clearTimers, initialSession, scenarioId])
 
     const handleTouchScrub = useCallback((e: React.TouchEvent) => {
         const touch = e.touches[0]
@@ -730,183 +135,25 @@ export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default', ini
     const handleTouchEnd = useCallback(() => {
     }, [])
 
-    const activeUnit = useMemo(() => {
-        if (!battle.activeUnitId) return null
-        return [...battle.players, ...battle.enemies].find((u) => u.id === battle.activeUnitId) ?? null
-    }, [battle.activeUnitId, battle.enemies, battle.players])
-
-    const activePlayer = activeUnit?.side === Side.PLAYER ? activeUnit : null
-
-    const activeHandCards = useMemo(
-        () => battle.playerHand.filter((card) => card.ownerId === battle.activeUnitId),
-        [battle.activeUnitId, battle.playerHand]
-    )
-
-    useEffect(() => {
-        if (battle.phase !== 'PLAYER_TURN') return
-
-        const activePlayer = battle.players.find((p) => p.id === battle.activeUnitId)
-        if (!activePlayer || activePlayer.isDead) return
-
-        if (battle.enemies.every((e) => e.isDead)) return
-
-        const hasPlayableCard = activeHandCards.some((card) => canPlayCard({ session: battle, card }))
-        const shouldAutoAdvance = activePlayer.resources.ap <= 0 || !hasPlayableCard
-        if (!shouldAutoAdvance) return
-
-        if (autoAdvanceTimerRef.current !== null) window.clearTimeout(autoAdvanceTimerRef.current)
-        autoAdvanceTimerRef.current = window.setTimeout(() => {
-            const current = battleRef.current
-            if (current.phase !== 'PLAYER_TURN') return
-
-            const currentActivePlayer = current.players.find((p) => p.id === current.activeUnitId)
-            if (!currentActivePlayer || currentActivePlayer.isDead) return
-            if (current.enemies.every((e) => e.isDead)) return
-
-            const currentHand = current.playerHand.filter((card) => card.ownerId === current.activeUnitId)
-            const hasPlayable = currentHand.some((card) => canPlayCard({ session: current, card }))
-            if (currentActivePlayer.resources.ap <= 0 || !hasPlayable) advanceTurn()
-        }, 800)
-
-        return () => {
-            if (autoAdvanceTimerRef.current !== null) {
-                window.clearTimeout(autoAdvanceTimerRef.current)
-                autoAdvanceTimerRef.current = null
-            }
-        }
-    }, [activeHandCards, advanceTurn, battle, battle.activeUnitId, battle.enemies, battle.phase, battle.players])
-
-    const resolveLocalPortrait = useCallback((unit: Combatant): string | null => {
-        const id = unit.id.toLowerCase()
-        const name = unit.name.toLowerCase()
-
-        // Player (p1) portrait
-        if (unit.side === Side.PLAYER && (id === 'p1' || name === 'player')) {
-            return '/images/characters/Player.png'
-        }
-
-        // Conductor / Provodnik
-        if (unit.side === Side.PLAYER && (id === 'npc_cond' || name.includes('conductor') || name.includes('проводник'))) {
-            return '/images/npcs/Provodnik.png'
-        }
-
-        // Party members
-        if (id.includes('bruno') || name.includes('bruno')) return '/images/characters/Bruno.png'
-        if (id.includes('lena') || name.includes('lena')) return '/images/characters/Lena.png'
-        if (id.includes('otto') || name.includes('otto')) return '/images/characters/Otto.png'
-        if (id.includes('adel') || id.includes('adele') || name.includes('adel')) return '/images/characters/Adel.png'
-
-        // Enemies
-        if (unit.side === Side.ENEMY && name.includes('mutant marauder')) return '/images/enemy/melkiyShuk.png'
-        if (unit.side === Side.ENEMY && name.includes('rail scorpion')) return '/images/enemy/БолСкор.png'
-        if (unit.side === Side.ENEMY && name.includes('мал') && name.includes('скор')) return '/images/enemy/МалСкор.png'
-        if (unit.side === Side.ENEMY && name.includes('сред') && name.includes('скор')) return '/images/enemy/СредСкор.png'
-        if (unit.side === Side.ENEMY && (id === 'boss' || name.includes('executioner'))) return '/images/enemy/BossPalach.png'
-
-        return null
-    }, [])
-
-    const resolvePortrait = useCallback((unit: Combatant): string => {
-        const local = resolveLocalPortrait(unit)
-        if (local) return local
-        return unit.side === Side.PLAYER
-            ? `https://api.dicebear.com/7.x/avataaars/svg?seed=operator${unit.id}&backgroundColor=transparent&style=straight`
-            : `https://api.dicebear.com/7.x/bottts/svg?seed=enemy${unit.id}&backgroundColor=transparent`
-    }, [resolveLocalPortrait])
-
-    const activeDraggedCard = useMemo(() => {
-        if (!activeDragCardId) return null
-        return battle.playerHand.find((c) => c.id === activeDragCardId) ?? null
-    }, [activeDragCardId, battle.playerHand])
-
-    const dragHighlightClassName = useMemo(() => {
-        if (!activeDraggedCard) return ''
-        switch (activeDraggedCard.type) {
-            case CardType.ATTACK:
-                return 'ring-red-500/60 bg-red-950/10'
-            case CardType.MOVEMENT:
-                return 'ring-blue-500/60 bg-blue-950/10'
-            case CardType.DEFENSE:
-                return 'ring-emerald-500/60 bg-emerald-950/10'
-            case CardType.VOICE:
-                return 'ring-amber-500/60 bg-amber-950/10'
-            case CardType.ANALYSIS:
-                return 'ring-purple-500/60 bg-purple-950/10'
-            default:
-                return ''
-        }
-    }, [activeDraggedCard])
-
-    const validEnemyDropIds = useMemo(() => {
-        const ids = new Set<string>()
-        if (!activeDraggedCard || !activePlayer) return ids
-        if (activeDraggedCard.type !== CardType.ATTACK && activeDraggedCard.type !== CardType.ANALYSIS) return ids
-
-        for (const enemy of battle.enemies) {
-            if (enemy.isDead) continue
-            const dist = Math.abs(enemy.rank + activePlayer.rank - 1)
-            if (activeDraggedCard.optimalRange.length === 0 || activeDraggedCard.optimalRange.includes(dist)) {
-                ids.add(enemy.id)
-            }
-        }
-
-        return ids
-    }, [activeDraggedCard, activePlayer, battle.enemies])
-
-    const validPlayerRankDrops = useMemo(() => {
-        const ranks = new Set<number>()
-        if (!activeDraggedCard || !activePlayer) return ranks
-
-        if (activeDraggedCard.type === CardType.MOVEMENT) {
-            if (activePlayer.rank > 1) ranks.add(activePlayer.rank - 1)
-            if (activePlayer.rank < 4) ranks.add(activePlayer.rank + 1)
-        } else if (activeDraggedCard.type === CardType.VOICE || activeDraggedCard.type === CardType.DEFENSE) {
-            ranks.add(activePlayer.rank)
-        }
-
-        return ranks
-    }, [activeDraggedCard, activePlayer])
-
-    const handleDragStart = useCallback((event: DragStartEvent) => {
-        setActiveDragCardId(event.active.id as string)
-    }, [])
-
-    const handleDragCancel = useCallback(() => {
-        setActiveDragCardId(null)
-    }, [])
-
-    const handleDragEnd = useCallback(
-        (event: DragEndEvent) => {
-            const { active, over } = event
-            setActiveDragCardId(null)
-
-            if (!over) return
-
-            const card = active.data.current?.card as CombatCard | undefined
-            if (!card) return
-
-            if (over.data.current?.type === 'enemy') {
-                const enemyId = over.data.current.enemyId as string | undefined
-                if (!enemyId) return
-                setSelectedTargetId(enemyId)
-                playCard(card, { type: 'enemy', enemyId })
-                return
-            }
-
-            if (over.data.current?.type === 'player-rank') {
-                const rank = over.data.current.rank as number | undefined
-                if (typeof rank !== 'number') return
-                playCard(card, { type: 'player-rank', rank })
-            }
-        },
-        [playCard]
-    )
-
     return (
         <DndContext sensors={sensors} onDragStart={handleDragStart} onDragCancel={handleDragCancel} onDragEnd={handleDragEnd}>
             <div
                 className="dreyzab-battle h-screen w-full flex flex-col arena-bg relative overflow-hidden text-xs md:text-sm select-none"
             >
+                {/* Critical Vignette Overlay */}
+                <div
+                    className="absolute inset-0 pointer-events-none z-[60] transition-opacity duration-500"
+                    style={{
+                        opacity: activePlayer ? Math.max(0, 1 - (activePlayer.resources.hp / activePlayer.resources.maxHp) * 2.5) : 0,
+                        background: 'radial-gradient(circle, transparent 40%, rgba(220, 38, 38, 0.4) 100%)',
+                        mixBlendMode: 'multiply'
+                    }}
+                >
+                    <div className="absolute inset-0 bg-red-500/10 mix-blend-overlay animate-pulse" />
+                </div>
+
+                {/* Voice Overlay */}
+                <VoiceOverlay events={voiceEvents} />
 
                 {/* Turn Order Display (Original Style) */}
                 <div className="absolute top-0 left-0 right-0 z-40 pointer-events-none flex flex-col items-center">
@@ -1087,7 +334,8 @@ export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default', ini
                                     {activePlayer ? (
                                         <div className="flex flex-col gap-2 scale-90 md:scale-100 origin-left">
                                             <GaugeUI value={activePlayer.resources.hp} max={activePlayer.resources.maxHp} label="HP" color="#ef4444" />
-                                            <GaugeUI value={activePlayer.resources.wp} max={activePlayer.resources.maxWp} label="WP" color="#3b82f6" />
+                                            <GaugeUI value={activePlayer.resources.stamina} max={activePlayer.resources.maxStamina} label="STM" color="#3b82f6" />
+                                            <GaugeUI value={activePlayer.resources.stagger} max={activePlayer.resources.maxStagger} label="STG" color="#eab308" />
                                         </div>
                                     ) : null}
                                 </>
@@ -1115,15 +363,15 @@ export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default', ini
                                             key={card.id}
                                             card={card}
                                             disabled={!canPlayCard({ session: battle, card })}
-                                             onClick={() => playCard(card)}
-                                             style={{
+                                            onClick={() => playCard(card)}
+                                            style={{
                                                 transform: `rotate(${(i - (activeHandCards.length - 1) / 2) * 5}deg) scale(1.0) translateY(${Math.abs(i - (activeHandCards.length - 1) / 2) * 2}px)`,
                                                 margin: '0 -10px'
-                                             }}
-                                             className="cursor-grab active:cursor-grabbing hover:z-100 transition-all duration-300 hover:-translate-y-12 md:hover:-translate-y-16"
-                                         />
-                                     )
-                                 })}
+                                            }}
+                                            className="cursor-grab active:cursor-grabbing hover:z-100 transition-all duration-300 hover:-translate-y-12 md:hover:-translate-y-16"
+                                        />
+                                    )
+                                })}
                         </div>
                     </div>
 

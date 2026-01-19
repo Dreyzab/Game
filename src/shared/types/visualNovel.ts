@@ -113,6 +113,7 @@ export interface VisualNovelScene {
   music?: string
   characters: VisualNovelCharacter[]
   tags?: string[]
+  isTerminal?: boolean
 }
 
 export interface VisualNovelSceneDefinition extends VisualNovelScene {

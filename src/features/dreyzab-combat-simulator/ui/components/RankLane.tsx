@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import type { Combatant } from '@/entities/dreyzab-combat-simulator/model/types'
 import { Side } from '@/entities/dreyzab-combat-simulator/model/types'
 import CombatantSprite from './CombatantSprite'
@@ -18,12 +19,11 @@ const RankLane = ({ combatant, isTargeted, isActive, onTarget, events = [] }: Pr
             className={`
                 relative h-full flex flex-col transition-all duration-300
                 ${isTargeted ? 'ring-1 md:ring-2 ring-inset ring-red-500/40' : ''}
-                ${
-                    isActive
-                        ? combatant?.side === Side.PLAYER
-                            ? 'ring-1 md:ring-2 ring-inset ring-blue-500/20'
-                            : 'ring-1 md:ring-2 ring-inset ring-amber-500/20'
-                        : ''
+                ${isActive
+                    ? combatant?.side === Side.PLAYER
+                        ? 'ring-1 md:ring-2 ring-inset ring-blue-500/20'
+                        : 'ring-1 md:ring-2 ring-inset ring-amber-500/20'
+                    : ''
                 }
             `}
         >
@@ -43,4 +43,4 @@ const RankLane = ({ combatant, isTargeted, isActive, onTarget, events = [] }: Pr
     )
 }
 
-export default RankLane
+export default memo(RankLane)

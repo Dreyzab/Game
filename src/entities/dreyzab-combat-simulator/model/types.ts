@@ -1,3 +1,5 @@
+import type { DamageType } from '@/shared/types/combat'
+
 export const Side = {
     PLAYER: 'PLAYER',
     ENEMY: 'ENEMY',
@@ -28,8 +30,10 @@ export interface CombatantResources {
     maxAp: number
     mp: number
     maxMp: number
-    wp: number
-    maxWp: number
+    stamina: number
+    maxStamina: number
+    stagger: number
+    maxStagger: number
     pp: number
     maxPp: number
 }
@@ -62,8 +66,6 @@ export interface Combatant {
     scannedLevel?: number // 0=none, 1=basic, 2=detailed
 }
 
-import type { DamageType } from '@/shared/types/combat'
-
 export const CardType = {
     ATTACK: 'attack',
     DEFENSE: 'defense',
@@ -86,7 +88,9 @@ export interface CombatCard {
     type: CardType
     apCost: number
     staminaCost: number
+    ammoCost?: number
     damage: number
+    impact: number
     damageType?: DamageType
     optimalRange: number[]
     description: string

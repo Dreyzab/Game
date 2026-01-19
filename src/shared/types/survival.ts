@@ -201,6 +201,10 @@ export interface EventEffect {
     recruitNpc?: { id: string; name: string; dailyCost: number; passiveBonus: Partial<BaseResources> }
     /** Triggers a follow-up event */
     triggerEventId?: string
+    /** Triggers a combat encounter */
+    battleScenarioId?: string
+    /** Triggers a visual novel scene */
+    vnSceneId?: string
     /** Patch session flags (server applies this to state.flags) */
     setFlags?: Record<string, unknown>
     /** Log message to broadcast */
@@ -208,7 +212,7 @@ export interface EventEffect {
     /** Success chance (0-100, undefined = guaranteed) */
     successChance?: number
     /** Effect on failure (if successChance is set) */
-    failureEffect?: Omit<EventEffect, 'successChance' | 'failureEffect'>
+    failureEffect?: EventEffect
 }
 
 /** A single option within an event */
@@ -383,6 +387,17 @@ export interface SurvivalPlayer {
     role: PlayerRole | null
     inventory: PlayerInventory
     isWounded: boolean
+    /** Combat-specific resources (mapped from survival stats or persistent) */
+    combatResources?: {
+        hp: number
+        maxHp: number
+        ap: number
+        maxAp: number
+        mp: number
+        maxMp: number
+        wp: number
+        maxWp: number
+    }
     currentZone: ZoneType | null
     activeEventId: string | null
     /** Full event object for persistence (replaces in-memory Map) */
@@ -408,6 +423,18 @@ export interface SurvivalPlayer {
         msPerHex?: number
         /** Lore timestamp when player arrives at destination */
         arriveAtWorldTimeMs: number
+    } | null
+    /** If present, player has an unresolved battle result pending */
+    pendingBattle?: {
+        scenarioId: string
+        /** The effect to apply if the player wins */
+        successEffect: EventEffect
+        /** The effect to apply if the player loses or flees */
+        failureEffect?: EventEffect
+    } | null
+    /** If present, player is transitioning to a visual novel scene */
+    pendingVN?: {
+        sceneId: string
     } | null
 }
 

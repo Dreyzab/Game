@@ -12,6 +12,7 @@ import { API_BASE_URL } from '@/shared/api/client'
 import { SurvivalBunkerDashboard } from '@/features/survival-bunker'
 import { SurvivalDatapad } from '@/features/survival-datapad'
 import { ModeSwitcher, SurvivalMapEditor, SurvivalMapbox, generateMap, type SurvivalMode } from '@/features/survival-hex-map'
+import { Routes } from '@/shared/lib/utils/navigation'
 import type {
     SurvivalEvent,
     SurvivalPlayer,
@@ -423,6 +424,7 @@ function EventCard({
 
 export default function SurvivalPlayerPage() {
     const [searchParams] = useSearchParams()
+    const navigate = useNavigate()
     const { getToken } = useAppAuth()
     const { deviceId } = useDeviceId()
 
@@ -504,7 +506,7 @@ export default function SurvivalPlayerPage() {
                         const updated = msg.data?.players?.[playerId]
                         if (updated) {
                             // #region agent log
-                            fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H2',location:'src/pages/SurvivalPlayerPage.tsx:ws.onmessage(state_update)',message:'WS state_update for player',data:{playerId,updatedActiveEventId:updated.activeEventId ?? null,updatedActiveEventPresent:Boolean(updated.activeEvent),updatedActiveEventIdObj:(updated.activeEvent as any)?.id ?? null,updatedMovementStatePresent:Boolean((updated as any).movementState),baseMode: baseModeRef.current},timestamp:Date.now()})}).catch(()=>{});
+                            fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: 'debug-session', runId: 'pre-fix', hypothesisId: 'H2', location: 'src/pages/SurvivalPlayerPage.tsx:ws.onmessage(state_update)', message: 'WS state_update for player', data: { playerId, updatedActiveEventId: updated.activeEventId ?? null, updatedActiveEventPresent: Boolean(updated.activeEvent), updatedActiveEventIdObj: (updated.activeEvent as any)?.id ?? null, updatedMovementStatePresent: Boolean((updated as any).movementState), baseMode: baseModeRef.current }, timestamp: Date.now() }) }).catch(() => { });
                             // #endregion
                             // Sync active encounter from server state (zone events + hex encounters)
                             if (updated.activeEventId) {
@@ -534,6 +536,41 @@ export default function SurvivalPlayerPage() {
 
         return () => ws.close()
     }, [sessionId])
+
+    // Transition Watcher: Combat & VN
+    useEffect(() => {
+        if (!player || !sessionId) return
+
+        // 1. Pending Battle (Combat Simulator)
+        if (player.pendingBattle) {
+            const scenarioId = player.pendingBattle.scenarioId
+            const returnPath = encodeURIComponent(`${Routes.SURVIVAL_PLAYER}?session=${sessionId}`)
+
+            // Pass combat resources from survival stats
+            const cr = player.combatResources
+            const statsSuffix = cr ? `&hp=${cr.hp}&maxHp=${cr.maxHp}&ap=${cr.ap}&maxAp=${cr.maxAp}&mp=${cr.mp}&maxMp=${cr.maxMp}&wp=${cr.wp}&maxWp=${cr.maxWp}` : ''
+
+            navigate(`${Routes.BATTLE}?scenarioId=${scenarioId}&sessionId=${sessionId}&returnPath=${returnPath}${statsSuffix}`)
+            return
+        }
+
+        // 2. Pending VN (Visual Novel)
+        if (player.pendingVN) {
+            const sceneId = player.pendingVN.sceneId
+            const returnPath = encodeURIComponent(`${Routes.SURVIVAL_PLAYER}?session=${sessionId}`)
+
+            // Consume transition flag on the server
+            const baseHeaders: Record<string, string> = { 'Content-Type': 'application/json' }
+            getToken().then(token => {
+                const headers = { ...baseHeaders }
+                if (token) headers['Authorization'] = `Bearer ${token}`
+                if (deviceId) headers['X-Device-Id'] = deviceId
+                fetch(`${API_BASE_URL}/survival/sessions/${sessionId}/consume-transition`, { method: 'POST', headers }).catch(e => console.error(e))
+            })
+
+            navigate(`${Routes.VISUAL_NOVEL}/${sceneId}?returnPath=${returnPath}`)
+        }
+    }, [player?.pendingBattle, player?.pendingVN, sessionId, navigate, getToken, deviceId])
 
     // Create session
     const handleCreateSession = useCallback(async () => {
@@ -810,7 +847,7 @@ export default function SurvivalPlayerPage() {
         }
         try {
             // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H1',location:'src/pages/SurvivalPlayerPage.tsx:handleMoveOnHexMap(pre)',message:'User requested move',data:{sessionId,targetHex,baseMode,clientActiveEventId:activeEvent?.id ?? null,clientHasActiveEvent:Boolean(activeEvent),playerId:player?.playerId ?? null,playerActiveEventId:player?.activeEventId ?? null,playerHasMovementState:Boolean(player?.movementState)},timestamp:Date.now()})}).catch(()=>{});
+            fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: 'debug-session', runId: 'pre-fix', hypothesisId: 'H1', location: 'src/pages/SurvivalPlayerPage.tsx:handleMoveOnHexMap(pre)', message: 'User requested move', data: { sessionId, targetHex, baseMode, clientActiveEventId: activeEvent?.id ?? null, clientHasActiveEvent: Boolean(activeEvent), playerId: player?.playerId ?? null, playerActiveEventId: player?.activeEventId ?? null, playerHasMovementState: Boolean(player?.movementState) }, timestamp: Date.now() }) }).catch(() => { });
             // #endregion
             const headers = await getAuthHeaders()
             const res = await fetch(`${API_BASE_URL}/survival/sessions/${sessionId}/move`, {
@@ -820,7 +857,7 @@ export default function SurvivalPlayerPage() {
             })
             const data = await res.json()
             // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H1',location:'src/pages/SurvivalPlayerPage.tsx:handleMoveOnHexMap(post)',message:'Move response received',data:{sessionId,targetHex,httpStatus:res.status,success:(data as any)?.success ?? null,message:(data as any)?.message ?? null,error:(data as any)?.error ?? null},timestamp:Date.now()})}).catch(()=>{});
+            fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: 'debug-session', runId: 'pre-fix', hypothesisId: 'H1', location: 'src/pages/SurvivalPlayerPage.tsx:handleMoveOnHexMap(post)', message: 'Move response received', data: { sessionId, targetHex, httpStatus: res.status, success: (data as any)?.success ?? null, message: (data as any)?.message ?? null, error: (data as any)?.error ?? null }, timestamp: Date.now() }) }).catch(() => { });
             // #endregion
             if (data?.success === false) {
                 setError(String(data.message || 'Не удалось начать движение'))

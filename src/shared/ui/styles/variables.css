@@ -29,6 +29,7 @@
   --color-teal-800: rgba(41, 150, 161, 1);
   /* Accent alias used across UI */
   --color-cyan: var(--color-teal-300);
+  --color-accent: var(--color-cyan);
   --color-red-400: rgba(255, 84, 89, 1);
   --color-red-500: rgba(192, 21, 47, 1);
   --color-orange-400: rgba(230, 129, 97, 1);

@@ -6,13 +6,33 @@ import { Routes } from '@/shared/lib/utils/navigation'
 import { SCENARIOS, type ScenarioId } from '@/entities/dreyzab-combat-simulator/model/scenarios'
 import { sortTurnQueue } from '@/entities/dreyzab-combat-simulator/model/utils'
 import { Side } from '@/entities/dreyzab-combat-simulator/model/types'
+import { useAppAuth } from '@/shared/auth'
+import { useDeviceId } from '@/shared/hooks/useDeviceId'
+import { authenticatedClient } from '@/shared/api/client'
 
 export default function BattlePage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const { getToken } = useAppAuth()
+  const { deviceId } = useDeviceId()
 
   const returnScene = searchParams.get('returnScene')
   const defeatScene = searchParams.get('defeatScene')
+  const returnPathRaw = searchParams.get('returnPath')
+  const sessionId = searchParams.get('sessionId')
+
+  // Sanitize returnPath: MUST be relative (start with /), no external domains
+  const returnPath = useMemo(() => {
+    if (!returnPathRaw) return null
+    if (!returnPathRaw.startsWith('/')) return null
+    try {
+      // Check for // or protocol
+      if (returnPathRaw.includes('//') || returnPathRaw.includes(':')) return null
+      return returnPathRaw
+    } catch {
+      return null
+    }
+  }, [returnPathRaw])
   const scenarioIdParam = searchParams.get('scenarioId') ?? searchParams.get('enemyKey') ?? 'default'
   const requestedHpRaw = searchParams.get('hp')
   const requestedMaxHpRaw = searchParams.get('maxHp')
@@ -24,7 +44,7 @@ export default function BattlePage() {
   const requestedMaxWpRaw = searchParams.get('maxWp')
   const equipmentParam = searchParams.get('equipment')
 
-  const shouldAutoReturn = Boolean(returnScene || defeatScene)
+  const shouldAutoReturn = Boolean(returnScene || defeatScene || returnPath)
 
   const { initialSession, initialHp, scenarioId } = useMemo(() => {
     const resolvedScenarioId =
@@ -104,26 +124,68 @@ export default function BattlePage() {
   ])
 
   const handleBattleEnd = useCallback(
-    (result: 'victory' | 'defeat', finalSession?: BattleSession) => {
-      const targetScene = result === 'victory' ? returnScene : defeatScene ?? returnScene
-      if (!targetScene) return
-
+    async (result: 'victory' | 'defeat', finalSession?: BattleSession) => {
       const finalHpRaw = finalSession?.players.find((p) => p.id === 'p1')?.resources.hp
       const finalHp =
         typeof finalHpRaw === 'number' && Number.isFinite(finalHpRaw) ? Math.trunc(finalHpRaw) : initialHp
-      const hpDelta = finalHp - initialHp
 
-      const suffix = hpDelta !== 0 ? `?hpDelta=${encodeURIComponent(String(hpDelta))}` : ''
-      navigate(`${Routes.VISUAL_NOVEL}/${targetScene}${suffix}`)
+      // If we have a sessionId, report the result to the survival server
+      if (sessionId) {
+        try {
+          const token = await getToken()
+          const client = authenticatedClient(token || undefined, deviceId)
+          await client.survival.sessions({ id: sessionId })['complete-battle'].post({
+            result: result === 'victory' ? 'victory' : 'defeat',
+            hp: finalHp
+          })
+        } catch (err) {
+          console.error('[Battle] Failed to report survival result', err)
+        }
+      }
+
+      // Traditional VN-style return
+      if (returnScene || defeatScene) {
+        const targetScene = result === 'victory' ? returnScene : defeatScene ?? returnScene
+        if (!targetScene) return
+
+        const hpDelta = finalHp - initialHp
+        const suffix = hpDelta !== 0 ? `?hpDelta=${encodeURIComponent(String(hpDelta))}` : ''
+        navigate(`${Routes.VISUAL_NOVEL}/${targetScene}${suffix}`)
+        return
+      }
+
+      // Generic returnPath support
+      if (returnPath) {
+        navigate(returnPath)
+        return
+      }
     },
-    [defeatScene, initialHp, navigate, returnScene]
+    [deviceId, getToken, initialHp, navigate, returnPath, returnScene, defeatScene, sessionId]
   )
 
   return (
     <div className="relative">
       {shouldAutoReturn && (
         <button
-          onClick={() => {
+          onClick={async () => {
+            // Report flee to clear pendingBattle state
+            if (sessionId) {
+              try {
+                const token = await getToken()
+                const client = authenticatedClient(token || undefined, deviceId)
+                await client.survival.sessions({ id: sessionId })['complete-battle'].post({
+                  result: 'defeat', // Treat early exit as defeat/flee
+                  hp: initialHp // No HP change if just fleeing immediately, or use current?
+                })
+              } catch (err) {
+                console.error('[Battle] Failed to report flee', err)
+              }
+            }
+
+            if (returnPath) {
+              navigate(returnPath)
+              return
+            }
             const targetScene = returnScene ?? defeatScene
             navigate(targetScene ? `${Routes.VISUAL_NOVEL}/${targetScene}` : Routes.VISUAL_NOVEL)
           }}

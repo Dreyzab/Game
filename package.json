@@ -12,6 +12,7 @@
     "lint": "eslint .",
     "lint:client": "eslint src",
     "lint:server": "eslint server/src",
+    "typecheck": "tsc -b",
     "preview": "vite preview"
   },
   "dependencies": {

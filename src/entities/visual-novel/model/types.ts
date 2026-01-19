@@ -1,5 +1,19 @@
 import type { AttributeGroup as VoiceGroup, VoiceId } from '@/shared/types/parliament'
 
+// ============================================================================
+// CORE IDENTIFIERS & TERMINALS
+// ============================================================================
+
+export type SceneID = string
+export type ChapterID = string
+export type TerminalMarker = 'END'
+
+/**
+ * Common type for next scene navigation.
+ * Can be a simple ID (local/global) or an explicit terminal marker.
+ */
+export type SceneTarget = SceneID | TerminalMarker
+
 export type SceneMap = Record<string, Scene>
 export type PolyphonicSceneMap = Record<string, PolyphonicScene>
 
@@ -104,7 +118,7 @@ export interface PolyphonicDialogue {
 
   // Переход
   nextDialogue?: string
-  nextScene?: string
+  nextScene?: SceneTarget
 
   // Эффекты при показе диалога (совместимость со сценарием)
   effects?: SceneChoiceEffects
@@ -119,7 +133,7 @@ export interface PolyphonicChoice {
 
   // Навигация
   nextDialogue?: string
-  nextScene?: string
+  nextScene?: SceneTarget
 
   // Требования
   requiredStat?: {
@@ -177,7 +191,12 @@ export interface Scene {
   dialogue: SceneDialogue[]
   choices?: SceneChoice[]
   advices?: SceneAdvice[]
-  nextScene?: string
+  nextScene?: SceneTarget
+  /**
+   * Explicitly marks this scene as a terminal leaf node (dead end).
+   * Used by validators to distinguish intentional endings from broken links.
+   */
+  isTerminal?: boolean
 
   // Новое: поддержка полифонического режима
   polyphonicDialogues?: PolyphonicDialogue[]
@@ -240,7 +259,7 @@ export interface SceneChoiceReputationEffect {
 }
 
 export interface SceneChoiceBranchEffects {
-  nextScene?: string
+  nextScene?: SceneTarget
   addFlags?: string[]
   removeFlags?: string[]
 }
@@ -260,7 +279,7 @@ export interface SceneChoiceEffects {
 export interface SceneChoice {
   id: string
   text: string
-  nextScene?: string
+  nextScene?: SceneTarget
   presentation?: {
     color?: string
     icon?: string

@@ -17,14 +17,16 @@ export const ItemCard = ({ item, isCompact, isDragging, onClick, onContextMenu }
         : 100
 
     return (
-        <motion.div
+        <motion.button
             layoutId={isDragging ? undefined : item.instanceId}
             whileTap={{ scale: 0.95 }}
             whileHover={{ scale: 1.05 }}
             onClick={onClick}
             onContextMenu={onContextMenu}
+            type="button"
+            aria-label={item.quantity > 1 ? `${item.name}, x${item.quantity}` : item.name}
             className={cn(
-                "relative flex flex-col items-center justify-center rounded-md border-2 p-1 transition-colors cursor-pointer backdrop-blur-sm select-none",
+                "relative flex flex-col items-center justify-center rounded-md border-2 p-1 transition-colors cursor-pointer backdrop-blur-sm select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-cyan)] focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900",
                 RARITY_COLORS[item.rarity],
                 isCompact ? "h-12 w-12" : "w-full h-full"
             )}
@@ -60,6 +62,6 @@ export const ItemCard = ({ item, isCompact, isDragging, onClick, onContextMenu }
                     <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse" />
                 </div>
             )}
-        </motion.div>
+        </motion.button>
     )
 }

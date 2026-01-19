@@ -5,6 +5,7 @@ import {
   buildChoiceViews,
   getLineById,
   getVisualNovelScene,
+  resolveNavigation,
 } from '@/entities/visual-novel/model/scenes'
 import type {
   VisualNovelChoice,
@@ -210,14 +211,24 @@ export function useVisualNovelViewModel(
 
   const goToScene = useCallback(
     (nextSceneId?: string) => {
+      // Resolve FQN or END relative to current scene
+      const resolvedTarget = resolveNavigation(scene.id, nextSceneId)
+
+      if (resolvedTarget === 'END') {
+        log('[VN] goToScene: END signal received')
+        setSceneCompleted(true)
+        return
+      }
+
       const targetSceneId =
-        nextSceneId && VISUAL_NOVEL_SCENES[nextSceneId] ? nextSceneId : DEFAULT_VN_SCENE_ID
-      log('[VN] goToScene', { requested: nextSceneId, resolved: targetSceneId })
+        resolvedTarget && VISUAL_NOVEL_SCENES[resolvedTarget] ? resolvedTarget : DEFAULT_VN_SCENE_ID
+
+      log('[VN] goToScene', { requested: nextSceneId, resolved: targetSceneId, fqn: resolvedTarget })
       startTransition(() => {
         setSceneId(targetSceneId)
       })
     },
-    [log]
+    [log, scene.id]
   )
 
   const advanceToLine = useCallback(

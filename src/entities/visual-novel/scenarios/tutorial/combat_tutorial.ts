@@ -9,7 +9,7 @@ import type { Scene } from '../../model/types'
 const TUTORIAL_BACKGROUND = '/images/backgrounds/forest_encounter.jpg'
 
 export const combatTutorialScenes: Record<string, Scene> = {
-  
+
   // =====================================
   // НАЧАЛО ОБУЧЕНИЯ БОЮ
   // =====================================
@@ -139,12 +139,12 @@ export const combatTutorialScenes: Record<string, Scene> = {
         },
         effects: {
           immediate: [
-            { 
-              type: 'start_tutorial_battle', 
-              data: { 
-                enemies: ['tutorial_mutant'], 
+            {
+              type: 'start_tutorial_battle',
+              data: {
+                enemies: ['tutorial_mutant'],
                 tutorialSteps: ['stamina', 'damage', 'exhaustion', 'recovery']
-              } 
+              }
             },
           ],
         },
@@ -176,7 +176,7 @@ export const combatTutorialScenes: Record<string, Scene> = {
       {
         id: 'continue_after_flee',
         text: 'Продолжить путь',
-        nextScene: 'station_hub',
+        nextScene: 'END',
       },
     ],
   },
@@ -210,7 +210,7 @@ export const combatTutorialScenes: Record<string, Scene> = {
       {
         id: 'continue_after_victory',
         text: 'Продолжить (получено: +30 XP, +10 Fame)',
-        nextScene: 'station_hub',
+        nextScene: 'END',
         effects: {
           flags: [
             { key: 'completed_combat_tutorial', value: true },
@@ -252,7 +252,7 @@ export const combatTutorialScenes: Record<string, Scene> = {
       {
         id: 'skip_tutorial',
         text: 'Продолжить без практики',
-        nextScene: 'station_hub',
+        nextScene: 'END',
         effects: {
           flags: [
             { key: 'skipped_combat_tutorial', value: true },

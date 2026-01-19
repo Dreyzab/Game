@@ -1,12 +1,13 @@
-import React, { useMemo, useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import type { TradeInteraction, TradeItem } from '../../model/mapPointInteractions'
-import { useInventoryStore } from '@/entities/inventory'
+import React from 'react'
+import type { TradeInteraction } from '../../model/mapPointInteractions'
 import { ITEM_TEMPLATES } from '@/entities/item/model/templates'
-import type { ItemState } from '@/entities/item/model/types'
-import { authenticatedClient } from '@/shared/api/client'
-import { calculateVendorBuyPrice, calculateVendorSellPrice } from '@/shared/lib/itemPricing'
-import { useAppAuth } from '@/shared/auth'
+import { useTradeSession } from '../../model/useTradeSession'
+import { clsx, type ClassValue } from "clsx"
+import { twMerge } from "tailwind-merge"
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
 
 interface TradeWindowProps {
   interaction: TradeInteraction
@@ -15,128 +16,24 @@ interface TradeWindowProps {
 
 const formatCurrency = (value: number, currency: string) => `${value.toLocaleString('ru-RU')} ${currency}`
 
-const getTraderItemPrice = (item: TradeItem): number => {
-  if (typeof item.price === 'number') return item.price
-  const template = ITEM_TEMPLATES[item.templateId]
-  if (!template) return 10
-  return calculateVendorSellPrice(template)
-}
-
-const getPlayerItemPrice = (item: ItemState): number => {
-  const template = ITEM_TEMPLATES[item.templateId]
-  if (!template) return 10
-  return calculateVendorBuyPrice(template)
-}
-
 export const TradeWindow: React.FC<TradeWindowProps> = ({ interaction, onClose }) => {
-  const { getToken } = useAppAuth()
-  const queryClient = useQueryClient()
-  const { items: playerItemsMap, isQuestItem } = useInventoryStore()
-  const playerItems = useMemo(() => Object.values(playerItemsMap), [playerItemsMap])
-
-  // State for items currently on the trading table
-  const [traderOfferIds, setTraderOfferIds] = useState<string[]>([])
-  const [playerOfferIds, setPlayerOfferIds] = useState<string[]>([])
-  const [tradeError, setTradeError] = useState<string | null>(null)
-
-  // Trade mutation
-  const tradeMutation = useMutation({
-    mutationFn: async (payload: {
-      playerOfferIds: string[]
-      traderOffer: Array<{ templateId: string; quantity: number }>
-      npcId?: string
-    }) => {
-      const token = await getToken()
-      const client = authenticatedClient(token || undefined)
-      const { data, error } = await client.inventory.trade.execute.post(payload)
-      if (error) throw error
-      return data
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['myInventory'] })
-      setTraderOfferIds([])
-      setPlayerOfferIds([])
-      setTradeError(null)
-    },
-    onError: (error: Error) => {
-      setTradeError(error.message || 'Ошибка при обмене')
-    }
-  })
-
-  // Derived lists
-  const traderInventory = useMemo(() =>
-    interaction.inventory.filter(item => !traderOfferIds.includes(item.id)),
-    [interaction.inventory, traderOfferIds])
-
-  const traderOffer = useMemo(() =>
-    interaction.inventory.filter(item => traderOfferIds.includes(item.id)),
-    [interaction.inventory, traderOfferIds])
-
-  const playerInventory = useMemo(() =>
-    playerItems.filter(item => !playerOfferIds.includes(item.id)),
-    [playerItems, playerOfferIds])
-
-  const playerOffer = useMemo(() =>
-    playerItems.filter(item => playerOfferIds.includes(item.id)),
-    [playerItems, playerOfferIds])
-
-  // Totals
-  const traderTotal = useMemo(() =>
-    traderOffer.reduce((sum, item) => sum + getTraderItemPrice(item), 0),
-    [traderOffer])
-
-  const playerTotal = useMemo(() =>
-    playerOffer.reduce((sum, item) => sum + getPlayerItemPrice(item), 0),
-    [playerOffer])
-
-  const balance = playerTotal - traderTotal
-
-  // Handlers
-  const toggleTraderItem = (id: string) => {
-    setTraderOfferIds(prev =>
-      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
-    )
-  }
-
-  const togglePlayerItem = (id: string) => {
-    // Не позволяем продавать квестовые предметы
-    const item = playerItemsMap[id]
-    if (item && isQuestItem(item.id)) {
-      setTradeError('Нельзя продать квестовый предмет')
-      return
-    }
-    
-    setTradeError(null)
-    setPlayerOfferIds(prev =>
-      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
-    )
-  }
-
-  const handleTrade = () => {
-    if (traderOffer.length === 0 && playerOffer.length === 0) {
-      return
-    }
-
-    // Проверяем баланс - игрок должен предложить достаточно
-    if (balance < 0) {
-      setTradeError(`Недостаточно предметов. Нужно добавить ещё ${Math.abs(balance)} ${interaction.currency}`)
-      return
-    }
-
-    setTradeError(null)
-
-    // Формируем запрос
-    const payload = {
-      playerOfferIds: playerOffer.map(item => item.id),
-      traderOffer: traderOffer.map(item => ({
-        templateId: item.templateId,
-        quantity: 1
-      })),
-      npcId: interaction.npcId
-    }
-
-    tradeMutation.mutate(payload)
-  }
+  const {
+    traderInventory,
+    traderOffer,
+    playerInventory,
+    playerOffer,
+    traderOfferIds, // needed for toggling checks
+    playerOfferIds, // needed for toggling checks
+    balance,
+    error,
+    isPending,
+    isSuccess,
+    toggleTraderItem,
+    togglePlayerItem,
+    executeTrade,
+    getTraderPrice,
+    getPlayerPrice
+  } = useTradeSession({ interaction, onClose })
 
   return (
     <div className="flex flex-col h-full max-h-[80vh] bg-slate-900/90 text-slate-200 rounded-xl overflow-hidden border border-slate-700">
@@ -146,7 +43,7 @@ export const TradeWindow: React.FC<TradeWindowProps> = ({ interaction, onClose }
         {/* Trader Icon/Info */}
         <div className="w-1/4 p-4 flex flex-col items-center justify-center border-r border-slate-700 bg-slate-900">
           <div className="w-16 h-16 rounded-full bg-slate-800 border-2 border-amber-600/50 flex items-center justify-center mb-2">
-            <span className="text-2xl">👤</span>
+            <span className="text-2xl" role="img" aria-label="Trader Avatar">👤</span>
           </div>
           <div className="text-center">
             <div className="font-bold text-amber-500 text-sm">{interaction.npcId || 'Trader'}</div>
@@ -156,21 +53,35 @@ export const TradeWindow: React.FC<TradeWindowProps> = ({ interaction, onClose }
 
         {/* Trader Assortment */}
         <div className="w-3/4 p-2 overflow-y-auto">
-          <div className="text-xs uppercase tracking-wider text-slate-500 mb-2 px-2">Ассортимент</div>
-          <div className="grid grid-cols-4 gap-2">
-            {traderInventory.map(item => (
-              <div
-                key={item.id}
-                onClick={() => toggleTraderItem(item.id)}
-                className="aspect-square bg-slate-800/50 border border-slate-700 hover:border-amber-500/50 rounded-md p-2 cursor-pointer flex flex-col items-center justify-between transition-all"
-              >
-                <div className="text-2xl">📦</div>
-                <div className="text-[10px] text-center truncate w-full">{item.name}</div>
-                <div className="text-xs text-amber-400">{formatCurrency(getTraderItemPrice(item), interaction.currency)}</div>
-              </div>
-            ))}
+          <div className="text-xs uppercase tracking-wider text-slate-500 mb-2 px-2" id="trader-inventory-label">Ассортимент</div>
+          <div
+            className="grid grid-cols-4 gap-2"
+            role="list"
+            aria-labelledby="trader-inventory-label"
+          >
+            {traderInventory.map(item => {
+              const isSelected = traderOfferIds.includes(item.id)
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => toggleTraderItem(item.id)}
+                  aria-pressed={isSelected}
+                  aria-label={`Buy ${item.name} for ${getTraderPrice(item)} ${interaction.currency}`}
+                  className={cn(
+                    "aspect-square w-full bg-slate-800/50 border border-slate-700 rounded-md p-2 cursor-pointer flex flex-col items-center justify-between transition-all outline-none",
+                    "hover:border-amber-500/50 focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1 focus-visible:ring-offset-slate-900",
+                    isSelected && "border-amber-500 bg-amber-900/20"
+                  )}
+                >
+                  <div className="text-2xl" aria-hidden="true">📦</div>
+                  <div className="text-[10px] text-center truncate w-full">{item.name}</div>
+                  <div className="text-xs text-amber-400">{formatCurrency(getTraderPrice(item), interaction.currency)}</div>
+                </button>
+              )
+            })}
             {traderInventory.length === 0 && (
-              <div className="col-span-4 text-center text-slate-600 text-sm py-4">
+              <div className="col-span-4 text-center text-slate-600 text-sm py-4" aria-live="polite">
                 Пусто
               </div>
             )}
@@ -183,34 +94,38 @@ export const TradeWindow: React.FC<TradeWindowProps> = ({ interaction, onClose }
         <div className="flex-1 flex min-h-0">
           {/* Trader Offer */}
           <div className="w-1/2 border-r border-slate-700 p-2 overflow-y-auto bg-red-950/10">
-            <div className="text-xs text-center text-red-400/70 mb-2">Предложение торговца</div>
-            <div className="space-y-1">
+            <div className="text-xs text-center text-red-400/70 mb-2" id="trader-offer-label">Предложение торговца</div>
+            <div className="space-y-1" role="list" aria-labelledby="trader-offer-label">
               {traderOffer.map(item => (
-                <div
+                <button
                   key={item.id}
+                  type="button"
                   onClick={() => toggleTraderItem(item.id)}
-                  className="flex justify-between items-center bg-slate-800/80 p-2 rounded border border-red-900/30 cursor-pointer hover:bg-red-900/20"
+                  aria-label={`Remove ${item.name} from offer`}
+                  className="w-full flex justify-between items-center bg-slate-800/80 p-2 rounded border border-red-900/30 cursor-pointer hover:bg-red-900/20 outline-none focus-visible:ring-2 focus-visible:ring-red-500"
                 >
                   <span className="text-sm truncate">{item.name}</span>
-                  <span className="text-xs text-amber-500">{formatCurrency(getTraderItemPrice(item), interaction.currency)}</span>
-                </div>
+                  <span className="text-xs text-amber-500">{formatCurrency(getTraderPrice(item), interaction.currency)}</span>
+                </button>
               ))}
             </div>
           </div>
 
           {/* Player Offer */}
           <div className="w-1/2 p-2 overflow-y-auto bg-green-950/10">
-            <div className="text-xs text-center text-green-400/70 mb-2">Ваше предложение</div>
-            <div className="space-y-1">
+            <div className="text-xs text-center text-green-400/70 mb-2" id="player-offer-label">Ваше предложение</div>
+            <div className="space-y-1" role="list" aria-labelledby="player-offer-label">
               {playerOffer.map(item => (
-                <div
+                <button
                   key={item.id}
+                  type="button"
                   onClick={() => togglePlayerItem(item.id)}
-                  className="flex justify-between items-center bg-slate-800/80 p-2 rounded border border-green-900/30 cursor-pointer hover:bg-green-900/20"
+                  aria-label={`Remove ${ITEM_TEMPLATES[item.templateId]?.name || item.templateId} from offer`}
+                  className="w-full flex justify-between items-center bg-slate-800/80 p-2 rounded border border-green-900/30 cursor-pointer hover:bg-green-900/20 outline-none focus-visible:ring-2 focus-visible:ring-green-500"
                 >
                   <span className="text-sm truncate">{ITEM_TEMPLATES[item.templateId]?.name || item.templateId}</span>
-                  <span className="text-xs text-amber-500">{formatCurrency(getPlayerItemPrice(item), interaction.currency)}</span>
-                </div>
+                  <span className="text-xs text-amber-500">{formatCurrency(getPlayerPrice(item), interaction.currency)}</span>
+                </button>
               ))}
             </div>
           </div>
@@ -219,27 +134,29 @@ export const TradeWindow: React.FC<TradeWindowProps> = ({ interaction, onClose }
         {/* Trade Controls */}
         <div className="h-auto min-h-14 border-y border-slate-700 bg-slate-950 flex flex-col justify-center px-4 shrink-0 py-2 gap-1">
           <div className="flex items-center justify-between">
-            <div className="text-sm">
+            <div className="text-sm" aria-live="polite">
               <span className="text-slate-400">Баланс: </span>
               <span className={balance >= 0 ? 'text-green-400' : 'text-red-400'}>
                 {balance > 0 ? '+' : ''}{balance} {interaction.currency}
               </span>
             </div>
             <button
-              onClick={handleTrade}
-              disabled={tradeMutation.isPending || (traderOffer.length === 0 && playerOffer.length === 0)}
-              className="px-6 py-2 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded font-medium transition-colors"
+              onClick={executeTrade}
+              type="button"
+              disabled={isPending || (traderOffer.length === 0 && playerOffer.length === 0)}
+              aria-busy={isPending}
+              className="px-6 py-2 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded font-medium transition-colors focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 outline-none"
             >
-              {tradeMutation.isPending ? 'ОБМЕН...' : 'ОБМЕНЯТЬ'}
+              {isPending ? 'ОБМЕН...' : 'ОБМЕНЯТЬ'}
             </button>
           </div>
-          {tradeError && (
-            <div className="text-xs text-red-400 text-center">
-              {tradeError}
+          {error && (
+            <div className="text-xs text-red-400 text-center" role="alert">
+              {error}
             </div>
           )}
-          {tradeMutation.isSuccess && (
-            <div className="text-xs text-green-400 text-center">
+          {isSuccess && (
+            <div className="text-xs text-green-400 text-center" role="status">
               Обмен успешно завершён!
             </div>
           )}
@@ -249,28 +166,50 @@ export const TradeWindow: React.FC<TradeWindowProps> = ({ interaction, onClose }
       {/* BOTTOM: PLAYER INVENTORY */}
       <div className="h-1/3 bg-slate-950/50 flex flex-col min-h-0">
         <div className="px-3 py-2 border-b border-slate-800 flex justify-between items-center">
-          <span className="text-xs uppercase tracking-wider text-slate-500">Ваш инвентарь</span>
-          <button onClick={onClose} className="text-xs text-slate-400 hover:text-white">Закрыть</button>
+          <span className="text-xs uppercase tracking-wider text-slate-500" id="player-inventory-label">Ваш инвентарь</span>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close trade window"
+            className="text-xs text-slate-400 hover:text-white focus-visible:underline outline-none"
+          >
+            Закрыть
+          </button>
         </div>
         <div className="flex-1 overflow-y-auto p-2">
-          <div className="grid grid-cols-5 gap-2">
+          <div
+            className="grid grid-cols-5 gap-2"
+            role="list"
+            aria-labelledby="player-inventory-label"
+          >
             {playerInventory.map(item => {
               const template = ITEM_TEMPLATES[item.templateId]
+              const itemLabel = template?.name || item.templateId
+              const isSelected = playerOfferIds.includes(item.id)
+              const ariaLabel = item.quantity > 1 ? `${itemLabel}, x${item.quantity}` : itemLabel
+
               return (
-                <div
+                <button
                   key={item.id}
+                  type="button"
                   onClick={() => togglePlayerItem(item.id)}
-                  className="aspect-square bg-slate-800/50 border border-slate-700 hover:border-green-500/50 rounded-md p-1 cursor-pointer flex flex-col items-center justify-center relative group"
+                  aria-pressed={isSelected}
+                  aria-label={`Sell ${ariaLabel} for ${getPlayerPrice(item)} ${interaction.currency}`}
+                  className={cn(
+                    "aspect-square w-full bg-slate-800/50 border border-slate-700 rounded-md p-1 cursor-pointer flex flex-col items-center justify-center relative group transition-all outline-none",
+                    "hover:border-green-500/50 focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-1 focus-visible:ring-offset-slate-900",
+                    isSelected && "border-green-500 bg-green-900/20"
+                  )}
                 >
-                  <div className="text-xl">{template?.icon || '📦'}</div>
+                  <div className="text-xl" aria-hidden="true">{template?.icon || '📦'}</div>
                   {item.quantity > 1 && (
                     <span className="absolute bottom-0 right-1 text-[10px] text-slate-400">x{item.quantity}</span>
                   )}
-                </div>
+                </button>
               )
             })}
             {playerInventory.length === 0 && (
-              <div className="col-span-5 text-center text-slate-600 text-sm py-4">
+              <div className="col-span-5 text-center text-slate-600 text-sm py-4" aria-live="polite">
                 Инвентарь пуст
               </div>
             )}
