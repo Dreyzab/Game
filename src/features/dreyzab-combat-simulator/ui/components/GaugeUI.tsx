@@ -39,14 +39,26 @@ const GaugeUI = ({ value, max, label, color }: Props) => {
             <div className={`relative w-12 h-8 bg-zinc-950 rounded-t-full border overflow-hidden shadow-inner ${isCritical ? 'border-red-500/50 shadow-red-900/20' : 'border-zinc-800'}`}>
                 <div className="absolute inset-0 opacity-20 border-b border-zinc-800" />
 
-                {/* Needle */}
-                <div
-                    className="absolute bottom-0 left-1/2 w-0.5 h-6 origin-bottom transition-transform duration-700 ease-out"
-                    style={{ transform: `translateX(-50%) rotate(${rotation}deg)`, backgroundColor: isCritical ? '#ef4444' : color }}
+                {/* Delayed Bar (Damage Feedback) */}
+                <motion.div
+                    className="absolute bottom-0 left-1/2 w-0.5 h-6 origin-bottom bg-white mix-blend-overlay"
+                    initial={false}
+                    animate={{ rotate: rotation }}
+                    transition={{ duration: 1, ease: "circOut", delay: 0.2 }}
+                    style={{ transform: `translateX(-50%)`, zIndex: 0 }}
+                />
+
+                {/* Main Needle */}
+                <motion.div
+                    className="absolute bottom-0 left-1/2 w-0.5 h-6 origin-bottom z-10"
+                    initial={false}
+                    animate={{ rotate: rotation }}
+                    transition={{ type: 'spring', stiffness: 120, damping: 15 }}
+                    style={{ transform: `translateX(-50%)`, backgroundColor: isCritical ? '#ef4444' : color }}
                 />
 
                 {/* Pivot */}
-                <div className="absolute bottom-[-2px] left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-zinc-600" />
+                <div className="absolute bottom-[-2px] left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-zinc-600 z-20" />
 
                 {/* Warning Glow */}
                 {isCritical && (
@@ -61,7 +73,7 @@ const GaugeUI = ({ value, max, label, color }: Props) => {
             <div className={`text-[9px] font-bold mt-1 uppercase leading-none ${isCritical ? 'text-red-500 animate-pulse' : 'text-zinc-500'}`}>
                 {label} <span className={isCritical ? 'text-red-400' : isWarn ? 'text-amber-200' : 'text-zinc-300'}>{displayValue}</span>
             </div>
-        </motion.div>
+        </motion.div >
     )
 }
 

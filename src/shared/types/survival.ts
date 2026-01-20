@@ -230,7 +230,7 @@ export interface EventOption {
 }
 
 /** Event type tags for filtering and categorization */
-export type EventTag = 'trader' | 'combat' | 'loot' | 'npc' | 'hazard' | 'minigame' | 'story'
+export type EventTag = 'trader' | 'combat' | 'loot' | 'npc' | 'hazard' | 'minigame' | 'story' | 'tech'
 
 /** A survival event triggered when entering a zone */
 export interface SurvivalEvent {
@@ -503,6 +503,10 @@ export interface SurvivalState {
 
     // Daily global event (06:00→06:00 window)
     dailyEvent?: DailyEventState | null
+
+    // Forecasted next day event (revealed by ADMIN scan)
+    forecastedEventId?: string | null
+    forecastedEventRevealedAt?: number | null
 
     // Shared zone state (exclusive interactions/locks)
     zones?: Record<ZoneType, ZoneState>

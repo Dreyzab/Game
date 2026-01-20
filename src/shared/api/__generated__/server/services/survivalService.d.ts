@@ -10,7 +10,7 @@ export declare function initSurvivalService(): Promise<void>;
 /**
  * Create a new survival session
  */
-export declare function createSession(hostPlayerId: number, hostName?: string): Promise<SurvivalState>;
+export declare function createSession(hostPlayerId: number, hostName?: string, regionId?: string): Promise<SurvivalState>;
 /**
  * Get a session by ID
  */

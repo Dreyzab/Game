@@ -482,4 +482,27 @@ export const playerRoutes = (app: Elysia) =>
                     const result = await resetSelf(user as any, player.id);
                     return { ok: true, reset: true, result };
                 })
+
+                .post("/locale", async ({ user, body }) => {
+                    if (!user) return { error: "Unauthorized", status: 401 };
+
+                    const player = await db.query.players.findFirst({
+                        where: user.type === 'clerk'
+                            ? eq(players.userId, user.id)
+                            : eq(players.deviceId, user.id)
+                    });
+
+                    if (!player) return { error: "Player not found", status: 404 };
+
+                    const [updated] = await db.update(players)
+                        .set({ locale: body.locale, updatedAt: Date.now() })
+                        .where(eq(players.id, player.id))
+                        .returning();
+
+                    return { success: true, locale: updated?.locale };
+                }, {
+                    body: t.Object({
+                        locale: t.Union([t.Literal("ru"), t.Literal("en"), t.Literal("de")])
+                    })
+                })
         );

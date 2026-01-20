@@ -79,16 +79,10 @@ const CombatantSprite = ({ combatant, isTargeted, onClick }: Props) => {
                             style={{ width: `${toClampedPercent(combatant.resources.hp, combatant.resources.maxHp)}%` }}
                         />
                     </div>
-                    {/* WP Bar */}
-                    <div className="h-0.5 w-full bg-zinc-950 rounded-px overflow-hidden">
-                        <div
-                            className="h-full bg-blue-500 transition-all duration-500"
-                            style={{ width: `${toClampedPercent(combatant.resources.wp, combatant.resources.maxWp)}%` }}
-                        />
-                    </div>
+
                     <div className="flex justify-between items-center px-0.5 font-mono text-[8px] md:text-[9px] leading-none">
                         <span className="text-red-400 font-bold">H{combatant.resources.hp}</span>
-                        <span className="text-blue-300 font-bold">W{Math.floor(combatant.resources.wp)}</span>
+
                     </div>
                 </div>
             )}

@@ -49,6 +49,14 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
   const [nicknameDraft, setNicknameDraft] = useState('')
   const [nicknameError, setNicknameError] = useState<string | null>(null)
   const [isNicknameSaving, setNicknameSaving] = useState(false)
+  const [vnSession, setVnSession] = useState<{
+    sceneId: string
+    sessionId: string
+    sessionToken: string
+    stateVersion: number
+    expiresAt: number
+  } | null>(null)
+  const commitNonceRef = useRef<string | null>(null)
 
   const saveNickname = useCallback(async () => {
     const trimmed = nicknameDraft.trim()
@@ -83,6 +91,74 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
       setNicknameSaving(false)
     }
   }, [deviceId, getToken, nicknameDraft, queryClient])
+
+  const generateCommitNonce = () => {
+    if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+      return crypto.randomUUID()
+    }
+    return `${Date.now()}-${Math.random().toString(16).slice(2)}`
+  }
+
+  const startServerSession = useCallback(
+    async (sceneId: string) => {
+      const token = await getToken()
+      const client = authenticatedClient(token || undefined, deviceId)
+      const { data, error } = await client.vn.session.start.post({ sceneId })
+      if (error) throw error
+      commitNonceRef.current = null
+      setVnSession({
+        sceneId,
+        sessionId: data.sessionId,
+        sessionToken: data.sessionToken,
+        stateVersion: data.stateVersion,
+        expiresAt: data.expiresAt,
+      })
+      return data
+    },
+    [deviceId, getToken]
+  )
+
+  const syncImmediateQuest = useCallback(
+    async (payload: Record<string, unknown> | undefined) => {
+      if (!payload) return
+      const questIdRaw = payload.questId ?? payload.id
+      const actionRaw = payload.action ?? payload.type
+      const questId = typeof questIdRaw === 'string' ? questIdRaw.trim() : ''
+      const action = typeof actionRaw === 'string' ? actionRaw.trim() : ''
+      if (!questId || !action) return
+
+      const token = await getToken()
+      const client = authenticatedClient(token || undefined, deviceId)
+
+      if (action === 'start') {
+        const { error } = await client.quests.start.post({ questId })
+        if (error) throw error
+      } else if (action === 'complete') {
+        const { error } = await client.quests.update.post({ questId, status: 'completed' })
+        if (error) throw error
+      } else if (action === 'fail') {
+        const { error } = await client.quests.update.post({ questId, status: 'failed' })
+        if (error) throw error
+      } else if (action === 'abandon') {
+        const { error } = await client.quests.update.post({ questId, status: 'abandoned' })
+        if (error) throw error
+      } else if (action === 'progress' || action === 'updateStep') {
+        const stepRaw = payload.stepId ?? payload.step
+        const progressRaw = payload.progress
+        const currentStep = typeof stepRaw === 'string' ? stepRaw.trim() : undefined
+        const progress = typeof progressRaw === 'number' ? progressRaw : undefined
+        const { error } = await client.quests.update.post({
+          questId,
+          currentStep,
+          progress,
+        })
+        if (error) throw error
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['myQuests'] })
+    },
+    [deviceId, getToken, queryClient]
+  )
 
   const vnStateQuery = useQuery({
     queryKey: ['vn-state'],
@@ -146,6 +222,15 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
       const effects = choice.effects ?? []
       const immediateEffects = effects.filter((effect): effect is ImmediateEffect => effect.type === 'immediate')
       if (immediateEffects.length === 0) return
+
+      const questEffects = immediateEffects.filter((effect) => effect.action === 'quest')
+      if (questEffects.length > 0) {
+        questEffects.forEach((effect) => {
+          void syncImmediateQuest(effect.data as Record<string, unknown> | undefined).catch((error) => {
+            console.error('[VN] Failed to sync quest effect', error)
+          })
+        })
+      }
 
       const buildUrl = (path: string, params: Record<string, string | undefined>) => {
         const searchParams = new URLSearchParams()
@@ -229,7 +314,7 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
         )
       }
     },
-    [navigate, resources.ap, resources.hp, resources.maxAp, resources.maxHp, resources.maxMp, resources.maxWp, resources.mp, resources.wp, setNicknameError, setNicknamePromptOpen]
+    [navigate, resources.ap, resources.hp, resources.maxAp, resources.maxHp, resources.maxMp, resources.maxWp, resources.mp, resources.wp, setNicknameError, setNicknamePromptOpen, syncImmediateQuest]
   )
 
   const viewModel = useVisualNovelViewModel(
@@ -266,15 +351,23 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
   useEffect(() => {
     if (!isLoaded) return
     if (vnStateQuery.isLoading || vnStateQuery.isError) return
-    if (rootSceneId === initialSceneId) return
-    startSession(initialSceneId)
+    if (rootSceneId !== initialSceneId) {
+      startSession(initialSceneId)
+    }
+    if (vnSession?.sceneId === initialSceneId) return
+    startServerSession(initialSceneId).catch((error) => {
+      console.error('[VN] Failed to start server session', error)
+      setVnSession(null)
+    })
   }, [
     initialSceneId,
     isLoaded,
     rootSceneId,
     startSession,
+    startServerSession,
     vnStateQuery.isError,
     vnStateQuery.isLoading,
+    vnSession?.sceneId,
   ])
 
   useEffect(() => {
@@ -303,10 +396,21 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
 
   const commitMutation = useMutation({
     mutationFn: async (payload: { sceneId: string; payload: CommitPayload }) => {
+      if (!vnSession) {
+        throw new Error('VN session is not ready')
+      }
       const token = await getToken()
       const client = authenticatedClient(token || undefined, deviceId)
-      const { data, error } = await client.vn.commit.post(payload)
+      const commitNonce = commitNonceRef.current ?? generateCommitNonce()
+      commitNonceRef.current = commitNonce
+      const { data, error } = await client.vn.commit.post({
+        ...payload,
+        sessionId: vnSession.sessionId,
+        sessionToken: vnSession.sessionToken,
+        commitNonce,
+      })
       if (error) throw error
+      commitNonceRef.current = null
       return data
     },
     onSuccess: (data) => {
@@ -339,6 +443,10 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
   })
 
   const handleExit = useCallback(async () => {
+    if (!vnSession) {
+      console.warn('[VN] Missing session, skipping commit')
+      return
+    }
     const payload = consumePayload(Date.now())
     if (!payload) return
     await commitMutation.mutateAsync({
@@ -350,7 +458,7 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
     if (returnPathRaw && returnPathRaw.startsWith('/')) {
       navigate(returnPathRaw)
     }
-  }, [commitMutation, consumePayload, navigate, searchParams, viewModel.scene.id])
+  }, [commitMutation, consumePayload, navigate, searchParams, viewModel.scene.id, vnSession])
 
   const handleExitRef = useRef(handleExit)
   useEffect(() => {
@@ -483,6 +591,12 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
           </div>
         </div>
       )}
+
+      {/* Fade In Overlay */}
+      <div
+        className="fixed inset-0 bg-black pointer-events-none z-[100] animate-fade-out"
+        style={{ animationDuration: '1s', animationFillMode: 'forwards' }}
+      />
     </>
   )
 }

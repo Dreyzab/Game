@@ -3,9 +3,11 @@ import type { Crisis } from '../../model/types'
 
 interface AlertBarProps {
   crisis: Crisis
+  canOverride?: boolean
+  onOverride?: () => void
 }
 
-export function AlertBar({ crisis }: AlertBarProps) {
+export function AlertBar({ crisis, canOverride, onOverride }: AlertBarProps) {
   if (crisis.active) {
     return (
       <div className="h-16 w-full bg-red-600 flex items-center justify-between px-6 shadow-lg shadow-red-900/50 animate-pulse z-50">
@@ -22,9 +24,8 @@ export function AlertBar({ crisis }: AlertBarProps) {
             {Array.from({ length: 2 }).map((_, i) => (
               <div
                 key={i}
-                className={`w-8 h-8 border-2 border-white rounded flex items-center justify-center ${
-                  i < crisis.filledSlots ? 'bg-green-500 text-black' : 'bg-black/50 text-white/50'
-                }`}
+                className={`w-8 h-8 border-2 border-white rounded flex items-center justify-center ${i < crisis.filledSlots ? 'bg-green-500 text-black' : 'bg-black/50 text-white/50'
+                  }`}
               >
                 <Wrench size={16} />
               </div>
@@ -34,6 +35,16 @@ export function AlertBar({ crisis }: AlertBarProps) {
           <div className="text-4xl font-mono font-bold text-white bg-black/20 px-4 rounded">
             00:{crisis.timer.toString().padStart(2, '0')}
           </div>
+
+          {canOverride && onOverride && (
+            <button
+              onClick={onOverride}
+              className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold px-4 py-2 rounded shadow-lg border-2 border-cyan-400 flex items-center gap-2 animate-pulse"
+            >
+              <span className="text-xl">💾</span>
+              <span>OVERRIDE PROTOCOL</span>
+            </button>
+          )}
         </div>
       </div>
     )

@@ -100,7 +100,7 @@ export interface EventOption {
     effect: EventEffect;
 }
 /** Event type tags for filtering and categorization */
-export type EventTag = 'trader' | 'combat' | 'loot' | 'npc' | 'hazard' | 'minigame' | 'story';
+export type EventTag = 'trader' | 'combat' | 'loot' | 'npc' | 'hazard' | 'minigame' | 'story' | 'tech';
 /** A survival event triggered when entering a zone */
 export interface SurvivalEvent {
     id: string;
@@ -318,6 +318,8 @@ export interface SurvivalState {
     zoneVisits: Record<ZoneType, number>;
     timeConfig?: SurvivalWorldTimeConfig;
     dailyEvent?: DailyEventState | null;
+    forecastedEventId?: string | null;
+    forecastedEventRevealedAt?: number | null;
     zones?: Record<ZoneType, ZoneState>;
     createdAt: number;
     updatedAt: number;

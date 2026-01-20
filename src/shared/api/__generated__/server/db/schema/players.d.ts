@@ -248,6 +248,23 @@ export declare const players: import("drizzle-orm/pg-core").PgTableWithColumns<{
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
+        locale: import("drizzle-orm/pg-core").PgColumn<{
+            name: "locale";
+            tableName: "players";
+            dataType: "string";
+            columnType: "PgText";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: true;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
     };
     dialect: "pg";
 }>;
@@ -576,6 +593,23 @@ export declare const gameProgress: import("drizzle-orm/pg-core").PgTableWithColu
         }, {}, {}>;
         phase: import("drizzle-orm/pg-core").PgColumn<{
             name: "phase";
+            tableName: "game_progress";
+            dataType: "number";
+            columnType: "PgInteger";
+            data: number;
+            driverParam: string | number;
+            notNull: false;
+            hasDefault: true;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        stateVersion: import("drizzle-orm/pg-core").PgColumn<{
+            name: "state_version";
             tableName: "game_progress";
             dataType: "number";
             columnType: "PgInteger";

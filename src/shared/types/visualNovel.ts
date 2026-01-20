@@ -51,10 +51,14 @@ export type VisualNovelChoiceEffect =
   | { type: 'xp'; amount: number }
   | { type: 'add_item'; itemId: string; quantity?: number }
   | { type: 'add_quest'; questId: string; questData?: Record<string, unknown> }
+  | { type: 'progress_quest'; questId: string; step?: string; delta?: number }
+  | { type: 'complete_quest'; questId: string; rewards?: { itemId: string; quantity?: number }[] }
+  | { type: 'fail_quest'; questId: string; reason?: string }
   | { type: 'relationship_change'; targetId: string; delta: number }
   | { type: 'immediate'; action: string; data?: Record<string, unknown> }
   | { type: 'narrative'; text: string }
   | { type: 'custom'; id: string; payload?: Record<string, unknown> }
+
 
 export interface VisualNovelChoice {
   id: string

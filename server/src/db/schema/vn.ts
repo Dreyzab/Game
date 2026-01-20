@@ -25,10 +25,36 @@ export const sceneLogs = pgTable('scene_logs', {
         .where(sql`(${table.payload} ->> 'type') = 'scene_commit'`),
 }));
 
+// VN Sessions (for batch commit architecture)
+export const vnSessions = pgTable('vn_sessions', {
+    id: text('id').primaryKey(), // UUID
+    playerId: integer('player_id').references(() => players.id).notNull(),
 
+    sceneId: text('scene_id').notNull(),
+    seed: bigint('seed', { mode: 'number' }).notNull(), // RNG seed for deterministic battle
+    stateVersion: integer('state_version').notNull(),
+    snapshotHash: text('snapshot_hash').notNull(),
+    allowedOps: jsonb('allowed_ops').$type<string[]>(),
 
+    initialState: jsonb('initial_state').$type<Record<string, any>>(),
 
+    expiresAt: bigint('expires_at', { mode: 'number' }).notNull(),
+    committedAt: bigint('committed_at', { mode: 'number' }),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+}, (table) => ({
+    playerIdx: index('vn_sessions_player_idx').on(table.playerId),
+    expiresIdx: index('vn_sessions_expires_idx').on(table.expiresAt),
+}));
 
+// VN Commits (idempotency via nonce)
+export const vnCommits = pgTable('vn_commits', {
+    id: serial('id').primaryKey(),
+    sessionId: text('session_id').references(() => vnSessions.id).notNull(),
+    commitNonce: text('commit_nonce').unique().notNull(), // UUID
 
+    result: jsonb('result').$type<Record<string, any>>(),
 
-
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+}, (table) => ({
+    sessionIdx: index('vn_commits_session_idx').on(table.sessionId),
+}));

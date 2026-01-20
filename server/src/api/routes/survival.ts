@@ -54,17 +54,25 @@ export const survivalRoutes = (app: Elysia) =>
         .group("/survival", (app) =>
             app
                 // Create a new session
-                .post("/sessions", async ({ user }) => {
+                .post("/sessions", async ({ user, body }) => {
                     if (!user) return { error: "Unauthorized", status: 401 }
                     const playerInfo = await getPlayerInfo(user as any)
                     if (!playerInfo) return { error: "Player profile not found", status: 404 }
 
                     try {
-                        const session = await survivalService.createSession(playerInfo.id, playerInfo.name)
+                        const session = await survivalService.createSession(
+                            playerInfo.id,
+                            playerInfo.name,
+                            body?.regionId ?? undefined
+                        )
                         return { session }
                     } catch (e: any) {
                         return { error: e.message, status: 400 }
                     }
+                }, {
+                    body: t.Optional(t.Object({
+                        regionId: t.Optional(t.String()),
+                    }))
                 })
 
                 // Get session state

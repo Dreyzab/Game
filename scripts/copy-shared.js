@@ -63,6 +63,7 @@ const LIB_SRC = join(SHARED_ROOT, 'lib')
 const TYPES_DEST = join(SERVER_SHARED_ROOT, 'types')
 const DATA_DEST = join(SERVER_SHARED_ROOT, 'data')
 const LIB_DEST = join(SERVER_SHARED_ROOT, 'lib')
+const HEXMAP_DEST = join(SERVER_SHARED_ROOT, 'hexmap')
 
 if (!existsSync(TYPES_SRC)) throw new Error(`Missing shared types dir: ${TYPES_SRC}`)
 if (!existsSync(DATA_SRC)) throw new Error(`Missing shared data dir: ${DATA_SRC}`)
@@ -72,6 +73,14 @@ copyDirRecursive(TYPES_SRC, TYPES_DEST)
 
 resetDir(DATA_DEST)
 copyDirRecursive(DATA_SRC, DATA_DEST)
+
+// Hexmap module (shared generator for client/server determinism)
+const HEXMAP_SRC = join(SHARED_ROOT, 'hexmap')
+if (existsSync(HEXMAP_SRC)) {
+  resetDir(HEXMAP_DEST)
+  copyDirRecursive(HEXMAP_SRC, HEXMAP_DEST)
+  console.log('[copy-shared] Mirrored hexmap module')
+}
 
 // Selected shared libs that are safe for server usage.
 ensureDir(LIB_DEST)

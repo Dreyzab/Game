@@ -1,7 +1,7 @@
 import { Elysia, t } from "elysia";
 import { db } from "../../db";
 import { quests, questProgress, players, gameProgress } from "../../db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { auth } from "../auth";
 import { STARTING_SKILLS } from "../../lib/gameProgress";
 
@@ -33,6 +33,7 @@ async function ensurePlayer(user: AuthUser) {
                 skillPoints: 0,
                 phase: 1,
                 reputation: {},
+                stateVersion: 1,
                 updatedAt: now
             });
         }
@@ -60,6 +61,7 @@ async function ensurePlayer(user: AuthUser) {
         skillPoints: 0,
         phase: 1,
         reputation: {},
+        stateVersion: 1,
         updatedAt: now
     });
 
@@ -76,64 +78,74 @@ export const questsRoutes = (app: Elysia) =>
                     if (!user) return { error: "Unauthorized", status: 401 };
                     const player = await ensurePlayer(user as AuthUser);
 
-                    // 1. Fetch Player's Progress
                     const allProgress = await db.query.questProgress.findMany({
                         where: eq(questProgress.playerId, player.id)
                     });
 
+                    const progressQuestIds = allProgress.map((progress) => progress.questId);
+                    const questDefs = progressQuestIds.length > 0
+                        ? await db.query.quests.findMany({ where: inArray(quests.id, progressQuestIds) })
+                        : [];
+                    const questDefById = new Map(questDefs.map((def) => [def.id, def]));
+
                     const activeIds = new Set<string>();
                     const completedIds = new Set<string>();
+                    const startedIds = new Set<string>();
 
                     const activeList = [];
                     const completedList = [];
 
-                    for (const p of allProgress) {
-                        const qDef = await db.query.quests.findFirst({ where: eq(quests.id, p.questId) });
-                        if (!qDef) continue;
+                    for (const progress of allProgress) {
+                        startedIds.add(progress.questId);
 
-                        if (p.status === 'completed') {
-                            completedIds.add(p.questId);
-                            completedList.push({
-                                id: p.questId,
-                                title: qDef.title,
-                                status: 'completed',
-                                completedAt: p.completedAt
-                            });
-                        } else if (p.status === 'active') {
-                            activeIds.add(p.questId);
-                            activeList.push({
-                                id: p.questId,
-                                title: qDef.title,
-                                description: qDef.description,
-                                status: 'active',
-                                currentStep: p.currentStep,
-                                progress: p.progress,
-                                steps: qDef.steps
-                            });
+                        const questDef = questDefById.get(progress.questId);
+                        const status = progress.status ?? 'active';
+                        const entry = {
+                            id: progress.questId,
+                            title: questDef?.title ?? progress.questId,
+                            description: questDef?.description ?? undefined,
+                            status,
+                            startedAt: progress.startedAt ?? undefined,
+                            completedAt: progress.completedAt ?? undefined,
+                            abandonedAt: (progress as any).abandonedAt ?? undefined,
+                            failedAt: (progress as any).failedAt ?? undefined,
+                            currentStep: progress.currentStep ?? undefined,
+                            progress: typeof progress.progress === 'number' ? progress.progress : undefined,
+                            steps: questDef?.steps ?? undefined,
+                            phase: questDef?.phase ?? undefined,
+                            recommendedLevel: questDef?.phase ?? undefined,
+                        };
+
+                        if (status === 'active') {
+                            activeIds.add(progress.questId);
+                            activeList.push(entry);
+                        } else {
+                            if (status === 'completed') {
+                                completedIds.add(progress.questId);
+                            }
+                            completedList.push(entry);
                         }
                     }
 
-                    // 2. Determine Available Quests
-                    // Logic: Is Active in DB? Prerequisites met? Not already started/completed?
-                    // Fetch all active quests from DB definitions
                     const allQuests = await db.query.quests.findMany({
                         where: eq(quests.isActive, true)
                     });
 
                     const availableList = [];
-                    for (const q of allQuests) {
-                        if (activeIds.has(q.id) || completedIds.has(q.id)) continue;
+                    for (const quest of allQuests) {
+                        if (startedIds.has(quest.id)) continue;
 
-                        // Check Prerequisites
-                        const prereqs = q.prerequisites as string[] || [];
-                        const unmet = prereqs.some(reqId => !completedIds.has(reqId));
+                        const prereqs = (quest.prerequisites as string[]) || [];
+                        const unmet = prereqs.some((reqId) => !completedIds.has(reqId));
                         if (unmet) continue;
 
                         availableList.push({
-                            id: q.id,
-                            title: q.title,
-                            description: q.description,
-                            recommendedLevel: q.phase
+                            id: quest.id,
+                            title: quest.title,
+                            description: quest.description,
+                            phase: quest.phase ?? undefined,
+                            recommendedLevel: quest.phase ?? undefined,
+                            steps: quest.steps ?? undefined,
                         });
                     }
 
@@ -156,13 +168,7 @@ export const questsRoutes = (app: Elysia) =>
                     const qDef = await db.query.quests.findFirst({ where: eq(quests.id, questId) });
                     if (!qDef || !qDef.isActive) return { error: "Quest unavailable", status: 400 };
 
-                    // Check Existing
-                    const existing = await db.query.questProgress.findFirst({
-                        where: and(eq(questProgress.playerId, player.id), eq(questProgress.questId, questId))
-                    });
-                    if (existing) return { error: "Quest already started/completed", status: 400 };
-
-                    // Start
+                    // Upsert with conflict handling (race protection)
                     const [newProg] = await db.insert(questProgress).values({
                         playerId: player.id,
                         userId: user.id, // storing auth ID for backup
@@ -171,7 +177,13 @@ export const questsRoutes = (app: Elysia) =>
                         status: 'active',
                         startedAt: Date.now(),
                         progress: 0
-                    }).returning();
+                    })
+                        .onConflictDoNothing()
+                        .returning();
+
+                    if (!newProg) {
+                        return { error: "Quest already started/completed", status: 400 };
+                    }
 
                     return { started: true, questId };
                 }, {
@@ -190,13 +202,46 @@ export const questsRoutes = (app: Elysia) =>
                     });
                     if (!existing) return { error: "Quest not active", status: 404 };
 
+                    const updatePatch: Record<string, unknown> = {};
+                    const now = Date.now();
+
+                    if (typeof status === 'string') {
+                        if (!['active', 'completed', 'abandoned', 'failed'].includes(status)) {
+                            return { error: "Invalid status", status: 400 };
+                        }
+                        updatePatch.status = status;
+                        if (status === 'completed') {
+                            updatePatch.completedAt = now;
+                            updatePatch.failedAt = null;
+                            updatePatch.abandonedAt = null;
+                        } else if (status === 'failed') {
+                            updatePatch.failedAt = now;
+                            updatePatch.completedAt = null;
+                            updatePatch.abandonedAt = null;
+                        } else if (status === 'abandoned') {
+                            updatePatch.abandonedAt = now;
+                            updatePatch.completedAt = null;
+                            updatePatch.failedAt = null;
+                        } else if (status === 'active') {
+                            updatePatch.completedAt = null;
+                            updatePatch.failedAt = null;
+                            updatePatch.abandonedAt = null;
+                        }
+                    }
+
+                    if (progress !== undefined) {
+                        updatePatch.progress = progress;
+                    }
+                    if (currentStep !== undefined) {
+                        updatePatch.currentStep = currentStep;
+                    }
+
+                    if (Object.keys(updatePatch).length === 0) {
+                        return { success: true };
+                    }
+
                     await db.update(questProgress)
-                        .set({
-                            status: status as any, // 'active' | 'completed' | 'failed'
-                            progress: progress,
-                            currentStep: currentStep,
-                            completedAt: status === 'completed' ? Date.now() : undefined
-                        })
+                        .set(updatePatch)
                         .where(eq(questProgress.id, existing.id));
 
                     return { success: true };

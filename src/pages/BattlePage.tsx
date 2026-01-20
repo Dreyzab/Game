@@ -40,8 +40,6 @@ export default function BattlePage() {
   const requestedMaxApRaw = searchParams.get('maxAp')
   const requestedMpRaw = searchParams.get('mp')
   const requestedMaxMpRaw = searchParams.get('maxMp')
-  const requestedWpRaw = searchParams.get('wp')
-  const requestedMaxWpRaw = searchParams.get('maxWp')
   const equipmentParam = searchParams.get('equipment')
 
   const shouldAutoReturn = Boolean(returnScene || defeatScene || returnPath)
@@ -77,9 +75,6 @@ export default function BattlePage() {
 
       resources.maxMp = parseMax(requestedMaxMpRaw, resources.maxMp)
       resources.mp = parseAndClamp(requestedMpRaw, resources.maxMp, resources.mp)
-
-      resources.maxWp = parseMax(requestedMaxWpRaw, resources.maxWp)
-      resources.wp = parseAndClamp(requestedWpRaw, resources.maxWp, resources.wp)
 
       return {
         ...player,
@@ -117,9 +112,7 @@ export default function BattlePage() {
     requestedMaxApRaw,
     requestedMaxHpRaw,
     requestedMaxMpRaw,
-    requestedMaxWpRaw,
     requestedMpRaw,
-    requestedWpRaw,
     scenarioIdParam,
   ])
 
@@ -200,6 +193,12 @@ export default function BattlePage() {
         scenarioId={scenarioId}
         initialSession={initialSession}
         renderEquipmentOverlay={(props) => <BattleEquipmentOverlay {...props} />}
+      />
+
+      {/* Fade In Overlay */}
+      <div
+        className="fixed inset-0 bg-black pointer-events-none z-[200] animate-fade-out"
+        style={{ animationDuration: '1s', animationFillMode: 'forwards' }}
       />
     </div>
   )

@@ -22,6 +22,7 @@ export const players = pgTable('players', {
 
     createdAt: bigint('created_at', { mode: 'number' }).notNull(),
     updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+    locale: text('locale').default('ru'),
 }, (table) => ({
     userIdIdx: index('by_user_id').on(table.userId),
     deviceIdIdx: index('by_device_id').on(table.deviceId),
@@ -65,6 +66,7 @@ export const gameProgress = pgTable('game_progress', {
     maxStamina: integer('max_stamina'),
 
     phase: integer('phase').default(1),
+    stateVersion: integer('state_version').default(1),
 
     updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
 });

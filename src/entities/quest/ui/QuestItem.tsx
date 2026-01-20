@@ -10,8 +10,10 @@ interface QuestItemProps {
 
 export const QuestItem: React.FC<QuestItemProps> = ({ quest, onClick }) => {
     const isCompleted = quest.status === 'completed'
+    const isFailed = quest.status === 'failed'
     const isAbandoned = quest.status === 'abandoned'
     const isActive = quest.status === 'active'
+    const isNegative = isFailed || isAbandoned
 
     return (
         <div
@@ -21,7 +23,7 @@ export const QuestItem: React.FC<QuestItemProps> = ({ quest, onClick }) => {
                 "bg-gray-900/50 backdrop-blur-sm hover:bg-gray-800/50",
                 isActive && "border-blue-500/30 hover:border-blue-500/50",
                 isCompleted && "border-green-500/30 hover:border-green-500/50 opacity-80",
-                isAbandoned && "border-red-500/30 hover:border-red-500/50 opacity-60"
+                isNegative && "border-red-500/30 hover:border-red-500/50 opacity-60"
             )}
         >
             <div className="flex items-start gap-3">
@@ -29,11 +31,11 @@ export const QuestItem: React.FC<QuestItemProps> = ({ quest, onClick }) => {
                     "p-2 rounded-full shrink-0",
                     isActive && "bg-blue-500/10 text-blue-400",
                     isCompleted && "bg-green-500/10 text-green-400",
-                    isAbandoned && "bg-red-500/10 text-red-400"
+                    isNegative && "bg-red-500/10 text-red-400"
                 )}>
                     {isActive && <Scroll className="w-5 h-5" />}
                     {isCompleted && <CheckCircle className="w-5 h-5" />}
-                    {isAbandoned && <XCircle className="w-5 h-5" />}
+                    {isNegative && <XCircle className="w-5 h-5" />}
                 </div>
 
                 <div className="flex-1 min-w-0">
@@ -41,7 +43,7 @@ export const QuestItem: React.FC<QuestItemProps> = ({ quest, onClick }) => {
                         <h3 className={cn(
                             "font-medium truncate pr-2",
                             isCompleted && "text-green-100 line-through decoration-green-500/30",
-                            isAbandoned && "text-red-100 line-through decoration-red-500/30",
+                            isNegative && "text-red-100 line-through decoration-red-500/30",
                             isActive && "text-blue-100"
                         )}>
                             {quest.title}

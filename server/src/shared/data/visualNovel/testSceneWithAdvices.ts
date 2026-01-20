@@ -8,7 +8,8 @@ import { BACKGROUNDS } from './backgrounds'
 
 export const TEST_SCENE_WITH_ADVICES: VisualNovelSceneDefinition = {
   id: 'test_consultation_scene',
-  title: 'Встреча с подозрительным торговцем',
+  title: 'Консультация с Отрядом',
+  isTerminal: true,
   location: 'Рыночная площадь, Фрайбург',
   description: 'Вы заметили торговца, который предлагает вам сомнительную сделку',
   background: BACKGROUNDS.freiburg_market,
@@ -145,4 +146,3 @@ export const TEST_SCENE_WITH_ADVICES: VisualNovelSceneDefinition = {
     },
   ],
 }
-

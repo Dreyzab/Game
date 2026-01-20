@@ -1,6 +1,6 @@
 
 import { AnimatePresence, motion } from 'framer-motion'
-import { useEffect, useState } from 'react'
+
 
 export interface VoiceEvent {
     id: string
@@ -17,7 +17,7 @@ export default function VoiceOverlay({ events }: Props) {
     return (
         <div className="absolute inset-0 pointer-events-none z-[70] overflow-hidden flex items-center justify-center">
             <AnimatePresence>
-                {events.map((event, i) => {
+                {events.map((event) => {
                     const randomX = (Math.random() - 0.5) * 60; // +/- 30% x offset
                     const randomY = (Math.random() - 0.5) * 60; // +/- 30% y offset
                     const rotation = (Math.random() - 0.5) * 10; // Slight tilt

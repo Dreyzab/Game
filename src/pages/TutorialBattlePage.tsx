@@ -20,8 +20,6 @@ export default function TutorialBattlePage() {
   const requestedMaxApRaw = searchParams.get('maxAp')
   const requestedMpRaw = searchParams.get('mp')
   const requestedMaxMpRaw = searchParams.get('maxMp')
-  const requestedWpRaw = searchParams.get('wp')
-  const requestedMaxWpRaw = searchParams.get('maxWp')
   const equipmentParam = searchParams.get('equipment')
 
   const { initialSession, initialHp, scenarioId } = useMemo(() => {
@@ -55,9 +53,6 @@ export default function TutorialBattlePage() {
 
       resources.maxMp = parseMax(requestedMaxMpRaw, resources.maxMp)
       resources.mp = parseAndClamp(requestedMpRaw, resources.maxMp, resources.mp)
-
-      resources.maxWp = parseMax(requestedMaxWpRaw, resources.maxWp)
-      resources.wp = parseAndClamp(requestedWpRaw, resources.maxWp, resources.wp)
 
       return {
         ...player,
@@ -95,9 +90,7 @@ export default function TutorialBattlePage() {
     requestedMaxApRaw,
     requestedMaxHpRaw,
     requestedMaxMpRaw,
-    requestedMaxWpRaw,
     requestedMpRaw,
-    requestedWpRaw,
     scenarioIdParam,
   ])
 

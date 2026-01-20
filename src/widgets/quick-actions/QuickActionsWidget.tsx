@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import { SignInButton } from '@clerk/clerk-react'
 import { useNavigate } from 'react-router-dom'
-import { BookOpen, FileText, Map, Package, QrCode, RefreshCw, Settings, User, UserPlus, Users } from 'lucide-react'
+import { BookOpen, Database, FileText, Map, Package, QrCode, RefreshCw, Settings, User, UserPlus, Users } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
 import { MotionContainer } from '@/shared/ui/components/MotionContainer'
 import { Routes } from '@/shared/lib/utils/navigation'
 import { cn } from '@/shared/lib/utils/cn'
@@ -77,6 +78,7 @@ const upsertAccount = (accounts: StoredAccount[], profile: StoredAccount): Store
 export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({ className }) => {
   const navigate = useNavigate()
   const { signOut, isSignedIn, isLoaded: isAuthLoaded, user, getToken } = useAppAuth()
+  const queryClient = useQueryClient()
   const [accounts, setAccounts] = useState<StoredAccount[]>(() => readStoredAccounts())
   const [activeDeviceId, setActiveDeviceId] = useState<string>(() => getDeviceId())
   const [busyAction, setBusyAction] = useState<string | null>(null)
@@ -192,11 +194,40 @@ export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({ classNam
     }
   }
 
+  const pingDatabase = async () => {
+    if (isClerkEnabled && !isAuthLoaded) {
+      setMessage('Auth loading... try again in a moment.')
+      return
+    }
+
+    try {
+      const token = isClerkEnabled ? await getToken() : undefined
+      const client = authenticatedClient(token ?? undefined, getDeviceId()) as any
+      const { data, error } = await client.player.get()
+      if (error) throw error
+      const payload = (data ?? {}) as any
+      if (payload?.error) throw new Error(payload.error)
+
+      const playerName = payload?.player?.name ?? payload?.player?.nickname ?? 'Player'
+      const questsCount = typeof payload?.totalQuests === 'number' ? payload.totalQuests : null
+      const details = questsCount !== null ? ` | quests: ${questsCount}` : ''
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['myPlayer'] }),
+        queryClient.invalidateQueries({ queryKey: ['myQuests'] }),
+      ])
+      setMessage(`DB ok: ${playerName}${details}`)
+    } catch (error) {
+      console.error('[QuickActions] DB check failed', error)
+      setMessage(error instanceof Error ? error.message : String(error))
+    }
+  }
+
   const actions: QuickAction[] = [
     { id: 'home', icon: <User className="w-4 h-4" />, label: 'Домой', route: Routes.HOME },
     { id: 'map', icon: <Map className="w-4 h-4" />, label: 'Карта', route: Routes.MAP },
     { id: 'inv', icon: <Package className="w-4 h-4" />, label: 'Инвентарь', route: Routes.INVENTORY },
     { id: 'quests', icon: <FileText className="w-4 h-4" />, label: 'Квесты', route: Routes.QUESTS },
+    { id: 'db-ping', icon: <Database className="w-4 h-4" />, label: 'DB Sync', onClick: pingDatabase, busyId: 'db-ping' },
     { id: 'vn', icon: <BookOpen className="w-4 h-4" />, label: 'VN', route: Routes.VISUAL_NOVEL },
     { id: 'coop', icon: <Users className="w-4 h-4" />, label: 'CO-OP', route: Routes.COOP },
     { id: 'qr', icon: <QrCode className="w-4 h-4" />, label: 'QR Scan', route: Routes.QR_SCANNER },

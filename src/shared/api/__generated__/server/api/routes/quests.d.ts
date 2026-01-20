@@ -32,23 +32,40 @@ export declare const questsRoutes: (app: Elysia) => Elysia<"", {
                     active: {
                         id: string;
                         title: string;
-                        description: string;
-                        status: string;
-                        currentStep: string | null;
-                        progress: unknown;
-                        steps: any[] | null;
+                        description: string | undefined;
+                        status: "completed" | "active" | "abandoned" | "failed";
+                        startedAt: number | undefined;
+                        completedAt: number | undefined;
+                        abandonedAt: any;
+                        failedAt: any;
+                        currentStep: string | undefined;
+                        progress: number | undefined;
+                        steps: any[] | undefined;
+                        phase: number | undefined;
+                        recommendedLevel: number | undefined;
                     }[];
                     completed: {
                         id: string;
                         title: string;
-                        status: string;
-                        completedAt: number | null;
+                        description: string | undefined;
+                        status: "completed" | "active" | "abandoned" | "failed";
+                        startedAt: number | undefined;
+                        completedAt: number | undefined;
+                        abandonedAt: any;
+                        failedAt: any;
+                        currentStep: string | undefined;
+                        progress: number | undefined;
+                        steps: any[] | undefined;
+                        phase: number | undefined;
+                        recommendedLevel: number | undefined;
                     }[];
                     available: {
                         id: string;
                         title: string;
                         description: string;
-                        recommendedLevel: number | null;
+                        phase: number | undefined;
+                        recommendedLevel: number | undefined;
+                        steps: any[] | undefined;
                     }[];
                     error?: undefined;
                     status?: undefined;

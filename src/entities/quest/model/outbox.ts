@@ -1,10 +1,15 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
+/**
+ * @deprecated Use VN batch commit with questCommands instead.
+ * This outbox is kept for backward compatibility with non-VN quest flows.
+ * See: /vn/commit API with questCommands payload.
+ */
 export type QuestEventType = 'start' | 'update' | 'complete' | 'abandon'
 
 export type QuestUpdatePayload = {
-  status?: 'active' | 'completed' | 'abandoned'
+  status?: 'active' | 'completed' | 'abandoned' | 'failed'
   progress?: unknown
   currentStep?: string
 }
@@ -66,4 +71,3 @@ export const enqueueComplete = (questId: string, payload?: Omit<QuestUpdatePaylo
 
 export const enqueueAbandon = (questId: string, payload?: Omit<QuestUpdatePayload, 'status'>) =>
   useQuestOutbox.getState().enqueue({ type: 'abandon', questId, payload })
-

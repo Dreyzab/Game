@@ -11,7 +11,19 @@ import { useDeviceId } from '@/shared/hooks/useDeviceId'
 import { API_BASE_URL } from '@/shared/api/client'
 import { SurvivalBunkerDashboard } from '@/features/survival-bunker'
 import { SurvivalDatapad } from '@/features/survival-datapad'
-import { ModeSwitcher, SurvivalMapEditor, SurvivalMapbox, generateMap, type SurvivalMode } from '@/features/survival-hex-map'
+import {
+    ModeSwitcher,
+    SurvivalMapEditor,
+    SurvivalMapbox,
+    generateMap,
+    type SurvivalMode,
+    type SurvivalMapboxRef,
+    hexToGeo,
+    DEFAULT_MAP_CENTER,
+    GEO_HEX_SIZE_METERS,
+    REGIONS,
+    RegionCard,
+} from '@/features/survival-hex-map'
 import { Routes } from '@/shared/lib/utils/navigation'
 import type {
     SurvivalEvent,
@@ -49,13 +61,14 @@ function LobbyView({
     error,
 }: {
     mode: 'create' | 'join' | null
-    onCreateSession: () => void
+    onCreateSession: (regionId?: string) => void
     onJoinSession: (code: string) => void
     onOpenEditor: () => void
     isLoading: boolean
     error: string | null
 }) {
     const [joinCode, setJoinCode] = useState('')
+    const [selectedRegion, setSelectedRegion] = useState(REGIONS[0]?.id ?? 'default')
 
     return (
         <div className="min-h-screen bg-gray-950 text-white p-6 flex flex-col items-center justify-center">
@@ -72,12 +85,25 @@ function LobbyView({
             )}
 
             {mode === 'create' ? (
-                <div className="flex flex-col items-center gap-4">
-                    <p className="text-gray-300 text-sm">Ты будешь Мастером Игры (GM)</p>
+                <div className="flex flex-col items-center gap-6 w-full max-w-md">
+                    <p className="text-gray-300 text-sm">Выбери регион для выживания:</p>
+
+                    {/* Region Selection */}
+                    <div className="grid grid-cols-2 gap-4 w-full">
+                        {REGIONS.map(region => (
+                            <RegionCard
+                                key={region.id}
+                                region={region}
+                                selected={selectedRegion === region.id}
+                                onSelect={setSelectedRegion}
+                            />
+                        ))}
+                    </div>
+
                     <button
-                        onClick={onCreateSession}
+                        onClick={() => onCreateSession(selectedRegion)}
                         disabled={isLoading}
-                        className="px-8 py-4 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 rounded-xl font-bold text-lg"
+                        className="px-8 py-4 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 rounded-xl font-bold text-lg w-full"
                     >
                         {isLoading ? 'Создание...' : 'Создать Комнату'}
                     </button>
@@ -105,11 +131,24 @@ function LobbyView({
                     </button>
                 </div>
             ) : (
-                <div className="flex flex-col gap-4 w-full max-w-xs">
+                <div className="flex flex-col gap-4 w-full max-w-md">
+                    {/* Region Selection */}
+                    <p className="text-gray-400 text-sm text-center">Выбери регион:</p>
+                    <div className="grid grid-cols-2 gap-3">
+                        {REGIONS.map(region => (
+                            <RegionCard
+                                key={region.id}
+                                region={region}
+                                selected={selectedRegion === region.id}
+                                onSelect={setSelectedRegion}
+                            />
+                        ))}
+                    </div>
+
                     <button
-                        onClick={onCreateSession}
+                        onClick={() => onCreateSession(selectedRegion)}
                         disabled={isLoading}
-                        className="px-6 py-4 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 rounded-xl font-bold"
+                        className="px-6 py-4 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 rounded-xl font-bold mt-2"
                     >
                         Создать Комнату
                     </button>
@@ -445,6 +484,10 @@ export default function SurvivalPlayerPage() {
     const [isLoading, setIsLoading] = useState(false)
     const [message, setMessage] = useState<string | null>(null)
 
+    // Transitions
+    const [isTransitioning, setIsTransitioning] = useState(false)
+    const mapRef = useRef<SurvivalMapboxRef>(null)
+
     useEffect(() => {
         baseModeRef.current = baseMode
     }, [baseMode])
@@ -540,6 +583,37 @@ export default function SurvivalPlayerPage() {
     // Transition Watcher: Combat & VN
     useEffect(() => {
         if (!player || !sessionId) return
+        if (isTransitioning) return // Already handling transition
+
+        const handleTransition = async (targetPath: string) => {
+            // 1. Zoom into map if in hex mode
+            if (baseModeRef.current === 'hexmap' && mapRef.current && player.hexPos) {
+                // If transitioning to VN/Battle, zoom to player/event location
+                const { q, r } = player.hexPos
+                const [lng, lat] = hexToGeo(q, r, DEFAULT_MAP_CENTER, GEO_HEX_SIZE_METERS)
+
+                // Cinematic Zoom
+                mapRef.current.flyTo({
+                    center: [lng, lat],
+                    zoom: 18.5,
+                    pitch: 60,
+                    bearing: 20,
+                    duration: 1500,
+                    essential: true
+                })
+
+                // Wait for zoom to partly finish before fading
+                setIsTransitioning(true)
+                await new Promise(r => setTimeout(r, 1200))
+            } else {
+                // Immediate fade if not in map mode
+                setIsTransitioning(true)
+                await new Promise(r => setTimeout(r, 100))
+            }
+
+            // 2. Navigate
+            navigate(targetPath)
+        }
 
         // 1. Pending Battle (Combat Simulator)
         if (player.pendingBattle) {
@@ -550,7 +624,7 @@ export default function SurvivalPlayerPage() {
             const cr = player.combatResources
             const statsSuffix = cr ? `&hp=${cr.hp}&maxHp=${cr.maxHp}&ap=${cr.ap}&maxAp=${cr.maxAp}&mp=${cr.mp}&maxMp=${cr.maxMp}&wp=${cr.wp}&maxWp=${cr.maxWp}` : ''
 
-            navigate(`${Routes.BATTLE}?scenarioId=${scenarioId}&sessionId=${sessionId}&returnPath=${returnPath}${statsSuffix}`)
+            handleTransition(`${Routes.BATTLE}?scenarioId=${scenarioId}&sessionId=${sessionId}&returnPath=${returnPath}${statsSuffix}`)
             return
         }
 
@@ -568,12 +642,12 @@ export default function SurvivalPlayerPage() {
                 fetch(`${API_BASE_URL}/survival/sessions/${sessionId}/consume-transition`, { method: 'POST', headers }).catch(e => console.error(e))
             })
 
-            navigate(`${Routes.VISUAL_NOVEL}/${sceneId}?returnPath=${returnPath}`)
+            handleTransition(`${Routes.VISUAL_NOVEL}/${sceneId}?returnPath=${returnPath}`)
         }
-    }, [player?.pendingBattle, player?.pendingVN, sessionId, navigate, getToken, deviceId])
+    }, [player, player?.pendingBattle, player?.pendingVN, sessionId, navigate, getToken, deviceId, isTransitioning, player?.hexPos])
 
     // Create session
-    const handleCreateSession = useCallback(async () => {
+    const handleCreateSession = useCallback(async (regionId?: string) => {
         setIsLoading(true)
         setError(null)
         try {
@@ -581,7 +655,7 @@ export default function SurvivalPlayerPage() {
             const res = await fetch(`${API_BASE_URL}/survival/sessions`, {
                 method: 'POST',
                 headers,
-                body: JSON.stringify({ hostName: 'Host' }),
+                body: JSON.stringify({ hostName: 'Host', regionId }),
             })
             const data = await res.json()
             if (data.session) {
@@ -901,137 +975,136 @@ export default function SurvivalPlayerPage() {
     }, [message])
 
     // Render based on phase
-    if (phase === 'lobby') {
-        return (
-            <LobbyView
-                mode={modeParam}
-                onCreateSession={handleCreateSession}
-                onJoinSession={handleJoinSession}
-                onOpenEditor={() => setPhase('editor')}
-                isLoading={isLoading}
-                error={error}
-            />
-        )
-    }
-
-    if (phase === 'character_select') {
-        return (
-            <CharacterSelectView
-                onSelectCharacter={handleSelectCharacter}
-                isLoading={isLoading}
-                error={error}
-            />
-        )
-    }
-
-    if (phase === 'base' && session && player) {
-        return (
-            <>
-                {/* Skip to content link for accessibility */}
-                <a
-                    href="#main-content"
-                    className="fixed top-2 left-2 z-100 -translate-y-[150%] focus:translate-y-0 bg-terminal-green text-black font-bold px-4 py-2 rounded shadow-lg transition-transform"
-                >
-                    Перейти к контенту
-                </a>
-                <ModeSwitcher
-                    mode={baseMode}
-                    onChange={setBaseMode}
-                    showStart={session.status === 'lobby'}
-                    canStart={player.playerId === session.hostPlayerId && !isLoading}
-                    onStart={handleStartSession}
-                />
-                {error && (
-                    <div className="fixed top-4 left-4 right-4 bg-red-900/60 border border-red-500 rounded-lg p-3 text-red-100 text-center z-50">
-                        {error}
-                    </div>
-                )}
-                {baseMode !== 'datapad' && message && (
-                    <div className="fixed top-4 left-4 right-4 bg-emerald-900/90 border border-emerald-500 rounded-lg p-3 text-emerald-200 text-center z-50">
-                        {message}
-                    </div>
-                )}
-                <main id="main-content" tabIndex={-1} className="outline-none">
-                    {baseMode === 'bunker' ? (
-                        <SurvivalBunkerDashboard session={session} />
-                    ) : baseMode === 'map' ? (
-                        <div className="min-h-screen bg-black text-white flex items-center justify-center">SCHEMATIC VIEW PLACEHOLDER</div>
-                    ) : baseMode === 'hexmap' ? (
-                        <div className="relative">
-                            <SurvivalMapbox
-                                initialMap={hexInitialMap}
-                                serverPlayerHexPos={player.hexPos ?? { q: 0, r: 0 }}
-                                serverStamina={player.stamina ?? null}
-                                serverMaxStamina={player.maxStamina ?? null}
-                                serverIsMoving={Boolean(player.movementState)}
-                                serverMovementState={player.movementState ?? null}
-                                serverWorldTimeMs={session.worldTimeMs}
-                                serverTimeScale={session.timeConfig?.timeScale}
-                                onMoveRequest={handleMoveOnHexMap}
-                            />
-
-                            {/* Important: hex movement can create a blocking activeEvent on arrival.
-                               In hexmap mode we must still show a way to resolve it, otherwise player is stuck. */}
-                            {activeEvent ? (
-                                <div className="fixed inset-0 z-60">
-                                    <EventCard
-                                        event={activeEvent}
-                                        playerRole={player.role}
-                                        playerInventory={player.inventory.items}
-                                        onSelectOption={handleResolveOption}
-                                        isLoading={isLoading}
-                                    />
-                                </div>
-                            ) : null}
-                        </div>
-                    ) : baseMode === 'datapad' ? (
-                        <SurvivalDatapad
-                            session={session}
-                            player={player}
-                            activeEvent={activeEvent}
-                            isLoading={isLoading}
-                            error={error}
-                            message={message}
-                            onEnterZone={handleEnterZone}
-                            onResolveOption={handleResolveOptionDatapad}
-                            onTransferToBase={handleTransfer}
-                            onStartSession={handleStartSession}
-                            onCloseEvent={handleCloseEvent}
-                        />
-                    ) : activeEvent ? (
-                        <EventCard
-                            event={activeEvent}
-                            playerRole={player.role}
-                            playerInventory={player.inventory.items}
-                            onSelectOption={handleResolveOption}
-                            isLoading={isLoading}
-                        />
-                    ) : (
-                        <BaseView
-                            session={session}
-                            player={player}
-                            onEnterZone={handleEnterZone}
-                            onTransfer={handleTransfer}
-                            isLoading={isLoading}
-                        />
-                    )}
-                </main>
-            </>
-        )
-    }
-
-    // Editor Phase
-    if (phase === 'editor') {
-        return <SurvivalMapEditor onExit={() => setPhase('lobby')} />
-    }
-
-    // Fallback
+    // Unified Render
     return (
-        <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
-            <div className="text-center">
-                <div className="animate-spin w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full mx-auto mb-4" />
-                <p className="text-gray-400">Загрузка...</p>
-            </div>
-        </div>
+        <>
+            {phase === 'lobby' ? (
+                <LobbyView
+                    mode={modeParam}
+                    onCreateSession={handleCreateSession}
+                    onJoinSession={handleJoinSession}
+                    onOpenEditor={() => setPhase('editor')}
+                    isLoading={isLoading}
+                    error={error}
+                />
+            ) : phase === 'character_select' ? (
+                <CharacterSelectView
+                    onSelectCharacter={handleSelectCharacter}
+                    isLoading={isLoading}
+                    error={error}
+                />
+            ) : phase === 'base' && session && player ? (
+                <>
+                    {/* Skip to content link for accessibility */}
+                    <a
+                        href="#main-content"
+                        className="fixed top-2 left-2 z-100 -translate-y-[150%] focus:translate-y-0 bg-terminal-green text-black font-bold px-4 py-2 rounded shadow-lg transition-transform"
+                    >
+                        Перейти к контенту
+                    </a>
+                    <ModeSwitcher
+                        mode={baseMode}
+                        onChange={setBaseMode}
+                        showStart={session.status === 'lobby'}
+                        canStart={player.playerId === session.hostPlayerId && !isLoading}
+                        onStart={handleStartSession}
+                    />
+                    {error && (
+                        <div className="fixed top-4 left-4 right-4 bg-red-900/60 border border-red-500 rounded-lg p-3 text-red-100 text-center z-50">
+                            {error}
+                        </div>
+                    )}
+                    {baseMode !== 'datapad' && message && (
+                        <div className="fixed top-4 left-4 right-4 bg-emerald-900/90 border border-emerald-500 rounded-lg p-3 text-emerald-200 text-center z-50">
+                            {message}
+                        </div>
+                    )}
+                    <main id="main-content" tabIndex={-1} className="outline-none">
+                        {baseMode === 'bunker' ? (
+                            <SurvivalBunkerDashboard session={session} />
+                        ) : baseMode === 'map' ? (
+                            <div className="min-h-screen bg-black text-white flex items-center justify-center">SCHEMATIC VIEW PLACEHOLDER</div>
+                        ) : baseMode === 'hexmap' ? (
+                            <div className="relative">
+                                <SurvivalMapbox
+                                    ref={mapRef}
+                                    initialMap={hexInitialMap}
+                                    serverPlayerHexPos={player.hexPos ?? { q: 0, r: 0 }}
+                                    serverStamina={player.stamina ?? null}
+                                    serverMaxStamina={player.maxStamina ?? null}
+                                    serverIsMoving={Boolean(player.movementState)}
+                                    serverMovementState={player.movementState ?? null}
+                                    serverWorldTimeMs={session.worldTimeMs}
+                                    serverTimeScale={session.timeConfig?.timeScale}
+                                    onMoveRequest={handleMoveOnHexMap}
+                                    mapCenter={session.flags?.hexMapCenterLngLat as [number, number] | undefined}
+                                />
+
+                                {/* Important: hex movement can create a blocking activeEvent on arrival.
+                                   In hexmap mode we must still show a way to resolve it, otherwise player is stuck. */}
+                                {activeEvent ? (
+                                    <div className="fixed inset-0 z-60">
+                                        <EventCard
+                                            event={activeEvent}
+                                            playerRole={player.role}
+                                            playerInventory={player.inventory.items}
+                                            onSelectOption={handleResolveOption}
+                                            isLoading={isLoading}
+                                        />
+                                    </div>
+                                ) : null}
+                            </div>
+                        ) : baseMode === 'datapad' ? (
+                            <SurvivalDatapad
+                                session={session}
+                                player={player}
+                                activeEvent={activeEvent}
+                                isLoading={isLoading}
+                                error={error}
+                                message={message}
+                                onEnterZone={handleEnterZone}
+                                onResolveOption={handleResolveOptionDatapad}
+                                onTransferToBase={handleTransfer}
+                                onStartSession={handleStartSession}
+                                onCloseEvent={handleCloseEvent}
+                            />
+                        ) : activeEvent ? (
+                            <EventCard
+                                event={activeEvent}
+                                playerRole={player.role}
+                                playerInventory={player.inventory.items}
+                                onSelectOption={handleResolveOption}
+                                isLoading={isLoading}
+                            />
+                        ) : (
+                            <BaseView
+                                session={session}
+                                player={player}
+                                onEnterZone={handleEnterZone}
+                                onTransfer={handleTransfer}
+                                isLoading={isLoading}
+                            />
+                        )}
+                    </main>
+                </>
+            ) : phase === 'editor' ? (
+                <SurvivalMapEditor onExit={() => setPhase('lobby')} />
+            ) : (
+                <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
+                    <div className="text-center">
+                        <div className="animate-spin w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full mx-auto mb-4" />
+                        <p className="text-gray-400">Загрузка...</p>
+                    </div>
+                </div>
+            )}
+
+            {/* Smooth Transition Overlay */}
+            <div
+                className={cn(
+                    "fixed inset-0 bg-black z-[99999] pointer-events-none transition-opacity duration-700 ease-in-out",
+                    isTransitioning ? "opacity-100" : "opacity-0"
+                )}
+            />
+        </>
     )
 }

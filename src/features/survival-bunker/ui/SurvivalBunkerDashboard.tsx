@@ -152,6 +152,26 @@ export function SurvivalBunkerDashboard({ session, layout = 'full' }: { session?
     }
   }
 
+  const canOverride = useMemo(() => {
+    if (!crisis.active) return false
+    // Check session players for protocol item
+    if (!session) return false
+    return Object.values(session.players).some((p) => p.inventory.items.some((i) => i.templateId === 'defense_protocol'))
+  }, [crisis.active, session])
+
+  const handleOverride = () => {
+    setCrisis((prev) => ({ ...prev, active: false }))
+    window.alert('DEFENSE PROTOCOL ACTIVATED: System override successful. Crisis neutralized.')
+  }
+
+  const forecastType = useMemo(() => {
+    if (!session?.flags) return null
+    if (session.flags['forecast_revealed']) {
+      return session.flags['next_day_event_type'] as string
+    }
+    return null
+  }, [session?.flags])
+
   const togglePlayerLocation = (id: string) => {
     setPlayers((prev) => prev.map((p) => (p.id === id ? { ...p, isInside: !p.isInside } : p)))
   }
@@ -336,7 +356,7 @@ export function SurvivalBunkerDashboard({ session, layout = 'full' }: { session?
   return (
     <div className="h-screen w-screen bg-slate-950 text-slate-200 overflow-hidden font-sans flex flex-col select-none relative">
       <div className="flex-none">
-        <AlertBar crisis={crisis} />
+        <AlertBar crisis={crisis} canOverride={canOverride} onOverride={handleOverride} />
       </div>
 
       <div className="grow grid grid-cols-12 h-full overflow-hidden relative">
@@ -392,7 +412,13 @@ export function SurvivalBunkerDashboard({ session, layout = 'full' }: { session?
             </div>
 
             <div className="col-span-3 lg:col-span-3 h-full border-l border-slate-800">
-              <InfoPanel populationCount={populationCount} npcs={npcs} weather={{ condition: 'Acid Rain', temp: 12 }} gameTime={gameTime} />
+              <InfoPanel
+                populationCount={populationCount}
+                npcs={npcs}
+                weather={{ condition: 'Acid Rain', temp: 12 }}
+                gameTime={gameTime}
+                forecast={forecastType}
+              />
             </div>
           </>
         )}

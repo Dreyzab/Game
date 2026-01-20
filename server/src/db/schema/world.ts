@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, jsonb, bigint, boolean, index, customType } from 'drizzle-orm/pg-core';
+import { pgTable, serial, text, integer, jsonb, bigint, boolean, index, uniqueIndex, customType } from 'drizzle-orm/pg-core';
 
 // Helper for Real/Double
 const real = customType<{ data: number }>({
@@ -32,14 +32,17 @@ export const questProgress = pgTable('quest_progress', {
 
     questId: text('quest_id').references(() => quests.id).notNull(),
     currentStep: text('current_step'),
-    status: text('status').$type<'active' | 'completed' | 'failed'>(),
+    status: text('status').$type<'active' | 'completed' | 'abandoned' | 'failed'>(),
 
     startedAt: bigint('started_at', { mode: 'number' }),
     completedAt: bigint('completed_at', { mode: 'number' }),
+    abandonedAt: bigint('abandoned_at', { mode: 'number' }),
+    failedAt: bigint('failed_at', { mode: 'number' }),
 
     progress: jsonb('progress'), // dynamic step data
 }, (table) => ({
     playerIdx: index('qp_player_idx').on(table.playerId),
+    playerQuestUnique: uniqueIndex('qp_player_quest_unq').on(table.playerId, table.questId),
 }));
 
 // Map Points

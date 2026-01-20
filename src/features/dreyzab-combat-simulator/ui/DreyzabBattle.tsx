@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, type ReactNode, memo } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode, memo } from 'react'
 import {
     DndContext,
     DragOverlay,
@@ -20,6 +20,7 @@ import GaugeUI from './components/GaugeUI'
 import VoiceOverlay from './components/VoiceOverlay'
 import { toClampedPercent } from './components/combatUiMath'
 import { useDreyzabBattle, type DreyzabBattleResult } from '../model/useDreyzabBattle'
+import { playCombatSound } from './combatSound'
 
 type DreyzabBattleProps = {
     onBattleEnd?: (result: DreyzabBattleResult, finalSession?: BattleSession) => void
@@ -103,6 +104,31 @@ export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default', ini
 
     useEffect(() => {
         logEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+
+        // Sound Triggers based on log content (heuristic)
+        const lastLog = battle.logs[battle.logs.length - 1]
+        if (!lastLog) return
+
+        if (lastLog.includes('DMG')) {
+            playCombatSound('hit')
+        } else if (lastLog.includes('dodges')) {
+            playCombatSound('evade')
+        } else if (lastLog.includes('stabilizes')) {
+            playCombatSound('heal')
+        } else if (lastLog.includes('CLICK')) {
+            playCombatSound('block')
+        }
+    }, [battle.logs])
+
+    // Screen Shake state
+    const [shake, setShake] = useState(false)
+    useEffect(() => {
+        const lastLog = battle.logs[battle.logs.length - 1]
+        if (lastLog && lastLog.includes('DMG')) {
+            setShake(true)
+            const t = setTimeout(() => setShake(false), 300)
+            return () => clearTimeout(t)
+        }
     }, [battle.logs])
 
     const handleTouchScrub = useCallback((e: React.TouchEvent) => {
@@ -138,7 +164,7 @@ export default function DreyzabBattle({ onBattleEnd, scenarioId = 'default', ini
     return (
         <DndContext sensors={sensors} onDragStart={handleDragStart} onDragCancel={handleDragCancel} onDragEnd={handleDragEnd}>
             <div
-                className="dreyzab-battle h-screen w-full flex flex-col arena-bg relative overflow-hidden text-xs md:text-sm select-none"
+                className={`dreyzab-battle h-screen w-full flex flex-col arena-bg relative overflow-hidden text-xs md:text-sm select-none ${shake ? 'animate-shake' : ''}`}
             >
                 {/* Critical Vignette Overlay */}
                 <div

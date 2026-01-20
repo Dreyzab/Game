@@ -1,35 +1,67 @@
-import React from 'react'
-import { Layout } from '@/widgets/layout'
-import { Heading } from '@/shared/ui/components/Heading'
-import { Text } from '@/shared/ui/components/Text'
-import { useTheme } from '@/shared/hooks/useTheme'
+// import { ThemeToggle } from '@/widgets/ThemeToggle'
+// import { Heading } from '@/shared/ui/Heading'
+import { useTranslation } from 'react-i18next'
+// import { Button } from '@/shared/ui/Button'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+// import { api } from '@/shared/api' // Assuming api client exists
 
-export const SettingsPage: React.FC = () => {
-  const { theme, toggle } = useTheme()
+export default function SettingsPage() {
+  const { t, i18n } = useTranslation(['settings', 'common'])
+  // const queryClient = useQueryClient()
+
+  /*
+  const { mutate: updateLocale } = useMutation({
+    mutationFn: (locale: string) => api.post('/player/locale', { locale }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['player'] })
+    }
+  })
+  */
+
+  const changeLanguage = (lng: 'ru' | 'en' | 'de') => {
+    i18n.changeLanguage(lng)
+    // updateLocale(lng)
+  }
 
   return (
-    <Layout>
-      <div className="mb-8 text-center">
-        <Heading level={1}>Настройки</Heading>
-        <Text variant="muted" size="sm" className="mt-3 uppercase tracking-[0.28em]">
-          UI и Dev-инструменты (MVP)
-        </Text>
-      </div>
-      <div className="glass-panel p-6">
-        <div className="flex items-center justify-between">
-          <Text variant="body">Тема интерфейса</Text>
-          <button
-            type="button"
-            onClick={toggle}
-            className="inline-flex items-center gap-2 rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-4 py-2 text-xs uppercase tracking-[0.24em] hover:border-[color:var(--color-cyan)]/70 hover:text-[color:var(--color-cyan)]"
+    <div className="p-6 space-y-8 max-w-2xl mx-auto">
+      {/* <Heading level={1}>{t('title')}</Heading> */}
+      <h1 className="text-2xl font-bold">{t('title')}</h1>
+
+      <section className="space-y-4">
+        <h2 className="text-xl font-semibold">{t('theme')}</h2>
+        {/* <ThemeToggle /> */}
+        <p>Theme settings unavailable</p>
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="text-xl font-semibold">{t('language')}</h2>
+        <div className="flex gap-2">
+          <button onClick={() => changeLanguage('ru')} className="px-4 py-2 border">Русский</button>
+          <button onClick={() => changeLanguage('en')} className="px-4 py-2 border">English</button>
+          <button onClick={() => changeLanguage('de')} className="px-4 py-2 border">Deutsch</button>
+          {/*
+          <Button
+            variant={i18n.language === 'ru' ? 'primary' : 'outline'}
+            onClick={() => changeLanguage('ru')}
           >
-            Переключить: {theme === 'dark' ? 'Светлая' : 'Тёмная'}
-          </button>
+            Русский
+          </Button>
+          <Button
+            variant={i18n.language === 'en' ? 'primary' : 'outline'}
+            onClick={() => changeLanguage('en')}
+          >
+            English
+          </Button>
+          <Button
+            variant={i18n.language === 'de' ? 'primary' : 'outline'}
+            onClick={() => changeLanguage('de')}
+          >
+            Deutsch
+          </Button>
+          */}
         </div>
-      </div>
-    </Layout>
+      </section>
+    </div>
   )
 }
-
-export default SettingsPage
-

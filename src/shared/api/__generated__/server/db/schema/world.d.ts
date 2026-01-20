@@ -266,7 +266,7 @@ export declare const questProgress: import("drizzle-orm/pg-core").PgTableWithCol
             tableName: "quest_progress";
             dataType: "string";
             columnType: "PgText";
-            data: "completed" | "active" | "failed";
+            data: "completed" | "active" | "abandoned" | "failed";
             driverParam: string;
             notNull: false;
             hasDefault: false;
@@ -278,7 +278,7 @@ export declare const questProgress: import("drizzle-orm/pg-core").PgTableWithCol
             identity: undefined;
             generated: undefined;
         }, {}, {
-            $type: "completed" | "active" | "failed";
+            $type: "completed" | "active" | "abandoned" | "failed";
         }>;
         startedAt: import("drizzle-orm/pg-core").PgColumn<{
             name: "started_at";
@@ -299,6 +299,40 @@ export declare const questProgress: import("drizzle-orm/pg-core").PgTableWithCol
         }, {}, {}>;
         completedAt: import("drizzle-orm/pg-core").PgColumn<{
             name: "completed_at";
+            tableName: "quest_progress";
+            dataType: "number";
+            columnType: "PgBigInt53";
+            data: number;
+            driverParam: string | number;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        abandonedAt: import("drizzle-orm/pg-core").PgColumn<{
+            name: "abandoned_at";
+            tableName: "quest_progress";
+            dataType: "number";
+            columnType: "PgBigInt53";
+            data: number;
+            driverParam: string | number;
+            notNull: false;
+            hasDefault: false;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
+        failedAt: import("drizzle-orm/pg-core").PgColumn<{
+            name: "failed_at";
             tableName: "quest_progress";
             dataType: "number";
             columnType: "PgBigInt53";

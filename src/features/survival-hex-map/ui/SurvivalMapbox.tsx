@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, forwardRef, useImperativeHandle } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { generateMap } from '../services/mapGenerator'
@@ -211,6 +211,13 @@ interface SurvivalMapboxProps {
     serverWorldTimeMs?: number
     /** Server time scale (lore_ms per real_ms) for smooth ETA between WS ticks */
     serverTimeScale?: number
+    /** Custom map center [lng, lat] from session config (defaults to Freiburg) */
+    mapCenter?: [number, number]
+}
+
+export interface SurvivalMapboxRef {
+    flyTo: (options: any) => void
+    fitBounds: (bounds: any, options?: any) => void
 }
 
 type PersistedGameStateV1 = {
@@ -267,7 +274,7 @@ function persistGameState(persistenceKey: string, state: GameState): void {
     }
 }
 
-export const SurvivalMapbox = ({
+export const SurvivalMapbox = forwardRef<SurvivalMapboxRef, SurvivalMapboxProps>(({
     initialMap: providedMap,
     persistenceKey,
     serverPlayerHexPos,
@@ -278,7 +285,10 @@ export const SurvivalMapbox = ({
     serverMovementState,
     serverWorldTimeMs,
     serverTimeScale,
-}: SurvivalMapboxProps = {}) => {
+    mapCenter,
+}: SurvivalMapboxProps = {}, ref) => {
+    // Effective center: use prop or default
+    const effectiveCenter = mapCenter ?? DEFAULT_MAP_CENTER
     const mapContainer = useRef<HTMLDivElement>(null)
     const map = useRef<mapboxgl.Map | null>(null)
     const [mapLoaded, setMapLoaded] = useState(false)
@@ -299,6 +309,20 @@ export const SurvivalMapbox = ({
     const routePulseFrameRef = useRef<number | null>(null)
     const serverTimeSyncRef = useRef<{ worldTimeMs: number; perfMs: number; timeScale: number } | null>(null)
     const [serverEtaSeconds, setServerEtaSeconds] = useState<number | null>(null)
+
+    useImperativeHandle(ref, () => ({
+        flyTo: (options: any) => {
+            if (map.current) {
+                map.current.flyTo(options)
+            }
+        },
+        fitBounds: (bounds: any, options?: any) => {
+            if (map.current) {
+                map.current.fitBounds(bounds, options)
+            }
+        }
+    }))
+
     const debugRef = useRef<{
         mapInitRuns: number
         mapRemovedRuns: number
@@ -370,7 +394,7 @@ export const SurvivalMapbox = ({
         })
 
         // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'flicker-post-fix',hypothesisId:'F1',location:'SurvivalMapbox.tsx:initGameState(useEffect)',message:'Initialized gameState once',data:{serverMode,origin,revealedCount:revealed.length},timestamp:Date.now()})}).catch(()=>{});
+        fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: 'debug-session', runId: 'flicker-post-fix', hypothesisId: 'F1', location: 'SurvivalMapbox.tsx:initGameState(useEffect)', message: 'Initialized gameState once', data: { serverMode, origin, revealedCount: revealed.length }, timestamp: Date.now() }) }).catch(() => { });
         // #endregion
 
         setGameState({
@@ -452,7 +476,7 @@ export const SurvivalMapbox = ({
         const dbg = debugRef.current
         dbg.mapInitRuns += 1
         // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'flicker-pre-fix',hypothesisId:'F1',location:'SurvivalMapbox.tsx:initMapbox(useEffect)',message:'Mapbox init useEffect entered',data:{containerReady,alreadyHasMap:Boolean(map.current),mapInitRuns:dbg.mapInitRuns},timestamp:Date.now()})}).catch(()=>{});
+        fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: 'debug-session', runId: 'flicker-pre-fix', hypothesisId: 'F1', location: 'SurvivalMapbox.tsx:initMapbox(useEffect)', message: 'Mapbox init useEffect entered', data: { containerReady, alreadyHasMap: Boolean(map.current), mapInitRuns: dbg.mapInitRuns }, timestamp: Date.now() }) }).catch(() => { });
         // #endregion
 
         console.log('[SurvivalMapbox] Initializing Mapbox...')
@@ -463,7 +487,7 @@ export const SurvivalMapbox = ({
             const newMap = new mapboxgl.Map({
                 container: mapContainer.current,
                 style: 'mapbox://styles/mapbox/dark-v11',
-                center: DEFAULT_MAP_CENTER,
+                center: effectiveCenter,
                 zoom: BASE_ZOOM,
                 pitch: 0,
                 bearing: 0,
@@ -539,7 +563,7 @@ export const SurvivalMapbox = ({
                     // Log only if errors are frequent (potential flicker cause)
                     if (now - last < 1000 || debugRef.current.nonFatalMapErrors <= 3) {
                         // #region agent log
-                        fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'flicker-pre-fix',hypothesisId:'F3',location:'SurvivalMapbox.tsx:newMap.on(error)',message:'Mapbox non-fatal error event',data:{status:status ?? null,message:message || null,nonFatalCount:debugRef.current.nonFatalMapErrors,deltaMs:now-last},timestamp:Date.now()})}).catch(()=>{});
+                        fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: 'debug-session', runId: 'flicker-pre-fix', hypothesisId: 'F3', location: 'SurvivalMapbox.tsx:newMap.on(error)', message: 'Mapbox non-fatal error event', data: { status: status ?? null, message: message || null, nonFatalCount: debugRef.current.nonFatalMapErrors, deltaMs: now - last }, timestamp: Date.now() }) }).catch(() => { });
                         // #endregion
                     }
                 }
@@ -554,7 +578,7 @@ export const SurvivalMapbox = ({
             if (map.current) {
                 dbg.mapRemovedRuns += 1
                 // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'flicker-pre-fix',hypothesisId:'F1',location:'SurvivalMapbox.tsx:initMapbox(cleanup)',message:'Mapbox cleanup removing map',data:{mapRemovedRuns:dbg.mapRemovedRuns},timestamp:Date.now()})}).catch(()=>{});
+                fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: 'debug-session', runId: 'flicker-pre-fix', hypothesisId: 'F1', location: 'SurvivalMapbox.tsx:initMapbox(cleanup)', message: 'Mapbox cleanup removing map', data: { mapRemovedRuns: dbg.mapRemovedRuns }, timestamp: Date.now() }) }).catch(() => { });
                 // #endregion
                 map.current.remove()
                 map.current = null
@@ -948,48 +972,48 @@ export const SurvivalMapbox = ({
             },
         })
 
-        // Full movement route (subtle) + active segment (bright)
-        ;(layers as any).add('PLAYER_ROUTE_GLOW', {
-            type: 'line',
-            source: 'movement-path',
-            paint: {
-                'line-color': '#00ffff',
-                'line-width': 8,
-                'line-opacity': 0.10,
-                'line-blur': 2,
-            },
-        })
+            // Full movement route (subtle) + active segment (bright)
+            ; (layers as any).add('PLAYER_ROUTE_GLOW', {
+                type: 'line',
+                source: 'movement-path',
+                paint: {
+                    'line-color': '#00ffff',
+                    'line-width': 8,
+                    'line-opacity': 0.10,
+                    'line-blur': 2,
+                },
+            })
 
-        ;(layers as any).add('PLAYER_ROUTE', {
-            type: 'line',
-            source: 'movement-path',
-            paint: {
-                'line-color': '#00ffff',
-                'line-width': 2,
-                'line-opacity': 0.25,
-            },
-        })
+            ; (layers as any).add('PLAYER_ROUTE', {
+                type: 'line',
+                source: 'movement-path',
+                paint: {
+                    'line-color': '#00ffff',
+                    'line-width': 2,
+                    'line-opacity': 0.25,
+                },
+            })
 
-        ;(layers as any).add('PLAYER_ROUTE_ACTIVE_GLOW', {
-            type: 'line',
-            source: 'movement-segment',
-            paint: {
-                'line-color': '#00ffff',
-                'line-width': 12,
-                'line-opacity': 0.18,
-                'line-blur': 3,
-            },
-        })
+            ; (layers as any).add('PLAYER_ROUTE_ACTIVE_GLOW', {
+                type: 'line',
+                source: 'movement-segment',
+                paint: {
+                    'line-color': '#00ffff',
+                    'line-width': 12,
+                    'line-opacity': 0.18,
+                    'line-blur': 3,
+                },
+            })
 
-        ;(layers as any).add('PLAYER_ROUTE_ACTIVE', {
-            type: 'line',
-            source: 'movement-segment',
-            paint: {
-                'line-color': '#ffffff',
-                'line-width': 4,
-                'line-opacity': 0.9,
-            },
-        })
+            ; (layers as any).add('PLAYER_ROUTE_ACTIVE', {
+                type: 'line',
+                source: 'movement-segment',
+                paint: {
+                    'line-color': '#ffffff',
+                    'line-width': 4,
+                    'line-opacity': 0.9,
+                },
+            })
 
         // Fit bounds to hex grid on first load
         const bounds = getMapBounds(gameState.map, DEFAULT_MAP_CENTER, GEO_HEX_SIZE_METERS)
@@ -1104,7 +1128,7 @@ export const SurvivalMapbox = ({
             // Log if this effect is thrashing (runs too often)
             if (prev && now - prev < 500) {
                 // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'flicker-pre-fix',hypothesisId:'F2',location:'SurvivalMapbox.tsx:serverWalkEffect(entry)',message:'Server-walk effect reran quickly (possible flicker)',data:{deltaMs:now-prev,walkEffectRuns:debugRef.current.walkEffectRuns,hasPath:Boolean(path&&path.length>=2),mapLoaded},timestamp:Date.now()})}).catch(()=>{});
+                fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: 'debug-session', runId: 'flicker-pre-fix', hypothesisId: 'F2', location: 'SurvivalMapbox.tsx:serverWalkEffect(entry)', message: 'Server-walk effect reran quickly (possible flicker)', data: { deltaMs: now - prev, walkEffectRuns: debugRef.current.walkEffectRuns, hasPath: Boolean(path && path.length >= 2), mapLoaded }, timestamp: Date.now() }) }).catch(() => { });
                 // #endregion
             }
         }
@@ -1212,7 +1236,7 @@ export const SurvivalMapbox = ({
                     if (badAt !== null) {
                         loggedGradientIssue = true
                         // #region agent log
-                        fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'post-fix',hypothesisId:'M2',location:'SurvivalMapbox.tsx:pulse(validateGradient)',message:'Non-ascending interpolate stops detected',data:{t,stops,badAt},timestamp:Date.now()})}).catch(()=>{});
+                        fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: 'debug-session', runId: 'post-fix', hypothesisId: 'M2', location: 'SurvivalMapbox.tsx:pulse(validateGradient)', message: 'Non-ascending interpolate stops detected', data: { t, stops, badAt }, timestamp: Date.now() }) }).catch(() => { });
                         // #endregion
                     }
                 }
@@ -1222,7 +1246,7 @@ export const SurvivalMapbox = ({
                 if (!loggedGradientIssue) {
                     loggedGradientIssue = true
                     // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'post-fix',hypothesisId:'M2',location:'SurvivalMapbox.tsx:pulse(setPaintProperty)',message:'setPaintProperty line-gradient threw',data:{t,errorMessage:(e as any)?.message ?? String(e)},timestamp:Date.now()})}).catch(()=>{});
+                    fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: 'debug-session', runId: 'post-fix', hypothesisId: 'M2', location: 'SurvivalMapbox.tsx:pulse(setPaintProperty)', message: 'setPaintProperty line-gradient threw', data: { t, errorMessage: (e as any)?.message ?? String(e) }, timestamp: Date.now() }) }).catch(() => { });
                     // #endregion
                 }
                 // ignore if layer missing (style reload) or transient errors
@@ -1324,7 +1348,7 @@ export const SurvivalMapbox = ({
             // Only log if this effect is running very frequently (can cause visible blinking due to filter churn).
             if (prev && now - prev < 200) {
                 // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'flicker-pre-fix',hypothesisId:'F4',location:'SurvivalMapbox.tsx:layersDynamicEffect(entry)',message:'Layers dynamic effect running very frequently',data:{deltaMs:now-prev,layersEffectRuns:debugRef.current.layersEffectRuns,mapLoaded,selectedHex:Boolean(selectedHex),pathSetSize:pathSet.size,revealedCount:gameState.revealedHexes.size,visibleCount:visibleHexes.size},timestamp:Date.now()})}).catch(()=>{});
+                fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: 'debug-session', runId: 'flicker-pre-fix', hypothesisId: 'F4', location: 'SurvivalMapbox.tsx:layersDynamicEffect(entry)', message: 'Layers dynamic effect running very frequently', data: { deltaMs: now - prev, layersEffectRuns: debugRef.current.layersEffectRuns, mapLoaded, selectedHex: Boolean(selectedHex), pathSetSize: pathSet.size, revealedCount: gameState.revealedHexes.size, visibleCount: visibleHexes.size }, timestamp: Date.now() }) }).catch(() => { });
                 // #endregion
             }
         }
@@ -1749,4 +1773,5 @@ export const SurvivalMapbox = ({
             <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_center,transparent_50%,rgba(0,0,0,0.8)_100%)]" />
         </div>
     )
-}
+})
+SurvivalMapbox.displayName = 'SurvivalMapbox'

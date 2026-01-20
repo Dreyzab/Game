@@ -51,6 +51,7 @@ export declare const app: Elysia<"", {
                         lastSeen: number | null;
                         createdAt: number;
                         updatedAt: number;
+                        locale: string | null;
                     } | null;
                     progress: {
                         id: number;
@@ -73,6 +74,7 @@ export declare const app: Elysia<"", {
                         stamina: number | null;
                         maxStamina: number | null;
                         phase: number | null;
+                        stateVersion: number | null;
                     } | undefined;
                     totalQuests: number;
                     error?: undefined;
@@ -123,6 +125,7 @@ export declare const app: Elysia<"", {
                             lastSeen: number | null;
                             createdAt: number;
                             updatedAt: number;
+                            locale: string | null;
                         } | null;
                         created: boolean;
                         error?: undefined;
@@ -179,6 +182,7 @@ export declare const app: Elysia<"", {
                             lastSeen: number | null;
                             createdAt: number;
                             updatedAt: number;
+                            locale: string | null;
                         } | null;
                         progress: {
                             id: number;
@@ -200,6 +204,7 @@ export declare const app: Elysia<"", {
                             stamina: number | null;
                             maxStamina: number | null;
                             phase: number | null;
+                            stateVersion: number | null;
                             updatedAt: number;
                         };
                         error?: undefined;
@@ -243,6 +248,41 @@ export declare const app: Elysia<"", {
                         ok: boolean;
                         reset: boolean;
                         result: import("./services/playerReset").ResetSelfResult;
+                        error?: undefined;
+                        status?: undefined;
+                    };
+                    422: {
+                        type: "validation";
+                        on: string;
+                        summary?: string;
+                        message?: string;
+                        found?: unknown;
+                        property?: string;
+                        expected?: string;
+                    };
+                };
+            };
+        };
+    };
+} & {
+    player: {
+        locale: {
+            post: {
+                body: {
+                    locale: "ru" | "en" | "de";
+                };
+                params: {};
+                query: unknown;
+                headers: unknown;
+                response: {
+                    200: {
+                        error: string;
+                        status: number;
+                        success?: undefined;
+                        locale?: undefined;
+                    } | {
+                        success: boolean;
+                        locale: string | null;
                         error?: undefined;
                         status?: undefined;
                     };
@@ -612,23 +652,40 @@ export declare const app: Elysia<"", {
                     active: {
                         id: string;
                         title: string;
-                        description: string;
-                        status: string;
-                        currentStep: string | null;
-                        progress: unknown;
-                        steps: any[] | null;
+                        description: string | undefined;
+                        status: "completed" | "active" | "abandoned" | "failed";
+                        startedAt: number | undefined;
+                        completedAt: number | undefined;
+                        abandonedAt: any;
+                        failedAt: any;
+                        currentStep: string | undefined;
+                        progress: number | undefined;
+                        steps: any[] | undefined;
+                        phase: number | undefined;
+                        recommendedLevel: number | undefined;
                     }[];
                     completed: {
                         id: string;
                         title: string;
-                        status: string;
-                        completedAt: number | null;
+                        description: string | undefined;
+                        status: "completed" | "active" | "abandoned" | "failed";
+                        startedAt: number | undefined;
+                        completedAt: number | undefined;
+                        abandonedAt: any;
+                        failedAt: any;
+                        currentStep: string | undefined;
+                        progress: number | undefined;
+                        steps: any[] | undefined;
+                        phase: number | undefined;
+                        recommendedLevel: number | undefined;
                     }[];
                     available: {
                         id: string;
                         title: string;
                         description: string;
-                        recommendedLevel: number | null;
+                        phase: number | undefined;
+                        recommendedLevel: number | undefined;
+                        steps: any[] | undefined;
                     }[];
                     error?: undefined;
                     status?: undefined;
@@ -1310,6 +1367,63 @@ export declare const app: Elysia<"", {
     };
 } & {
     vn: {
+        session: {
+            start: {
+                post: {
+                    body: {
+                        conditions?: any;
+                        sceneId: string;
+                    };
+                    params: {};
+                    query: unknown;
+                    headers: unknown;
+                    response: {
+                        200: {
+                            error: string;
+                            status: number;
+                            sessionId?: undefined;
+                            sessionToken?: undefined;
+                            seed?: undefined;
+                            stateVersion?: undefined;
+                            expiresAt?: undefined;
+                            allowedOps?: undefined;
+                            initialState?: undefined;
+                        } | {
+                            sessionId: string;
+                            sessionToken: string;
+                            seed: number;
+                            stateVersion: any;
+                            expiresAt: number;
+                            allowedOps: string[];
+                            initialState: {
+                                hp: any;
+                                skills: Record<string, number>;
+                                flags: Record<string, any>;
+                                reputation: any;
+                                level: number | null;
+                                xp: number | null;
+                                phase: number | null;
+                                stateVersion: any;
+                            };
+                            error?: undefined;
+                            status?: undefined;
+                        };
+                        422: {
+                            type: "validation";
+                            on: string;
+                            summary?: string;
+                            message?: string;
+                            found?: unknown;
+                            property?: string;
+                            expected?: string;
+                        };
+                    };
+                };
+            };
+        };
+    };
+} & {
+    vn: {
         state: {
             get: {
                 body: unknown;
@@ -1344,6 +1458,7 @@ export declare const app: Elysia<"", {
                             stamina: number | null;
                             maxStamina: number | null;
                             phase: number | null;
+                            stateVersion: number | null;
                         };
                         error?: undefined;
                         status?: undefined;
@@ -1366,6 +1481,7 @@ export declare const app: Elysia<"", {
         commit: {
             post: {
                 body: {
+                    sessionId: string;
                     sceneId: string;
                     payload: {
                         visitedScenes?: string[] | undefined;
@@ -1387,53 +1503,25 @@ export declare const app: Elysia<"", {
                         removeFlags?: string[] | undefined;
                         xpDelta?: number | undefined;
                         advancePhaseTo?: number | undefined;
+                        decisionLog?: any[] | undefined;
+                        questCommands?: {
+                            progress?: number | undefined;
+                            delta?: number | undefined;
+                            reason?: string | undefined;
+                            step?: string | undefined;
+                            stepId?: string | undefined;
+                            progressDelta?: number | undefined;
+                            op: string;
+                            questId: string;
+                        }[] | undefined;
                     };
+                    commitNonce: string;
+                    sessionToken: string;
                 };
                 params: {};
                 query: unknown;
                 headers: unknown;
                 response: {
-                    200: {
-                        error: string;
-                        status: number;
-                        success?: undefined;
-                        duplicate?: undefined;
-                        progress?: undefined;
-                        awardedItems?: undefined;
-                    } | {
-                        success: boolean;
-                        duplicate: undefined;
-                        progress: {
-                            visitedScenes: string[];
-                            flags: Record<string, any>;
-                            reputation: any;
-                            attributes: any;
-                            skills: Record<string, number>;
-                            id: number;
-                            updatedAt: number;
-                            playerId: number;
-                            currentScene: string | null;
-                            level: number | null;
-                            xp: number | null;
-                            skillPoints: number | null;
-                            subclasses: string[] | null;
-                            gold: number | null;
-                            hp: number | null;
-                            maxHp: number | null;
-                            morale: number | null;
-                            maxMorale: number | null;
-                            stamina: number | null;
-                            maxStamina: number | null;
-                            phase: number | null;
-                        };
-                        awardedItems: {
-                            itemId: string;
-                            quantity: number;
-                            dbId?: string;
-                        }[];
-                        error?: undefined;
-                        status?: undefined;
-                    };
                     422: {
                         type: "validation";
                         on: string;
@@ -4336,7 +4424,9 @@ export declare const app: Elysia<"", {
     survival: {
         sessions: {
             post: {
-                body: unknown;
+                body: Partial<{
+                    regionId?: string | undefined;
+                }> | null;
                 params: {};
                 query: unknown;
                 headers: unknown;

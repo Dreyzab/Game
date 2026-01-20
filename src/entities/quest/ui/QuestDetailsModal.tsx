@@ -1,6 +1,6 @@
 import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Scroll, Clock, Trophy, AlertTriangle } from 'lucide-react'
+import { Scroll, Clock, Trophy, AlertTriangle, XCircle } from 'lucide-react'
 import type { Quest } from '@/shared/types/quest'
 import { cn } from '@/shared/lib/utils/cn'
 
@@ -20,8 +20,10 @@ export const QuestDetailsModal: React.FC<QuestDetailsModalProps> = ({
     if (!quest) return null
 
     const isCompleted = quest.status === 'completed'
+    const isFailed = quest.status === 'failed'
     const isAbandoned = quest.status === 'abandoned'
     const isActive = quest.status === 'active'
+    const isNegative = isFailed || isAbandoned
 
     return (
         <AnimatePresence>
@@ -44,11 +46,12 @@ export const QuestDetailsModal: React.FC<QuestDetailsModalProps> = ({
                             "p-3 rounded-xl",
                             isActive && "bg-blue-500/20 text-blue-400",
                             isCompleted && "bg-green-500/20 text-green-400",
-                            isAbandoned && "bg-red-500/20 text-red-400"
+                            isNegative && "bg-red-500/20 text-red-400"
                         )}>
                             {isActive && <Scroll className="w-8 h-8" />}
                             {isCompleted && <Trophy className="w-8 h-8" />}
-                            {isAbandoned && <AlertTriangle className="w-8 h-8" />}
+                            {isFailed && <AlertTriangle className="w-8 h-8" />}
+                            {isAbandoned && <XCircle className="w-8 h-8" />}
                         </div>
                         <div>
                             <h2 className="text-xl font-bold text-white mb-1">{quest.title}</h2>
@@ -63,9 +66,9 @@ export const QuestDetailsModal: React.FC<QuestDetailsModalProps> = ({
                                     "px-2 py-0.5 rounded-full text-xs uppercase tracking-wider font-medium",
                                     isActive && "bg-blue-500/10 text-blue-400",
                                     isCompleted && "bg-green-500/10 text-green-400",
-                                    isAbandoned && "bg-red-500/10 text-red-400"
+                                    isNegative && "bg-red-500/10 text-red-400"
                                 )}>
-                                    {isActive ? 'Активно' : isCompleted ? 'Завершено' : 'Отменено'}
+                                    {isActive ? 'Активно' : isCompleted ? 'Завершено' : isAbandoned ? 'Отменено' : 'Провалено'}
                                 </span>
                             </div>
                         </div>

@@ -11,7 +11,7 @@ export const INITIAL_PLAYER_HAND: CombatCard[] = [
         damage: 12,
         optimalRange: [1, 2],
         description: 'A heavy swing. Effective at close range.',
-        jamChance: 0,
+        jamChance: 0, impact: 0,
     },
     {
         id: 'c2',
@@ -22,7 +22,7 @@ export const INITIAL_PLAYER_HAND: CombatCard[] = [
         damage: 18,
         optimalRange: [1, 2, 3],
         description: 'Standard issue pistol. Watch the heat.',
-        jamChance: 0.05,
+        jamChance: 0.05, impact: 0,
     },
     {
         id: 'c3',
@@ -33,7 +33,7 @@ export const INITIAL_PLAYER_HAND: CombatCard[] = [
         damage: 0,
         optimalRange: [],
         description: 'Move forward one rank.',
-        jamChance: 0,
+        jamChance: 0, impact: 0,
     },
     {
         id: 'c4',
@@ -44,7 +44,7 @@ export const INITIAL_PLAYER_HAND: CombatCard[] = [
         damage: 0,
         optimalRange: [],
         description: '+50% Evasion for 1 turn.',
-        jamChance: 0,
+        jamChance: 0, impact: 0,
     },
     {
         id: 'c5',
@@ -55,7 +55,7 @@ export const INITIAL_PLAYER_HAND: CombatCard[] = [
         damage: 0,
         optimalRange: [],
         description: 'Recover 30 Stamina.',
-        jamChance: 0,
+        jamChance: 0, impact: 0,
     },
     {
         id: 'c6',
@@ -66,7 +66,7 @@ export const INITIAL_PLAYER_HAND: CombatCard[] = [
         damage: 0,
         optimalRange: [],
         description: 'Analyze target vital stats.',
-        jamChance: 0,
+        jamChance: 0, impact: 0,
     },
 ]
 
@@ -81,7 +81,7 @@ export const NPC_CARDS: CombatCard[] = [
         damage: 15,
         optimalRange: [1, 2, 3, 4, 5, 6],
         description: 'Reliable service weapon.',
-        jamChance: 0.05,
+        jamChance: 0.05, impact: 0,
     },
     {
         id: 'cond_flashlight',
@@ -92,7 +92,7 @@ export const NPC_CARDS: CombatCard[] = [
         damage: 2,
         optimalRange: [1, 2],
         description: 'Blinds target. Low damage.',
-        jamChance: 0,
+        jamChance: 0, impact: 0,
     },
     // Lena
     {
@@ -104,7 +104,7 @@ export const NPC_CARDS: CombatCard[] = [
         damage: 8,
         optimalRange: [1, 2],
         description: 'Precise cut. Ignores 1 Armor.',
-        jamChance: 0,
+        jamChance: 0, impact: 0,
     },
     {
         id: 'lena_medkit',
@@ -115,7 +115,7 @@ export const NPC_CARDS: CombatCard[] = [
         damage: 0,
         optimalRange: [],
         description: 'Heal ally for 20 HP.',
-        jamChance: 0,
+        jamChance: 0, impact: 0,
     },
     // Otto
     {
@@ -127,7 +127,7 @@ export const NPC_CARDS: CombatCard[] = [
         damage: 18,
         optimalRange: [1],
         description: 'Brutal close quarters weapon.',
-        jamChance: 0,
+        jamChance: 0, impact: 0,
     },
     {
         id: 'otto_bomb',
@@ -138,7 +138,7 @@ export const NPC_CARDS: CombatCard[] = [
         damage: 30,
         optimalRange: [2, 3, 4, 5],
         description: 'Improvised explosive. High damage.',
-        jamChance: 0.1,
+        jamChance: 0.1, impact: 0,
     },
     // Bruno
     {
@@ -150,7 +150,7 @@ export const NPC_CARDS: CombatCard[] = [
         damage: 35,
         optimalRange: [2, 3, 4],
         description: 'Improvised explosive. High damage area effect.',
-        jamChance: 0.1,
+        jamChance: 0.1, impact: 0,
     }
 ]
 

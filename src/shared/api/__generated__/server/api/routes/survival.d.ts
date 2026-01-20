@@ -22,7 +22,9 @@ export declare const survivalRoutes: (app: Elysia) => Elysia<"", {
     survival: {
         sessions: {
             post: {
-                body: unknown;
+                body: Partial<{
+                    regionId?: string | undefined;
+                }> | null;
                 params: {};
                 query: unknown;
                 headers: unknown;

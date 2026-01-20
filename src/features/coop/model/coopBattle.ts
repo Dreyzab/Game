@@ -23,7 +23,7 @@ function makeEnemy(params: { id: string; rank: number; templateIdx: number; thre
     name: template.name,
     side: Side.ENEMY,
     rank: clampInt(params.rank, 1, 4),
-    resources: { hp: maxHp, maxHp, ap: 1, maxAp: 1, mp: 0, maxMp: 0, wp: 10, maxWp: 10, pp: 0, maxPp: 100 },
+    resources: { hp: maxHp, maxHp, ap: 1, maxAp: 1, mp: 0, maxMp: 0, stamina: 100, maxStamina: 100, stagger: 0, maxStagger: 100, pp: 0, maxPp: 100 },
     bonusAp: 0,
     initiative: template.initBase,
     armor,
@@ -43,10 +43,10 @@ function makeEnemies(params: { scenarioId?: string; threat: number }): Combatant
   const templates =
     params.scenarioId === 'scorpion_nest'
       ? [
-          { id: 'e_small_1', rank: 1, templateIdx: 2 },
-          { id: 'e_small_2', rank: 2, templateIdx: 2 },
-          { id: 'e_medium', rank: 3, templateIdx: 3 },
-        ]
+        { id: 'e_small_1', rank: 1, templateIdx: 2 },
+        { id: 'e_small_2', rank: 2, templateIdx: 2 },
+        { id: 'e_medium', rank: 3, templateIdx: 3 },
+      ]
       : [{ id: 'e1', rank: 2, templateIdx: 0 }]
 
   return templates.map((e) => makeEnemy({ ...e, threat, hpMult }))
@@ -64,10 +64,10 @@ export function createCoopBattleSession(params: { encounter: CoopEncounterState;
     const name = participant?.name ?? `Player ${snapshot.playerId}`
 
     const maxHp = Math.max(1, Math.floor(snapshot.maxHp))
-    const maxWp = Math.max(1, Math.floor(snapshot.maxMorale))
+    const maxMp = Math.max(1, Math.floor(snapshot.maxMorale))
 
     const hp = clampInt(snapshot.hp, 0, maxHp)
-    const wp = clampInt(snapshot.morale, 0, maxWp)
+    const mp = clampInt(snapshot.morale, 0, maxMp)
 
     const maxAp = 3
     const ap = maxAp
@@ -77,7 +77,7 @@ export function createCoopBattleSession(params: { encounter: CoopEncounterState;
       name,
       side: Side.PLAYER,
       rank: clampInt(index + 1, 1, 4),
-      resources: { hp, maxHp, ap, maxAp, mp: 0, maxMp: 0, wp, maxWp, pp: 0, maxPp: 100 },
+      resources: { hp, maxHp, ap, maxAp, mp, maxMp, stamina: 100, maxStamina: 100, stagger: 0, maxStagger: 100, pp: 0, maxPp: 100 },
       equipment: DEFAULT_COOP_EQUIPMENT,
       bonusAp: 0,
       initiative: 0,
@@ -118,7 +118,7 @@ export function extractCoopBattleResults(session: BattleSession): Array<{ player
     out.push({
       playerId: pid,
       hp: clampInt(p.resources.hp, 0, Number.MAX_SAFE_INTEGER),
-      morale: clampInt(p.resources.wp, 0, Number.MAX_SAFE_INTEGER),
+      morale: clampInt(p.resources.mp, 0, Number.MAX_SAFE_INTEGER),
     })
   }
   return out

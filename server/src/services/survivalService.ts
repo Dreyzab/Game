@@ -29,7 +29,9 @@ import {
     type EventOption,
 } from '../shared/types/survival'
 import { getEventById, rollRandomEvent } from '../lib/survivalEvents'
-import { generateHexMap, getHexCell, hexToString as serverHexToString, type HexCell } from '../shared/hexmap/mapGenerator'
+import { generateMap, getHexCell, hexToString as serverHexToString } from '../shared/hexmap/mapGenerator'
+import { type HexCell } from '../shared/hexmap/types'
+import { getRegionById } from '../shared/hexmap/regions'
 import { ITEM_TEMPLATES } from '../shared/data/itemTemplates'
 import { STAMINA_COST_PER_HEX } from '../shared/data/survivalConfig'
 
@@ -369,6 +371,19 @@ function resetZonesForNewDay(state: SurvivalState): void {
 }
 
 function rollDailyGlobalEvent(state: SurvivalState): DailyEventState | null {
+    // Check for forecasted event override
+    const forecastedType = state.flags['next_day_event_type'] as DailyEventType | undefined
+    if (forecastedType) {
+        // Clear the flag so it doesn't persist forever
+        delete state.flags['next_day_event_type']
+
+        // Reset the forecast visualization
+        state.forecastedEventId = null
+        state.forecastedEventRevealedAt = null
+
+        return createDailyEvent(forecastedType, state.worldTimeMs)
+    }
+
     // MVP: simple weighted roll. Tune later based on resources/crisis history.
     const r = Math.random()
     let type: DailyEventType | null = null
@@ -376,17 +391,18 @@ function rollDailyGlobalEvent(state: SurvivalState): DailyEventState | null {
     else if (r < 0.3) type = 'crisis'
 
     if (!type) return null
+    return createDailyEvent(type, state.worldTimeMs)
+}
 
-    const startedAtWorldTimeMs = state.worldTimeMs
-    const endsAtWorldTimeMs = getNextDayStartWorldTimeMs(state.worldTimeMs)
-
+function createDailyEvent(type: DailyEventType, nowWorldTimeMs: number): DailyEventState {
+    const endsAtWorldTimeMs = getNextDayStartWorldTimeMs(nowWorldTimeMs)
     if (type === 'traders_arrived') {
         return {
             id: generateDailyEventId(type),
             type,
             title: 'Торговцы у бункера',
             description: 'У входа в бункер появились торговцы. Можно обменять ресурсы и редкие предметы.',
-            startedAtWorldTimeMs,
+            startedAtWorldTimeMs: nowWorldTimeMs,
             endsAtWorldTimeMs,
         }
     }
@@ -396,30 +412,36 @@ function rollDailyGlobalEvent(state: SurvivalState): DailyEventState | null {
         type,
         title: 'Кризис дня',
         description: 'Новый кризис обрушился на базу. Придётся выбирать, чем пожертвовать.',
-        startedAtWorldTimeMs,
+        startedAtWorldTimeMs: nowWorldTimeMs,
         endsAtWorldTimeMs,
     }
 }
 
-function applyDailyEventSideEffects(state: SurvivalState): void {
-    // Keep it minimal & readable. Effects can be moved into data files later.
-    const ev = state.dailyEvent
-    if (!ev) {
-        state.crisisLevel = 'calm'
-        return
-    }
-
-    if (ev.type === 'crisis') {
-        state.crisisLevel = 'crisis'
-        state.resources.morale = Math.max(0, state.resources.morale - 10)
-    } else {
-        state.crisisLevel = 'calm'
-    }
+// Deprecated old roll function signature match, replaced by above logic
+function _unused_old_rollDailyGlobalEvent_stub(state: SurvivalState): DailyEventState | null {
+    // This function is deprecated and its body was accidentally pasted with an error.
+    // The actual logic for rolling daily events is in rollDailyGlobalEvent(state) above.
+    return null
 }
 
 function onDayStart(state: SurvivalState): void {
     // Reset interactions first (so players standing in zones immediately see refreshed options)
     resetZonesForNewDay(state)
+
+    function applyDailyEventSideEffects(state: SurvivalState): void {
+        const ev = state.dailyEvent
+        if (!ev) {
+            state.crisisLevel = 'calm'
+            return
+        }
+
+        if (ev.type === 'crisis') {
+            state.crisisLevel = 'crisis'
+            state.resources.morale = Math.max(0, state.resources.morale - 10)
+        } else {
+            state.crisisLevel = 'calm'
+        }
+    }
 
     // Roll global daily event and apply its baseline effects
     state.dailyEvent = rollDailyGlobalEvent(state)
@@ -681,10 +703,10 @@ function processPlayerArrivals(state: SurvivalState): boolean {
             if (!player.activeEventId) {
                 const cleared = state.flags[hexFlagCleared(key)] === true
                 if (!cleared) {
-                    const { hexSeed, hexRadius } = getHexMapConfigFromFlags(state.flags)
+                    const { hexSeed, hexRadius, regionId } = getHexMapConfigFromFlags(state.flags)
                     const cell = getHexCell(hexRadius, hexSeed, destination)
                     if (cell) {
-                        const intro = generateHexEncounterEvent(cell)
+                        const intro = generateHexEncounterEvent(cell, regionId)
                         player.activeEventId = intro.id
                         player.activeEvent = intro
                         // #region agent log
@@ -707,14 +729,16 @@ function processPlayerArrivals(state: SurvivalState): boolean {
     return changed
 }
 
-function getHexMapConfigFromFlags(flags: Record<string, unknown> | undefined): { hexSeed: number; hexRadius: number } {
+function getHexMapConfigFromFlags(flags: Record<string, unknown> | undefined): { hexSeed: number; hexRadius: number; regionId?: string } {
     const seedRaw = flags?.hexMapSeed
     const radiusRaw = flags?.hexMapRadius
+    const regionIdRaw = flags?.hexMapRegionId
 
     const hexSeed = (typeof seedRaw === 'number' && Number.isFinite(seedRaw)) ? Math.floor(seedRaw) : 1_337
     const hexRadius = (typeof radiusRaw === 'number' && Number.isFinite(radiusRaw)) ? Math.max(1, Math.floor(radiusRaw)) : 14
+    const regionId = typeof regionIdRaw === 'string' ? regionIdRaw : undefined
 
-    return { hexSeed, hexRadius }
+    return { hexSeed, hexRadius, regionId }
 }
 
 function mapHexToZone(cell: HexCell): ZoneType {
@@ -766,9 +790,54 @@ function randomLootForHex(cell: HexCell): Array<{ templateId: string; quantity: 
     }
 }
 
-function generateHexEncounterEvent(cell: HexCell): SurvivalEvent {
+function generateKarlsruheAdminEvent(cell: HexCell, id: string): SurvivalEvent {
+    return {
+        id,
+        title: 'Университетский Сервер',
+        text: 'Вы нашли уцелевший терминал в руинах административного корпуса KIT. Питание еще есть, жесткие диски вращаются.',
+        zone: 'bathroom', // Mapping to "Lab" vibe
+        hex: { q: cell.q, r: cell.r },
+        imageUrl: '/images/events/server_terminal.jpg',
+        tags: ['story', 'tech'],
+        options: [
+            {
+                id: 'download_protocols',
+                text: '[TECH] Скачать протоколы защиты',
+                requiredRole: 'techie',
+                effect: {
+                    grantItems: [{ templateId: 'defense_protocol', quantity: 1 }],
+                    logMessage: 'извлек Протоколы Защиты из терминала',
+                    triggerEventId: undefined
+                }
+            },
+            {
+                id: 'scan_network',
+                text: '[INT] Сканировать сеть на угрозы',
+                cost: { energy: 5 } as any,
+                effect: {
+                    setFlags: { next_day_event_type: 'crisis', forecast_revealed: true },
+                    logMessage: 'провел сканирование сети: ОБНАРУЖЕНА УГРОЗА ВТОРЖЕНИЯ',
+                    statusEffect: { id: 'forecast_revealed', duration: 1440 }
+                }
+            },
+            {
+                id: 'leave',
+                text: 'Уйти',
+                effect: { logMessage: 'оставил терминал в покое' }
+            }
+        ]
+    }
+}
+
+function generateHexEncounterEvent(cell: HexCell, regionId?: string): SurvivalEvent {
     const id = `hex_${cell.q}_${cell.r}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
     const zone = mapHexToZone(cell)
+
+    // Karlsruhe ADMIN/TECH Special Logic
+    if (regionId === 'karlsruhe' && (cell.resource === 'TECH' || zone === 'bathroom')) { // bathroom maps to Bio-Labs (closest to Admin/Science vibe in zones)
+        return generateKarlsruheAdminEvent(cell, id)
+    }
+
     const baseChance = threatToSuccessChance(cell.threatLevel)
     const loot = randomLootForHex(cell)
 
@@ -882,6 +951,11 @@ function pickHexEncounterType(state: SurvivalState, cell: HexCell): HexEncounter
     // Nudge by resource
     if (cell.resource === 'TECH' && t === 'loot' && Math.random() < 0.4) t = 'trap'
     if (cell.resource === 'FOOD' && t === 'enemy' && Math.random() < 0.3) t = 'loot'
+
+    // Karlsruhe recruitment bonus: highly populated area -> more survivors
+    if (state.flags['hexMapRegionId'] === 'karlsruhe' && t === 'loot' && Math.random() < 0.15) {
+        t = 'survivor'
+    }
 
     state.flags[hexFlagEncounterType(key)] = t
     return t
@@ -1144,12 +1218,21 @@ function broadcastLogEntry(sessionId: string, entry: LogEntry) {
 /**
  * Create a new survival session
  */
-export async function createSession(hostPlayerId: number, hostName: string = 'Host'): Promise<SurvivalState> {
+export async function createSession(
+    hostPlayerId: number,
+    hostName: string = 'Host',
+    regionId?: string
+): Promise<SurvivalState> {
     const sessionId = generateSessionId()
     const now = Date.now()
     // Hex map config (used by both server encounter generation and client rendering)
     const hexMapSeed = Math.floor(Math.random() * 2_000_000_000)
     const hexMapRadius = 14
+
+    // Region config
+    const region = getRegionById(regionId)
+    const hexMapRegionId = region.id
+    const hexMapCenterLngLat = region.geoCenterLngLat
 
     const hostPlayer: SurvivalPlayer = {
         playerId: hostPlayerId,
@@ -1189,6 +1272,8 @@ export async function createSession(hostPlayerId: number, hostName: string = 'Ho
         flags: {
             hexMapSeed,
             hexMapRadius,
+            hexMapRegionId,
+            hexMapCenterLngLat,
         },
         timeConfig: { ...DEFAULT_SURVIVAL_TIME_CONFIG },
         dailyEvent: null,
@@ -2092,8 +2177,9 @@ export async function movePlayer(
         return { success: false, message: 'Already at destination' }
     }
 
-    const { hexSeed, hexRadius } = getHexMapConfigFromFlags(state.flags)
-    const map = generateHexMap(hexRadius, hexSeed)
+    const { hexSeed, hexRadius, regionId } = getHexMapConfigFromFlags(state.flags)
+    const mapCells = generateMap(hexRadius, hexSeed, { region: regionId })
+    const map = new Map<string, HexCell>(mapCells.map(c => [serverHexToString(c), c]))
     const path = findPathBfs(map, currentPos, targetHex)
     if (path.length < 2) {
         return { success: false, message: 'No valid path to destination' }

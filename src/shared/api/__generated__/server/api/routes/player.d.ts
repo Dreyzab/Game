@@ -60,6 +60,7 @@ export declare const playerRoutes: (app: Elysia) => Elysia<"", {
                         stamina: number | null;
                         maxStamina: number | null;
                         phase: number | null;
+                        stateVersion: number | null;
                     } | undefined;
                     totalQuests: number;
                     error?: undefined;
@@ -155,6 +156,7 @@ export declare const playerRoutes: (app: Elysia) => Elysia<"", {
                             stamina: number | null;
                             maxStamina: number | null;
                             phase: number | null;
+                            stateVersion: number | null;
                             updatedAt: number;
                         };
                         error?: undefined;
@@ -198,6 +200,41 @@ export declare const playerRoutes: (app: Elysia) => Elysia<"", {
                         ok: boolean;
                         reset: boolean;
                         result: import("../../services/playerReset").ResetSelfResult;
+                        error?: undefined;
+                        status?: undefined;
+                    };
+                    422: {
+                        type: "validation";
+                        on: string;
+                        summary?: string;
+                        message?: string;
+                        found?: unknown;
+                        property?: string;
+                        expected?: string;
+                    };
+                };
+            };
+        };
+    };
+} & {
+    player: {
+        locale: {
+            post: {
+                body: {
+                    locale: "ru" | "en" | "de";
+                };
+                params: {};
+                query: unknown;
+                headers: unknown;
+                response: {
+                    200: {
+                        error: string;
+                        status: number;
+                        success?: undefined;
+                        locale?: undefined;
+                    } | {
+                        success: boolean;
+                        locale: string | null;
                         error?: undefined;
                         status?: undefined;
                     };

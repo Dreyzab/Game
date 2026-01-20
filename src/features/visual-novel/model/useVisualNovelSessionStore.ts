@@ -22,6 +22,7 @@ interface VisualNovelSessionState {
   pendingReputation: Record<string, number>
   pendingItems: { itemId: string; quantity: number }[]
   pendingQuests: string[]
+  pendingQuestCommands: { op: string; questId: string; step?: string; progress?: number; progressDelta?: number; reason?: string }[]
   startSession: (sceneId: string) => void
   trackScene: (sceneId: string) => void
   recordChoice: (payload: { sceneId: string; lineId?: string; choice: VisualNovelChoice }) => void
@@ -38,6 +39,8 @@ interface VisualNovelSessionState {
     reputation: Record<string, number>
     items: { itemId: string; quantity: number }[]
     quests: string[]
+    questCommands: { op: string; questId: string; step?: string; progress?: number; progressDelta?: number; reason?: string }[]
+    decisionLog?: Array<{ sceneId: string; lineId?: string; choiceId: string; timestamp: number }>
   }
   reset: () => void
 }
@@ -91,6 +94,7 @@ export const useVisualNovelSessionStore = create<VisualNovelSessionState>((set, 
   pendingReputation: {},
   pendingItems: [],
   pendingQuests: [],
+  pendingQuestCommands: [],
   startSession: (sceneId) => {
     log('🚀 Новая сессия визуальной новеллы', { sceneId })
     set({
@@ -106,6 +110,7 @@ export const useVisualNovelSessionStore = create<VisualNovelSessionState>((set, 
       pendingReputation: {},
       pendingItems: [],
       pendingQuests: [],
+      pendingQuestCommands: [],
     })
   },
   trackScene: (sceneId) =>
@@ -126,6 +131,7 @@ export const useVisualNovelSessionStore = create<VisualNovelSessionState>((set, 
       let nextReputation = { ...state.pendingReputation }
       let nextItems = [...state.pendingItems]
       let nextQuests = [...state.pendingQuests]
+      let nextQuestCommands = [...state.pendingQuestCommands]
       let xpDelta = 0
 
       const effectsList: VisualNovelChoiceEffect[] = choice.effects ?? []
@@ -209,6 +215,24 @@ export const useVisualNovelSessionStore = create<VisualNovelSessionState>((set, 
             nextQuests = uniquePush(nextQuests, effect.questId)
             break
           }
+          case 'progress_quest': {
+            if (!effect.questId) return
+            nextQuestCommands = [
+              ...nextQuestCommands,
+              { op: 'progress', questId: effect.questId, step: effect.step, progressDelta: effect.delta },
+            ]
+            break
+          }
+          case 'complete_quest': {
+            if (!effect.questId) return
+            nextQuestCommands = [...nextQuestCommands, { op: 'complete', questId: effect.questId }]
+            break
+          }
+          case 'fail_quest': {
+            if (!effect.questId) return
+            nextQuestCommands = [...nextQuestCommands, { op: 'fail', questId: effect.questId, reason: effect.reason }]
+            break
+          }
           default: {
             break
           }
@@ -246,6 +270,7 @@ export const useVisualNovelSessionStore = create<VisualNovelSessionState>((set, 
         pendingReputation: nextReputation,
         pendingItems: nextItems,
         pendingQuests: nextQuests,
+        pendingQuestCommands: nextQuestCommands,
       }
     }),
   applySystemHpChange: (delta, sceneId) => {
@@ -295,7 +320,15 @@ export const useVisualNovelSessionStore = create<VisualNovelSessionState>((set, 
       state.pendingXp !== 0 ||
       Object.keys(state.pendingReputation).length > 0 ||
       state.pendingItems.length > 0 ||
-      state.pendingQuests.length > 0
+      state.pendingQuests.length > 0 ||
+      state.pendingQuestCommands.length > 0
+
+    const decisionLog = state.choices.map((entry) => ({
+      sceneId: entry.sceneId,
+      lineId: entry.lineId,
+      choiceId: entry.choiceId,
+      timestamp: entry.timestamp,
+    }))
 
     const payload = {
       sceneId: state.rootSceneId,
@@ -309,6 +342,8 @@ export const useVisualNovelSessionStore = create<VisualNovelSessionState>((set, 
       reputation: state.pendingReputation,
       items: state.pendingItems,
       quests: state.pendingQuests,
+      questCommands: state.pendingQuestCommands,
+      decisionLog,
     }
     log('📤 Формируем payload для сохранения', { ...payload, hasEffects })
 
@@ -325,6 +360,7 @@ export const useVisualNovelSessionStore = create<VisualNovelSessionState>((set, 
       pendingReputation: {},
       pendingItems: [],
       pendingQuests: [],
+      pendingQuestCommands: [],
     })
 
     log('✅ Сессия очищена после выгрузки')
@@ -345,6 +381,7 @@ export const useVisualNovelSessionStore = create<VisualNovelSessionState>((set, 
       pendingReputation: {},
       pendingItems: [],
       pendingQuests: [],
+      pendingQuestCommands: [],
     })
   },
 }))

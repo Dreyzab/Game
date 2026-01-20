@@ -8,6 +8,7 @@ interface InfoPanelProps {
   npcs: NPC[]
   weather: Weather
   gameTime: string
+  forecast?: string | null
 }
 
 function ThreatProjectionChart() {
@@ -87,9 +88,18 @@ function ThreatProjectionChart() {
   )
 }
 
-export function InfoPanel({ populationCount, npcs, weather, gameTime }: InfoPanelProps) {
+export function InfoPanel({ populationCount, npcs, weather, gameTime, forecast }: InfoPanelProps) {
   return (
     <div className="bg-slate-900/90 border-l border-slate-700 p-6 flex flex-col h-full">
+      {forecast && (
+        <div className="mb-6 bg-red-900/20 border border-red-500/50 p-4 rounded-lg animate-pulse">
+          <h2 className="text-red-400 text-xs font-bold uppercase tracking-[0.2em] mb-1">Threat Forecast</h2>
+          <div className="text-white font-mono font-bold text-lg">
+            INCOMING: {forecast === 'crisis' ? 'CRITICAL SYSTEM FAILURE' : 'MERCHANT ARRIVAL'}
+          </div>
+          <div className="text-xs text-red-300/70 mt-1">Source: Karlsruhe Server Bank</div>
+        </div>
+      )}
       <div className="mb-8">
         <h2 className="text-slate-400 text-xs font-bold uppercase tracking-[0.2em] mb-4 border-b border-slate-700 pb-2">Census Data</h2>
         <div className="flex items-center justify-between mb-4">
@@ -109,9 +119,8 @@ export function InfoPanel({ populationCount, npcs, weather, gameTime }: InfoPane
           {npcs.map((npc) => (
             <div
               key={npc.id}
-              className={`flex justify-between text-sm p-2 rounded border border-slate-800 ${
-                npc.status === 'Sick' ? 'bg-yellow-900/20 text-yellow-200 border-yellow-900/50' : 'bg-slate-800/50 text-slate-300'
-              }`}
+              className={`flex justify-between text-sm p-2 rounded border border-slate-800 ${npc.status === 'Sick' ? 'bg-yellow-900/20 text-yellow-200 border-yellow-900/50' : 'bg-slate-800/50 text-slate-300'
+                }`}
             >
               <span>
                 {npc.name} <span className="text-xs opacity-50">({npc.role})</span>

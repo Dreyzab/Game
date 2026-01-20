@@ -56,6 +56,7 @@ const CombatCardUI = forwardRef<HTMLDivElement, Props>(({ card, disabled, onClic
     let borderClass = ''
     let iconColor = ''
     let glowColor = ''
+    const highlightClass = isHighlighted ? 'ring-2 ring-amber-400/70' : ''
 
     if (isAttack) {
         containerClass = 'bg-gradient-to-br from-red-950/90 via-black/80 to-red-950/90'
@@ -108,6 +109,7 @@ const CombatCardUI = forwardRef<HTMLDivElement, Props>(({ card, disabled, onClic
             className={`
                 relative w-32 h-48 rounded-xl border-2 backdrop-blur-md flex flex-col overflow-hidden shadow-2xl
                 ${disabled ? 'grayscale opacity-50 cursor-not-allowed border-zinc-800 bg-zinc-950' : `${borderClass} ${containerClass} ${glowColor} cursor-pointer`}
+                ${highlightClass}
                 ${className}
                 group
             `}
