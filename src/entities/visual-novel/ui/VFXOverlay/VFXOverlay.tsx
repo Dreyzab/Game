@@ -2,9 +2,10 @@ import React, { useMemo } from 'react'
 
 export interface VFXOverlayProps {
   particleCount?: number
+  disableVignette?: boolean
 }
 
-export const VFXOverlay: React.FC<VFXOverlayProps> = ({ particleCount = 20 }) => {
+export const VFXOverlay: React.FC<VFXOverlayProps> = ({ particleCount = 20, disableVignette = false }) => {
   const particles = useMemo(() => {
     return Array.from({ length: particleCount }, () => ({
       size: Math.random() * 4 + 1,
@@ -36,7 +37,7 @@ export const VFXOverlay: React.FC<VFXOverlayProps> = ({ particleCount = 20 }) =>
         ))}
       </div>
 
-      <div className="absolute inset-0 shadow-[inset_0_0_150px_rgba(0,0,0,0.6)]" />
+      {!disableVignette && <div className="absolute inset-0 shadow-[inset_0_0_150px_rgba(0,0,0,0.6)]" />}
     </div>
   )
 }

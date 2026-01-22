@@ -46,15 +46,23 @@ export function generateDeckForCombatant(combatant: Combatant): CombatCard[] {
 
     // Use base stats from template or default to 10
     const baseDmg = template.baseStats?.damage ?? 10
+    const isRanged = template.tags?.includes('ranged') || template.tags?.includes('ballistic')
+    const isExplosive = template.tags?.includes('explosive')
 
     // Generate cards
-    // generated IDs are unique enough, but we can ensure owner binding
     const cards = generateWeaponCardsForWeaponId(itemId, {
       baseDamage: baseDmg,
       idPrefix: `${combatant.id}_${itemId}`
     })
 
     cards.forEach((c) => {
+      // Ammo logic: firearms consume ammo, grenades consume ammo (since they are consumables)
+      const ammoCost = (isRanged || isExplosive) ? 1 : 0
+
+      // Impact logic: heavier/more powerful cards deal more stagger
+      // Base impact + multiplier of damage
+      const calculatedImpact = c.type === 'attack' ? (c.impact || 10) + Math.floor(c.damage * 0.5) : 0
+
       hand.push({
         id: c.id,
         ownerId: combatant.id,
@@ -62,9 +70,9 @@ export function generateDeckForCombatant(combatant: Combatant): CombatCard[] {
         type: c.type,
         apCost: c.apCost,
         staminaCost: c.staminaCost,
-        ammoCost: (itemId === 'hand_cannon' || itemId === 'pistol' || itemId === 'shotgun') ? 1 : 0,
+        ammoCost: c.ammoCost ?? ammoCost,
         damage: c.damage,
-        impact: c.damage > 10 ? 20 : 5, // Basic impact logic for now
+        impact: calculatedImpact,
         damageType: c.damageType,
         optimalRange: c.optimalRange,
         effects: c.effects,

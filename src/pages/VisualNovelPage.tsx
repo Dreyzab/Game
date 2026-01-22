@@ -44,11 +44,14 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
 
   const [floatingEvents, setFloatingEvents] = useState<FloatingTextEvent[]>([])
   const appliedHpDeltaKeyRef = useRef<string | null>(null)
+  const exitSourceRef = useRef<'unknown' | 'ui' | 'unmount'>('unknown')
 
   const [isNicknamePromptOpen, setNicknamePromptOpen] = useState(false)
   const [nicknameDraft, setNicknameDraft] = useState('')
   const [nicknameError, setNicknameError] = useState<string | null>(null)
   const [isNicknameSaving, setNicknameSaving] = useState(false)
+  const fadeOverlayRef = useRef<HTMLDivElement | null>(null)
+  const fadeOverlayLoggedRef = useRef(false)
   const [vnSession, setVnSession] = useState<{
     sceneId: string
     sessionId: string
@@ -105,13 +108,15 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
       const client = authenticatedClient(token || undefined, deviceId)
       const { data, error } = await client.vn.session.start.post({ sceneId })
       if (error) throw error
+      if (!data.sessionId || !data.sessionToken) throw new Error('Invalid session response')
+
       commitNonceRef.current = null
       setVnSession({
         sceneId,
         sessionId: data.sessionId,
         sessionToken: data.sessionToken,
-        stateVersion: data.stateVersion,
-        expiresAt: data.expiresAt,
+        stateVersion: data.stateVersion ?? 0,
+        expiresAt: data.expiresAt ?? Date.now() + 3600000,
       })
       return data
     },
@@ -175,6 +180,110 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
 
   const initialSceneId =
     lockedSceneId ?? routeSceneId ?? vnStateQuery.data?.progress?.currentScene ?? DEFAULT_VN_SCENE_ID
+
+  useEffect(() => {
+    // #region agent log (H1)
+    fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: 'debug-session',
+        runId: 'run1',
+        hypothesisId: 'H1',
+        location: 'VisualNovelPage.tsx:mount',
+        message: 'VisualNovelExperience mounted',
+        data: {
+          initialSceneId,
+          routeSceneId,
+          lockedSceneId: Boolean(lockedSceneId),
+          search: typeof window !== 'undefined' ? window.location.search : '',
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => { })
+    // #endregion
+
+    return () => {
+      // #region agent log (H1)
+      fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: 'debug-session',
+          runId: 'run1',
+          hypothesisId: 'H1',
+          location: 'VisualNovelPage.tsx:unmount',
+          message: 'VisualNovelExperience unmounted',
+          data: { initialSceneId },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => { })
+      // #endregion
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const el = fadeOverlayRef.current
+    if (!el || typeof window === 'undefined') return
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ?? false
+    const cs = window.getComputedStyle(el)
+    // #region agent log (H0)
+    fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: 'debug-session',
+        runId: 'run1',
+        hypothesisId: 'H0',
+        location: 'VisualNovelPage.tsx:fadeOverlay:mount',
+        message: 'Fade overlay computed styles on mount',
+        data: {
+          className: el.className,
+          reduceMotion,
+          animationName: cs.animationName,
+          animationDuration: cs.animationDuration,
+          animationTimingFunction: cs.animationTimingFunction,
+          animationFillMode: cs.animationFillMode,
+          opacity: cs.opacity,
+          backgroundColor: cs.backgroundColor,
+          position: cs.position,
+          zIndex: cs.zIndex,
+          pointerEvents: cs.pointerEvents,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => { })
+    // #endregion
+
+    const onEnd = () => {
+      const after = window.getComputedStyle(el)
+      // #region agent log (H0)
+      fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: 'debug-session',
+          runId: 'run1',
+          hypothesisId: 'H0',
+          location: 'VisualNovelPage.tsx:fadeOverlay:animationend',
+          message: 'Fade overlay animationend fired',
+          data: {
+            animationName: after.animationName,
+            opacity: after.opacity,
+            display: after.display,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => { })
+      // #endregion
+    }
+
+    el.addEventListener('animationend', onEnd)
+    return () => {
+      el.removeEventListener('animationend', onEnd)
+    }
+  }, [])
+
   const initialFlags = useMemo(() => {
     const flags = vnStateQuery.data?.progress?.flags as Record<string, unknown> | undefined
     if (!flags) return []
@@ -352,6 +461,21 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
     if (!isLoaded) return
     if (vnStateQuery.isLoading || vnStateQuery.isError) return
     if (rootSceneId !== initialSceneId) {
+      // #region agent log (H1)
+      fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: 'debug-session',
+          runId: 'run1',
+          hypothesisId: 'H1',
+          location: 'VisualNovelPage.tsx:startSession',
+          message: 'startSession(initialSceneId) because rootSceneId mismatch',
+          data: { rootSceneId, initialSceneId },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => { })
+      // #endregion
       startSession(initialSceneId)
     }
     if (vnSession?.sceneId === initialSceneId) return
@@ -443,11 +567,54 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
   })
 
   const handleExit = useCallback(async () => {
+    // #region agent log (H2)
+    fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: 'debug-session',
+        runId: 'run1',
+        hypothesisId: 'H2',
+        location: 'VisualNovelPage.tsx:handleExit:enter',
+        message: 'handleExit invoked',
+        data: {
+          source: exitSourceRef.current,
+          hasVnSession: Boolean(vnSession),
+          initialSceneId,
+          currentVmSceneId: viewModel.scene.id,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => { })
+    // #endregion
+
     if (!vnSession) {
       console.warn('[VN] Missing session, skipping commit')
       return
     }
     const payload = consumePayload(Date.now())
+    // #region agent log (H2)
+    fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: 'debug-session',
+        runId: 'run1',
+        hypothesisId: 'H2',
+        location: 'VisualNovelPage.tsx:handleExit:consumePayload',
+        message: 'consumePayload called',
+        data: {
+          hadPayload: Boolean(payload),
+          visitedScenes: payload?.visitedScenes?.length ?? 0,
+          choices: payload?.choices?.length ?? 0,
+          addFlags: payload?.addFlags?.length ?? 0,
+          removeFlags: payload?.removeFlags?.length ?? 0,
+          xpDelta: payload?.xpDelta ?? 0,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => { })
+    // #endregion
     if (!payload) return
     await commitMutation.mutateAsync({
       sceneId: viewModel.scene.id,
@@ -467,6 +634,42 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
 
   useEffect(() => {
     return () => {
+      exitSourceRef.current = 'unmount'
+      // #region agent log (H1)
+      fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: 'debug-session',
+          runId: 'run1',
+          hypothesisId: 'H1',
+          location: 'VisualNovelPage.tsx:cleanup',
+          message: 'unmount cleanup: calling handleExitRef.current()',
+          data: { initialSceneId },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => { })
+      // #endregion
+
+      if (import.meta.env.DEV) {
+        // #region agent log (H1)
+        fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId: 'debug-session',
+            runId: 'post-fix',
+            hypothesisId: 'H1',
+            location: 'VisualNovelPage.tsx:cleanup',
+            message: 'DEV mode: skipping auto-commit on unmount (avoid StrictMode destructive cleanup)',
+            data: { initialSceneId },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => { })
+        // #endregion
+        return
+      }
+
       handleExitRef.current().catch((error) => {
         console.error('[VN] Failed to commit progress on unmount', error)
       })
@@ -545,7 +748,10 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
         floatingEvents={floatingEvents}
         onAdvance={viewModel.goNext}
         onChoice={viewModel.choose}
-        onExit={handleExit}
+        onExit={() => {
+          exitSourceRef.current = 'ui'
+          void handleExit()
+        }}
         onAdviceViewed={handleAdviceViewed}
         isCommitting={commitMutation.isPending}
       />
@@ -594,6 +800,38 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
 
       {/* Fade In Overlay */}
       <div
+        ref={(node) => {
+          fadeOverlayRef.current = node
+          if (!node || fadeOverlayLoggedRef.current || typeof window === 'undefined') return
+          fadeOverlayLoggedRef.current = true
+          const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ?? false
+          const cs = window.getComputedStyle(node)
+          const rect = node.getBoundingClientRect()
+          // #region agent log (H0)
+          fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sessionId: 'debug-session',
+              runId: 'run1',
+              hypothesisId: 'H0',
+              location: 'VisualNovelPage.tsx:fadeOverlay:ref',
+              message: 'Fade overlay ref assigned + computed styles',
+              data: {
+                className: node.className,
+                reduceMotion,
+                animationName: cs.animationName,
+                animationDuration: cs.animationDuration,
+                opacity: cs.opacity,
+                backgroundColor: cs.backgroundColor,
+                zIndex: cs.zIndex,
+                rect: { top: rect.top, left: rect.left, width: rect.width, height: rect.height },
+              },
+              timestamp: Date.now(),
+            }),
+          }).catch(() => { })
+          // #endregion
+        }}
         className="fixed inset-0 bg-black pointer-events-none z-[100] animate-fade-out"
         style={{ animationDuration: '1s', animationFillMode: 'forwards' }}
       />

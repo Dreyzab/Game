@@ -9,7 +9,9 @@ export interface WeaponCardTemplate {
   type: CardType
   apCost: number
   staminaCost: number
+  ammoCost?: number
   damageMult: number // Multiplier of weapon base damage
+  impact?: number // Flat impact
   bonusDamage?: number // Flat bonus
   optimalRange: CombatRank[]
   damageType?: DamageType // Override weapon type
@@ -25,7 +27,9 @@ export interface GeneratedWeaponCard {
   type: CardType
   apCost: number
   staminaCost: number
+  ammoCost?: number
   damage: number
+  impact?: number
   damageType: DamageType
   optimalRange: CombatRank[]
   description: string
@@ -74,7 +78,9 @@ export function generateWeaponCardsForWeaponId(
       type: template.type,
       apCost: template.apCost,
       staminaCost: template.staminaCost,
+      ammoCost: template.ammoCost,
       damage,
+      impact: template.impact,
       damageType,
       optimalRange: template.optimalRange,
       description: template.description,

@@ -135,7 +135,7 @@ export const scenarios: Record<string, Scene> = {
       },
       {
         speaker: 'Рассказчик',
-        text: 'Смех разливается по купе. На мгновение все забывают, что за окном — Мертвые Земли, а впереди — неизвестность.',
+        text: 'Смех разливается по купе. На мгновение все забывают, что за окном — аномальные зоны, а впереди — неизвестность.',
       },
     ],
     nextScene: 'prologue_observe_selection',
@@ -601,7 +601,7 @@ export const scenarios: Record<string, Scene> = {
       {
         id: 'prologue_choice_cards',
         text: 'Достать потрёпанную колоду карт (Психика / Азарт).',
-        nextScene: 'prologue_tambour_cards',
+        nextScene: 'prologue_tambour_cards_flavor',
         effects: {
           addFlags: ['prologue_cards'],
           immediate: [
@@ -613,7 +613,7 @@ export const scenarios: Record<string, Scene> = {
       {
         id: 'prologue_choice_knife',
         text: 'Вытащить армейский нож (Сила / Бой).',
-        nextScene: 'prologue_tambour_knife',
+        nextScene: 'prologue_tambour_knife_flavor',
         effects: {
           addFlags: ['prologue_knife'],
           immediate: [
@@ -625,13 +625,11 @@ export const scenarios: Record<string, Scene> = {
       {
         id: 'prologue_choice_smoke',
         text: 'Прикурить последнюю сигарету (Улица / Осторожность).',
-        nextScene: 'prologue_tambour_smoke',
+        nextScene: 'prologue_tambour_smoke_flavor',
         effects: {
           addFlags: ['prologue_smoke'],
           immediate: [
-            // +1 Разум (интерпретируем как +1 к ключевому навыку группы mind: logic)
             { type: 'skill_boost', data: { skillId: 'logic', amount: 1 } },
-            // +2 Знания
             { type: 'skill_boost', data: { skillId: 'knowledge', amount: 2 } },
           ],
         },
@@ -639,9 +637,9 @@ export const scenarios: Record<string, Scene> = {
     ],
   },
 
-  // --- PATH: KNIFE ---
-  prologue_tambour_knife: {
-    id: 'prologue_tambour_knife',
+  // --- FLAVOR SCENES ---
+  prologue_tambour_knife_flavor: {
+    id: 'prologue_tambour_knife_flavor',
     background: TRAIN_KNIFE_BACKGROUND,
     characters: [],
     dialogue: [
@@ -649,84 +647,12 @@ export const scenarios: Record<string, Scene> = {
         speaker: 'Рассказчик',
         text: 'Тяжелая рукоять привычно ложится в ладонь. Ты балансируешь нож, наслаждаясь идеальным равновесием стали.',
       },
-      {
-        speaker: 'Рассказчик',
-        text: 'Вдруг по потолку начинает что-то вибрировать и скрести по направлению к окну.',
-      },
-      {
-        speaker: 'Рассказчик',
-        background: '/images/oknorazbil.png',
-        text: 'Окно тамбура разлетается вдребезги! Монстр просовывает свою голову, и ты можешь рассмотреть его во всей красе. Жуткие конечности, фасеточные глаза, хобот, готовый выстрелить ядом!',
-      },
     ],
-    choices: [
-      {
-        id: 'prologue_knife_reaction',
-        text: 'Метнуть нож!',
-        nextScene: 'prologue_tambour_knife_fight',
-      },
-      {
-        id: 'prologue_knife_kick',
-        text: 'Ударить ногой!',
-        nextScene: 'prologue_tambour_knife_kick',
-      },
-    ],
+    nextScene: 'prologue_scout_encounter',
   },
 
-  prologue_tambour_knife_fight: {
-    id: 'prologue_tambour_knife_fight',
-    background: '/images/oknorazbil.png',
-    characters: [],
-    dialogue: [
-      {
-        speaker: 'Рассказчик',
-        text: 'Лезвие входит точно в цель. Тварь визжит! Ты добиваешь её мощным ударом ноги, отправляя в полёт прочь из поезда.',
-      },
-    ],
-    choices: [
-      {
-        id: 'prologue_knife_post_fight',
-        text: 'Отдышаться.',
-        nextScene: 'prologue_conductor_enter',
-        effects: {
-          addFlags: ['prologue_monster_killed_solo'],
-          xp: 40
-        }
-      }
-    ]
-  },
-
-  prologue_tambour_knife_kick: {
-    id: 'prologue_tambour_knife_kick',
-    background: '/images/oknorazbil.png',
-    characters: [],
-    dialogue: [
-      {
-        speaker: 'Рассказчик',
-        text: 'При попытке просто снести монстра он успевает схватить тебя за ногу. В инерции падения тварь прорезает штанину и впивается в голень.',
-      },
-      {
-        speaker: 'Рассказчик',
-        text: 'Ты, стиснув зубы от боли, вторым ударом всё же выпихиваешь её наружу.',
-      },
-    ],
-    choices: [
-      {
-        id: 'prologue_kick_post_fight',
-        text: 'Перевязать ногу.',
-        nextScene: 'prologue_conductor_enter',
-        effects: {
-          addFlags: ['prologue_monster_kicked'],
-          immediate: [{ type: 'hp_delta', data: { amount: -5 } }],
-          xp: 40
-        }
-      }
-    ]
-  },
-
-  // --- PATH: CARDS ---
-  prologue_tambour_cards: {
-    id: 'prologue_tambour_cards',
+  prologue_tambour_cards_flavor: {
+    id: 'prologue_tambour_cards_flavor',
     background: TRAIN_CARDS_BACKGROUND,
     characters: [],
     dialogue: [
@@ -734,55 +660,12 @@ export const scenarios: Record<string, Scene> = {
         speaker: 'Рассказчик',
         text: 'Карты мелькают в руках. Ты показываешь невидимой публике трюк с исчезновением Туза.',
       },
-      {
-        speaker: 'Рассказчик',
-        text: 'Вдруг по потолку начинает что-то вибрировать. Стекло тамбура взрывается осколками!',
-      },
-      {
-        speaker: 'Рассказчик',
-        background: '/images/oknorazbil.png',
-        text: 'Чудовище врывается внутрь, готовясь к атаке.',
-      },
     ],
-    choices: [
-      {
-        id: 'prologue_cards_reaction',
-        text: 'Фокус "Исчезающий свет" (Фонарик из рукава).',
-        nextScene: 'prologue_tambour_cards_fight',
-      },
-    ],
+    nextScene: 'prologue_scout_encounter',
   },
 
-  prologue_tambour_cards_fight: {
-    id: 'prologue_tambour_cards_fight',
-    background: '/images/oknorazbil.png',
-    characters: [],
-    dialogue: [
-      {
-        speaker: 'Рассказчик',
-        text: 'Резкое движение — и в руке вспыхивает фонарь. Луч бьёт прямо в чувствительные глаза твари. Дезориентация мгновенная!',
-      },
-      {
-        speaker: 'Рассказчик',
-        text: 'Ты используешь момент и выпинываешь ослепленного монстра наружу.',
-      }
-    ],
-    choices: [
-      {
-        id: 'prologue_cards_post_fight',
-        text: 'Спрятать фонарик.',
-        nextScene: 'prologue_conductor_enter',
-        effects: {
-          addFlags: ['prologue_monster_blinded'],
-          xp: 40
-        }
-      }
-    ]
-  },
-
-  // --- PATH: SMOKE ---
-  prologue_tambour_smoke: {
-    id: 'prologue_tambour_smoke',
+  prologue_tambour_smoke_flavor: {
+    id: 'prologue_tambour_smoke_flavor',
     background: TRAIN_CIGAR_BACKGROUND,
     characters: [],
     dialogue: [
@@ -790,179 +673,58 @@ export const scenarios: Record<string, Scene> = {
         speaker: 'Рассказчик',
         text: 'Дым медленно поднимается к потолку. Ты внимательно следишь за тенями за окном.',
       },
+    ],
+    nextScene: 'prologue_scout_encounter',
+  },
+
+  // --- SCOUT ENCOUNTER (Narrative 1vs1) ---
+  prologue_scout_encounter: {
+    id: 'prologue_scout_encounter',
+    background: '/images/oknorazbil.png',
+    characters: [],
+    dialogue: [
       {
-        speaker: 'ЛОГИКА',
-        characterId: 'logic',
-        text: 'Где-то в соседнем проходе скрипит дверь. Слишком уверенно. Это не пассажир — это Проводник.',
+        speaker: 'Рассказчик',
+        text: 'Внезапно поезд содрогается. Сверху доносится скрежет металла.',
       },
       {
-        speaker: 'АНАЛИЗ',
-        characterId: 'knowledge',
-        text: 'Постукивания сверху. По крыше. Ритмично. Кто-то движется над тамбуром.',
+        speaker: 'ВОСПРИЯТИЕ',
+        characterId: 'perception',
+        text: 'Стекло вибрирует. Оно здесь.',
       },
       {
         speaker: 'Рассказчик',
-        background: '/images/oknorazbil.png',
-        text: 'Твоё чутьё вопит об опасности за секунду до удара. Стекло лопается!',
-      },
-      {
-        speaker: 'Рассказчик',
-        background: '/images/oknorazbil.png',
-        text: 'Существо раздувает ноздри, готовясь плюнуть кислотой!',
+        text: 'Окно тамбура разлетается вдребезги! В клубах морозного пара внутрь вваливается мутант-разведчик. Мелкий, быстрый, с хищными фасеточными глазами.',
       },
     ],
     choices: [
       {
-        id: 'prologue_smoke_reaction',
-        text: 'Бросить сигарету, сбивая прицел!',
-        nextScene: 'prologue_tambour_smoke_fight',
-      },
-      {
-        id: 'prologue_smoke_grab_trunk',
-        text: 'Схватить за хобот!',
-        nextScene: 'prologue_tambour_smoke_grab',
+        id: 'prologue_scout_fight_action',
+        text: 'Убить тварь!',
+        nextScene: 'prologue_scout_defeat_narrative',
         effects: {
-          immediate: [{ type: 'hp_delta', data: { amount: -5 } }],
-        },
-      },
-      {
-        id: 'prologue_smoke_escape',
-        text: 'Попытаться сбежать.',
-        nextScene: 'prologue_tambour_smoke_escape',
-        effects: {
-          addFlags: ['prologue_acid_burn'],
-          immediate: [{ type: 'hp_delta', data: { amount: -5 } }],
-        },
-      },
-    ],
-  },
-
-  prologue_tambour_smoke_grab: {
-    id: 'prologue_tambour_smoke_grab',
-    background: '/images/oknorazbil.png',
-    characters: [{ id: 'conductor', name: 'Проводник', position: 'right' }],
-    dialogue: [
-      {
-        speaker: 'Рассказчик',
-        text: 'Ты хватаешь существо за хобот и, напрягаясь всем телом, разворачиваешь его в сторону.',
-      },
-      {
-        speaker: 'Рассказчик',
-        text: 'Едкая жижа ударяет в стену и начинает шипеть при контакте с поверхностью.',
-      },
-      {
-        speaker: 'Рассказчик',
-        text: 'Ты чувствуешь, как одна из лап врезается тебе в бок и острую боль после удара.',
-      },
-      {
-        speaker: 'Рассказчик',
-        text: 'В этот момент дверь распахивается — в тамбур влетает Проводник.',
-      },
-      {
-        speaker: 'Герой',
-        text: 'ФОНАРЬ!',
-      },
-      {
-        speaker: 'Рассказчик',
-        text: 'Проводник включает прожектор, ослепляя тварь. Ты ловишь момент и ударом ноги отправляешь её прочь — в ночь за окном.'
-      },
-    ],
-    nextScene: 'prologue_coupe_start',
-  },
-
-  prologue_tambour_smoke_escape: {
-    id: 'prologue_tambour_smoke_escape',
-    background: '/images/oknorazbil.png',
-    characters: [{ id: 'conductor', name: 'Проводник', position: 'right' }],
-    dialogue: [
-      {
-        speaker: 'Рассказчик',
-        text: 'Ты ловко распахиваешь дверь и просачиваешься в проход.',
-      },
-      {
-        speaker: 'Рассказчик',
-        text: 'Но в судорожной попытке захлопнуть её — едкая жижа, выпущенная тварью, пролетает в щель и попадает тебе в шею.',
-      },
-      {
-        speaker: 'Рассказчик',
-        text: 'Ощущение — как раскалённые капли металла. Дыхание сбивается, глаза слезятся.',
-      },
-      {
-        speaker: 'Проводник',
-        text: 'Что случилось?',
-      },
-      {
-        speaker: 'Рассказчик',
-        text: 'Раздаётся за твоей спиной голос мужчины средних лет.',
-      },
-      {
-        speaker: 'Герой',
-        text: 'Там монстр! Он разбил стекло и пытается пролезть!',
-      },
-      {
-        speaker: 'Проводник',
-        text: 'Ты резко открываешь, а я слеплю фонарём и приложу дубинкой!',
-      },
-      {
-        speaker: 'Рассказчик',
-        text: 'Монстр уже наполовину протиснулся в оконную раму. Проводник просовывает руку внутрь и включает свет.',
-      },
-      {
-        speaker: 'Проводник',
-        text: 'Резкий и яркий свет заставляет монстра биться в конвульсиях, и проводник, не теряя времени, наносит удар телескопической дубинкой.',
-      },
-      {
-        speaker: 'Рассказчик',
-        text: 'Тварь вылетает из окна, а вы спешно захлопываете то, что осталось от рамы.',
-      },
-    ],
-    choices: [
-      {
-        id: 'prologue_smoke_escape_post',
-        text: 'Кивнуть проводнику.',
-        nextScene: 'prologue_conductor_dialogue_plan',
-        effects: {
-          xp: 40
+          xp: 20
         }
       }
     ]
   },
 
-  prologue_tambour_smoke_fight: {
-    id: 'prologue_tambour_smoke_fight',
+  prologue_scout_defeat_narrative: {
+    id: 'prologue_scout_defeat_narrative',
     background: '/images/oknorazbil.png',
-    characters: [{ id: 'conductor', name: 'Проводник', position: 'right' }],
+    characters: [],
     dialogue: [
       {
-        speaker: 'Герой',
-        text: 'Тут монстр! Нужен ФОНАРЬ!',
+        speaker: 'Рассказчик',
+        text: 'Ты реагируешь мгновенно. Удар, еще удар! Тварь визжит и вываливается обратно в разбитое окно, исчезая в темноте туннеля.',
       },
       {
         speaker: 'Рассказчик',
-        text: 'Тлеющий бычок летит в глаз монстра, заставляя его биться в конвульсиях. Ты хватаешь хобот и направляешь зелёный плевок в сторону.',
+        text: 'Сердце колотится где-то в горле. Это было... слишком близко.',
       },
-      {
-        speaker: 'Рассказчик',
-        text: 'В ту же секунду дверь распахивается — Проводник с мощным прожектором заливает тамбур светом.',
-      },
-      {
-        speaker: 'Рассказчик',
-        text: 'Монстр, ослепленный и сбитый с толку, получает удар ногой и вылетает в ночь.',
-      }
     ],
-    choices: [
-      {
-        id: 'prologue_smoke_post_fight',
-        text: 'Кивнуть проводнику.',
-        nextScene: 'prologue_conductor_dialogue_plan',
-        effects: {
-          addFlags: ['prologue_conductor_saved'],
-          xp: 40
-        }
-      }
-    ]
+    nextScene: 'prologue_conductor_enter',
   },
-
 
   // ============================================================================
   // STAGE 3: ESCORT & CRISIS
@@ -1107,52 +869,33 @@ export const scenarios: Record<string, Scene> = {
       {
         speaker: 'Рассказчик',
         text: 'Она огромная. Хитин блестит как броня танка. Это не разведчик. Это Палач. Вы понимаете, что ситуация не на вашей стороне.',
-      }
+      },
+      {
+        speaker: 'Проводник',
+        characterId: 'conductor',
+        text: 'Я прикрою! Уводите гражданских! У меня есть чем его встретить!',
+      },
     ],
     choices: [
       {
-        id: 'prologue_boss_reaction',
-        text: 'Приготовиться к худшему.',
-        nextScene: 'prologue_bruno_boom',
-      }
-    ]
-  },
-
-  prologue_bruno_boom: {
-    id: 'prologue_bruno_boom',
-    background: '/images/backgrounds/NashelLeny.png',
-    characters: [{ id: 'bruno', name: 'Бруно Вебер', position: 'left' }],
-    dialogue: [
-      {
-        speaker: 'Рассказчик',
-        text: ' Монстр отбрасывает пасажиров на своём пути без промедления приближаясь к вам.',
-      },
-      {
-        speaker: 'Бруно Вебер',
-        text: 'Эй, чудовище! Лови "привет" из Зоны Гамма!',
-      },
-      {
-        speaker: 'Рассказчик',
-        text: 'Бруно швыряет связку самодельных трубок на шею монстра. ВЗРЫВ! Вагон наполняется едким дымом.',
-      },
-      {
-        speaker: 'Рассказчик',
-        text: 'Тварь ревёт. Ей оторвало часть щупалец, броня треснула, но она всё ещё жива. И она в ярости.',
-      }
-    ],
-    choices: [
-      {
-        id: 'prologue_start_tutorial_boss',
-        text: 'Добить её! (Бой с боссом)',
+        id: 'prologue_boss_fight_start',
+        text: '[БОЙ] Принять бой! (4 vs 1)',
+        presentation: {
+          color: 'negative',
+          icon: '⚔️',
+          tooltip: 'Начать битву с Экзекутором. Проводник участвует в бою.',
+        },
         effects: {
-          immediate: [{
-            type: 'start_tutorial_battle',
-            data: {
-              returnScene: 'prologue_fjr_storming', // Изменено: переход к сцене с FJR
-              defeatScene: 'prologue_defeat',
-              enemyKey: 'boss_train_prologue'
+          immediate: [
+            {
+              type: 'start_combat',
+              data: {
+                enemyKey: 'boss_train_prologue',
+                returnScene: 'prologue_fjr_storming',
+                defeatScene: 'prologue_defeat'
+              }
             }
-          }]
+          ]
         }
       }
     ]
@@ -1251,7 +994,7 @@ export const scenarios: Record<string, Scene> = {
       {
         id: 'try_again',
         text: 'Попробовать снова',
-        nextScene: 'prologue_awakening' // Или рестарт боя
+        nextScene: 'prologue_otto_warning'
       }
     ]
   }

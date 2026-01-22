@@ -214,6 +214,27 @@ export function useVisualNovelViewModel(
       // Resolve FQN or END relative to current scene
       const resolvedTarget = resolveNavigation(scene.id, nextSceneId)
 
+      // #region agent log (H7)
+      fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: 'debug-session',
+          runId: 'run1',
+          hypothesisId: 'H7',
+          location: 'useVisualNovelViewModel.ts:goToScene',
+          message: 'goToScene resolution + existence check',
+          data: {
+            currentSceneId: scene.id,
+            requested: nextSceneId,
+            resolvedTarget,
+            existsInFlatRegistry: typeof resolvedTarget === 'string' ? Boolean(VISUAL_NOVEL_SCENES[resolvedTarget]) : null,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => { })
+      // #endregion
+
       if (resolvedTarget === 'END') {
         log('[VN] goToScene: END signal received')
         setSceneCompleted(true)

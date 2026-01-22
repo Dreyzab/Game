@@ -3,6 +3,30 @@
   display: flex;
 }
 
+/* ------------------------------------------------------------
+   Global animations (used outside Tailwind defaults)
+   ------------------------------------------------------------ */
+
+@keyframes fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.animate-fade-out {
+  animation: fade-out 1s ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-out {
+    animation: none !important;
+    opacity: 0 !important;
+  }
+}
+
 .flex-col {
   flex-direction: column;
 }

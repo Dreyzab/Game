@@ -246,6 +246,7 @@ const battleReducer = (state: BattleSession, action: BattleAction): BattleSessio
             const enemyName = enemy.name.toLowerCase()
             const isSmallScorpion = enemyName.includes('мал') && enemyName.includes('скор')
             const isMediumScorpion = enemyName.includes('сред') && enemyName.includes('скор')
+            const isExecutioner = enemyName.includes('executioner') || enemyName.includes('экзекутор') || enemyName.includes('палач')
 
             const applyDamage = (
                 playerId: string,
@@ -281,7 +282,20 @@ const battleReducer = (state: BattleSession, action: BattleAction): BattleSessio
             let damageDealt = 0
             const distance = distanceTo(target)
 
-            if (isMediumScorpion && distance <= 3) {
+            if (isExecutioner) {
+                if (distance <= 1) {
+                    // Massive Melee
+                    damageDealt += applyDamage(target.id, { accuracy: 80, baseDamage: 30, label: 'Executioner\'s Axe' })
+                } else if (distance <= 2) {
+                    // Reach Attack
+                    damageDealt += applyDamage(target.id, { accuracy: 70, baseDamage: 20, label: 'Rusty Chain' })
+                } else {
+                    // Advance
+                    enemies[enemyIndex] = { ...enemies[enemyIndex], rank: Math.max(1, enemy.rank - 1) }
+                    nextLogs.push(`${enemy.name} charges forward!`)
+                }
+            } else if (isMediumScorpion && distance <= 3) {
+                // ... existing scorpion logic ...
                 const inRange = sortedTargets.filter((p) => distanceTo(p) <= 3).slice(0, 2)
                 if (inRange.length >= 2) {
                     nextLogs.push(`${enemy.name} lashes out with its tail!`)
@@ -384,36 +398,63 @@ const battleReducer = (state: BattleSession, action: BattleAction): BattleSessio
                 players[playerIndex] = nextPlayer
                 nextAttacksInTurn++
 
-                // Perform hit roll with dodge system
-                const attackResult = rollAttack(nextPlayer, enemy, 75) // Player base accuracy 75%
+                // --- DAMAGE CALCULATION & APPLICATION ---
+                const applyAttack = (targetEnemy: Combatant, isMainTarget: boolean) => {
+                    const idx = enemies.findIndex(e => e.id === targetEnemy.id)
+                    if (idx < 0 || enemies[idx].isDead) return
 
-                if (attackResult.hit) {
-                    let damage = Math.floor(card.damage - enemy.armor)
-                    damage = Math.max(1, damage)
+                    const attackResult = rollAttack(nextPlayer, targetEnemy, 75) // Base ACC
 
-                    // Impact Logic
-                    let nextStagger = enemy.resources.stagger - card.impact
-                    if (nextStagger <= 0) {
-                        nextStagger = 0
-                        // Bonus damage or effect can be added here
-                        nextLogs.push(`${enemy.name} is STAGGERED!`)
-                        if (onEvent) onEvent(enemy.id, 'STAGGERED!', 'debuff')
+                    if (attackResult.hit) {
+                        let damage = Math.floor(card.damage - targetEnemy.armor)
+                        // Explosives/Grenades often ignore armor or have piercing? 
+                        // For now standard armor reduction, but ensure min 1 damage
+                        damage = Math.max(1, damage)
+
+                        // Impact Logic
+                        let nextStagger = targetEnemy.resources.stagger - card.impact
+                        if (nextStagger <= 0) {
+                            nextStagger = 0
+                            nextLogs.push(`${targetEnemy.name} is STAGGERED!`)
+                            if (onEvent) onEvent(targetEnemy.id, 'STAGGERED!', 'debuff')
+                        }
+
+                        const nextHp = Math.max(0, targetEnemy.resources.hp - damage)
+                        enemies[idx] = {
+                            ...targetEnemy,
+                            resources: { ...targetEnemy.resources, hp: nextHp, stagger: nextStagger },
+                            isDead: nextHp <= 0,
+                        }
+
+                        if (nextHp <= 0 && targetEnemy.name === 'Rail Scorpion') onUnlockObj('scorpion_slayer')
+
+                        const logMsg = isMainTarget
+                            ? `${nextPlayer.name} uses ${card.name}: ${damage} DMG to ${targetEnemy.name}!`
+                            : `...Splash hits ${targetEnemy.name} for ${damage} DMG!`
+
+                        nextLogs.push(logMsg)
+                        if (onEvent) onEvent(targetEnemy.id, `-${damage}`, 'damage')
+                    } else {
+                        if (isMainTarget) {
+                            nextLogs.push(`${targetEnemy.name} dodges ${nextPlayer.name}'s ${card.name}!`)
+                            if (onEvent) onEvent(targetEnemy.id, 'DODGE!', 'miss')
+                        }
                     }
-
-                    const nextHp = Math.max(0, enemy.resources.hp - damage)
-                    enemies[targetIndex] = {
-                        ...enemy,
-                        resources: { ...enemy.resources, hp: nextHp, stagger: nextStagger },
-                        isDead: nextHp <= 0,
-                    }
-
-                    if (nextHp <= 0 && enemy.name === 'Rail Scorpion') onUnlockObj('scorpion_slayer')
-                    nextLogs.push(`${nextPlayer.name} uses ${card.name}: ${damage} DMG to ${enemy.name}! (roll: ${attackResult.roll}/${attackResult.needed})`)
-                    if (onEvent) onEvent(enemy.id, `-${damage}`, 'damage')
-                } else {
-                    nextLogs.push(`${enemy.name} dodges ${nextPlayer.name}'s ${card.name}! (${attackResult.dodgeChance}% dodge from ${enemy.resources.ap} AP)`)
-                    if (onEvent) onEvent(enemy.id, 'DODGE!', 'miss')
                 }
+
+                // Check for AOE
+                const isAoeRank = card.effects?.some((e: any) => e.type === 'aoe_rank')
+
+                if (isAoeRank) {
+                    // Hit all enemies in the same rank
+                    const enemiesInRank = enemies.filter(e => !e.isDead && e.rank === enemy.rank)
+                    nextLogs.push(`${card.name} explodes at Rank ${enemy.rank}!`)
+                    enemiesInRank.forEach(e => applyAttack(e, e.id === enemy.id))
+                } else {
+                    // Single Target
+                    applyAttack(enemy, true)
+                }
+
             } else if (card.type === CardType.MOVEMENT) {
                 const desiredRank = target?.type === 'player-rank' ? target.rank : actingPlayer.rank - 1
                 const isAdjacent = Math.abs(desiredRank - actingPlayer.rank) === 1
@@ -436,17 +477,43 @@ const battleReducer = (state: BattleSession, action: BattleAction): BattleSessio
 
                 players[playerIndex] = { ...nextPlayer, rank: desiredRank }
                 nextLogs.push(`${nextPlayer.name} repositions to rank ${desiredRank}.`)
+
             } else if (card.type === CardType.VOICE) {
                 const nextPlayer = spendCosts(actingPlayer)
-                players[playerIndex] = {
-                    ...nextPlayer,
-                    resources: {
-                        ...nextPlayer.resources,
-                        stamina: Math.min(nextPlayer.resources.maxStamina, nextPlayer.resources.stamina + 30),
-                    },
+
+                // CHECK FOR HEAL EFFECT
+                const healEffect = card.effects?.find((e: any) => e.type === 'heal')
+
+                if (healEffect && typeof healEffect.value === 'number') {
+                    // Heal Self (Since VOICE usually self-targets or team-targets)
+                    // For now assume Self-target if no target specified, or support nearby?
+                    // Medkit usually implies "First Aid" self or ally.
+                    // But CardType.VOICE usually targets SELF in this engine.
+                    // We will apply to self (actingPlayer).
+
+                    const amount = healEffect.value
+                    const newHp = Math.min(nextPlayer.resources.maxHp, nextPlayer.resources.hp + amount)
+
+                    players[playerIndex] = {
+                        ...nextPlayer,
+                        resources: { ...nextPlayer.resources, hp: newHp }
+                    }
+
+                    nextLogs.push(`${nextPlayer.name} uses ${card.name}: Heals ${amount} HP.`)
+                    if (onEvent) onEvent(actingPlayer.id, `+${amount}`, 'heal')
+
+                } else {
+                    // Fallback to Stamina Boost (Original Logic)
+                    players[playerIndex] = {
+                        ...nextPlayer,
+                        resources: {
+                            ...nextPlayer.resources,
+                            stamina: Math.min(nextPlayer.resources.maxStamina, nextPlayer.resources.stamina + 30),
+                        },
+                    }
+                    nextLogs.push(`${players[playerIndex].name} stabilizes vitals.`)
+                    if (onEvent) onEvent(actingPlayer.id, '+30 STM', 'heal')
                 }
-                nextLogs.push(`${players[playerIndex].name} stabilizes vitals.`)
-                if (onEvent) onEvent(actingPlayer.id, '+30 STM', 'heal')
             } else if (card.type === CardType.ANALYSIS) {
                 const enemyId = target?.type === 'enemy' ? target.enemyId : selectedTargetId
                 const targetIndex = enemies.findIndex((e) => e.id === enemyId)

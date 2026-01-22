@@ -81,6 +81,36 @@ export function resolveNavigation(currentSceneIdContext: string | undefined, tar
     const resolved = GLOBAL_SCENE_REGISTRY.resolve(currentChapterId, targetId)
     if (!resolved) return undefined
 
+    // #region agent log (H6)
+    if (typeof fetch === 'function') {
+      fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: 'debug-session',
+          runId: 'run1',
+          hypothesisId: 'H6',
+          location: 'scenes.ts:resolveNavigation:resolved',
+          message: 'Registry resolved navigation target',
+          data: {
+            currentSceneIdContext,
+            currentChapterId,
+            targetId,
+            resolvedId: (resolved as any)?.id,
+            resolvedIdHasColon: typeof (resolved as any)?.id === 'string' ? (resolved as any).id.includes(':') : null,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => { })
+    }
+    // #endregion
+
+    // If the registry already returned a fully-qualified id, trust it as-is.
+    // This prevents accidental double-prefixing like "prologue:prologue:scene".
+    if (resolved.id.includes(':')) {
+      return resolved.id
+    }
+
     // Reconstruct FQN
     // If we resolved it locally, it's in currentChapterId
     if (currentChapterId && GLOBAL_SCENE_REGISTRY.resolve(currentChapterId, targetId) === resolved) {

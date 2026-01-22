@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
     CharacterGroup,
@@ -63,12 +63,38 @@ export const VNScreen: React.FC<VNScreenProps> = ({
     // --- Background Transition Logic ---
     const [bgImage, setBgImage] = useState(scene.background)
     const [panClass, setPanClass] = useState('')
+    const videoProgressLoggedRef = useRef(false)
+    const videoFrameSampledRef = useRef(false)
+    const isVideoBg = Boolean(bgImage && (bgImage.endsWith('.mp4') || bgImage.endsWith('.webm')))
 
     useEffect(() => {
         if (scene.background) {
             setBgImage(scene.background)
         }
     }, [scene.background])
+
+    useEffect(() => {
+        // #region agent log (H3)
+        fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                sessionId: 'debug-session',
+                runId: 'run1',
+                hypothesisId: 'H3',
+                location: 'VNScreen.tsx:bg',
+                message: 'Background resolved',
+                data: {
+                    sceneId: scene.id,
+                    sceneBg: scene.background,
+                    bgImage,
+                    isVideo: Boolean(bgImage && (bgImage.endsWith('.mp4') || bgImage.endsWith('.webm'))),
+                },
+                timestamp: Date.now(),
+            }),
+        }).catch(() => { })
+        // #endregion
+    }, [bgImage, scene.background, scene.id])
 
     // Determine pan class based on image aspect ratio
     const handleImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -158,20 +184,189 @@ export const VNScreen: React.FC<VNScreenProps> = ({
                     className="absolute inset-0 z-0"
                 >
                     {bgImage && (
-                        bgImage.endsWith('.mp4') || bgImage.endsWith('.webm') ? (
+                        isVideoBg ? (
                             <video
                                 src={bgImage}
                                 autoPlay
                                 loop
                                 muted
                                 playsInline
-                                className="w-full h-full object-cover brightness-[0.6]"
+                                onLoadedData={() => {
+                                    // #region agent log (H3)
+                                    fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                            sessionId: 'debug-session',
+                                            runId: 'run1',
+                                            hypothesisId: 'H3',
+                                            location: 'VNScreen.tsx:video:onLoadedData',
+                                            message: 'Background video loaded',
+                                            data: { src: bgImage },
+                                            timestamp: Date.now(),
+                                        }),
+                                    }).catch(() => { })
+                                    // #endregion
+                                }}
+                                onPlaying={(e) => {
+                                    const target = e.currentTarget
+                                    // #region agent log (H4)
+                                    fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                            sessionId: 'debug-session',
+                                            runId: 'run1',
+                                            hypothesisId: 'H4',
+                                            location: 'VNScreen.tsx:video:onPlaying',
+                                            message: 'Background video is playing',
+                                            data: {
+                                                src: bgImage,
+                                                currentTime: target.currentTime,
+                                                paused: target.paused,
+                                                readyState: target.readyState,
+                                                videoWidth: target.videoWidth,
+                                                videoHeight: target.videoHeight,
+                                            },
+                                            timestamp: Date.now(),
+                                        }),
+                                    }).catch(() => { })
+                                    // #endregion
+                                }}
+                                onTimeUpdate={(e) => {
+                                    if (videoProgressLoggedRef.current) return
+                                    const target = e.currentTarget
+                                    if (target.currentTime < 0.25) return
+                                    videoProgressLoggedRef.current = true
+                                    // #region agent log (H4)
+                                    fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                            sessionId: 'debug-session',
+                                            runId: 'run1',
+                                            hypothesisId: 'H4',
+                                            location: 'VNScreen.tsx:video:onTimeUpdate',
+                                            message: 'Background video time progressed',
+                                            data: {
+                                                src: bgImage,
+                                                currentTime: target.currentTime,
+                                                paused: target.paused,
+                                            },
+                                            timestamp: Date.now(),
+                                        }),
+                                    }).catch(() => { })
+                                    // #endregion
+
+                                    if (videoFrameSampledRef.current) return
+                                    videoFrameSampledRef.current = true
+                                    try {
+                                        const canvas = document.createElement('canvas')
+                                        const w = 48
+                                        const h = 27
+                                        canvas.width = w
+                                        canvas.height = h
+                                        const ctx = canvas.getContext('2d', { willReadFrequently: true })
+                                        if (!ctx) throw new Error('No 2D context')
+                                        ctx.drawImage(target, 0, 0, w, h)
+                                        const img = ctx.getImageData(0, 0, w, h).data
+                                        let sum = 0
+                                        let min = 255
+                                        let max = 0
+                                        for (let i = 0; i < img.length; i += 4) {
+                                            const lum = (img[i] + img[i + 1] + img[i + 2]) / 3
+                                            sum += lum
+                                            if (lum < min) min = lum
+                                            if (lum > max) max = lum
+                                        }
+                                        const avg = sum / (w * h)
+                                        // #region agent log (H5)
+                                        fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({
+                                                sessionId: 'debug-session',
+                                                runId: 'run1',
+                                                hypothesisId: 'H5',
+                                                location: 'VNScreen.tsx:video:frameSample',
+                                                message: 'Sampled video frame luminance',
+                                                data: {
+                                                    src: bgImage,
+                                                    currentTime: target.currentTime,
+                                                    avgLum: Number(avg.toFixed(2)),
+                                                    minLum: min,
+                                                    maxLum: max,
+                                                    size: `${w}x${h}`,
+                                                },
+                                                timestamp: Date.now(),
+                                            }),
+                                        }).catch(() => { })
+                                        // #endregion
+                                    } catch (err: any) {
+                                        // #region agent log (H5)
+                                        fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({
+                                                sessionId: 'debug-session',
+                                                runId: 'run1',
+                                                hypothesisId: 'H5',
+                                                location: 'VNScreen.tsx:video:frameSample',
+                                                message: 'Failed to sample video frame luminance',
+                                                data: { src: bgImage, currentTime: target.currentTime, error: String(err?.message ?? err) },
+                                                timestamp: Date.now(),
+                                            }),
+                                        }).catch(() => { })
+                                        // #endregion
+                                    }
+                                }}
+                                onError={(e) => {
+                                    const target = e.currentTarget
+                                    // #region agent log (H3)
+                                    fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                            sessionId: 'debug-session',
+                                            runId: 'run1',
+                                            hypothesisId: 'H3',
+                                            location: 'VNScreen.tsx:video:onError',
+                                            message: 'Background video failed to load',
+                                            data: {
+                                                src: bgImage,
+                                                networkState: target.networkState,
+                                                readyState: target.readyState,
+                                                currentSrc: target.currentSrc,
+                                            },
+                                            timestamp: Date.now(),
+                                        }),
+                                    }).catch(() => { })
+                                    // #endregion
+                                }}
+                                className="w-full h-full object-cover brightness-[0.85]"
                             />
                         ) : (
                             <motion.img
                                 src={bgImage}
                                 alt="background"
                                 onLoad={handleImageLoad}
+                                onError={() => {
+                                    // #region agent log (H3)
+                                    fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                            sessionId: 'debug-session',
+                                            runId: 'run1',
+                                            hypothesisId: 'H3',
+                                            location: 'VNScreen.tsx:img:onError',
+                                            message: 'Background image failed to load',
+                                            data: { src: bgImage },
+                                            timestamp: Date.now(),
+                                        }),
+                                    }).catch(() => { })
+                                    // #endregion
+                                }}
                                 animate={{ objectPosition: cameraPosition }}
                                 transition={{ duration: 0.8, ease: 'easeInOut' }}
                                 className={`w-full h-full object-cover brightness-[0.6] ${cameraPosition === 'center center' ? panClass : ''}`}
@@ -182,7 +377,7 @@ export const VNScreen: React.FC<VNScreenProps> = ({
             </AnimatePresence>
 
             {/* VFX Layer (Optional, can be driven by scene flags or effects) */}
-            <VFXOverlay />
+            <VFXOverlay disableVignette={isVideoBg} />
 
             {/* Characters Layer */}
             <CharacterSprites
