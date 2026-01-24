@@ -601,7 +601,7 @@ export const scenarios: Record<string, Scene> = {
       {
         id: 'prologue_choice_cards',
         text: 'Достать потрёпанную колоду карт (Психика / Азарт).',
-        nextScene: 'prologue_tambour_cards_flavor',
+        nextScene: 'prologue_tambour_cards',
         effects: {
           addFlags: ['prologue_cards'],
           immediate: [
@@ -613,7 +613,7 @@ export const scenarios: Record<string, Scene> = {
       {
         id: 'prologue_choice_knife',
         text: 'Вытащить армейский нож (Сила / Бой).',
-        nextScene: 'prologue_tambour_knife_flavor',
+        nextScene: 'prologue_tambour_knife',
         effects: {
           addFlags: ['prologue_knife'],
           immediate: [
@@ -625,7 +625,7 @@ export const scenarios: Record<string, Scene> = {
       {
         id: 'prologue_choice_smoke',
         text: 'Прикурить последнюю сигарету (Улица / Осторожность).',
-        nextScene: 'prologue_tambour_smoke_flavor',
+        nextScene: 'prologue_tambour_smoke',
         effects: {
           addFlags: ['prologue_smoke'],
           immediate: [
@@ -637,9 +637,9 @@ export const scenarios: Record<string, Scene> = {
     ],
   },
 
-  // --- FLAVOR SCENES ---
-  prologue_tambour_knife_flavor: {
-    id: 'prologue_tambour_knife_flavor',
+  // --- PATH: KNIFE ---
+  prologue_tambour_knife: {
+    id: 'prologue_tambour_knife',
     background: TRAIN_KNIFE_BACKGROUND,
     characters: [],
     dialogue: [
@@ -647,12 +647,84 @@ export const scenarios: Record<string, Scene> = {
         speaker: 'Рассказчик',
         text: 'Тяжелая рукоять привычно ложится в ладонь. Ты балансируешь нож, наслаждаясь идеальным равновесием стали.',
       },
+      {
+        speaker: 'Рассказчик',
+        text: 'Вдруг по потолку начинает что-то вибрировать и скрести по направлению к окну.',
+      },
+      {
+        speaker: 'Рассказчик',
+        background: '/images/oknorazbil.png',
+        text: 'Окно тамбура разлетается вдребезги! Монстр просовывает свою голову, и ты можешь рассмотреть его во всей красе. Жуткие конечности, фасеточные глаза, хобот, готовый выстрелить ядом!',
+      },
     ],
-    nextScene: 'prologue_scout_encounter',
+    choices: [
+      {
+        id: 'prologue_knife_reaction',
+        text: 'Метнуть нож!',
+        nextScene: 'prologue_tambour_knife_fight',
+      },
+      {
+        id: 'prologue_knife_kick',
+        text: 'Ударить ногой!',
+        nextScene: 'prologue_tambour_knife_kick',
+      },
+    ],
   },
 
-  prologue_tambour_cards_flavor: {
-    id: 'prologue_tambour_cards_flavor',
+  prologue_tambour_knife_fight: {
+    id: 'prologue_tambour_knife_fight',
+    background: '/images/oknorazbil.png',
+    characters: [],
+    dialogue: [
+      {
+        speaker: 'Рассказчик',
+        text: 'Лезвие входит точно в цель. Тварь визжит! Ты добиваешь её мощным ударом ноги, отправляя в полёт прочь из поезда.',
+      },
+    ],
+    choices: [
+      {
+        id: 'prologue_knife_post_fight',
+        text: 'Отдышаться.',
+        nextScene: 'prologue_conductor_enter',
+        effects: {
+          addFlags: ['prologue_monster_killed_solo'],
+          xp: 40,
+        },
+      },
+    ],
+  },
+
+  prologue_tambour_knife_kick: {
+    id: 'prologue_tambour_knife_kick',
+    background: '/images/oknorazbil.png',
+    characters: [],
+    dialogue: [
+      {
+        speaker: 'Рассказчик',
+        text: 'При попытке просто снести монстра он успевает схватить тебя за ногу. В инерции падения тварь прорезает штанину и впивается в голень.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Ты, стиснув зубы от боли, вторым ударом всё же выпихиваешь её наружу.',
+      },
+    ],
+    choices: [
+      {
+        id: 'prologue_kick_post_fight',
+        text: 'Перевязать ногу.',
+        nextScene: 'prologue_conductor_enter',
+        effects: {
+          addFlags: ['prologue_monster_kicked'],
+          immediate: [{ type: 'hp_delta', data: { amount: -5 } }],
+          xp: 40,
+        },
+      },
+    ],
+  },
+
+  // --- PATH: CARDS ---
+  prologue_tambour_cards: {
+    id: 'prologue_tambour_cards',
     background: TRAIN_CARDS_BACKGROUND,
     characters: [],
     dialogue: [
@@ -660,12 +732,55 @@ export const scenarios: Record<string, Scene> = {
         speaker: 'Рассказчик',
         text: 'Карты мелькают в руках. Ты показываешь невидимой публике трюк с исчезновением Туза.',
       },
+      {
+        speaker: 'Рассказчик',
+        text: 'Вдруг по потолку начинает что-то вибрировать. Стекло тамбура взрывается осколками!',
+      },
+      {
+        speaker: 'Рассказчик',
+        background: '/images/oknorazbil.png',
+        text: 'Чудовище врывается внутрь, готовясь к атаке.',
+      },
     ],
-    nextScene: 'prologue_scout_encounter',
+    choices: [
+      {
+        id: 'prologue_cards_reaction',
+        text: 'Фокус "Исчезающий свет" (Фонарик из рукава).',
+        nextScene: 'prologue_tambour_cards_fight',
+      },
+    ],
   },
 
-  prologue_tambour_smoke_flavor: {
-    id: 'prologue_tambour_smoke_flavor',
+  prologue_tambour_cards_fight: {
+    id: 'prologue_tambour_cards_fight',
+    background: '/images/oknorazbil.png',
+    characters: [],
+    dialogue: [
+      {
+        speaker: 'Рассказчик',
+        text: 'Резкое движение — и в руке вспыхивает фонарь. Луч бьёт прямо в чувствительные глаза твари. Дезориентация мгновенная!',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Ты используешь момент и выпинываешь ослепленного монстра наружу.',
+      },
+    ],
+    choices: [
+      {
+        id: 'prologue_cards_post_fight',
+        text: 'Спрятать фонарик.',
+        nextScene: 'prologue_conductor_enter',
+        effects: {
+          addFlags: ['prologue_monster_blinded'],
+          xp: 40,
+        },
+      },
+    ],
+  },
+
+  // --- PATH: SMOKE ---
+  prologue_tambour_smoke: {
+    id: 'prologue_tambour_smoke',
     background: TRAIN_CIGAR_BACKGROUND,
     characters: [],
     dialogue: [
@@ -673,57 +788,187 @@ export const scenarios: Record<string, Scene> = {
         speaker: 'Рассказчик',
         text: 'Дым медленно поднимается к потолку. Ты внимательно следишь за тенями за окном.',
       },
-    ],
-    nextScene: 'prologue_scout_encounter',
-  },
-
-  // --- SCOUT ENCOUNTER (Narrative 1vs1) ---
-  prologue_scout_encounter: {
-    id: 'prologue_scout_encounter',
-    background: '/images/oknorazbil.png',
-    characters: [],
-    dialogue: [
       {
-        speaker: 'Рассказчик',
-        text: 'Внезапно поезд содрогается. Сверху доносится скрежет металла.',
+        speaker: 'ЛОГИКА',
+        characterId: 'logic',
+        text: 'Где-то в соседнем проходе скрипит дверь. Слишком уверенно. Это не пассажир — это Проводник.',
       },
       {
-        speaker: 'ВОСПРИЯТИЕ',
-        characterId: 'perception',
-        text: 'Стекло вибрирует. Оно здесь.',
+        speaker: 'АНАЛИЗ',
+        characterId: 'knowledge',
+        text: 'Постукивания сверху. По крыше. Ритмично. Кто-то движется над тамбуром.',
       },
       {
         speaker: 'Рассказчик',
-        text: 'Окно тамбура разлетается вдребезги! В клубах морозного пара внутрь вваливается мутант-разведчик. Мелкий, быстрый, с хищными фасеточными глазами.',
+        background: '/images/oknorazbil.png',
+        text: 'Твоё чутьё вопит об опасности за секунду до удара. Стекло лопается!',
+      },
+      {
+        speaker: 'Рассказчик',
+        background: '/images/oknorazbil.png',
+        text: 'Существо раздувает ноздри, готовясь плюнуть кислотой!',
       },
     ],
     choices: [
       {
-        id: 'prologue_scout_fight_action',
-        text: 'Убить тварь!',
-        nextScene: 'prologue_scout_defeat_narrative',
+        id: 'prologue_smoke_reaction',
+        text: 'Бросить сигарету, сбивая прицел!',
+        nextScene: 'prologue_tambour_smoke_fight',
+      },
+      {
+        id: 'prologue_smoke_grab_trunk',
+        text: 'Схватить за хобот!',
+        nextScene: 'prologue_tambour_smoke_grab',
         effects: {
-          xp: 20
-        }
-      }
-    ]
+          immediate: [{ type: 'hp_delta', data: { amount: -5 } }],
+        },
+      },
+      {
+        id: 'prologue_smoke_escape',
+        text: 'Попытаться сбежать.',
+        nextScene: 'prologue_tambour_smoke_escape',
+        effects: {
+          addFlags: ['prologue_acid_burn'],
+          immediate: [{ type: 'hp_delta', data: { amount: -5 } }],
+        },
+      },
+    ],
   },
 
-  prologue_scout_defeat_narrative: {
-    id: 'prologue_scout_defeat_narrative',
+  prologue_tambour_smoke_grab: {
+    id: 'prologue_tambour_smoke_grab',
     background: '/images/oknorazbil.png',
-    characters: [],
+    characters: [{ id: 'conductor', name: 'Проводник', position: 'right' }],
     dialogue: [
       {
         speaker: 'Рассказчик',
-        text: 'Ты реагируешь мгновенно. Удар, еще удар! Тварь визжит и вываливается обратно в разбитое окно, исчезая в темноте туннеля.',
+        text: 'Ты хватаешь существо за хобот и, напрягаясь всем телом, разворачиваешь его в сторону.',
       },
       {
         speaker: 'Рассказчик',
-        text: 'Сердце колотится где-то в горле. Это было... слишком близко.',
+        text: 'Едкая жижа ударяет в стену и начинает шипеть при контакте с поверхностью.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Ты чувствуешь, как одна из лап врезается тебе в бок и острую боль после удара.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'В этот момент дверь распахивается — в тамбур влетает Проводник.',
+      },
+      {
+        speaker: 'Герой',
+        text: 'ФОНАРЬ!',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Проводник включает прожектор, ослепляя тварь. Ты ловишь момент и ударом ноги отправляешь её прочь — в ночь за окном.',
       },
     ],
-    nextScene: 'prologue_conductor_enter',
+    choices: [
+      {
+        id: 'prologue_smoke_grab_post',
+        text: 'Кивнуть проводнику.',
+        nextScene: 'prologue_conductor_dialogue_plan',
+        effects: {
+          addFlags: ['prologue_conductor_saved'],
+          xp: 40,
+        },
+      },
+    ],
+  },
+
+  prologue_tambour_smoke_escape: {
+    id: 'prologue_tambour_smoke_escape',
+    background: '/images/oknorazbil.png',
+    characters: [{ id: 'conductor', name: 'Проводник', position: 'right' }],
+    dialogue: [
+      {
+        speaker: 'Рассказчик',
+        text: 'Ты ловко распахиваешь дверь и просачиваешься в проход.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Но в судорожной попытке захлопнуть её — едкая жижа, выпущенная тварью, пролетает в щель и попадает тебе в шею.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Ощущение — как раскалённые капли металла. Дыхание сбивается, глаза слезятся.',
+      },
+      {
+        speaker: 'Проводник',
+        text: 'Что случилось?',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Раздаётся за твоей спиной голос мужчины средних лет.',
+      },
+      {
+        speaker: 'Герой',
+        text: 'Там монстр! Он разбил стекло и пытается пролезть!',
+      },
+      {
+        speaker: 'Проводник',
+        text: 'Ты резко открываешь, а я слеплю фонарём и приложу дубинкой!',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Монстр уже наполовину протиснулся в оконную раму. Проводник просовывает руку внутрь и включает свет.',
+      },
+      {
+        speaker: 'Проводник',
+        text: 'Резкий и яркий свет заставляет монстра биться в конвульсиях, и проводник, не теряя времени, наносит удар телескопической дубинкой.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Тварь вылетает из окна, а вы спешно захлопываете то, что осталось от рамы.',
+      },
+    ],
+    choices: [
+      {
+        id: 'prologue_smoke_escape_post',
+        text: 'Кивнуть проводнику.',
+        nextScene: 'prologue_conductor_dialogue_plan',
+        effects: {
+          xp: 40,
+        },
+      },
+    ],
+  },
+
+  prologue_tambour_smoke_fight: {
+    id: 'prologue_tambour_smoke_fight',
+    background: '/images/oknorazbil.png',
+    characters: [{ id: 'conductor', name: 'Проводник', position: 'right' }],
+    dialogue: [
+      {
+        speaker: 'Герой',
+        text: 'Тут монстр! Нужен ФОНАРЬ!',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Тлеющий бычок летит в глаз монстра, заставляя его биться в конвульсиях. Ты хватаешь хобот и направляешь зелёный плевок в сторону.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'В ту же секунду дверь распахивается — Проводник с мощным прожектором заливает тамбур светом.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Монстр, ослепленный и сбитый с толку, получает удар ногой и вылетает в ночь.',
+      },
+    ],
+    choices: [
+      {
+        id: 'prologue_smoke_post_fight',
+        text: 'Кивнуть проводнику.',
+        nextScene: 'prologue_conductor_dialogue_plan',
+        effects: {
+          addFlags: ['prologue_conductor_saved'],
+          xp: 40,
+        },
+      },
+    ],
   },
 
   // ============================================================================
@@ -733,18 +978,92 @@ export const scenarios: Record<string, Scene> = {
   prologue_conductor_enter: {
     id: 'prologue_conductor_enter',
     background: '/images/arena/boivpoezde.png',
+    characters: [{ id: 'conductor', name: 'Проводник', position: 'center', emotion: { primary: 'serious' } }],
+    dialogue: [
+      // ВАРИАНТ 1: Если игрок убил монстра сам (Нож) или ослепил (Карты)
+      {
+        speaker: 'Проводник',
+        text: 'Твою мать... Ты что, сам его уделал?',
+        condition: { flag: 'prologue_monster_killed_solo' }
+      },
+      {
+        speaker: 'Проводник',
+        text: 'Ловко ты его ослепил! Я уж думал нам обоим конец.',
+        condition: { flag: 'prologue_monster_blinded' }
+      },
+      {
+        speaker: 'Сила',
+        characterId: 'force',
+        text: 'Он смотрит на труп твари, потом на тебя. В его взгляде смесь недоверия и уважения.',
+        condition: { flag: 'prologue_monster_killed_solo' }
+      },
+      {
+        speaker: 'Восприятие',
+        characterId: 'perception',
+        text: 'Он всё еще не до конца верит в произошедшее. Его гвоздомет слегка подрагивает.',
+        condition: { flag: 'prologue_monster_blinded' }
+      },
+
+      // ВАРИАНТ 2: Если проводник спас игрока (Сигарета/Пинок/Побег)
+      {
+        speaker: 'Проводник',
+        text: 'Жить надоело?! Еще секунда — и этот урод переваривал бы твои внутренности!',
+        condition: { flag: 'prologue_conductor_saved' }
+      },
+      {
+        speaker: 'Авторитет',
+        characterId: 'authority',
+        text: 'Он зол. Не на тебя, а на ситуацию. Адреналин бьет ему в голову.',
+        condition: { flag: 'prologue_conductor_saved' }
+      },
+
+      // ОБЩИЙ ТЕКСТ
+      {
+        speaker: 'Проводник',
+        text: 'Это Разведчик. "Стингера". Если он здесь, значит Рой уже прорвал периметр в хвосте поезда.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Мужчина проверяет заряд в тяжелом промышленном гвоздомете, переделанном под оружие. На его форме нашивка "Trans-Logistics Security".',
+      }
+    ],
+    choices: [
+      {
+        id: 'prologue_conductor_ask_plan',
+        text: 'Куда мы идем?',
+        nextScene: 'prologue_conductor_dialogue_plan'
+      },
+      {
+        id: 'prologue_conductor_ask_weapon',
+        text: 'Что это за твари?',
+        nextScene: 'prologue_conductor_lore',
+        effects: {
+          immediate: [{ type: 'skill_boost', data: { skillId: 'knowledge', amount: 1 } }]
+        }
+      }
+    ]
+  },
+
+  prologue_conductor_lore: {
+    id: 'prologue_conductor_lore',
+    background: '/images/arena/boivpoezde.png',
     characters: [{ id: 'conductor', name: 'Проводник', position: 'center' }],
     dialogue: [
       {
         speaker: 'Проводник',
-        text: 'Неплохая реакция, парень! Но это только разведчик. Они сейчас везде полезут.',
+        text: 'Биоморфы. Местные называют их "Жнецами". Жрут электричество и плоть. Обычно они не лезут на движущиеся поезда, но сегодня... сегодня что-то не так.',
       },
+      {
+        speaker: 'ЗНАНИЯ',
+        characterId: 'knowledge',
+        text: 'Аномальная активность в секторе возросла на 200%. Это не случайная атака. Это охота.',
+      }
     ],
     choices: [
       {
-        id: 'prologue_conductor_enter_next',
-        text: 'Что делаем?',
-        nextScene: 'prologue_conductor_dialogue_plan'
+        id: 'prologue_back_to_plan',
+        text: 'Ясно. Какой план?',
+        nextScene: 'prologue_conductor_dialogue_plan',
       }
     ]
   },
@@ -756,69 +1075,147 @@ export const scenarios: Record<string, Scene> = {
     dialogue: [
       {
         speaker: 'Проводник',
-        text: 'Надо двигаться к голове поезда. Собираем всех живых в безопасных вагонах.',
+        text: 'Двигаемся к голове состава. Вагон-ресторан бронирован, там сейчас пункт сбора. Я должен вывести гражданских.',
       },
       {
         speaker: 'Проводник',
-        text: 'И главное — не стрелять без нужды. Шум их только злит и сзывает стаю.',
-      },
-      {
-        speaker: 'Проводник',
-        text: 'Если в вагоне тихо — значит там или порядок, или уже кладбище. Пошли.',
+        text: 'Ты вроде не робкого десятка. Держись за мной, прикрывай тыл. И ради бога — не шуми лишний раз. Они реагируют на вибрацию.',
       }
     ],
     choices: [
       {
-        id: 'prologue_move_to_next_car',
-        text: 'Идти в следующий вагон.',
-        nextScene: 'prologue_next_car_noise',
+        id: 'prologue_move_to_corridor',
+        text: 'Выйти в коридор вагона.',
+        nextScene: 'prologue_transit_corridor',
       }
     ]
   },
 
-  prologue_next_car_noise: {
-    id: 'prologue_next_car_noise',
-    background: '/images/arena/boivpoezde.png',
+  prologue_transit_corridor: {
+    id: 'prologue_transit_corridor',
+    background: '/images/arena/corridor_dark.png',
+    music: 'suspense_theme',
     characters: [],
     dialogue: [
       {
         speaker: 'Рассказчик',
-        text: 'Из следующего вагона доносится грохот. Крик, звон стекла.',
+        text: 'Коридор спального вагона погружен в полумрак. Аварийные лампы мигают, выхватывая из темноты брошенные вещи.',
       },
+      {
+        speaker: 'Восприятие',
+        characterId: 'perception',
+        text: 'Холодный сквозняк по ногам. Где-то выбиты окна. Запах озона смешивается с металлическим привкусом крови.',
+      },
+      {
+        speaker: 'Драма',
+        characterId: 'drama',
+        text: 'Поезд больше не безопасная капсула. Это железная кишка, которую медленно переваривают изнутри.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Впереди, у купе №4, дверь заклинило. Изнутри доносится грохот падающей мебели и женский голос.',
+      },
+      {
+        speaker: 'Лена Рихтер',
+        characterId: 'lena',
+        text: '(Приглушенно) Не подходите! Я сказала, назад!',
+      }
     ],
     choices: [
       {
-        id: 'prologue_open_door_noise',
-        text: 'Выбить дверь!',
-        nextScene: 'prologue_find_lena',
+        id: 'prologue_door_kick',
+        text: 'Выбить дверь ударом ноги! (Сила)',
+        nextScene: 'prologue_find_lena_combat',
+        effects: {
+          addFlags: ['door_kicked'],
+          immediate: [
+            { type: 'skill_check', data: { skillId: 'force', difficulty: 10, success: true } },
+            { type: 'change_stat', data: { statId: 'stress', amount: -5 } }
+          ]
+        }
+      },
+      {
+        id: 'prologue_door_pry',
+        text: 'Поддеть замок ножом/картой (Техника).',
+        nextScene: 'prologue_find_lena_stealth',
+        effects: {
+          addFlags: ['door_picked'],
+          immediate: [
+            { type: 'skill_check', data: { skillId: 'coordination', difficulty: 10, success: true } }
+          ]
+        }
       }
     ]
   },
 
-  prologue_find_lena: {
-    id: 'prologue_find_lena',
+  // Ветка 1: Врываемся с шумом (Агрессивный старт)
+  prologue_find_lena_combat: {
+    id: 'prologue_find_lena_combat',
+    background: '/images/backgrounds/NashelLeny.png',
+    characters: [{ id: 'lena', name: 'Лена Рихтер', position: 'center', emotion: { primary: 'fearful' } }],
+    dialogue: [
+      {
+        speaker: 'Рассказчик',
+        text: 'Дверь слетает с петель от мощного удара. Ты врываешься внутрь.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Лена стоит в углу, закрывая собой раненого пассажира. Она держит в руке ножку от столика как дубинку.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Два мелких мутанта, которые пытались прогрызть обшивку, резко поворачивают головы на шум твоего появления. Ты привлек их внимание на себя!',
+      },
+    ],
+    choices: [
+      {
+        id: 'prologue_start_tutorial_aggressive',
+        text: 'Атаковать тварей! (Обучение: Атака)',
+        effects: {
+          immediate: [{
+            type: 'start_tutorial_battle',
+            data: {
+              enemyKey: 'tutorial_scouts_duo_aggro', // Враги сразу атакуют героя
+              tutorialType: 'aggressive',
+              returnScene: 'prologue_after_tutorial_1'
+            }
+          }]
+        }
+      }
+    ]
+  },
+
+  // Ветка 2: Заходим тихо (Тактический старт)
+  prologue_find_lena_stealth: {
+    id: 'prologue_find_lena_stealth',
     background: '/images/backgrounds/NashelLeny.png',
     characters: [{ id: 'lena', name: 'Лена Рихтер', position: 'center' }],
     dialogue: [
       {
         speaker: 'Рассказчик',
-        text: 'Внутри хаос. Пассажиры забились в углы. Посреди вагона Лена Рихтер "колдует" над раненым. В её руке блестит хирургический зажим... или стилет?',
+        text: 'Замок поддается с тихим щелчком. Ты резко, но бесшумно раздвигаешь двери.',
       },
       {
         speaker: 'Рассказчик',
-        text: 'Окно разбито. В проёмах появляются новые твари. Мелкие, быстрые.',
+        text: 'Внутри двое мутантов загоняют Лену в угол. Они так увлечены жертвой, что не слышат твоего появления.',
+      },
+      {
+        speaker: 'Логика',
+        characterId: 'logic',
+        text: 'Идеальный момент для удара в спину. У тебя есть преимущество.',
       },
     ],
     choices: [
       {
-        id: 'prologue_start_tutorial_1',
-        text: 'К бою! (Учебный бой)',
+        id: 'prologue_start_tutorial_tactical',
+        text: 'Нанести внезапный удар! (Обучение: Инициатива)',
         effects: {
           immediate: [{
             type: 'start_tutorial_battle',
             data: {
-              returnScene: 'prologue_after_tutorial_1', // Победа
-              defeatScene: 'prologue_defeat'            // Поражение (опционально)
+              enemyKey: 'tutorial_scouts_duo_surprise', // Герой бьет первым
+              tutorialType: 'tactical',
+              returnScene: 'prologue_after_tutorial_1'
             }
           }]
         }
@@ -833,65 +1230,194 @@ export const scenarios: Record<string, Scene> = {
   prologue_after_tutorial_1: {
     id: 'prologue_after_tutorial_1',
     background: '/images/backgrounds/NashelLeny.png',
-    characters: [{ id: 'lena', name: 'Лена Рихтер', position: 'right' }],
+    characters: [
+      { id: 'lena', name: 'Лена Рихтер', position: 'right', emotion: { primary: 'relieved' } },
+      { id: 'conductor', name: 'Проводник', position: 'left' }
+    ],
     dialogue: [
       {
+        speaker: 'Рассказчик',
+        text: 'Последняя тварь падает на ковер, дергаясь в предсмертной агонии. В купе повисает тишина, нарушаемая лишь тяжелым дыханием и стуком колес.',
+      },
+      {
         speaker: 'Лена Рихтер',
-        text: 'Вроде пока что отбились. Спасибо за помощь.',
+        text: 'Фух... Спасибо. Я... я пыталась их отогнать, но они слишком быстрые.',
+      },
+      {
+        speaker: 'Эмпатия',
+        characterId: 'empathy',
+        text: 'Ее руки дрожат, когда она убирает скальпель, но взгляд ясный. Она боится, но паника не контролирует её.',
+      },
+      {
+        speaker: 'Проводник',
+        text: 'Док, берите аптечку и валим отсюда. Этот вагон уже списан.',
       },
       {
         speaker: 'Рассказчик',
-        text: 'Лена быстро перевязывает тебе царапину. Её движения точные, профессиональные. Тут вы замечаете открывающуюся дверь позади вас и готовитесь к худшему, однако в проёме появляется Отто.',
+        text: 'Вдруг пол под ногами подпрыгивает. Из дальнего конца коридора, откуда вы пришли, доносится грохот, похожий на взрыв гранаты.',
       }
     ],
     choices: [
       {
-        id: 'prologue_otto_entrance',
-        text: 'Обернуться.',
-        nextScene: 'prologue_otto_warning',
+        id: 'prologue_look_back',
+        text: 'Посмотреть назад.',
+        nextScene: 'prologue_reunion_otto',
       }
     ]
   },
 
-  prologue_otto_warning: {
-    id: 'prologue_otto_warning',
+  prologue_reunion_otto: {
+    id: 'prologue_reunion_otto',
     background: '/images/backgrounds/NashelLeny.png',
-    characters: [{ id: 'otto', name: 'Отто Кляйн', position: 'left' }],
+    music: 'boss_theme_intro',
+    characters: [
+      { id: 'otto', name: 'Отто Кляйн', position: 'center', emotion: { primary: 'shouting' } },
+      { id: 'bruno', name: 'Бруно Вебер', position: 'right', emotion: { primary: 'fearful' } }
+    ],
     dialogue: [
       {
+        speaker: 'Рассказчик',
+        text: 'Дверь в конце вагона распахивается ударом ноги. В клубах дыма появляется Отто. Он тащит за шиворот упирающегося Бруно.',
+      },
+      {
         speaker: 'Отто Кляйн',
-        text: 'С хвоста прёт орда! Надо двигаться дальше, быстро!',
+        text: 'БЕГОМ! ОНО ПРОРВАЛО ОБШИВКУ!',
       },
       {
-        speaker: 'Рассказчик',
-        text: 'В этот момент стену вагона сотрясает чудовищный удар. Из соседнего тамбура выламывая дверь, вваливается Тварь.',
-      },
-      {
-        speaker: 'Рассказчик',
-        text: 'Она огромная. Хитин блестит как броня танка. Это не разведчик. Это Палач. Вы понимаете, что ситуация не на вашей стороне.',
+        speaker: 'Бруно Вебер',
+        text: 'Оно сожрало купе! Прямо вместе со столиком! Господи Иисусе!',
       },
       {
         speaker: 'Проводник',
-        characterId: 'conductor',
-        text: 'Я прикрою! Уводите гражданских! У меня есть чем его встретить!',
+        text: 'В ресторан! Быстро!',
       },
+      {
+        speaker: 'Рассказчик',
+        text: 'Вы не успеваете сделать и шага. Стену справа от вас — толстую сталь вагона — начинает выгибать внутрь. Металл визжит, заклепки отстреливают как пули.',
+      }
     ],
     choices: [
       {
-        id: 'prologue_boss_fight_start',
-        text: '[БОЙ] Принять бой! (4 vs 1)',
+        id: 'prologue_boss_reveal_moment',
+        text: 'Приготовиться!',
+        nextScene: 'prologue_boss_reveal',
+      }
+    ]
+  },
+
+  prologue_boss_reveal: {
+    id: 'prologue_boss_reveal',
+    background: '/images/bosses/executioner_appear.png',
+    characters: [],
+    dialogue: [
+      {
+        speaker: 'Рассказчик',
+        text: 'Сталь лопается. В вагон вваливается кошмар из хитина и мяса. Он огромен — занимает почти весь проход.',
+      },
+      {
+        speaker: 'Энциклопедия',
+        characterId: 'knowledge',
+        text: 'Класс "Палач". Тяжелый штурмовик Роя. Его передние конечности эволюционировали в костяные секиры, способные резать броню.',
+      },
+      {
+        speaker: 'Восприятие',
+        characterId: 'perception',
+        text: 'От него несёт гнилью и перегретым металлом. У него нет глаз, только тепловые сенсоры.',
+      },
+      {
+        speaker: 'Палач',
+        characterId: 'boss_sound',
+        text: '*Издаёт низкий инфразвуковой рев, от которого вибрируют зубы*',
+      },
+      {
+        speaker: 'Отто Кляйн',
+        characterId: 'otto',
+        text: 'В укрытие! Бруно, за спину! Проводник, свет!',
+      }
+    ],
+    choices: [
+      {
+        id: 'prologue_boss_tactic_strength',
+        text: 'Помочь Отто удержать авангард (Сила/Танк).',
+        nextScene: 'prologue_boss_start_combat',
+        effects: {
+          addFlags: ['boss_tactic_tank'],
+          immediate: [{ type: 'skill_boost', data: { skillId: 'force', amount: 2 } }]
+        }
+      },
+      {
+        id: 'prologue_boss_tactic_weakspot',
+        text: 'Искать уязвимости в броне (Восприятие/Крит).',
+        nextScene: 'prologue_boss_start_combat',
+        effects: {
+          addFlags: ['boss_tactic_crit'],
+          immediate: [{ type: 'skill_boost', data: { skillId: 'perception', amount: 2 } }]
+        }
+      },
+      {
+        id: 'prologue_boss_tactic_protect',
+        text: 'Защищать Лену и Бруно (Лидерство/Саппорт).',
+        nextScene: 'prologue_boss_start_combat',
+        effects: {
+          addFlags: ['boss_tactic_support'],
+          immediate: [{ type: 'skill_boost', data: { skillId: 'authority', amount: 2 } }]
+        }
+      }
+    ]
+  },
+
+  prologue_boss_start_combat: {
+    id: 'prologue_boss_start_combat',
+    background: '/images/bosses/executioner_combat.png',
+    characters: [
+      { id: 'conductor', name: 'Проводник', position: 'left' },
+      { id: 'otto', name: 'Отто Кляйн', position: 'right' }
+    ],
+    dialogue: [
+      {
+        speaker: 'Отто Кляйн',
+        text: 'Держу его на себе! Бей по сочленениям!',
+        condition: { flag: 'boss_tactic_tank' }
+      },
+      {
+        speaker: 'Внутренний голос',
+        text: 'Ты замечаешь, что хитин на шее тоньше. Это твой шанс.',
+        condition: { flag: 'boss_tactic_crit' }
+      },
+      {
+        speaker: 'Лена Рихтер',
+        text: 'Я... я постараюсь найти уязвимость в его анатомии! Только не дайте ему подойти!',
+        condition: { flag: 'boss_tactic_support' }
+      },
+
+      {
+        speaker: 'Проводник',
+        text: 'Жрите арматуру, твари!',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Бой неизбежен. Это существо не остановится, пока не убьет вас всех.',
+      }
+    ],
+    choices: [
+      {
+        id: 'start_boss_battle_prologue',
+        text: '[БОЙ] СРАЗИТЬСЯ С ПАЛАЧОМ',
         presentation: {
-          color: 'negative',
-          icon: '⚔️',
-          tooltip: 'Начать битву с Экзекутором. Проводник участвует в бою.',
+          color: 'danger',
+          icon: 'skull',
+          tooltip: 'Сложный бой. Используйте способности союзников.'
         },
         effects: {
           immediate: [
             {
               type: 'start_combat',
               data: {
-                enemyKey: 'boss_train_prologue',
-                returnScene: 'prologue_fjr_storming',
+                enemyKey: 'boss_executioner_prologue',
+                allies: ['otto', 'conductor'],
+                support: ['lena', 'bruno'],
+                background: 'train_corridor_ruined',
+                returnScene: 'prologue_victory_fjr',
                 defeatScene: 'prologue_defeat'
               }
             }
@@ -901,102 +1427,66 @@ export const scenarios: Record<string, Scene> = {
     ]
   },
 
-  // ============================================================================
-  // STAGE 5: FJR DEPLOYMENT & INSPECTION
-  // ============================================================================
-
-  prologue_fjr_storming: {
-    id: 'prologue_fjr_storming',
-    background: '/images/prolog/PosleBoyasbossom.png',
+  prologue_victory_fjr: {
+    id: 'prologue_victory_fjr',
+    background: '/images/cutscenes/fjr_entry.png',
+    music: 'victory_theme_dark',
     characters: [],
     dialogue: [
       {
         speaker: 'Рассказчик',
-        text: 'Монстр повержен. Его туша еще бьется в конвульсиях, когда вагон содрогается от резкого торможения.',
+        text: 'Громадная туша Палача рушится на пол, сотрясая вагон. Зеленая кровь заливает ковролин.',
       },
       {
-        speaker: 'Голос из динамика',
-        text: '«Фрайбург-Центральный. Конечная.»',
-      },
-      {
-        speaker: 'Рассказчик',
-        text: 'Двери тамбура вылетают с грохотом. В вагон врывается штурмовая группа FJR в тяжёлой броне. Красные лазерные целеуказатели разрезают пороховой дым, выискивая цели.',
-      },
-      {
-        speaker: 'Спецназ',
-        text: '(Через вокодер) ОРУЖИЕ НА ПОЛ! ЛИЦОМ К СТЕНЕ!',
-      },
-      {
-        speaker: 'Лена Рихтер',
-        text: 'Здесь раненые! Им нужна срочная помощь!',
+        speaker: 'Отто Кляйн',
+        text: 'Готов... Живучая мразь.',
       },
       {
         speaker: 'Рассказчик',
-        text: 'Лена высоко поднимает руки, показывая медицинский патч на рукаве. Её голос звучит твёрдо, перекрывая шум.',
+        text: 'Вдруг окна вагона-ресторана озаряются ярким прожекторным светом снаружи. Скрежет тормозов заглушает все звуки.',
+      },
+      {
+        speaker: 'Голос из громкоговорителя',
+        text: 'ВНИМАНИЕ! ПОЕЗД ОСТАНОВЛЕН! ВСЕМ ОСТАВАТЬСЯ НА МЕСТАХ! РАБОТАЕТ "FJR"!',
+      },
+      {
+        speaker: 'Проводник',
+        text: 'Наконец-то... Кавалерия прибыла.',
       },
       {
         speaker: 'Рассказчик',
-        text: 'Бруно, сохраняя ледяное спокойствие, медленно опускает руки, незаметно скрывая самодельную бомбу в глубине широкого рукава.',
-      },
-    ],
-    choices: [
-      {
-        id: 'prologue_fjr_surrender',
-        text: 'Поднять руки.',
-        nextScene: 'prologue_fjr_inspection',
-      },
-    ],
-  },
-
-  prologue_fjr_inspection: {
-    id: 'prologue_fjr_inspection',
-    background: '/images/prolog/PosleBoyasbossom.png',
-    characters: [
-      { id: 'fjr_commander', name: 'Командир FJR', position: 'center' }
-    ],
-    dialogue: [
-      {
-        speaker: 'Командир FJR',
-        text: 'Продолжать зачистку поезда! (После отданой команды, он смотрит на останки монстра, потом на вас) Вам дьявольски повезло .',
-      },
-      {
-        speaker: 'Командир FJR',
-        text: 'Медики — осмотреть раненых. Остальные — на выход, живо!',
-      },
-      {
-        speaker: 'Рассказчик',
-        text: 'Вас грубо подхватывают под руки и выталкивают на перрон. Свежий, холодный воздух обдаёт лицо, рассветные лучи освещают людей на перроне.',
-      },
-    ],
-    choices: [
-      {
-        id: 'prologue_to_registration',
-        text: 'Сойти на перрон.',
-        nextScene: 'freiburg_platform_gustav',
-        effects: {
-          addFlags: ['arrived_at_freiburg', 'prologue_complete', 'survived_train_crash'],
-        },
-      },
-    ],
-  },
-
-  prologue_defeat: {
-    id: 'prologue_defeat',
-    background: '/images/prolog/PosleBoyasbossom.png',
-    characters: [],
-    dialogue: [
-      {
-        speaker: 'Рассказчик',
-        text: 'Тьма смыкается. Твой путь заканчивается здесь, в грязном тамбуре поезда, так и не доехавшего до мечты.',
+        text: 'Стекла вылетают внутрь. Люди в черной тактической броне и противогазах врываются в вагон, беря вас на прицел.',
       }
     ],
     choices: [
       {
-        id: 'try_again',
-        text: 'Попробовать снова',
-        nextScene: 'prologue_otto_warning'
+        id: 'prologue_end_chapter',
+        text: 'Поднять руки (Завершить Пролог).',
+        nextScene: 'chapter_1_start',
+        effects: {
+          addFlags: ['prologue_complete', 'survived_train_crash', 'arrived_at_freiburg'],
+          xp: 500
+        }
+      }
+    ]
+  },
+
+  chapter_1_start: {
+    id: 'chapter_1_start',
+    background: '/images/cutscenes/fjr_entry.png',
+    characters: [],
+    dialogue: [
+      {
+        speaker: 'Рассказчик',
+        text: 'Пролог завершен. Добро пожаловать во Фрайбург.',
+      }
+    ],
+    choices: [
+      {
+        id: 'to_platform',
+        text: 'Выйти на перрон.',
+        nextScene: 'freiburg_platform_gustav'
       }
     ]
   }
-
 }

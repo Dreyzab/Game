@@ -58,6 +58,12 @@ export const SEED_MAP_POINTS: SeedMapPoint[] = [
       category: 'workshop',
       faction: 'artisans',
       philosophy: 'pragmatism',
+      visibility: {
+        initiallyHidden: true
+      },
+      unlockRequirements: {
+        flags: ['workshop_center_discovered'],
+      },
       magic_level: 'low',
       atmosphere:
         'Огромный цех, заполненный паром и лязгом металла. Артисаны работают слаженно, как единый механизм.',
@@ -129,6 +135,9 @@ export const SEED_MAP_POINTS: SeedMapPoint[] = [
       category: 'synthesis_campus',
       faction: 'synthesis',
       philosophy: 'transhumanism',
+      visibility: {
+        initiallyHidden: false
+      },
       magic_level: 'medium',
       questBindings: ['delivery_for_professor'],
       isGlobalObjective: true,
@@ -236,6 +245,12 @@ export const SEED_MAP_POINTS: SeedMapPoint[] = [
       atmosphere:
         'Тесный прилавок, заваленный коробками и ящиками.',
       danger_level: 'low',
+      visibility: {
+        initiallyHidden: true
+      },
+      unlockRequirements: {
+        flags: ['market_square_discovered'],
+      },
       sceneBindings: [
         {
           sceneId: 'trader_meeting_dialog',
@@ -280,6 +295,12 @@ export const SEED_MAP_POINTS: SeedMapPoint[] = [
       category: 'religious',
       faction: 'old_believers',
       philosophy: 'traditionalism',
+      visibility: {
+        initiallyHidden: true
+      },
+      unlockRequirements: {
+        flags: ['cathedral_discovered'],
+      },
       magic_level: 'holy', // Очищение
       atmosphere: 'Тишина, запах ладана и ощущение абсолютной безопасности. Здесь дышится легче.',
       services: ['healing', 'sanctuary', 'cleansing'],
@@ -798,6 +819,9 @@ export const SEED_MAP_POINTS: SeedMapPoint[] = [
     metadata: {
       category: 'townhall',
       faction: 'neutral',
+      visibility: {
+        initiallyHidden: false
+      },
       questBindings: ['city_registration'],
       qrRequired: true,
       qrHint: 'QR-код закреплён у входа на Ратушную площадь.',

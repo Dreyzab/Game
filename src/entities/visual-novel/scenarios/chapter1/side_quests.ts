@@ -70,8 +70,8 @@ export const sideQuestScenes: Record<string, Scene> = {
     ],
   },
 
-  ludas_bar_visit: {
-    id: 'ludas_bar_visit',
+  luda_introduction: {
+    id: 'luda_introduction',
     background: '/images/backgrounds/freiburg_ludas_bar.jpg',
     characters: [
       {
@@ -85,241 +85,106 @@ export const sideQuestScenes: Record<string, Scene> = {
     dialogue: [
       {
         speaker: 'Рассказчик',
-        text: 'Вы входите в бар "Последний приют". Тепло, полумрак, запах еды и дешёвого алкоголя. Люда за стойкой поднимает на вас внимательный взгляд.',
+        text: 'Ты переходишь узкий мостик через канал с мутной водой. Впереди — уютный дворик, увитый плющом. Из открытой двери бара льётся тёплый свет и пахнет чем-то вкусным — грибным супом и печёным картофелем.',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Внутри немноголюдно. За столиками сидят пара усталых рабочих и двое в синих халатах "Синтеза", тихо обсуждающих что-то над кружками. За стойкой стоит крепкая женщина с собранными в пучок тёмными волосами. Это Люда.',
       },
       {
         speaker: 'Люда',
         characterId: 'lyuda',
-        text: 'Слышала, на воротах заворот. Не удивлена. Весь город на ушах. Тебе чего — выпить, поесть или сплетни?',
+        text: 'Новое лицо, — говорит она, не прерывая работы. — Заблудился или целенаправленно?',
       },
       {
         speaker: 'Вы',
-        text: 'Шмидт послал. Сказал, у тебя можно переждать.',
+        text: 'Шмидт с ворот послал. Сказал, можно переждать. Ворота закрыты.',
       },
       {
         speaker: 'Люда',
         characterId: 'lyuda',
-        emotion: { primary: 'amused', intensity: 50 },
-        text: 'Шмидт — мужик хороший, но болтливый. Переждать можно. Только у нас самообслуживание: хочешь сидеть — закажи что-нибудь.',
+        text: 'Шмидт — мужик хороший, но болтливый. Переждать можно. Только у нас правило: хочешь сидеть — закажи что-нибудь. Суп, пиво, кофе?',
+      },
+      {
+        speaker: 'Рассказчик',
+        text: 'Ты заказываешь грибной суп. Он оказывается густым и сытным, настоящая роскошь после сухпайков.',
       },
       {
         speaker: 'Люда',
         characterId: 'lyuda',
-        text: 'А если скучно... есть у меня одна проблема. Ларс, местный торговец, пропал. Должен был занести долг, и как сквозь землю провалился. Если найдёшь его или узнаешь, что случилось — с меня ужин и ночлег бесплатно.',
+        text: 'Слышала, на горе неспокойно? Не к добру это. — Она понижает голос. — Слушай, раз уж ты тут застрял и явно ищешь, чем заняться... У меня есть проблема. Ларс, местный торговец, пропал.',
       },
       {
-        speaker: 'Рассказчик',
-        text: 'Квест "Лавочник-прогульщик" активирован. Наводки: Рынок, Элке.',
-      },
-    ],
-    choices: [
-      {
-        id: 'accept_lyuda_quest',
-        text: 'Согласиться поискать Ларса.',
-        nextScene: 'market_square_arrival',
-        availability: {
-          skillCheck: {
-            skill: 'empathy',
-            difficulty: 5,
-            successText: 'Вы улавливаете за спокойной маской Люды усталость и тревогу — отказывать неудобно.',
-            failureText: 'Вы не читаете её эмоций, но предложение ужина и ночлега звучит достаточно убедительно само по себе.',
-          },
-        },
-        effects: {
-          immediate: [{ type: 'quest', data: { questId: 'missing_shopkeeper', action: 'start' } }],
-          xp: 5,
-        },
+        speaker: 'Люда',
+        characterId: 'lyuda',
+        text: 'Должен был занести долг за выпивку, и как сквозь землю провалился. На него не похоже, он парень обязательный, хоть и трепло. В последний раз его видели вчера вечером, он шёл к своей зазнобе, Элке.',
       },
       {
-        id: 'decline_lyuda_quest',
-        text: 'Отказаться и просто посидеть в баре.',
-        nextScene: 'market_square_arrival',
-      },
-    ],
-  },
-
-  karapuz_square_meeting: {
-    id: 'karapuz_square_meeting',
-    background: '/images/backgrounds/freiburg_shvabskaya_square.jpg',
-    characters: [
-      {
-        id: 'karapuz',
-        name: 'Карапуз',
-        position: 'center',
-        sprite: '/images/characters/karapuz.png',
-        emotion: { primary: 'happy', intensity: 70 },
-      },
-    ],
-    dialogue: [
-      {
-        speaker: 'Рассказчик',
-        text: 'Швабская площадь гудит, как улей. Палатки, костры, разношёрстный люд. На импровизированном "троне" из ящиков восседает Карапуз.',
-      },
-      {
-        speaker: 'Карапуз',
-        characterId: 'karapuz',
-        text: 'О-хо-хо! Вижу, FJR тебя не пустили? У них сегодня нервный тик. Садись, рассказывай.',
-      },
-      {
-        speaker: 'Вы',
-        text: 'Мне бы работу найти. До вечера.',
-      },
-      {
-        speaker: 'Карапуз',
-        characterId: 'karapuz',
-        text: 'Работа? Работы навалом. Вон, видишь ящики? Это гуманитарка для Артисанов. Мои парни ленивые, тащить не хотят. Донесёшь до цеха — получишь кредиты. А заодно и город посмотришь.',
-      },
-      {
-        speaker: '[ЦИНИЗМ]',
-        text: 'Использует тебя как мула. Но платит честно. В этом городе это уже немало.',
-      },
-      {
-        speaker: 'Рассказчик',
-        text: 'Квест "Поставка в цех" активирован.',
+        speaker: 'Люда',
+        characterId: 'lyuda',
+        text: 'Если найдёшь его или узнаешь, что случилось — с меня ужин и ночлег бесплатно. А ночлег нынче дорого стоит.',
       },
     ],
     choices: [
       {
-        id: 'accept_karapuz_delivery',
-        text: 'Согласиться тащить ящики для Артисанов.',
-        nextScene: 'industrial_hub',
-        availability: {
-          skillCheck: {
-            skill: 'knowledge',
-            difficulty: 4,
-            successText: 'Вы прекрасно понимаете, что вас используют, но выгода перевешивает раздражение.',
-            failureText: 'Вы не до конца просчитываете сделку, но всё равно киваете — деньги не лишние.',
-          },
-        },
-        effects: {
-          immediate: [
-            { type: 'quest', data: { questId: 'artisan_delivery', action: 'start' } },
-            { type: 'currency', data: { amount: 15 } },
-          ],
-          xp: 10,
-        },
-      },
-      {
-        id: 'decline_karapuz_delivery',
-        text: 'Отказаться и остаться на площади.',
-        nextScene: 'market_square_arrival',
-      },
-    ],
-  },
-
-  // =====================================
-  // ШВАБСКАЯ ПЛОЩАДЬ — КАРАПУЗ (aliased id for map point seeds)
-  // =====================================
-
-  karapuz_meeting: {
-    id: 'karapuz_meeting',
-    background: '/images/backgrounds/freiburg_shvabskaya_square.jpg',
-    characters: [
-      {
-        id: 'karapuz',
-        name: 'Карапуз',
-        position: 'center',
-        emotion: { primary: 'happy', intensity: 70 },
-      },
-    ],
-    dialogue: [
-      {
-        speaker: 'Рассказчик',
-        text: 'Швабская площадь гудит, как улей. Палатки, костры, разношёрстный люд. На импровизированном «троне» из ящиков восседает Карапуз.',
-      },
-      {
-        speaker: 'Карапуз',
-        characterId: 'karapuz',
-        text: 'О-хо-хо! Вижу, FJR тебя не пустили? У них сегодня нервный тик. Садись, рассказывай.',
-      },
-      {
-        speaker: 'Рассказчик',
-        text: 'Карапуз с улыбкой рассказывает, кто кому платит и почему «честных сделок» не бывает. Но одну вещь говорит прямо: если хочешь выжить — учись договариваться.',
-      },
-    ],
-    choices: [
-      {
-        id: 'karapuz_leave',
-        text: 'Кивнуть и уйти.',
+        id: 'accept_lars_quest',
+        text: '"Я поищу его. Где живёт эта Элке?"',
         nextScene: 'exit_to_map',
         effects: {
-          addFlags: ['met_karapuz'],
+          addFlags: ['met_lyuda', 'shopkeeper_truant_active', 'know_elke_location'],
+          immediate: [
+            { type: 'quest', data: { questId: 'missing_shopkeeper', action: 'start' } },
+            { type: 'open_map' },
+          ],
+        },
+      },
+      {
+        id: 'decline_lars_quest',
+        text: '"Извини, я не детектив. Мне бы просто поесть."',
+        nextScene: 'exit_to_map',
+        effects: {
+          addFlags: ['met_lyuda'],
           immediate: [{ type: 'open_map' }],
         },
       },
+      {
+        id: 'ask_lars_debt',
+        text: '"А что за долг? Может, он просто сбежал?"',
+        nextScene: 'luda_lars_debt_details',
+      },
     ],
   },
 
-  // =====================================
-  // БАР ЛЮДЫ — СТАРТ КВЕСТА "ЛАВОЧНИК-ПРОГУЛЬЩИК"
-  // =====================================
-
-  luda_introduction: {
-    id: 'luda_introduction',
+  luda_lars_debt_details: {
+    id: 'luda_lars_debt_details',
     background: '/images/backgrounds/freiburg_ludas_bar.jpg',
     characters: [
       {
         id: 'lyuda',
         name: 'Люда',
         position: 'center',
-        emotion: { primary: 'neutral', intensity: 60 },
+        sprite: '/images/characters/lyuda.png',
+        emotion: { primary: 'neutral', intensity: 70 },
       },
     ],
     dialogue: [
       {
-        speaker: 'Рассказчик',
-        text: 'Ты заходишь в бар. Тепло, полумрак. Пахнет грибным супом и печёной картошкой — роскошь по местным меркам.',
-      },
-      {
-        speaker: 'Рассказчик',
-        condition: { flag: 'schwabentor_blocked' },
-        text: 'Шмидт с ворот послал: «переждать» и «не мозолить глаза».',
-      },
-      {
         speaker: 'Люда',
         characterId: 'lyuda',
-        text: 'Новое лицо. Заблудился или целенаправленно?',
-      },
-      {
-        speaker: 'Люда',
-        characterId: 'lyuda',
-        emotion: { primary: 'amused', intensity: 50 },
-        text: 'Хочешь сидеть — закажи что-нибудь. У нас тут не вокзал.',
-      },
-      {
-        speaker: 'Люда',
-        characterId: 'lyuda',
-        text: '(Понижает голос) А если ищешь, чем заняться... у меня проблема. Ларс, местный лавочник, пропал. Должен был занести долг за выпивку — и как сквозь землю провалился.',
-      },
-      {
-        speaker: 'Люда',
-        characterId: 'lyuda',
-        text: 'В последний раз его видели вчера вечером. Он шёл к своей зазнобе — Элке. Если найдёшь его или узнаешь, что случилось — с меня ужин и ночлег бесплатно.',
+        text: 'Сбежал? Куда? Ворота на замке, а в лесу его сожрут быстрее, чем он успеет пересчитать свои гроши. Нет, он где-то в городе. Либо вляпался во что-то, либо... Элке знает больше. Она живёт в доходном доме в секторе Артисанов, комната 3Б.',
       },
     ],
     choices: [
       {
-        id: 'luda_accept_quest',
+        id: 'accept_lars_quest_after_debt',
         text: 'Согласиться поискать Ларса.',
         nextScene: 'exit_to_map',
-        availability: {
-          condition: {
-            notFlags: ['shopkeeper_truant_active', 'shopkeeper_truant_completed'],
-          },
-        },
         effects: {
-          addFlags: ['met_lyuda', 'shopkeeper_truant_active', 'know_shopkeeper_location'],
-          immediate: [{ type: 'open_map' }],
-          xp: 5,
-        },
-      },
-      {
-        id: 'luda_decline_quest',
-        text: 'Отказаться: "Извини, я не детектив."',
-        nextScene: 'exit_to_map',
-        effects: {
-          addFlags: ['met_lyuda'],
-          immediate: [{ type: 'open_map' }],
+          addFlags: ['met_lyuda', 'shopkeeper_truant_active', 'know_elke_location'],
+          immediate: [
+            { type: 'quest', data: { questId: 'missing_shopkeeper', action: 'start' } },
+            { type: 'open_map' },
+          ],
         },
       },
     ],

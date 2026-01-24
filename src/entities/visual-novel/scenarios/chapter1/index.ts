@@ -14,6 +14,7 @@ import { marketTraderScenes } from './market_trader'
 import { stationArrivalScenes } from './station_arrival'
 import { schwabentorGateScenes } from './schwabentor_gate'
 import { schlossbergExpeditionScenes } from './schlossberg_expedition'
+import { spiderMissionScenes } from './spider_mission'
 import { sideQuestScenes } from './side_quests'
 import { allFactionScenes } from './factions'
 import { allDynamicScenes, DYNAMIC_EVENTS } from './dynamic_events'
@@ -34,6 +35,7 @@ export { marketTraderScenes } from './market_trader'
 export { stationArrivalScenes } from './station_arrival'
 export { schwabentorGateScenes } from './schwabentor_gate'
 export { schlossbergExpeditionScenes } from './schlossberg_expedition'
+export { spiderMissionScenes } from './spider_mission'
 export { sideQuestScenes } from './side_quests'
 export { chapter1CommonScenes } from './common_scenes'
 export { universityCampusScenes } from './university_campus'
@@ -54,6 +56,7 @@ export const chapter1Scenes = {
   ...marketTraderScenes,
   ...schwabentorGateScenes,
   ...schlossbergExpeditionScenes,
+  ...spiderMissionScenes,
   ...sideQuestScenes,
   ...allFactionScenes,
   ...allDynamicScenes,
@@ -101,17 +104,17 @@ export const CHAPTER_1_CONFIG: Chapter1Config = {
   id: 'chapter_1',
   title: 'Новый дом',
   description: 'Первые шаги во Фрайбурге. Знакомство с фракциями, поиск работы и союзников.',
-  
+
   startConditions: [
     { type: 'flag', value: 'prologue_complete' },
     { type: 'quest', value: 'first_steps_in_freiburg' },
   ],
-  
+
   mainQuests: [
     'delivery_for_professor',    // Главный квест - найти профессора
     'whispers_of_rift',          // Исследование Шлосберга
   ],
-  
+
   sideQuests: [
     'chance_for_a_newbie',       // Первое задание от Ганса
     'sanctuary_blessing',        // Квест Староверов
@@ -119,7 +122,7 @@ export const CHAPTER_1_CONFIG: Chapter1Config = {
     'fjr_recruitment_quest',     // Вступление в FJR
     'artisans_bulletin_board_quest', // Работа у Артисанов
   ],
-  
+
   factionIntroductions: [
     {
       factionId: 'artisans',
@@ -142,7 +145,7 @@ export const CHAPTER_1_CONFIG: Chapter1Config = {
       introSceneId: 'augustinerplatz_warning',
     },
   ],
-  
+
   availableLocations: [
     'sorting_station',           // Стартовая точка
     'info_bureau',               // Инфобюро
@@ -154,7 +157,7 @@ export const CHAPTER_1_CONFIG: Chapter1Config = {
     'cathedral',                 // Кафедральный собор
     'augustinerplatz',           // Район Анархистов
   ],
-  
+
   unlockableLocations: [
     {
       locationId: 'rico_hideout',
@@ -200,32 +203,32 @@ export function getChapter1Progress(
 ): number {
   let progress = 0
   const maxProgress = 100
-  
+
   // Основные квесты (40%)
   const mainQuestWeight = 40 / CHAPTER_1_CONFIG.mainQuests.length
   CHAPTER_1_CONFIG.mainQuests.forEach(quest => {
     if (completedQuests.has(quest)) progress += mainQuestWeight
   })
-  
+
   // Побочные квесты (30%)
   const sideQuestWeight = 30 / CHAPTER_1_CONFIG.sideQuests.length
   CHAPTER_1_CONFIG.sideQuests.forEach(quest => {
     if (completedQuests.has(quest)) progress += sideQuestWeight
   })
-  
+
   // Знакомство с фракциями (20%)
   const factionWeight = 20 / CHAPTER_1_CONFIG.factionIntroductions.length
   CHAPTER_1_CONFIG.factionIntroductions.forEach(faction => {
     const factionFlag = `met_${faction.factionId}`
     if (flags.has(factionFlag)) progress += factionWeight
   })
-  
+
   // Исследование локаций (10%)
   const locationWeight = 10 / CHAPTER_1_CONFIG.availableLocations.length
   CHAPTER_1_CONFIG.availableLocations.forEach(location => {
     if (discoveredLocations.has(location)) progress += locationWeight
   })
-  
+
   return Math.min(progress, maxProgress)
 }
 
@@ -244,29 +247,29 @@ export function getNextObjective(
     }
     return 'Доставить запчасти мастеру Дитеру в Промзону'
   }
-  
+
   if (activeQuests.has('delivery_for_professor')) {
     if (!flags.has('know_professor_location')) {
       return 'Найти информацию о профессоре в Кампусе "Синтез"'
     }
     return 'Встретиться с профессором'
   }
-  
+
   // Приоритет 2: Начать новый квест
   if (!completedQuests.has('chance_for_a_newbie') && !activeQuests.has('chance_for_a_newbie')) {
     return 'Получить первое задание от Ганса на станции'
   }
-  
+
   if (completedQuests.has('chance_for_a_newbie') && !activeQuests.has('delivery_for_professor')) {
     return 'Начать поиски профессора в Кампусе "Синтез"'
   }
-  
+
   // Приоритет 3: Познакомиться с фракциями
   const unmetFactions = CHAPTER_1_CONFIG.factionIntroductions.filter(f => !flags.has(`met_${f.factionId}`))
   if (unmetFactions.length > 0) {
     const nextFaction = unmetFactions[0]
     return `Исследовать территорию фракции ${nextFaction.factionId}`
   }
-  
+
   return null
 }

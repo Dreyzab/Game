@@ -1,10 +1,11 @@
 
 import type { CSSProperties } from 'react'
-import { forwardRef } from 'react'
-import { motion, type HTMLMotionProps, useMotionValue, useSpring, useTransform } from 'framer-motion'
+import { forwardRef, useEffect } from 'react'
+import { AnimatePresence, motion, type HTMLMotionProps, useAnimationControls, useMotionValue, useSpring, useTransform } from 'framer-motion'
 import { Crosshair, Move, ShieldAlert, Zap, Activity, Skull, Eye } from 'lucide-react'
 import type { CombatCard } from '@/entities/dreyzab-combat-simulator/model/types'
 import { CardType } from '@/entities/dreyzab-combat-simulator/model/types'
+import { getCardFxColors } from '../combatFx'
 
 interface Props extends Omit<HTMLMotionProps<'div'>, 'onClick'> {
     card: CombatCard
@@ -13,9 +14,10 @@ interface Props extends Omit<HTMLMotionProps<'div'>, 'onClick'> {
     style?: CSSProperties
     className?: string
     isHighlighted?: boolean
+    activationToken?: string | number
 }
 
-const CombatCardUI = forwardRef<HTMLDivElement, Props>(({ card, disabled, onClick, style, className = '', isHighlighted, ...rest }, ref) => {
+const CombatCardUI = forwardRef<HTMLDivElement, Props>(({ card, disabled, onClick, style, className = '', isHighlighted, activationToken, ...rest }, ref) => {
     // --- 3D Tilt Logic ---
     const x = useMotionValue(0)
     const y = useMotionValue(0)
@@ -27,6 +29,7 @@ const CombatCardUI = forwardRef<HTMLDivElement, Props>(({ card, disabled, onClic
     const rotateY = useTransform(mouseX, [-0.5, 0.5], [-15, 15])
     const glareX = useTransform(mouseX, [-0.5, 0.5], [0, 100])
     const glareY = useTransform(mouseY, [-0.5, 0.5], [0, 100])
+    const activationControls = useAnimationControls()
 
     const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
         if (disabled) return
@@ -57,6 +60,7 @@ const CombatCardUI = forwardRef<HTMLDivElement, Props>(({ card, disabled, onClic
     let iconColor = ''
     let glowColor = ''
     const highlightClass = isHighlighted ? 'ring-2 ring-amber-400/70' : ''
+    const fxColors = getCardFxColors(card.type)
 
     if (isAttack) {
         containerClass = 'bg-gradient-to-br from-red-950/90 via-black/80 to-red-950/90'
@@ -90,10 +94,20 @@ const CombatCardUI = forwardRef<HTMLDivElement, Props>(({ card, disabled, onClic
         glowColor = 'shadow-zinc-500/20'
     }
 
+    useEffect(() => {
+        if (!activationToken || disabled) return
+        activationControls.start({
+            scale: [1, 1.08, 1],
+            filter: ['brightness(1)', 'brightness(1.25)', 'brightness(1)'],
+            transition: { duration: 0.45, ease: [0.22, 1, 0.36, 1] },
+        })
+    }, [activationToken, activationControls, disabled])
+
     return (
         <motion.div
             ref={ref}
             {...rest}
+            data-card-id={card.id}
             onClick={disabled ? undefined : onClick}
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
@@ -104,6 +118,7 @@ const CombatCardUI = forwardRef<HTMLDivElement, Props>(({ card, disabled, onClic
                 transformStyle: 'preserve-3d',
                 perspective: 1000
             }}
+            animate={activationControls}
             whileHover={!disabled ? { scale: 1.05, zIndex: 50 } : undefined}
             transition={{ type: 'spring', stiffness: 300, damping: 20 }}
             className={`
@@ -132,6 +147,42 @@ const CombatCardUI = forwardRef<HTMLDivElement, Props>(({ card, disabled, onClic
                     }}
                 />
             )}
+
+            <AnimatePresence>
+                {activationToken && !disabled ? (
+                    <motion.div
+                        key={activationToken}
+                        className="absolute inset-0 z-40 pointer-events-none"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                    >
+                        <motion.div
+                            className="absolute inset-0 rounded-xl"
+                            style={{
+                                background: `radial-gradient(circle at 50% 50%, ${fxColors.accent} 0%, transparent 70%)`,
+                                mixBlendMode: 'screen',
+                            }}
+                            initial={{ opacity: 0, scale: 0.85 }}
+                            animate={{ opacity: 0.85, scale: 1.1 }}
+                            exit={{ opacity: 0, scale: 1.3 }}
+                            transition={{ duration: 0.45, ease: 'easeOut' }}
+                        />
+                        <motion.div
+                            className="absolute -inset-6 rounded-xl"
+                            style={{
+                                background: `linear-gradient(120deg, transparent 0%, ${fxColors.glow} 50%, transparent 100%)`,
+                                mixBlendMode: 'screen',
+                            }}
+                            initial={{ opacity: 0, x: '-40%' }}
+                            animate={{ opacity: 0.7, x: '40%' }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.45, ease: 'easeOut' }}
+                        />
+                    </motion.div>
+                ) : null}
+            </AnimatePresence>
 
             {/* Noise Texture Overlay */}
             <div className="absolute inset-0 opacity-10 pointer-events-none z-0 mix-blend-overlay"
@@ -167,16 +218,26 @@ const CombatCardUI = forwardRef<HTMLDivElement, Props>(({ card, disabled, onClic
                 </div>
 
                 <motion.div
-                    className={`${iconColor} drop-shadow-[0_0_15px_currentColor] z-10`}
+                    className={`${iconColor} drop-shadow-[0_0_15px_currentColor] z-10 w-full h-full flex items-center justify-center`}
                     initial={{ scale: 0.9 }}
                     animate={{ scale: 1 }}
                     transition={{ repeat: Infinity, repeatType: 'reverse', duration: 2 }}
                 >
-                    {isAttack && <Crosshair size={48} strokeWidth={1.5} />}
-                    {isMove && <Move size={48} strokeWidth={1.5} />}
-                    {isDefense && <ShieldAlert size={48} strokeWidth={1.5} />}
-                    {isVoice && <Activity size={48} strokeWidth={1.5} />}
-                    {isAnalysis && <Eye size={48} strokeWidth={1.5} />}
+                    {card.imageUrl ? (
+                        <img
+                            src={card.imageUrl}
+                            alt={card.name}
+                            className="w-full h-full object-cover opacity-80 mix-blend-lighten"
+                        />
+                    ) : (
+                        <>
+                            {isAttack && <Crosshair size={48} strokeWidth={1.5} />}
+                            {isMove && <Move size={48} strokeWidth={1.5} />}
+                            {isDefense && <ShieldAlert size={48} strokeWidth={1.5} />}
+                            {isVoice && <Activity size={48} strokeWidth={1.5} />}
+                            {isAnalysis && <Eye size={48} strokeWidth={1.5} />}
+                        </>
+                    )}
                 </motion.div>
 
                 {/* Floating particles or decorative elements could go here */}

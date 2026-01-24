@@ -3,42 +3,23 @@ import type { BattleSession, CombatCard, Combatant } from './types'
 import { ENEMY_TEMPLATES } from './constants'
 import { generateDeckForCombatant } from './cardGenerator'
 import { sortTurnQueue } from './utils'
+import { prologue_tutorial_1, boss_train_prologue, tutorial_scouts_duo_aggro, tutorial_scouts_duo_surprise, boss_executioner_prologue } from '../scenarios/prologue'
 
-export type ScenarioId = 'default' | 'prologue_tutorial_1' | 'boss_train_prologue' | 'scorpion_nest'
+export type ScenarioId = 'default' | 'prologue_tutorial_1' | 'boss_train_prologue' | 'scorpion_nest' | 'tutorial_scouts_duo_aggro' | 'tutorial_scouts_duo_surprise' | 'boss_executioner_prologue'
 
 export const SCENARIOS: Record<ScenarioId, (config?: { playerEquipment?: string[] }) => BattleSession> = {
     default: (config) => createDefaultSession(config?.playerEquipment),
 
     // Tutorial 1: Player + Lena + Conductor vs Small Monsters
-    prologue_tutorial_1: (config) => {
-        const players = [
-            createPlayer('p1', 'Player', 1, config?.playerEquipment ?? ['glock_19', 'knife']),
-            createNPC('npc_lena', 'Lena Richter', 2, ['pistol_pm', 'knife']),
-            createNPC('npc_cond', 'Conductor', 3, ['rifle_ak74_scoped']),
-        ]
+    prologue_tutorial_1,
 
-        const enemies = [
-            createEnemy('e1', 1, 1),
-            createEnemy('e2', 1, 1),
-            createEnemy('e3', 2, 2),
-        ]
+    // Tutorial 2 & 3: Scout Ambush Variants
+    tutorial_scouts_duo_aggro,
+    tutorial_scouts_duo_surprise,
 
-        return finalizeSession(players, enemies)
-    },
-
-    // Tutorial 2: Boss Fight
-    boss_train_prologue: (config) => {
-        const players = [
-            createPlayer('p1', 'Player', 1, config?.playerEquipment ?? ['glock_19', 'knife']),
-            createNPC('npc_lena', 'Lena Richter', 2, ['knife', 'field_medkit']),
-            createNPC('npc_otto', 'Otto Klein', 3, ['knife', 'grenade']),
-            createNPC('npc_cond', 'Conductor', 4, ['rifle_ak74_scoped']), // Will die
-        ]
-
-        const enemies = [createBoss('boss', 'The Executioner', 1, 300)]
-
-        return finalizeSession(players, enemies)
-    },
+    // Boss Fights
+    boss_train_prologue,
+    boss_executioner_prologue,
 
     scorpion_nest: (config) => {
         const players = [
@@ -74,10 +55,20 @@ export function createNPC(id: string, name: string, rank: number, equipment: str
         weaponHeat: 0,
         isJammed: false,
         ammo: 100,
+        voices: {
+            coordination: 15,
+            force: 15,
+            reaction: 15,
+            perception: 15,
+            endurance: 15,
+            resilience: 15,
+            knowledge: 15,
+            azart: 15
+        }
     }
 }
 
-function createPlayer(id: string, name: string, rank: number, equipment: string[] = []): Combatant {
+export function createPlayer(id: string, name: string, rank: number, equipment: string[] = []): Combatant {
     return {
         id,
         name,
@@ -93,10 +84,20 @@ function createPlayer(id: string, name: string, rank: number, equipment: string[
         weaponHeat: 0,
         isJammed: false,
         ammo: 100,
+        voices: {
+            coordination: 20,
+            force: 20,
+            reaction: 20,
+            perception: 20,
+            endurance: 20,
+            resilience: 20,
+            knowledge: 20,
+            azart: 20
+        }
     }
 }
 
-function createEnemy(id: string, rank: number, templateIdx: number): Combatant {
+export function createEnemy(id: string, rank: number, templateIdx: number): Combatant {
     const template = ENEMY_TEMPLATES[Math.min(templateIdx, ENEMY_TEMPLATES.length - 1)]
     return {
         id,
@@ -113,10 +114,14 @@ function createEnemy(id: string, rank: number, templateIdx: number): Combatant {
         weaponHeat: 0,
         isJammed: false,
         ammo: 0,
+        voices: (template as any).voices ?? {
+            coordination: 10, force: 10, reaction: 10, perception: 10,
+            endurance: 10, resilience: 10, knowledge: 10, azart: 10
+        }
     }
 }
 
-function createBoss(id: string, name: string, rank: number, hp: number): Combatant {
+export function createBoss(id: string, name: string, rank: number, hp: number): Combatant {
     return {
         id,
         name,
@@ -132,6 +137,16 @@ function createBoss(id: string, name: string, rank: number, hp: number): Combata
         weaponHeat: 0,
         isJammed: false,
         ammo: 0,
+        voices: {
+            coordination: 30,
+            force: 30,
+            reaction: 30,
+            perception: 30,
+            endurance: 30,
+            resilience: 30,
+            knowledge: 30,
+            azart: 30
+        }
     }
 }
 
@@ -139,7 +154,7 @@ function createDefaultSession(equipment?: string[]): BattleSession {
     return finalizeSession([createPlayer('p1', 'Player', 1, equipment ?? ['knife'])], [createEnemy('e1', 1, 0)])
 }
 
-function finalizeSession(players: Combatant[], enemies: Combatant[]): BattleSession {
+export function finalizeSession(players: Combatant[], enemies: Combatant[]): BattleSession {
     const turnQueue = sortTurnQueue(players, enemies)
     const playerHand: CombatCard[] = players.filter((p) => p.side === Side.PLAYER).flatMap((p) => generateDeckForCombatant(p))
 

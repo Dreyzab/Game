@@ -9,9 +9,10 @@ type Props = {
     onClick: () => void
     style?: CSSProperties
     className?: string
+    activationToken?: string | number
 }
 
-const DraggableCombatCard = ({ card, disabled = false, onClick, style, className }: Props) => {
+const DraggableCombatCard = ({ card, disabled = false, onClick, style, className, activationToken }: Props) => {
     const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
         id: card.id,
         disabled,
@@ -32,6 +33,7 @@ const DraggableCombatCard = ({ card, disabled = false, onClick, style, className
             onClick={onClick}
             style={mergedStyle}
             className={className}
+            activationToken={activationToken}
             {...listeners}
             {...attributes}
         />

@@ -374,20 +374,28 @@ export const stationArrivalScenes: Record<string, Scene> = {
         id: 'station_split_yes',
         text: 'Да. Пойдём вместе.',
         effects: {
-          addFlags: ['lena_accompanies_to_campus', 'know_lena_richter'],
+          addFlags: ['lena_accompanies_to_campus', 'know_lena_richter', 'quest_started_New Beginnings', 'quest_started_The Package'],
           removeFlags: ['lena_declined_company'],
-          narrative: 'На карте отмечены: Кампус «Синтез» и Ратушная площадь.',
-          immediate: [{ type: 'open_map' }],
+          immediate: [
+            { type: 'quest', data: { questId: 'register_townhall', action: 'start' } },
+            { type: 'quest', data: { questId: 'deliver_package', action: 'start' } },
+            { type: 'open_map' }
+          ],
+          narrative: 'Журнал заданий обновлён: "Новые начинания" и "Посылка".\nДоступны локации: Ратушная площадь и Кампус "Синтез".',
         },
       },
       {
         id: 'station_split_no',
         text: 'Нет. Я разберусь сам(а).',
         effects: {
-          addFlags: ['lena_declined_company', 'know_lena_richter'],
+          addFlags: ['lena_declined_company', 'know_lena_richter', 'quest_started_New Beginnings', 'quest_started_The Package'],
           removeFlags: ['lena_accompanies_to_campus'],
-          narrative: 'На карте отмечены: Кампус «Синтез» и Ратушная площадь.',
-          immediate: [{ type: 'open_map' }],
+          immediate: [
+            { type: 'quest', data: { questId: 'register_townhall', action: 'start' } },
+            { type: 'quest', data: { questId: 'deliver_package', action: 'start' } },
+            { type: 'open_map' }
+          ],
+          narrative: 'Журнал заданий обновлён: "Новые начинания" и "Посылка".\nДоступны локации: Ратушная площадь и Кампус "Синтез".',
         },
       },
     ],

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import {
     CharacterGroup,
     CharacterSprites,
@@ -66,12 +66,43 @@ export const VNScreen: React.FC<VNScreenProps> = ({
     const videoProgressLoggedRef = useRef(false)
     const videoFrameSampledRef = useRef(false)
     const isVideoBg = Boolean(bgImage && (bgImage.endsWith('.mp4') || bgImage.endsWith('.webm')))
+    const prefersReducedMotion = useReducedMotion()
+    const bgLayerRef = useRef<HTMLDivElement | null>(null)
 
     useEffect(() => {
         if (scene.background) {
             setBgImage(scene.background)
         }
     }, [scene.background])
+
+    useEffect(() => {
+        if (!bgLayerRef.current) return
+        const el = bgLayerRef.current
+        // Try to observe final opacity in reduced-motion mode
+        requestAnimationFrame(() => {
+            const cs = window.getComputedStyle(el)
+            // #region agent log (H8)
+            fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    sessionId: 'debug-session',
+                    runId: 'run1',
+                    hypothesisId: 'H8',
+                    location: 'VNScreen.tsx:bgLayer',
+                    message: 'Background layer computed opacity',
+                    data: {
+                        sceneId: scene.id,
+                        bgImage,
+                        prefersReducedMotion,
+                        opacity: cs.opacity,
+                    },
+                    timestamp: Date.now(),
+                }),
+            }).catch(() => { })
+            // #endregion
+        })
+    }, [bgImage, prefersReducedMotion, scene.id])
 
     useEffect(() => {
         // #region agent log (H3)
@@ -122,11 +153,11 @@ export const VNScreen: React.FC<VNScreenProps> = ({
     ], [])
 
     // Dynamic camera position based on speaker or scene (for coupe4p.png)
-    const [lastNonInternalPosition, setLastNonInternalPosition] = useState('center center')
+    const [lastNonInternalPosition, setLastNonInternalPosition] = useState('50% 50%')
 
     const cameraPosition = useMemo(() => {
         const isCoupe = bgImage?.includes('coupe4p.png')
-        if (!isCoupe) return 'center center'
+        if (!isCoupe) return '50% 50%'
 
         const speakerId = currentLine?.speakerId?.toLowerCase() ?? ''
         const sceneId = scene.id?.toLowerCase() ?? ''
@@ -141,25 +172,25 @@ export const VNScreen: React.FC<VNScreenProps> = ({
         // Scenes focused on Bruno/Otto
         if (sceneId.includes('observe_bruno') || sceneId.includes('observe_otto') ||
             sceneId.includes('cards_bruno') || sceneId.includes('cards_otto')) {
-            return '100% center'
+            return '100% 50%'
         }
         // Scenes focused on Lena/Adele
         if (sceneId.includes('observe_lena') || sceneId.includes('observe_adele') ||
             sceneId.includes('cards_lena') || sceneId.includes('cards_adele')) {
-            return '0% center'
+            return '0% 50%'
         }
 
         // Check speaker-based camera
         // Bruno/Otto on the LEFT side of the image → show RIGHT part
         if (LEFT_SIDE_SPEAKERS.some(id => speakerId.includes(id))) {
-            return '100% center'
+            return '100% 50%'
         }
         // Lena/Adele on the RIGHT side → show LEFT part
         if (RIGHT_SIDE_SPEAKERS.some(id => speakerId.includes(id))) {
-            return '0% center'
+            return '0% 50%'
         }
 
-        return 'center center'
+        return '50% 50%'
     }, [bgImage, currentLine?.speakerId, scene.id, lastNonInternalPosition, internalVoices])
 
     // Update last non-internal position
@@ -177,10 +208,11 @@ export const VNScreen: React.FC<VNScreenProps> = ({
             <AnimatePresence mode="popLayout">
                 <motion.div
                     key={bgImage}
-                    initial={{ opacity: 0 }}
+                    ref={bgLayerRef}
+                    initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    transition={{ duration: 1 }}
+                    transition={{ duration: prefersReducedMotion ? 0 : 1 }}
                     className="absolute inset-0 z-0"
                 >
                     {bgImage && (
@@ -369,7 +401,7 @@ export const VNScreen: React.FC<VNScreenProps> = ({
                                 }}
                                 animate={{ objectPosition: cameraPosition }}
                                 transition={{ duration: 0.8, ease: 'easeInOut' }}
-                                className={`w-full h-full object-cover brightness-[0.6] ${cameraPosition === 'center center' ? panClass : ''}`}
+                                className={`w-full h-full object-cover brightness-[0.6] ${cameraPosition === '50% 50%' ? panClass : ''}`}
                             />
                         )
                     )}

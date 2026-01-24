@@ -162,6 +162,10 @@ export const ENEMY_TEMPLATES = [
         rank: 1,
         initBase: 10,
         description: 'A scavenger driven by hunger. Favors close combat.',
+        voices: {
+            coordination: 5, force: 15, reaction: 10, perception: 5,
+            endurance: 15, resilience: 10, knowledge: 0, azart: 5
+        }
     },
     {
         name: 'Rail Scorpion',
@@ -170,6 +174,10 @@ export const ENEMY_TEMPLATES = [
         rank: 3,
         initBase: 15,
         description: 'Skittish but dangerous from a distance.',
+        voices: {
+            coordination: 10, force: 5, reaction: 20, perception: 15,
+            endurance: 5, resilience: 5, knowledge: 0, azart: 10
+        }
     },
     {
         name: 'Малый Скорпион',
@@ -178,6 +186,10 @@ export const ENEMY_TEMPLATES = [
         rank: 2,
         initBase: 16,
         description: 'Небольшой разломный падальщик. Бьёт клешнёй на ближней дистанции.',
+        voices: {
+            coordination: 12, force: 8, reaction: 18, perception: 10,
+            endurance: 10, resilience: 8, knowledge: 0, azart: 10
+        }
     },
     {
         name: 'Средний Скорпион',
@@ -186,6 +198,10 @@ export const ENEMY_TEMPLATES = [
         rank: 3,
         initBase: 14,
         description: 'Опаснее малого: бьёт клешнёй и жалит хвостом, цепляя сразу двоих.',
+        voices: {
+            coordination: 15, force: 15, reaction: 14, perception: 12,
+            endurance: 25, resilience: 15, knowledge: 0, azart: 10
+        }
     },
 ]
 

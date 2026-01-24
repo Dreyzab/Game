@@ -47,7 +47,8 @@ export const calculateDodgeChance = (defender: Combatant): number => {
 export const rollAttack = (
     _attacker: Combatant, // Reserved for future accuracy modifiers from attacker stats
     defender: Combatant,
-    weaponAccuracy: number = 75
+    weaponAccuracy: number = 75,
+    rng: () => number = Math.random
 ): { hit: boolean; dodgeChance: number; roll: number; needed: number } => {
     // Calculate base hit chance from weapon accuracy
     // Stagger effect reduces dodge
@@ -63,7 +64,7 @@ export const rollAttack = (
     const hitChance = Math.max(5, weaponAccuracy - dodgeChance) // Minimum 5% hit chance
 
     // Roll d100
-    const roll = Math.floor(Math.random() * 100) + 1
+    const roll = Math.floor(rng() * 100) + 1
     const hit = roll <= hitChance
 
     return {

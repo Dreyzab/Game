@@ -1,44 +1,13 @@
 import { useMemo } from 'react'
 import type { Combatant } from '@/entities/dreyzab-combat-simulator/model/types'
 import { Side } from '@/entities/dreyzab-combat-simulator/model/types'
+import { resolveUnitAsset } from '../../lib/resolveUnitAsset'
 import { toClampedPercent } from './combatUiMath'
 
 interface Props {
     combatant: Combatant
     isTargeted?: boolean
     onClick?: () => void
-}
-
-function resolveLocalCombatantSprite(combatant: Combatant): string | null {
-    const id = combatant.id.toLowerCase()
-    const name = combatant.name.toLowerCase()
-
-    // Player silhouette (until a dedicated Player sprite exists).
-    if (combatant.side === Side.PLAYER && (id === 'p1' || name === 'player')) {
-        return '/images/characters/Player.png'
-    }
-
-    // Conductor / Provodnik
-    if (combatant.side === Side.PLAYER && (id === 'npc_cond' || name.includes('conductor') || name.includes('проводник'))) {
-        return '/images/npcs/Provodnik.png'
-    }
-
-    if (id.includes('bruno') || name.includes('bruno')) return '/images/characters/Bruno.png'
-    if (id.includes('lena') || name.includes('lena')) return '/images/characters/Lena.png'
-    if (id.includes('otto') || name.includes('otto')) return '/images/characters/Otto.png'
-    if (id.includes('adel') || id.includes('adele') || name.includes('adel')) return '/images/characters/Adel.png'
-
-    // Enemies
-    if (combatant.side === Side.ENEMY && name.includes('mutant marauder')) {
-        return '/images/enemy/melkiyShuk.png'
-    }
-
-    // Boss
-    if (combatant.side === Side.ENEMY && (id === 'boss' || name.includes('executioner'))) {
-        return '/images/enemy/BossPalach.png'
-    }
-
-    return null
 }
 
 const CombatantSprite = ({ combatant, isTargeted, onClick }: Props) => {
@@ -49,8 +18,8 @@ const CombatantSprite = ({ combatant, isTargeted, onClick }: Props) => {
     }, [combatant.id, combatant.side])
 
     const preferredSrc = useMemo(() => {
-        return resolveLocalCombatantSprite(combatant) ?? fallbackSrc
-    }, [combatant, fallbackSrc])
+        return resolveUnitAsset(combatant, 'sprite')
+    }, [combatant])
 
     return (
         <div
