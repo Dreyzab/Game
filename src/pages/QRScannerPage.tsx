@@ -9,7 +9,7 @@ import { useDeviceId } from '@/shared/hooks/useDeviceId'
 import { Routes } from '@/shared/lib/utils/navigation'
 import { useInventoryStore } from '@/entities/inventory/model/store'
 
-import { useHardlinkService } from '@/features/detective/lib/HardlinkService'
+import { useHardlinkService } from '@/features/detective'
 
 type QRAction = Record<string, unknown> & { type: string }
 
@@ -190,7 +190,7 @@ export default function QRScannerPage() {
         setIsProcessing(false)
       }
     },
-    [applyActions, deviceId, getToken, isLoaded, isProcessing, lastValue, navigate, queryClient]
+    [applyActions, deviceId, getToken, isLoaded, isProcessing, lastValue, navigate, parseAndExecute, queryClient]
   )
 
   return (

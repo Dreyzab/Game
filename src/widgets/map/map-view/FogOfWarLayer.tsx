@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useCallback } from 'react'
 import type { Map, GeoJSONSource } from 'mapbox-gl'
 import type { MapPoint, SafeZone, ConditionalZone } from '@/shared/types/map'
 import { useFogOfWar } from '@/features/map'
@@ -26,7 +26,7 @@ export const FogOfWarLayer: React.FC<FogOfWarLayerProps> = ({
 }) => {
     const sourceId = 'fog-of-war-source'
     const layerId = 'fog-of-war-layer'
-    const isMapStyleReady = () => !!map && !!(map as any)?.style && !!map.isStyleLoaded?.()
+    const isMapStyleReady = useCallback(() => !!map && !!(map as any)?.style && !!map.isStyleLoaded?.(), [map])
 
     const mask = useFogOfWar({
         points,
@@ -85,7 +85,7 @@ export const FogOfWarLayer: React.FC<FogOfWarLayerProps> = ({
                 // cleanup should not crash the app
             }
         }
-    }, [map])
+    }, [map, isMapStyleReady, sourceId, layerId])
 
     // Update visibility
     useEffect(() => {
@@ -101,7 +101,7 @@ export const FogOfWarLayer: React.FC<FogOfWarLayerProps> = ({
         } catch {
             // ignore transient style-loading errors
         }
-    }, [map, visible])
+    }, [map, visible, isMapStyleReady, layerId])
 
     // Update data
     useEffect(() => {
@@ -114,7 +114,7 @@ export const FogOfWarLayer: React.FC<FogOfWarLayerProps> = ({
         } catch {
             // ignore transient style-loading errors
         }
-    }, [map, mask])
+    }, [map, mask, isMapStyleReady, sourceId])
 
     return null
 }

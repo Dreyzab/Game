@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react'
+import React, { useEffect, useMemo, useCallback } from 'react'
 import type { Map, GeoJSONSource } from 'mapbox-gl'
 
 interface ZonesLayerProps {
@@ -49,7 +49,7 @@ export const ZonesLayer: React.FC<ZonesLayerProps> = ({ map, visible = true, zon
         }
     }, [zones])
 
-    const isMapStyleReady = () => !!map && !!(map as any)?.style && !!map.isStyleLoaded?.()
+    const isMapStyleReady = useCallback(() => !!map && !!(map as any)?.style && !!map.isStyleLoaded?.(), [map])
 
     useEffect(() => {
         if (!map) return
@@ -110,7 +110,7 @@ export const ZonesLayer: React.FC<ZonesLayerProps> = ({ map, visible = true, zon
                         }
                     })
                 }
-            } catch (error) {
+            } catch {
                 // Ignore transient style-loading errors
             }
         }
@@ -126,11 +126,11 @@ export const ZonesLayer: React.FC<ZonesLayerProps> = ({ map, visible = true, zon
                 if (map.getLayer(labelLayerId)) map.removeLayer(labelLayerId)
                 if (map.getLayer(circleLayerId)) map.removeLayer(circleLayerId)
                 if (map.getSource(sourceId)) map.removeSource(sourceId)
-            } catch (error) {
+            } catch {
                 // cleanup
             }
         }
-    }, [map])
+    }, [map, isMapStyleReady])
 
     useEffect(() => {
         if (!map || !isMapStyleReady()) return
@@ -150,10 +150,10 @@ export const ZonesLayer: React.FC<ZonesLayerProps> = ({ map, visible = true, zon
                     source.setData(geojson)
                 }
             }
-        } catch (error) {
+        } catch {
             // ignore
         }
-    }, [map, visible, geojson])
+    }, [map, visible, geojson, isMapStyleReady])
 
     return null
 }

@@ -2,9 +2,9 @@ import React, { useEffect, useMemo, useRef } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import mapboxgl from 'mapbox-gl'
 import { MapPointPopup } from '@/entities/map-point/ui/MapPointPopup'
-import { DetectivePopup } from '@/features/detective/map/DetectivePopup'
+import { DetectivePopup } from '@/features/detective'
+import type { DetectivePointMetadata } from '@/features/detective'
 import type { MapPoint } from '@/shared/types/map'
-import type { DetectivePointMetadata } from '@/features/detective/map/types'
 import { useMapPointInteraction, type InteractionKey } from '@/entities/map-point/model/useMapPointInteraction'
 
 export interface MapPopupsProps {

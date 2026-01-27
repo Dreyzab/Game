@@ -1,0 +1,113 @@
+﻿{
+    "scenes": {
+        "coop_briefing_intro": {
+            "title": "Briefing",
+            "location": "Command Post",
+            "description": "A quick briefing before you head out.",
+            "characters": {
+                "instructor": { "name": "Instructor" },
+                "narrator": { "name": "System" }
+            },
+            "lines": {
+                "coop_briefing_intro__line0": {
+                    "text": "Listen carefully. Today you're operating as a team. Everyone is responsible for their role.",
+                    "stageDirection": "Instructor pulls a strange glowing artifact from beneath the counter."
+                },
+                "coop_briefing_intro__line1": {
+                    "text": "Stay together, share information, and don't duplicate tasks. You only get one chance to keep everything clean.",
+                    "stageDirection": "The instructor keeps scanning the room."
+                },
+                "coop_briefing_intro__line2": {
+                    "text": "Briefing complete."
+                },
+                "coop_briefing_intro__choice": {
+                    "text": "Ready to move out?",
+                    "choices": {
+                        "go_map": {
+                            "label": "To the map"
+                        }
+                    }
+                }
+            }
+        },
+        "test_consultation_scene": {
+            "title": "Consultation with the Crew",
+            "location": "Market Square, Freiburg",
+            "description": "You spotted a vendor offering you a suspicious deal.",
+            "characters": {
+                "shady_trader": {
+                    "name": "Shady Trader"
+                }
+            },
+            "lines": {
+                "test_consultation_scene__line0": {
+                    "text": "Hey, friend! I have something special for you. An artifact from the Zone, genuine and verified. All yours for 500 maroks.",
+                    "stageDirection": "The merchant pulls a strange glowing object from under the counter."
+                },
+                "test_consultation_scene__line1": {
+                    "text": "The item really emits a faint glow. The merchant looks nervous, constantly scanning the crowd.",
+                    "stageDirection": "He keeps glancing around, every few seconds checking the perimeter."
+                },
+                "test_consultation_scene__choice": {
+                    "text": "What do we do?",
+                    "characterAdvices": {
+                        "logic": {
+                            "text": "The price is inflated two or three times. Zone artifacts rarely cost more than 200 maroks. Either this is counterfeit or extremely dangerous. His nervousness is a red flag.",
+                            "stageDirection": "Cold analysis"
+                        },
+                        "perception": {
+                            "text": "It smells like ozone and something metallic. The glow is too even for a natural anomaly. There are three more pieces like this under the counter. This is not a unique find.",
+                            "stageDirection": "Sharp senses"
+                        },
+                        "empathy": {
+                            "text": "He's scared. Not of you—of something else. Maybe he needs to ditch these quickly. Could be in debt. Or the artifacts are stolen.",
+                            "stageDirection": "Understanding emotions"
+                        },
+                        "knowledge": {
+                            "text": "Something's wrong. The inner voice shouts 'trap'. Maybe the object is being tracked. Or this is bait for something bigger.",
+                            "stageDirection": "Foreboding danger"
+                        },
+                        "authority": {
+                            "text": "He is weak. Press him and the price drops to 200 or he hands it over for free. Remember: intimidation leaves tracks. Someone could notice.",
+                            "stageDirection": "Domination"
+                        },
+                        "drama": {
+                            "text": "All merchants are liars. All artifacts on the market are fake. The only lesson is: trust no one and walk away.",
+                            "stageDirection": "Skepticism"
+                        }
+                    },
+                    "choices": {
+                        "buy_artifact": {
+                            "label": "Buy the artifact (500 maroks)",
+                            "description": "Take the risk and secure the item."
+                        },
+                        "negotiate": {
+                            "label": "[AUTHORITY] Haggle",
+                            "description": "Try to lower the price.",
+                            "requirements": {
+                                "skillCheck": {
+                                    "label": "Requires Authority 40+"
+                                }
+                            }
+                        },
+                        "refuse": {
+                            "label": "Refuse",
+                            "description": "That looks suspicious."
+                        }
+                    }
+                },
+                "test_consultation_scene__bought": {
+                    "text": "Excellent choice, friend! You won't regret it... I hope.",
+                    "stageDirection": "The merchant snatches the money and melts into the crowd."
+                },
+                "test_consultation_scene__negotiated": {
+                    "text": "F-fine, all right! 300 maroks, last price!",
+                    "stageDirection": "He swallows nervously."
+                },
+                "test_consultation_scene__refused": {
+                    "text": "You shake your head and step away. The merchant already eyes the next victim."
+                }
+            }
+        }
+    }
+}

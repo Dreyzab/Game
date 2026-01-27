@@ -78,7 +78,26 @@ export interface RegionConfig {
     features?: {
         /** Force a river path across the map */
         river?: boolean
+        /** Enable vintage styled map (sepia/paper) */
+        vintageStyle?: boolean
     }
     /** Image for UI card */
     imageUrl?: string
+    /** Defined districts for the region (e.g. for Detective Mode) */
+    districts?: DistrictConfig[]
+}
+
+export interface DistrictConfig {
+    id: string
+    name: string
+    /** Center point for the district label */
+    center: [number, number]
+    /** Radius in meters (approx) for simple circular zones */
+    radius?: number
+    /** Metadata for game mechanics */
+    meta: {
+        risk: 'safe' | 'low' | 'medium' | 'high' | 'extreme'
+        classBias: 'elite' | 'bourgeois' | 'worker' | 'slum'
+        heat?: number
+    }
 }

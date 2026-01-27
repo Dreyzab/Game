@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useCallback } from 'react'
 import type { Map, GeoJSONSource } from 'mapbox-gl'
 import type { MapPoint } from '@/shared/types/map'
 
@@ -15,7 +15,7 @@ export const NavigationLayer: React.FC<NavigationLayerProps> = ({
 }) => {
     const sourceId = 'navigation-route-source'
     const layerId = 'navigation-route-line'
-    const isMapStyleReady = () => !!map && !!(map as any)?.style && !!map.isStyleLoaded?.()
+    const isMapStyleReady = useCallback(() => !!map && !!(map as any)?.style && !!map.isStyleLoaded?.(), [map])
 
     useEffect(() => {
         if (!map) return
@@ -71,7 +71,7 @@ export const NavigationLayer: React.FC<NavigationLayerProps> = ({
                 // cleanup should not crash the app
             }
         }
-    }, [map])
+    }, [map, isMapStyleReady])
 
     useEffect(() => {
         if (!map || !isMapStyleReady()) return
@@ -103,7 +103,7 @@ export const NavigationLayer: React.FC<NavigationLayerProps> = ({
         } catch {
             // ignore transient style-loading errors
         }
-    }, [map, userLocation, targetPoint])
+    }, [map, userLocation, targetPoint, isMapStyleReady])
 
     return null
 }

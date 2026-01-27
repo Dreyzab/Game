@@ -48,10 +48,63 @@ export const KARLSRUHE_REGION: RegionConfig = {
     imageUrl: '/images/regions/karlsruhe.jpg',
 }
 
+/**
+ * Freiburg 1905 - Detective Mode Region
+ * Vintage style, districts, specific biome weights.
+ */
+export const FREIBURG_1905: RegionConfig = {
+    id: 'freiburg_1905',
+    name: 'Freiburg (1905)',
+    nameRu: 'Фрайбург (1905)',
+    geoCenterLngLat: [7.8494, 47.9950], // Centered closer to Munster/Bank
+    biomeWeights: {
+        URBAN: 2.0,
+        CITY_HIGH: 1.5,
+        ADMIN: 1.0,
+        FOREST: 0.5,
+    },
+    features: {
+        river: true,
+        vintageStyle: true,
+    },
+    imageUrl: '/images/regions/freiburg_old.jpg',
+    districts: [
+        {
+            id: 'altstadt',
+            name: 'Altstadt',
+            center: [7.8529, 47.9955],
+            radius: 400,
+            meta: { risk: 'low', classBias: 'elite' }
+        },
+        {
+            id: 'schneckenvorstadt',
+            name: 'Schneckenvorstadt',
+            center: [7.8488, 47.9930],
+            radius: 300,
+            meta: { risk: 'medium', classBias: 'worker' } // "Ecosphere of Vice"
+        },
+        {
+            id: 'wiehre',
+            name: 'Wiehre',
+            center: [7.8500, 47.9850],
+            radius: 500,
+            meta: { risk: 'safe', classBias: 'bourgeois' }
+        },
+        {
+            id: 'stuhlinger',
+            name: 'Stühlinger',
+            center: [7.8400, 47.9980], // Behind station
+            radius: 400,
+            meta: { risk: 'medium', classBias: 'worker' }
+        }
+    ]
+}
+
 /** All available regions */
 export const REGIONS: RegionConfig[] = [
     DEFAULT_REGION,
     KARLSRUHE_REGION,
+    FREIBURG_1905,
 ]
 
 /** Lookup region by ID (returns default if not found) */

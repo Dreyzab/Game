@@ -223,7 +223,7 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
       }).catch(() => { })
       // #endregion
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [initialSceneId, lockedSceneId, routeSceneId])
 
   useEffect(() => {
     const el = fadeOverlayRef.current
@@ -670,7 +670,7 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
     if (returnPathRaw && returnPathRaw.startsWith('/')) {
       navigate(returnPathRaw)
     }
-  }, [commitMutation, consumePayload, navigate, searchParams, viewModel.scene.id, vnSession])
+  }, [commitMutation, consumePayload, initialSceneId, navigate, searchParams, viewModel.scene.id, vnSession])
 
   const handleExitRef = useRef(handleExit)
   useEffect(() => {
@@ -719,7 +719,7 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
         console.error('[VN] Failed to commit progress on unmount', error)
       })
     }
-  }, [])
+  }, [initialSceneId])
 
   const handleAdviceViewed = useCallback(
     (payload: {

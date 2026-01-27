@@ -2,9 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import mapboxgl, { Map as MapboxMapInstance, GeoJSONSource } from 'mapbox-gl'
 import { createRoot } from 'react-dom/client'
 import * as turf from '@turf/turf'
-import { DetectiveMarker } from '@/features/detective/map/DetectiveMarker'
-import { getWalkingRoute, interpolatePosition } from '@/features/detective/lib/movement'
-import { DETECTIVE_CONFIG } from '@/features/detective/config'
+import { DetectiveMarker, getWalkingRoute, interpolatePosition, DETECTIVE_CONFIG } from '@/features/detective'
 import { FREIBURG_1905 } from '@/shared/hexmap/regions'
 
 interface DetectiveModeLayerProps {
@@ -44,7 +42,7 @@ export const DetectiveModeLayer: React.FC<DetectiveModeLayerProps> = ({
                     : (FREIBURG_1905.geoCenterLngLat as [number, number]))
             setDetectivePos(spawn)
             // #region agent log (debug)
-            fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/widgets/map/map-view/DetectiveModeLayer.tsx:initSpawn',message:'detective_spawn_set',data:{isVintage,spawn,usedUserPosition:Boolean(userPosition),hasSpawnOverride:Boolean(DETECTIVE_CONFIG.SPAWN_LNG_LAT)},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H2'})}).catch(()=>{});
+            fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'src/widgets/map/map-view/DetectiveModeLayer.tsx:initSpawn', message: 'detective_spawn_set', data: { isVintage, spawn, usedUserPosition: Boolean(userPosition), hasSpawnOverride: Boolean(DETECTIVE_CONFIG.SPAWN_LNG_LAT) }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'pre-fix', hypothesisId: 'H2' }) }).catch(() => { });
             // #endregion agent log (debug)
         }
     }, [detectivePos, isVintage, userPosition])
@@ -64,52 +62,44 @@ export const DetectiveModeLayer: React.FC<DetectiveModeLayerProps> = ({
             const districtsLayerId = 'detective-districts-fill'
             if (!(map as any)?.style || !map.isStyleLoaded?.()) return
             // #region agent log (debug)
-            fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/widgets/map/map-view/DetectiveModeLayer.tsx:addLayers',message:'detective_add_layers_attempt',data:{stylePresent:Boolean((map as any)?.style),styleLoaded:Boolean(map.isStyleLoaded?.()),hasRouteSource:Boolean(map.getSource?.(routeSourceId)),hasRouteLayer:Boolean(map.getLayer?.(routeLayerId)),hasDistrictsSource:Boolean(map.getSource?.(districtsSourceId)),hasDistrictsLayer:Boolean(map.getLayer?.(districtsLayerId))},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H4'})}).catch(()=>{});
+            fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'src/widgets/map/map-view/DetectiveModeLayer.tsx:addLayers', message: 'detective_add_layers_attempt', data: { stylePresent: Boolean((map as any)?.style), styleLoaded: Boolean(map.isStyleLoaded?.()), hasRouteSource: Boolean(map.getSource?.(routeSourceId)), hasRouteLayer: Boolean(map.getLayer?.(routeLayerId)), hasDistrictsSource: Boolean(map.getSource?.(districtsSourceId)), hasDistrictsLayer: Boolean(map.getLayer?.(districtsLayerId)) }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'pre-fix', hypothesisId: 'H4' }) }).catch(() => { });
             // #endregion agent log (debug)
 
             // 1. Route Layer
-            try {
-                if (!map.getSource(routeSourceId)) {
-                    map.addSource(routeSourceId, {
-                        type: 'geojson',
-                        data: { type: 'FeatureCollection', features: [] }
-                    })
-                    map.addLayer({
-                        id: routeLayerId,
-                        type: 'line',
-                        source: routeSourceId,
-                        layout: { 'line-join': 'round', 'line-cap': 'round' },
-                        paint: {
-                            'line-color': '#ffaa00',
-                            'line-width': 4,
-                            'line-opacity': 0.8
-                        }
-                    })
-                }
-            } catch (err: any) {
-                throw err
+            if (!map.getSource(routeSourceId)) {
+                map.addSource(routeSourceId, {
+                    type: 'geojson',
+                    data: { type: 'FeatureCollection', features: [] }
+                })
+                map.addLayer({
+                    id: routeLayerId,
+                    type: 'line',
+                    source: routeSourceId,
+                    layout: { 'line-join': 'round', 'line-cap': 'round' },
+                    paint: {
+                        'line-color': '#ffaa00',
+                        'line-width': 4,
+                        'line-opacity': 0.8
+                    }
+                })
             }
 
             // 2. Districts Layer
-            try {
-                if (!map.getSource(districtsSourceId)) {
-                    map.addSource(districtsSourceId, {
-                        type: 'geojson',
-                        data: { type: 'FeatureCollection', features: [] }
-                    })
-                    map.addLayer({
-                        id: districtsLayerId,
-                        type: 'fill',
-                        source: districtsSourceId,
-                        paint: {
-                            'fill-color': ['get', 'color'],
-                            'fill-opacity': 0.15,
-                            'fill-outline-color': ['get', 'color']
-                        }
-                    }, routeLayerId)
-                }
-            } catch (err: any) {
-                throw err
+            if (!map.getSource(districtsSourceId)) {
+                map.addSource(districtsSourceId, {
+                    type: 'geojson',
+                    data: { type: 'FeatureCollection', features: [] }
+                })
+                map.addLayer({
+                    id: districtsLayerId,
+                    type: 'fill',
+                    source: districtsSourceId,
+                    paint: {
+                        'fill-color': ['get', 'color'],
+                        'fill-opacity': 0.15,
+                        'fill-outline-color': ['get', 'color']
+                    }
+                }, routeLayerId)
             }
         }
 
@@ -151,8 +141,8 @@ export const DetectiveModeLayer: React.FC<DetectiveModeLayerProps> = ({
                 if (map.getSource(routeSourceId)) map.removeSource(routeSourceId)
                 if (map.getLayer(districtsLayerId)) map.removeLayer(districtsLayerId)
                 if (map.getSource(districtsSourceId)) map.removeSource(districtsSourceId)
-            } catch (err: any) {
-                // Cleanup не должен ронять приложение.
+            } catch {
+                // Cleanup should not crash.
                 return
             }
         }
@@ -201,7 +191,7 @@ export const DetectiveModeLayer: React.FC<DetectiveModeLayerProps> = ({
 
                 const result = await getWalkingRoute(start, end, mapboxToken)
                 // #region agent log (debug)
-                fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/widgets/map/map-view/DetectiveModeLayer.tsx:handleClick',message:'detective_route_result',data:{start,end,tokenPresent:Boolean(mapboxToken),isFallback:result?.isFallback??null,duration:result?.duration??null,geomType:result?.geometry?.type??null},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H4'})}).catch(()=>{});
+                fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'src/widgets/map/map-view/DetectiveModeLayer.tsx:handleClick', message: 'detective_route_result', data: { start, end, tokenPresent: Boolean(mapboxToken), isFallback: result?.isFallback ?? null, duration: result?.duration ?? null, geomType: result?.geometry?.type ?? null }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'pre-fix', hypothesisId: 'H4' }) }).catch(() => { });
                 // #endregion agent log (debug)
 
                 // Draw Route
@@ -250,7 +240,7 @@ export const DetectiveModeLayer: React.FC<DetectiveModeLayerProps> = ({
             } catch (err) {
                 console.error('Movement failed', err)
                 // #region agent log (debug)
-                fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/widgets/map/map-view/DetectiveModeLayer.tsx:handleClickCatch',message:'detective_route_failed',data:{errorMessage:(err as any)?.message??String(err)},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H4'})}).catch(()=>{});
+                fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'src/widgets/map/map-view/DetectiveModeLayer.tsx:handleClickCatch', message: 'detective_route_failed', data: { errorMessage: (err as any)?.message ?? String(err) }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'pre-fix', hypothesisId: 'H4' }) }).catch(() => { });
                 // #endregion agent log (debug)
             }
         }

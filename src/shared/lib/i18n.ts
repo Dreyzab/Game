@@ -12,6 +12,12 @@ import settingsDe from '../../locales/de/settings.json';
 import detectiveRu from '../../locales/ru/detective.json';
 import detectiveEn from '../../locales/en/detective.json';
 import detectiveDe from '../../locales/de/detective.json';
+import homeRu from '../../locales/ru/home.json';
+import homeEn from '../../locales/en/home.json';
+import homeDe from '../../locales/de/home.json';
+import visualNovelRu from '../../locales/ru/visualNovel.json';
+import visualNovelEn from '../../locales/en/visualNovel.json';
+import visualNovelDe from '../../locales/de/visualNovel.json';
 
 i18n
     .use(LanguageDetector)
@@ -22,20 +28,26 @@ i18n
                 common: commonRu,
                 settings: settingsRu,
                 detective: detectiveRu,
+                home: homeRu,
+                visualNovel: visualNovelRu,
             },
             en: {
                 common: commonEn,
                 settings: settingsEn,
                 detective: detectiveEn,
+                home: homeEn,
+                visualNovel: visualNovelEn,
             },
             de: {
                 common: commonDe,
                 settings: settingsDe,
                 detective: detectiveDe,
+                home: homeDe,
+                visualNovel: visualNovelDe,
             },
         },
         fallbackLng: 'ru',
-        ns: ['common', 'settings', 'detective'],
+        ns: ['common', 'settings', 'detective', 'home', 'visualNovel'],
         defaultNS: 'common',
         interpolation: {
             escapeValue: false,

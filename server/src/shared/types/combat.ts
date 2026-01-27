@@ -149,6 +149,8 @@ export interface CombatCard {
 export type EffectType =
   | 'damage'
   | 'heal'
+  | 'aoe_rank'
+  | 'aoe_all'
   | 'buff'
   | 'debuff'
   | 'stagger'
@@ -164,6 +166,9 @@ export type EffectType =
   | 'armor_pierce'
   | 'critical_boost'
   | 'interrupt'
+  // Area effects
+  | 'aoe_rank'    // Hits all enemies in target rank
+  | 'aoe_all'     // Hits multiple ranks (frontlines)
   // New effects for expanded content
   | 'freeze'    // Cannot act for N turns (Ice Golem)
   | 'root'      // Cannot move for N turns (Tree Creature)

@@ -1,4 +1,4 @@
-import type { CardType, CombatRank, DamageType } from '../types/combat'
+import type { CardType, CombatRank, DamageType, CombatEffect } from '../types/combat'
 
 /**
  * Base template for a weapon card.
@@ -9,13 +9,16 @@ export interface WeaponCardTemplate {
   type: CardType
   apCost: number
   staminaCost: number
+  ammoCost?: number
   damageMult: number // Multiplier of weapon base damage
+  impact?: number // Flat impact
   bonusDamage?: number // Flat bonus
   optimalRange: CombatRank[]
   damageType?: DamageType // Override weapon type
+  imageUrl?: string // Optional card illustration
   description: string
   jamChanceMod?: number // Flat addition to jam chance
-  effects?: any[]
+  effects?: CombatEffect[]
 }
 
 export interface GeneratedWeaponCard {
@@ -25,12 +28,15 @@ export interface GeneratedWeaponCard {
   type: CardType
   apCost: number
   staminaCost: number
+  ammoCost?: number
   damage: number
+  impact?: number
   damageType: DamageType
   optimalRange: CombatRank[]
+  imageUrl?: string
   description: string
   jamChance: number
-  effects: any[]
+  effects: CombatEffect[]
 }
 
 export interface GenerateWeaponCardsOptions {
@@ -74,9 +80,12 @@ export function generateWeaponCardsForWeaponId(
       type: template.type,
       apCost: template.apCost,
       staminaCost: template.staminaCost,
+      ammoCost: template.ammoCost,
       damage,
+      impact: template.impact,
       damageType,
       optimalRange: template.optimalRange,
+      imageUrl: template.imageUrl,
       description: template.description,
       jamChance,
       effects: Array.isArray(template.effects) ? template.effects : [],
@@ -103,6 +112,7 @@ export const WEAPON_CARDS: Record<string, WeaponCardTemplate[]> = {
       staminaCost: 25,
       damageMult: 0.8,
       optimalRange: [1, 2, 3],
+      imageUrl: '/images/weapons/suppressive_fire_card.png',
       description: 'Forces enemy heads down. Reduces enemy accuracy.',
       effects: [{ type: 'debuff', value: 10, duration: 1, description: 'Suppressed' }],
     },
@@ -115,6 +125,7 @@ export const WEAPON_CARDS: Record<string, WeaponCardTemplate[]> = {
       staminaCost: 10,
       damageMult: 1.0,
       optimalRange: [1, 2],
+      imageUrl: '/images/weapons/aimed_shot_card.png',
       description: 'Standard shots.',
     },
     {
@@ -124,6 +135,7 @@ export const WEAPON_CARDS: Record<string, WeaponCardTemplate[]> = {
       staminaCost: 20,
       damageMult: 1.5,
       optimalRange: [1],
+      imageUrl: '/images/weapons/point_blank_card.png',
       description: 'Risky close range shot.',
       jamChanceMod: 5,
     },
@@ -157,6 +169,7 @@ export const WEAPON_CARDS: Record<string, WeaponCardTemplate[]> = {
       staminaCost: 40,
       damageMult: 2.0,
       optimalRange: [1, 2],
+      imageUrl: '/images/weapons/fan_the_hammer_card.png',
       description: 'Unload all rounds.',
       jamChanceMod: 0,
     },
@@ -167,7 +180,28 @@ export const WEAPON_CARDS: Record<string, WeaponCardTemplate[]> = {
       staminaCost: 15,
       damageMult: 1.5,
       optimalRange: [1, 2, 3],
+      imageUrl: '/images/weapons/dead_eye_card.png',
       description: 'High damage aimed shot.',
+    },
+  ],
+  beretta_m9: [
+    {
+      name: 'Aimed Shot',
+      type: 'attack',
+      apCost: 1,
+      staminaCost: 10,
+      damageMult: 1.0,
+      optimalRange: [1, 2, 3],
+      description: 'Accurate single shot.',
+    },
+    {
+      name: 'Double Tap',
+      type: 'attack',
+      apCost: 1,
+      staminaCost: 15,
+      damageMult: 1.0,
+      optimalRange: [1, 2],
+      description: 'Two quick shots.',
     },
   ],
 
@@ -384,6 +418,7 @@ export const WEAPON_CARDS: Record<string, WeaponCardTemplate[]> = {
       staminaCost: 5,
       damageMult: 0.8,
       optimalRange: [1],
+      imageUrl: '/images/weapons/slash_card.png',
       description: 'Fast cut.',
       damageType: 'slashing',
     },
@@ -394,7 +429,43 @@ export const WEAPON_CARDS: Record<string, WeaponCardTemplate[]> = {
       staminaCost: 10,
       damageMult: 1.5,
       optimalRange: [1],
+      imageUrl: '/images/weapons/stab_card.png',
       description: 'Piercing strike.',
+      damageType: 'piercing',
+    },
+  ],
+  scalpel: [
+    {
+      name: 'Slash',
+      type: 'attack',
+      apCost: 1,
+      staminaCost: 5,
+      damageMult: 0.8,
+      optimalRange: [1],
+      imageUrl: '/images/weapons/slash_card.png',
+      description: 'Quick precise cut.',
+      damageType: 'slashing',
+    },
+    {
+      name: 'Stab',
+      type: 'attack',
+      apCost: 2,
+      staminaCost: 10,
+      damageMult: 1.5,
+      optimalRange: [1],
+      imageUrl: '/images/weapons/stab_card.png',
+      description: 'Finds the weak spot.',
+      damageType: 'piercing',
+    },
+    {
+      name: 'Scalpel Throw',
+      type: 'attack',
+      apCost: 1,
+      staminaCost: 15,
+      damageMult: 1.2,
+      optimalRange: [1, 2, 3],
+      imageUrl: '/images/weapons/scalpel_throw_card.png',
+      description: 'Tosses a scalpel with surgical precision.',
       damageType: 'piercing',
     },
   ],
@@ -407,6 +478,7 @@ export const WEAPON_CARDS: Record<string, WeaponCardTemplate[]> = {
       staminaCost: 20,
       damageMult: 1.0, // Base stats damage (50) might be too high if mult is 1, but let's stick to simple logic
       optimalRange: [2, 3, 4],
+      imageUrl: '/images/weapons/bomb_card.png',
       description: 'Explosive area damage.',
       damageType: 'explosive',
       effects: [{ type: 'aoe_rank', description: 'Explosion' }]
@@ -420,6 +492,7 @@ export const WEAPON_CARDS: Record<string, WeaponCardTemplate[]> = {
       staminaCost: 20,
       damageMult: 0,
       optimalRange: [],
+      imageUrl: '/images/weapons/first_aid_card.png',
       description: 'Heal target for 20 HP.',
       effects: [{ type: 'heal', value: 20, description: 'Heal 20' }]
     }

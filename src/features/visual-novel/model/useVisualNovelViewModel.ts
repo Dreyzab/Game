@@ -14,6 +14,8 @@ import type {
   VisualNovelLine,
   VisualNovelSceneDefinition,
 } from '@/shared/types/visualNovel'
+import { useTranslation } from 'react-i18next'
+import { localizeVisualNovelScene } from '@/shared/lib/visualNovelLocalization'
 
 interface UseVisualNovelViewModelParams {
   sceneId?: string
@@ -60,6 +62,11 @@ export function useVisualNovelViewModel(
   const [sceneId, setSceneId] = useState<string | undefined>(initialSceneId)
   const [scene, setScene] = useState<VisualNovelSceneDefinition>(initialScene)
   const [lineId, setLineId] = useState<string>(initialScene.entryLineId ?? '')
+  const { t } = useTranslation('visualNovel')
+  const localizedScene = useMemo(
+    () => localizeVisualNovelScene(scene, t),
+    [scene, t]
+  )
   const [flags, setFlags] = useState<Set<string>>(() => new Set(params.initialFlags ?? []))
   const [history, setHistory] = useState<VisualNovelHistoryEntry[]>([])
   const [isSceneCompleted, setSceneCompleted] = useState(false)
@@ -117,12 +124,12 @@ export function useVisualNovelViewModel(
   }, [log, sceneId])
 
   const currentLine = useMemo(() => {
-    const explicit = getLineById(scene, lineId)
+    const explicit = getLineById(localizedScene, lineId)
     if (explicit) {
       return explicit
     }
-    return scene.lines.length > 0 ? scene.lines[0] : null
-  }, [scene, lineId])
+    return localizedScene.lines.length > 0 ? localizedScene.lines[0] : null
+  }, [localizedScene, lineId])
 
   const choiceViews = useMemo(() => buildChoiceViews(currentLine, flags), [currentLine, flags])
 
@@ -190,11 +197,11 @@ export function useVisualNovelViewModel(
   const getNextSequentialLine = useCallback(
     (line: VisualNovelLine | null): VisualNovelLine | null => {
       if (!line) return null
-      const index = scene.lines.findIndex((entry) => entry.id === line.id)
+      const index = localizedScene.lines.findIndex((entry) => entry.id === line.id)
       if (index < 0) return null
 
-      for (let i = index + 1; i < scene.lines.length; i++) {
-        const candidate = scene.lines[i]
+      for (let i = index + 1; i < localizedScene.lines.length; i++) {
+        const candidate = localizedScene.lines[i]
         if (isLineValid(candidate)) {
           log('[VN] Next sequential line', {
             fromLineId: line.id,
@@ -206,7 +213,7 @@ export function useVisualNovelViewModel(
       }
       return null
     },
-    [log, scene.lines, isLineValid]
+    [log, localizedScene.lines, isLineValid]
   )
 
   const goToScene = useCallback(
@@ -255,7 +262,7 @@ export function useVisualNovelViewModel(
   const advanceToLine = useCallback(
     (targetLineId?: string | null, choiceId?: string) => {
       if (targetLineId) {
-        let targetLine = getLineById(scene, targetLineId)
+        let targetLine = getLineById(localizedScene, targetLineId)
 
         // If explicit line is invalid, try to find next valid
         if (targetLine && !isLineValid(targetLine)) {
@@ -297,7 +304,7 @@ export function useVisualNovelViewModel(
         setSceneCompleted(true)
       }
     },
-    [currentLine, getNextSequentialLine, goToScene, isLineValid, log, recordHistory, scene]
+    [currentLine, getNextSequentialLine, goToScene, isLineValid, log, recordHistory, localizedScene]
   )
 
   const hasActiveChoices = useMemo(
@@ -397,7 +404,7 @@ export function useVisualNovelViewModel(
   )
 
   return {
-    scene,
+    scene: localizedScene,
     currentLine,
     choices: choiceViews,
     isPending,

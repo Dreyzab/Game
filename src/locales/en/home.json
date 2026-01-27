@@ -1,0 +1,55 @@
+﻿{
+    "languageSwitcher": {
+        "label": "Language"
+    },
+    "hero": {
+        "title": "QR-Boost",
+        "badge": "Interactive QR-Boost digest"
+    },
+    "coop": {
+        "title": "Cooperative Play",
+        "description": "Create a crew, show your QR code to friends, or join by code.",
+        "start": "Co-op Play",
+        "join": "Join",
+        "restart": "Start a new co-op game",
+        "lastRoomLabel": "Last room:",
+        "statuses": {
+            "checking": "(checking...)",
+            "active": "(game in progress)",
+            "waiting": "(waiting for players)"
+        },
+        "refresh": "Refresh"
+    },
+    "survival": {
+        "title": "⚔️ Survival Mode",
+        "description": "Local QR-code co-op. One screen is the TV hub, phones act as controllers.",
+        "createRoom": "Create Room (GM)",
+        "join": "Join"
+    },
+    "detective": {
+        "title": "🕵️ Archiv: Freiburg 1905",
+        "subtitle": "\"Operation Dossier\". Detective mode (Alpha).",
+        "openCase": "Open Case (Case File)",
+        "continue": "Continue",
+        "testTooltip": "Simulation without inventory reset (Test)"
+    },
+    "qr": {
+        "simulateButton": "Simulate Rathaus QR",
+        "simulateTooltip": "Simulates scanning the Rathaus QR and triggers onboarding",
+        "notice": "QR activated.",
+        "authLoading": "Auth is still loading. Try again in a couple seconds.",
+        "activationFailed": "Failed to activate QR",
+        "simulateFailed": "Failed to simulate QR scan. Check your connection to the server."
+    },
+    "auth": {
+        "startGame": "Start Game",
+        "unallocatedSkills": "You have unallocated skill points",
+        "creating": "Creating…",
+        "createPlayer": "Create player",
+        "createSuccess": "Player created successfully!",
+        "createFailure": "Failed to create player",
+        "createError": "Error: {{error}}",
+        "registerAdmin": "Register as admin (dev)",
+        "registerAdminNotice": "Admin registration is handled through the server console."
+    }
+}

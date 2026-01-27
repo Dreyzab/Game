@@ -1,0 +1,113 @@
+﻿{
+    "scenes": {
+        "coop_briefing_intro": {
+            "title": "Einweisung",
+            "location": "Kommandozentrale",
+            "description": "Kurze Einweisung vor dem Einsatz.",
+            "characters": {
+                "instructor": { "name": "Ausbilder" },
+                "narrator": { "name": "System" }
+            },
+            "lines": {
+                "coop_briefing_intro__line0": {
+                    "text": "Hört gut zu. Heute arbeitet ihr als Team. Jede*r trägt Verantwortung für die eigene Rolle.",
+                    "stageDirection": "Der Ausbilder zieht ein seltsam glühendes Artefakt hinter dem Tresen hervor."
+                },
+                "coop_briefing_intro__line1": {
+                    "text": "Bleibt zusammen, teilt Informationen und dupliziert keine Aufgaben. Ihr habt nur eine Chance, alles sauber zu halten.",
+                    "stageDirection": "Der Ausbilder scannt aufmerksam den Raum."
+                },
+                "coop_briefing_intro__line2": {
+                    "text": "Einweisung abgeschlossen."
+                },
+                "coop_briefing_intro__choice": {
+                    "text": "Bereit, loszugehen?",
+                    "choices": {
+                        "go_map": {
+                            "label": "Zur Karte"
+                        }
+                    }
+                }
+            }
+        },
+        "test_consultation_scene": {
+            "title": "Beratung mit dem Team",
+            "location": "Marktplatz, Freiburg",
+            "description": "Ihr habt einen Händler entdeckt, der euch ein zweifelhaftes Angebot macht.",
+            "characters": {
+                "shady_trader": {
+                    "name": "Dubioser Händler"
+                }
+            },
+            "lines": {
+                "test_consultation_scene__line0": {
+                    "text": "Hey, Freund! Ich habe etwas Besonderes für dich. Ein Artefakt aus der Zone, echt und geprüft. Für 500 Marok.",
+                    "stageDirection": "Der Händler zieht ein seltsam leuchtendes Objekt unter dem Tresen hervor."
+                },
+                "test_consultation_scene__line1": {
+                    "text": "Das Ding strahlt ein schwaches Leuchten aus. Der Händler wirkt nervös und blickt ständig in die Runde.",
+                    "stageDirection": "Er schaut unruhig in die Menge, alle paar Sekunden überprüft er den Bereich."
+                },
+                "test_consultation_scene__choice": {
+                    "text": "Was sollen wir tun?",
+                    "characterAdvices": {
+                        "logic": {
+                            "text": "Der Preis ist zwei- bis dreimal überzogen. Zone-Artefakte kosten selten mehr als 200 Marok. Entweder eine Fälschung oder sehr gefährlich. Seine Nervosität ist ein rotes Signal.",
+                            "stageDirection": "Kühle Analyse"
+                        },
+                        "perception": {
+                            "text": "Geruch... Ozon und etwas Metallisches? Das Leuchten ist zu gleichmäßig für eine natürliche Anomalie. Unter dem Tresen liegen drei weitere gleiche Stücke. Das ist kein einzigartiger Fund.",
+                            "stageDirection": "Scharfe Sinne"
+                        },
+                        "empathy": {
+                            "text": "Er hat Angst. Nicht vor dir—vor etwas anderem. Vielleicht muss er das Zeug schnell loswerden. Vielleicht schuldet er Geld. Oder die Artefakte sind gestohlen.",
+                            "stageDirection": "Emotionale Wahrnehmung"
+                        },
+                        "knowledge": {
+                            "text": "Irgendetwas stimmt nicht. Die innere Stimme schreit 'Falle'. Vielleicht wird das Objekt beobachtet. Oder es ist Köder für etwas Größeres.",
+                            "stageDirection": "Gefühl für Gefahr"
+                        },
+                        "authority": {
+                            "text": "Er ist schwach. Setz ihn unter Druck – der Preis fällt auf 200 oder er gibt es gratis her. Denk daran: Einschüchterung hinterlässt Spuren. Jemand könnte es bemerken.",
+                            "stageDirection": "Dominanz"
+                        },
+                        "drama": {
+                            "text": "Alle Händler sind Betrüger. Alle Artefakte auf dem Markt sind Fälschungen. Die einzige Lektion: Vertraue niemandem und geh weg.",
+                            "stageDirection": "Skepsis"
+                        }
+                    },
+                    "choices": {
+                        "buy_artifact": {
+                            "label": "Artefakt kaufen (500 Marok)",
+                            "description": "Das Risiko eingehen und die Beute sichern."
+                        },
+                        "negotiate": {
+                            "label": "[AUTORITÄT] Feilschen",
+                            "description": "Versuche, den Preis zu drücken.",
+                            "requirements": {
+                                "skillCheck": {
+                                    "label": "Benötigt Autorität 40+"
+                                }
+                            }
+                        },
+                        "refuse": {
+                            "label": "Ablehnen",
+                            "description": "Das wirkt verdächtig."
+                        }
+                    }
+                },
+                "test_consultation_scene__bought": {
+                    "text": "Ausgezeichnete Wahl, Freund! Du wirst es nicht bereuen... hoffe ich.",
+                    "stageDirection": "Der Händler schnappt sich das Geld und verschwindet in der Menge."
+                },
+                "test_consultation_scene__negotiated": {
+                    "text": "A-also gut! 300 Marok, letzter Preis!",
+                    "stageDirection": "Er schluckt nervös."
+                },
+                "test_consultation_scene__refused": {
+                    "text": "Du schüttelst den Kopf und trittst zurück. Der Händler sucht schon nach der nächsten Beute."
+                }
+            }
+        }
+    }
+}

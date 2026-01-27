@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useCallback } from 'react'
 import type { Map, GeoJSONSource } from 'mapbox-gl'
 import type { DangerZone } from '@/shared/types/map'
 
@@ -14,7 +14,7 @@ export const DangerZonesLayer: React.FC<DangerZonesLayerProps> = ({ map, visible
     const fillLayerId = 'danger-zones-fill'
     const lineLayerId = 'danger-zones-line'
 
-    const isMapStyleReady = () => !!map && !!(map as any)?.style && !!map.isStyleLoaded?.()
+    const isMapStyleReady = useCallback(() => !!map && !!(map as any)?.style && !!map.isStyleLoaded?.(), [map])
 
     useEffect(() => {
         if (!map) return
@@ -91,7 +91,7 @@ export const DangerZonesLayer: React.FC<DangerZonesLayerProps> = ({ map, visible
                 // cleanup не должен ронять приложение
             }
         }
-    }, [map])
+    }, [map, isMapStyleReady, sourceId, fillLayerId, lineLayerId, visible])
 
     useEffect(() => {
         if (!map || !isMapStyleReady()) return
@@ -129,7 +129,7 @@ export const DangerZonesLayer: React.FC<DangerZonesLayerProps> = ({ map, visible
                 return
             }
         }
-    }, [map, visible, dangerZones])
+    }, [map, visible, dangerZones, isMapStyleReady, sourceId, fillLayerId, lineLayerId])
 
     return null
 }

@@ -585,7 +585,7 @@ export const SurvivalMapbox = forwardRef<SurvivalMapboxRef, SurvivalMapboxProps>
                 setMapLoaded(false)
             }
         }
-    }, [containerReady])
+    }, [containerReady, effectiveCenter])
 
     // GeoJSON data for the hex grid
     const hexGeoJSON = useMemo(() => {
@@ -1491,7 +1491,7 @@ export const SurvivalMapbox = forwardRef<SurvivalMapboxRef, SurvivalMapboxProps>
             m.off('mousemove', 'HEX_INTERACTION', onMouseMove)
             m.off('mouseleave', 'HEX_INTERACTION', onMouseLeave)
         }
-    }, [mapLoaded, gameState])
+    }, [mapLoaded, gameState, setHoveredHex])
 
     // Click interaction
     useEffect(() => {
@@ -1525,7 +1525,7 @@ export const SurvivalMapbox = forwardRef<SurvivalMapboxRef, SurvivalMapboxProps>
         return () => {
             m.off('click', 'HEX_INTERACTION', onClick)
         }
-    }, [mapLoaded, gameState, selectedHex, isMoving])
+    }, [mapLoaded, gameState, selectedHex, isMoving, setSelectedHex])
 
     // Keyboard shortcuts
     useEffect(() => {

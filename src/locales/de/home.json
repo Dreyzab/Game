@@ -1,0 +1,55 @@
+﻿{
+    "languageSwitcher": {
+        "label": "Sprache"
+    },
+    "hero": {
+        "title": "QR-Boost",
+        "badge": "Interaktiver QR-Boost-Digest"
+    },
+    "coop": {
+        "title": "Gemeinsames Spiel",
+        "description": "Stelle ein Team zusammen, zeige deinen QR-Code Freunden oder tritt per Code bei.",
+        "start": "Koop-Spiel",
+        "join": "Beitreten",
+        "restart": "Neue Koop-Runde starten",
+        "lastRoomLabel": "Letzter Raum:",
+        "statuses": {
+            "checking": "(Überprüfung...)",
+            "active": "(Spiel läuft)",
+            "waiting": "(Wartet auf Spieler)"
+        },
+        "refresh": "Aktualisieren"
+    },
+    "survival": {
+        "title": "⚔️ Überlebensmodus",
+        "description": "Lokaler QR-Koop. Ein Bildschirm ist die TV-Basis, Telefone dienen als Controller.",
+        "createRoom": "Raum erstellen (GM)",
+        "join": "Beitreten"
+    },
+    "detective": {
+        "title": "🕵️ Archiv: Freiburg 1905",
+        "subtitle": "\"Operation Dossier\". Detektiv-Modus (Alpha).",
+        "openCase": "Fall öffnen (Case File)",
+        "continue": "Fortfahren",
+        "testTooltip": "Simulation ohne Inventar-Rücksetzung (Test)"
+    },
+    "qr": {
+        "simulateButton": "Rathaus-QR simulieren",
+        "simulateTooltip": "Simuliert das Scannen des Rathaus-QR und startet das Onboarding",
+        "notice": "QR aktiviert.",
+        "authLoading": "Die Authentifizierung lädt noch. Bitte in ein paar Sekunden erneut versuchen.",
+        "activationFailed": "QR konnte nicht aktiviert werden",
+        "simulateFailed": "QR-Scan konnte nicht simuliert werden. Bitte Verbindung zum Server prüfen."
+    },
+    "auth": {
+        "startGame": "Spiel starten",
+        "unallocatedSkills": "Sie haben unverteilte Fähigkeitspunkte",
+        "creating": "Erstellt…",
+        "createPlayer": "Spieler erstellen",
+        "createSuccess": "Spieler erfolgreich erstellt!",
+        "createFailure": "Spieler konnte nicht erstellt werden",
+        "createError": "Fehler: {{error}}",
+        "registerAdmin": "Als Admin registrieren (dev)",
+        "registerAdminNotice": "Die Admin-Registrierung erfolgt über die Server-Konsole."
+    }
+}

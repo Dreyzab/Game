@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '../../shared/ui/components/Button'
 import { Text } from '../../shared/ui/components/Text'
 import { MotionContainer } from '../../shared/ui/components/MotionContainer'
@@ -20,6 +21,8 @@ export const AuthActions: React.FC<AuthActionsProps> = ({
   isCreating = false,
   hasUnallocatedSkills = false
 }) => {
+  const { t } = useTranslation('home')
+
   return (
     <MotionContainer
       className="mt-10 text-center"
@@ -35,7 +38,7 @@ export const AuthActions: React.FC<AuthActionsProps> = ({
         className="mr-3"
       >
         <span className="h-2 w-2 rounded-full bg-[color:var(--color-cyan)]" />
-        Начать игру
+        {t('auth.startGame')}
       </Button>
 
       {hasUnallocatedSkills && (
@@ -44,7 +47,7 @@ export const AuthActions: React.FC<AuthActionsProps> = ({
           size="xs"
           className="mt-2 block"
         >
-          У вас есть нераспределённые очки навыков
+          {t('auth.unallocatedSkills')}
         </Text>
       )}
 
@@ -60,7 +63,7 @@ export const AuthActions: React.FC<AuthActionsProps> = ({
         className="mr-3"
       >
         <span className="h-2 w-2 rounded-full bg-[color:var(--color-cyan)]" />
-        {isCreating ? 'Создание…' : 'Создать игрока'}
+        {isCreating ? t('auth.creating') : t('auth.createPlayer')}
       </Button>
 
       {createMsg && (
@@ -80,7 +83,7 @@ export const AuthActions: React.FC<AuthActionsProps> = ({
         className="mt-4"
       >
         <span className="h-2 w-2 rounded-full bg-[color:var(--color-cyan)]" />
-        Зарегистрироваться админом (dev)
+        {t('auth.registerAdmin')}
       </Button>
     </MotionContainer>
   )

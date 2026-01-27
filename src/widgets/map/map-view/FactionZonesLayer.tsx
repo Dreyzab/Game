@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react'
+import React, { useEffect, useMemo, useCallback } from 'react'
 import type { Map, GeoJSONSource } from 'mapbox-gl'
 
 interface FactionZonesLayerProps {
@@ -24,7 +24,7 @@ export const FactionZonesLayer: React.FC<FactionZonesLayerProps> = ({ map, visib
     const fillLayerId = 'faction-zones-fill'
     const lineLayerId = 'faction-zones-line'
 
-    const isMapStyleReady = () => !!map && !!(map as any)?.style && !!map.isStyleLoaded?.()
+    const isMapStyleReady = useCallback(() => !!map && !!(map as any)?.style && !!map.isStyleLoaded?.(), [map])
 
     useEffect(() => {
         if (!map) return
@@ -123,7 +123,7 @@ export const FactionZonesLayer: React.FC<FactionZonesLayerProps> = ({ map, visib
                 // cleanup не должен ронять приложение
             }
         }
-    }, [map])
+    }, [map, isMapStyleReady, sourceId, fillLayerId, lineLayerId, visible])
 
     useEffect(() => {
         if (!map || !isMapStyleReady()) return
@@ -161,7 +161,7 @@ export const FactionZonesLayer: React.FC<FactionZonesLayerProps> = ({ map, visib
                 return
             }
         }
-    }, [map, visible, processedSafeZones])
+    }, [map, visible, processedSafeZones, isMapStyleReady, sourceId, fillLayerId, lineLayerId])
 
     return null
 }

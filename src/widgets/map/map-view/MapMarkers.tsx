@@ -2,9 +2,8 @@ import React, { useEffect, useRef } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import mapboxgl from 'mapbox-gl'
 import { MapPointMarker } from '@/entities/map-point/ui/MapPointMarker'
-import { DetectivePointMarker } from '@/features/detective/map/DetectivePointMarker'
+import { DetectivePointMarker, type DetectivePointMetadata } from '@/features/detective'
 import type { MapPoint } from '@/shared/types/map'
-import type { DetectivePointMetadata } from '@/features/detective/map/types'
 
 export interface MapMarkersProps {
     map: mapboxgl.Map | null

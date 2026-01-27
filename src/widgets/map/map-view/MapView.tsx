@@ -14,9 +14,11 @@ import type { MapPoint, BBox } from '@/shared/types/map'
 import type { InteractionKey } from '@/entities/map-point/model/useMapPointInteraction'
 import { cn } from '@/shared/lib/utils/cn'
 import { useInventoryStore } from '@/entities/inventory/model/store'
-import { useDossierStore } from '@/features/detective/dossier'
-import { DETECTIVE_CONFIG } from '@/features/detective/config'
-import { getDetectivePoints } from '@/features/detective'
+import {
+  useDossierStore,
+  DETECTIVE_CONFIG,
+  getDetectivePoints
+} from '@/features/detective'
 import { FREIBURG_1905 } from '@/shared/hexmap/regions'
 import { DETECTIVE_MAP_STYLE } from '@/shared/config/mapStyles'
 
@@ -174,7 +176,7 @@ export const MapView: React.FC<MapViewProps> = ({
       center: userCenter,
       duration: 800,
     })
-  }, [map, userCenter])
+  }, [map, userCenter, isVintage])
 
   // Данные карты
   const { points, isLoading: isPointsLoading } = useVisibleMapPoints({
@@ -208,7 +210,7 @@ export const MapView: React.FC<MapViewProps> = ({
 
   useEffect(() => {
     // #region agent log (debug)
-    fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/widgets/map/map-view/MapView.tsx:filteredPointsEffect',message:'map_points_state',data:{isVintage,hasMap:Boolean(map),bbox:bbox??null,pointsCount:points.length,mergedPointsCount:mergedPoints.length,filteredPointsCount:filteredPoints.length,detectivePointStatesCount:Object.keys(detectivePointStates??{}).length,activeFilters},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H2'})}).catch(()=>{});
+    fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'src/widgets/map/map-view/MapView.tsx:filteredPointsEffect', message: 'map_points_state', data: { isVintage, hasMap: Boolean(map), bbox: bbox ?? null, pointsCount: points.length, mergedPointsCount: mergedPoints.length, filteredPointsCount: filteredPoints.length, detectivePointStatesCount: Object.keys(detectivePointStates ?? {}).length, activeFilters }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'pre-fix', hypothesisId: 'H2' }) }).catch(() => { });
     // #endregion agent log (debug)
   }, [isVintage, map, bbox, points.length, mergedPoints.length, filteredPoints.length, detectivePointStates, activeFilters])
 
@@ -256,7 +258,7 @@ export const MapView: React.FC<MapViewProps> = ({
 
       setMap(loadedMap)
       // #region agent log (debug)
-      fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/widgets/map/map-view/MapView.tsx:handleMapLoad',message:'map_loaded',data:{isVintage,initialCenter:initialCenterRef.current,initialZoom:initialZoomRef.current,currentZoom:loadedMap.getZoom?.(),styleUrl:(loadedMap.getStyle?.() as any)?.sprite??null},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H3'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'src/widgets/map/map-view/MapView.tsx:handleMapLoad', message: 'map_loaded', data: { isVintage, initialCenter: initialCenterRef.current, initialZoom: initialZoomRef.current, currentZoom: loadedMap.getZoom?.(), styleUrl: (loadedMap.getStyle?.() as any)?.sprite ?? null }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'pre-fix', hypothesisId: 'H3' }) }).catch(() => { });
       // #endregion agent log (debug)
 
       // Получаем начальные границы
@@ -271,7 +273,7 @@ export const MapView: React.FC<MapViewProps> = ({
     } catch (error) {
       console.error('❌ [MapView] Ошибка при инициализации карты:', error)
     }
-  }, [])
+  }, [isVintage])
 
   /**
    * Обработчик изменения границ карты
@@ -464,6 +466,6 @@ export const MapView: React.FC<MapViewProps> = ({
   )
 }
 
-const DossierOverlay = React.lazy(() => import('@/features/detective/dossier').then(module => ({ default: module.Dossier })))
+const DossierOverlay = React.lazy(() => import('@/features/detective').then(module => ({ default: module.Dossier })))
 
 export default MapView
