@@ -47,24 +47,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     console.error('📋 [ErrorBoundary] Детали ошибки:', errorInfo)
 
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        location: 'src/shared/ui/ErrorBoundary.tsx:componentDidCatch',
-        message: 'react error boundary caught',
-        data: {
-          name: error?.name,
-          message: error?.message,
-          stack: error?.stack,
-          componentStack: errorInfo?.componentStack,
-        },
-        timestamp: Date.now(),
-        sessionId: 'debug-session',
-        runId: 'post-fix',
-        hypothesisId: 'E',
-      }),
-    }).catch(() => { })
+    // #region agent log - REMOVED
+    // #endregion agent log
     // #endregion agent log
 
     this.setState({

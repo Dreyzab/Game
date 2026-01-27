@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useAuth } from '@clerk/clerk-react'
+import { useAppAuth } from '@/shared/auth'
 import { fetchDetectiveState, syncDetectiveState } from '@/features/detective/dossier/sync'
 
 /**
@@ -16,7 +16,7 @@ import { fetchDetectiveState, syncDetectiveState } from '@/features/detective/do
  * ```
  */
 export function useDetectiveSync() {
-    const { isSignedIn } = useAuth()
+    const { isSignedIn } = useAppAuth()
 
     useEffect(() => {
         if (!isSignedIn) return
