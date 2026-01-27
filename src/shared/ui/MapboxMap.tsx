@@ -158,7 +158,7 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
         bearing,
         pitch,
         attributionControl: true,
-        transformRequest: (url, _resourceType) => {
+        transformRequest: (url) => {
           return { url }
         },
         // ÑœÑ¯¥Ÿ¥Î¥^ÑæÑ«Ñ«Ñø¥? Ñ¨¥?ÑóÑ÷ÑúÑýÑóÑïÑ÷¥'ÑæÑ¯¥OÑ«Ñó¥?¥'¥O
