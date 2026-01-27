@@ -55,17 +55,20 @@ export function ModernHomePage() {
     setPreloadDetectiveMap(true)
     // If continueMode or name already exists, skip onboarding
     if (continueMode || detectiveName) {
-      console.log('Starting investigation (Continue)...')      useInventoryStore.getState().setGameMode('detective')
+      console.log('Starting investigation (Continue)...')
+      useInventoryStore.getState().setGameMode('detective')
       navigate(Routes.MAP)
       return
     }
 
-    // Otherwise show onboarding    setShowDetectiveOnboarding(true)
+    // Otherwise show onboarding
+    setShowDetectiveOnboarding(true)
   }, [navigate, detectiveName])
 
   const handleOnboardingComplete = useCallback((name: string) => {
     setDetectiveName(name)
-    setShowDetectiveOnboarding(false)    useInventoryStore.getState().setGameMode('detective')
+    setShowDetectiveOnboarding(false)
+    useInventoryStore.getState().setGameMode('detective')
     // Start the investigation with the Briefing scene directly
     navigate(`${Routes.VISUAL_NOVEL}/${SCENE_IDS.BRIEFING}`)
   }, [navigate, setDetectiveName])
@@ -227,8 +230,8 @@ export function ModernHomePage() {
               type="button"
               onClick={() => changeLanguage(lng)}
               className={`rounded-full border px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.35em] transition ${isActive
-                  ? 'border-cyan-400 bg-cyan-500/10 text-cyan-100'
-                  : 'border-white/20 text-slate-400 hover:border-white/40 hover:text-white'
+                ? 'border-cyan-400 bg-cyan-500/10 text-cyan-100'
+                : 'border-white/20 text-slate-400 hover:border-white/40 hover:text-white'
                 }`}
             >
               {lng.toUpperCase()}

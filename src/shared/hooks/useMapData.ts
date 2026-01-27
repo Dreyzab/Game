@@ -57,20 +57,17 @@ export const useMapData = (bbox?: { minLat: number; maxLat: number; minLng: numb
   const pointsQuery = useQuery<PointsResponse>({
     queryKey: ['mapPoints', bbox],
     queryFn: async (): Promise<PointsResponse> => {
-      try {
-        const token = await getToken();
-        const client = authenticatedClient(token || undefined); // Allowed without token theoretically, but filtered logic changes
+      const token = await getToken();
+      const client = authenticatedClient(token || undefined); // Allowed without token theoretically, but filtered logic changes
 
-        const { data, error } = await client.map.points.get({
-          query: bbox ? { ...bbox } : {}
-        });
-        if (error) throw error;
+      const { data, error } = await client.map.points.get({
+        query: bbox ? { ...bbox } : {}
+      });
+      if (error) throw error;
 
-        const rawPoints = (data as any)?.points;
-        const points = (Array.isArray(rawPoints) ? rawPoints.filter(Boolean) : []) as ApiPoint[];
-        return { points };
-      } catch (e: any) {        throw e;
-      }
+      const rawPoints = (data as any)?.points;
+      const points = (Array.isArray(rawPoints) ? rawPoints.filter(Boolean) : []) as ApiPoint[];
+      return { points };
     },
     placeholderData: keepPreviousData,
     staleTime: 30000,

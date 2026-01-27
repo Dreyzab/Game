@@ -10,31 +10,28 @@ export const useMyPlayer = () => {
     return useQuery({
         queryKey: ['myPlayer'],
         queryFn: async () => {
-            try {
-                const token = await getToken();
+            const token = await getToken();
 
-                const client = authenticatedClient(token || undefined, deviceId);
-                const { data, error } = await client.player.get();
+            const client = authenticatedClient(token || undefined, deviceId);
+            const { data, error } = await client.player.get();
 
-                if (error) throw error;
+            if (error) throw error;
 
-                const payload = data as any;
-                const hasPlayer = Boolean(payload?.player);
-                const hasProgress = Boolean(payload?.progress);
+            const payload = data as any;
+            const hasPlayer = Boolean(payload?.player);
+            const hasProgress = Boolean(payload?.progress);
 
-                // Ensure a player exists for guests (and legacy records without progress).
-                if (!hasPlayer || !hasProgress) {
-                    const initResult = await client.player.init.post({});
-                    if (initResult.error) throw initResult.error;
+            // Ensure a player exists for guests (and legacy records without progress).
+            if (!hasPlayer || !hasProgress) {
+                const initResult = await client.player.init.post({});
+                if (initResult.error) throw initResult.error;
 
-                    const refreshed = await client.player.get();
-                    if (refreshed.error) throw refreshed.error;
-                    return refreshed.data;
-                }
-
-                return data;
-            } catch (e: any) {                throw e;
+                const refreshed = await client.player.get();
+                if (refreshed.error) throw refreshed.error;
+                return refreshed.data;
             }
+
+            return data;
         },
         enabled: isLoaded
     });

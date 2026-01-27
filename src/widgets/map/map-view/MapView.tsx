@@ -208,7 +208,7 @@ export const MapView: React.FC<MapViewProps> = ({
     })
   }, [mergedPoints, activeFilters])
 
-  useEffect(() => {  }, [isVintage, map, bbox, points.length, mergedPoints.length, filteredPoints.length, detectivePointStates, activeFilters])
+  useEffect(() => { }, [isVintage, map, bbox, points.length, mergedPoints.length, filteredPoints.length, detectivePointStates, activeFilters])
 
   // Автоматическое открытие ближайших точек карты по реальной геопозиции игрока
   useEffect(() => {
@@ -265,7 +265,7 @@ export const MapView: React.FC<MapViewProps> = ({
     } catch (error) {
       console.error('❌ [MapView] Ошибка при инициализации карты:', error)
     }
-  }, [isVintage])
+  }, [])
 
   /**
    * Обработчик изменения границ карты
