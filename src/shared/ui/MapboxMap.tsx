@@ -103,7 +103,7 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
   const lastZoomRef = useRef<number | null>(null) // Ñú¥ŸÑ¬ ¥? ÑóÑ§¥?¥ŸÑüÑ¯ÑæÑ«Ñ÷ÑæÑ¬
   const boundsEmitTimerRef = useRef<number | null>(null)
   const lastStyleRef = useRef<string | StyleSpecification | null>(null)
-  const reqLogCountRef = useRef(0)
+
   const didNotifyMapRef = useRef(false)
 
   const resolvedStyle = useMemo(() => {
@@ -123,7 +123,6 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
   useEffect(() => {
     const container = mapContainerRef.current
     const hasExistingMap = Boolean(mapRef.current)
-    const rect = container?.getBoundingClientRect()
     if (!container || hasExistingMap) return
 
     // Mapbox GL JS ¥'¥?ÑæÑñ¥ŸÑæ¥' Ñ«ÑæÑ¨¥Ÿ¥?¥'ÑóÑû ¥'ÑóÑ§ÑæÑ« ÑïÑøÑôÑæ ÑïÑ¯¥? ¥?¥'Ñó¥?ÑóÑ«Ñ«Ñ÷¥. ¥'ÑøÑûÑ¯ÑóÑý.
@@ -138,7 +137,6 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
 
     // ÑzÑ¨¥?ÑæÑïÑæÑ¯¥?ÑæÑ¬ ¥?¥'Ñ÷Ñ¯¥O ÑïÑ¯¥? Ñ÷¥?Ñ¨ÑóÑ¯¥OÑúÑóÑýÑøÑ«Ñ÷¥?
     const mapStyle: string | StyleSpecification = resolvedStyle
-    const online = typeof navigator !== 'undefined' ? navigator.onLine : null
     const styleString = typeof mapStyle === 'string' ? mapStyle : null
     const isMapboxStyleUrl = typeof styleString === 'string' && styleString.startsWith('mapbox://styles/')
     const stylePath = isMapboxStyleUrl ? styleString.slice('mapbox://styles/'.length) : null
@@ -160,19 +158,7 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
         bearing,
         pitch,
         attributionControl: true,
-        transformRequest: (url, resourceType) => {
-          if (reqLogCountRef.current < 8) {
-            reqLogCountRef.current += 1
-            let safeUrl = url
-            try {
-              const u = new URL(url)
-              u.searchParams.delete('access_token')
-              u.searchParams.delete('token')
-              safeUrl = u.toString()
-            } catch {
-              // ignore URL parse errors
-            }
-          }
+        transformRequest: (url, _resourceType) => {
           return { url }
         },
         // ÑœÑ¯¥Ÿ¥Î¥^ÑæÑ«Ñ«Ñø¥? Ñ¨¥?ÑóÑ÷ÑúÑýÑóÑïÑ÷¥'ÑæÑ¯¥OÑ«Ñó¥?¥'¥O
@@ -187,155 +173,147 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
       didNotifyMapRef.current = true
       setIsLoaded(true)
       onMapLoad?.(map)
-    }
 
-      map.once('render', () => {
-      const canvas = map.getCanvas?.()
-    })
 
-    map.once('styledata', () => {
-      const styleObj = (typeof map.getStyle === 'function' ? map.getStyle() : null) as any
-      const sourcesCount = styleObj?.sources ? Object.keys(styleObj.sources).length : null
-    })
 
-    map.getCanvas?.().addEventListener('webglcontextlost', () => { }, { once: true })
+      map.getCanvas?.().addEventListener('webglcontextlost', () => { }, { once: true })
 
-    // ÑzÑñ¥?ÑøÑñÑó¥'¥ÎÑ÷Ñ§ ¥Ÿ¥?Ñ¨Ñæ¥^Ñ«ÑóÑû ÑúÑøÑü¥?¥ŸÑúÑ§Ñ÷
-    map.on('load', () => {
-      setIsLoaded(true)
-      setError(null)
-      if (!didNotifyMapRef.current) {
-        didNotifyMapRef.current = true
-        onMapLoad?.(map)
+      // ÑzÑñ¥?ÑøÑñÑó¥'¥ÎÑ÷Ñ§ ¥Ÿ¥?Ñ¨Ñæ¥^Ñ«ÑóÑû ÑúÑøÑü¥?¥ŸÑúÑ§Ñ÷
+      map.on('load', () => {
+        setIsLoaded(true)
+        setError(null)
+        if (!didNotifyMapRef.current) {
+          didNotifyMapRef.current = true
+          onMapLoad?.(map)
+        }
+      })
+
+      // ÑzÑñ¥?ÑøÑñÑó¥'¥ÎÑ÷Ñ§ Ñó¥^Ñ÷ÑñÑóÑ§ ÑúÑøÑü¥?¥ŸÑúÑ§Ñ÷ ¥?¥'Ñ÷Ñ¯¥?
+      map.on('error', (e) => {
+        console.error('[MapboxMap] Mapbox error event', e)
+        // Ñ¥?Ñ¯Ñ÷ Ñó¥^Ñ÷ÑñÑ§Ñø ¥?Ñý¥?ÑúÑøÑ«Ñø ¥?Ñó ¥?¥'Ñ÷Ñ¯ÑæÑ¬ Ñ÷ Ñ¬¥< Ñæ¥%¥' Ñ«Ñæ Ñ¨¥?ÑóÑñÑóÑýÑøÑ¯Ñ÷ fallback
+        if (e.error?.message?.includes('style')) {
+          console.warn('[MapboxMap] Map style failed to load. Check VITE_MAPBOX_TOKEN (401/403 usually means invalid token).')
+        }
+
+        setError('Failed to load map.')
+      })
+
+      // Ñ"ÑóÑñÑøÑýÑ¯¥?ÑæÑ¬ Ñ§ÑóÑ«¥'¥?ÑóÑ¯¥< Ñ«ÑøÑýÑ÷ÑüÑø¥ÅÑ÷Ñ÷
+      if (showNavigation) {
+        const nav = new mapboxgl.NavigationControl({
+          showCompass: true,
+          showZoom: true,
+          visualizePitch: true,
+        })
+        map.addControl(nav, 'top-right')
       }
-    })
 
-    // ÑzÑñ¥?ÑøÑñÑó¥'¥ÎÑ÷Ñ§ Ñó¥^Ñ÷ÑñÑóÑ§ ÑúÑøÑü¥?¥ŸÑúÑ§Ñ÷ ¥?¥'Ñ÷Ñ¯¥?
-    map.on('error', (e) => {
-      console.error('[MapboxMap] Mapbox error event', e)
-      // Ñ¥?Ñ¯Ñ÷ Ñó¥^Ñ÷ÑñÑ§Ñø ¥?Ñý¥?ÑúÑøÑ«Ñø ¥?Ñó ¥?¥'Ñ÷Ñ¯ÑæÑ¬ Ñ÷ Ñ¬¥< Ñæ¥%¥' Ñ«Ñæ Ñ¨¥?ÑóÑñÑóÑýÑøÑ¯Ñ÷ fallback
-      if (e.error?.message?.includes('style')) {
-        console.warn('[MapboxMap] Map style failed to load. Check VITE_MAPBOX_TOKEN (401/403 usually means invalid token).')
+      // Ñ"ÑóÑñÑøÑýÑ¯¥?ÑæÑ¬ Ñ§ÑóÑ«¥'¥?ÑóÑ¯ ÑüÑæÑóÑ¯ÑóÑ§Ñø¥ÅÑ÷Ñ÷
+      if (showGeolocate) {
+        const geolocate = new mapboxgl.GeolocateControl({
+          positionOptions: {
+            enableHighAccuracy: true,
+          },
+          trackUserLocation: true,
+          showUserHeading: true,
+          showAccuracyCircle: true,
+        })
+        map.addControl(geolocate, 'top-right')
       }
 
-      setError('Failed to load map.')
-    })
+      // Ñ"ÑóÑñÑøÑýÑ¯¥?ÑæÑ¬ Ñ§ÑóÑ«¥'¥?ÑóÑ¯ Ñ¬Ñø¥?¥^¥'ÑøÑñÑø
+      if (showScale) {
+        const scale = new mapboxgl.ScaleControl({
+          maxWidth: 100,
+          unit: 'metric',
+        })
+        map.addControl(scale, 'bottom-left')
+      }
 
-    // Ñ"ÑóÑñÑøÑýÑ¯¥?ÑæÑ¬ Ñ§ÑóÑ«¥'¥?ÑóÑ¯¥< Ñ«ÑøÑýÑ÷ÑüÑø¥ÅÑ÷Ñ÷
-    if (showNavigation) {
-      const nav = new mapboxgl.NavigationControl({
-        showCompass: true,
-        showZoom: true,
-        visualizePitch: true,
-      })
-      map.addControl(nav, 'top-right')
-    }
+      // Ñ­Ñ¯¥Ÿ¥^Ñø¥'ÑæÑ¯Ñ÷ ¥?ÑóÑñ¥<¥'Ñ÷Ñû
+      const roundCoord = (value: number) => Number(value.toFixed(4)) // 4 ÑúÑ«ÑøÑ§Ñø ~ 11 Ñ¬ ¥'Ñó¥ÎÑ«Ñó¥?¥'Ñ÷
+      const roundZoom = (value: number) => Number(value.toFixed(1)) // ¥^ÑøÑü 0.1
 
-    // Ñ"ÑóÑñÑøÑýÑ¯¥?ÑæÑ¬ Ñ§ÑóÑ«¥'¥?ÑóÑ¯ ÑüÑæÑóÑ¯ÑóÑ§Ñø¥ÅÑ÷Ñ÷
-    if (showGeolocate) {
-      const geolocate = new mapboxgl.GeolocateControl({
-        positionOptions: {
-          enableHighAccuracy: true,
-        },
-        trackUserLocation: true,
-        showUserHeading: true,
-        showAccuracyCircle: true,
-      })
-      map.addControl(geolocate, 'top-right')
-    }
-
-    // Ñ"ÑóÑñÑøÑýÑ¯¥?ÑæÑ¬ Ñ§ÑóÑ«¥'¥?ÑóÑ¯ Ñ¬Ñø¥?¥^¥'ÑøÑñÑø
-    if (showScale) {
-      const scale = new mapboxgl.ScaleControl({
-        maxWidth: 100,
-        unit: 'metric',
-      })
-      map.addControl(scale, 'bottom-left')
-    }
-
-    // Ñ­Ñ¯¥Ÿ¥^Ñø¥'ÑæÑ¯Ñ÷ ¥?ÑóÑñ¥<¥'Ñ÷Ñû
-    const roundCoord = (value: number) => Number(value.toFixed(4)) // 4 ÑúÑ«ÑøÑ§Ñø ~ 11 Ñ¬ ¥'Ñó¥ÎÑ«Ñó¥?¥'Ñ÷
-    const roundZoom = (value: number) => Number(value.toFixed(1)) // ¥^ÑøÑü 0.1
-
-    const emitBoundsThrottled = () => {
-      boundsEmitTimerRef.current = null
-      const callback = boundsChangeRef.current
-      if (!callback) return
-      const bounds = map.getBounds()
-      if (!bounds) return
-
-      const north = roundCoord(bounds.getNorth())
-      const south = roundCoord(bounds.getSouth())
-      const east = roundCoord(bounds.getEast())
-      const west = roundCoord(bounds.getWest())
-
-      const prev = lastBoundsRef.current
-      const unchanged =
-        prev &&
-        prev[0] === north &&
-        prev[1] === south &&
-        prev[2] === east &&
-        prev[3] === west
-
-      if (unchanged) return
-
-      lastBoundsRef.current = [north, south, east, west]
-      callback(bounds)
-    }
-
-    const scheduleBoundsEmit = () => {
-      if (boundsEmitTimerRef.current !== null) return
-      boundsEmitTimerRef.current = window.setTimeout(emitBoundsThrottled, 150)
-    }
-
-    const handleMoveEnd = () => {
-      scheduleBoundsEmit()
-    }
-
-    const handleZoomChange = () => {
-      const callback = zoomChangeRef.current
-      if (!callback) return
-      const currentZoom = map.getZoom()
-      const rounded = roundZoom(currentZoom)
-      const prev = lastZoomRef.current
-      if (prev !== null && Math.abs(prev - rounded) < 0.05) return
-      lastZoomRef.current = rounded
-      callback(rounded)
-    }
-
-    map.on('moveend', handleMoveEnd)
-    map.on('zoomend', handleZoomChange)
-
-
-    // Cleanup
-    return () => {
-      if (boundsEmitTimerRef.current !== null) {
-        clearTimeout(boundsEmitTimerRef.current)
+      const emitBoundsThrottled = () => {
         boundsEmitTimerRef.current = null
+        const callback = boundsChangeRef.current
+        if (!callback) return
+        const bounds = map.getBounds()
+        if (!bounds) return
+
+        const north = roundCoord(bounds.getNorth())
+        const south = roundCoord(bounds.getSouth())
+        const east = roundCoord(bounds.getEast())
+        const west = roundCoord(bounds.getWest())
+
+        const prev = lastBoundsRef.current
+        const unchanged =
+          prev &&
+          prev[0] === north &&
+          prev[1] === south &&
+          prev[2] === east &&
+          prev[3] === west
+
+        if (unchanged) return
+
+        lastBoundsRef.current = [north, south, east, west]
+        callback(bounds)
       }
-      map.off('moveend', handleMoveEnd)
-      map.off('zoomend', handleZoomChange)
-      map.remove()
-      mapRef.current = null
+
+      const scheduleBoundsEmit = () => {
+        if (boundsEmitTimerRef.current !== null) return
+        boundsEmitTimerRef.current = window.setTimeout(emitBoundsThrottled, 150)
+      }
+
+      const handleMoveEnd = () => {
+        scheduleBoundsEmit()
+      }
+
+      const handleZoomChange = () => {
+        const callback = zoomChangeRef.current
+        if (!callback) return
+        const currentZoom = map.getZoom()
+        const rounded = roundZoom(currentZoom)
+        const prev = lastZoomRef.current
+        if (prev !== null && Math.abs(prev - rounded) < 0.05) return
+        lastZoomRef.current = rounded
+        callback(rounded)
+      }
+
+      map.on('moveend', handleMoveEnd)
+      map.on('zoomend', handleZoomChange)
+
+
+      // Cleanup
+      return () => {
+        if (boundsEmitTimerRef.current !== null) {
+          clearTimeout(boundsEmitTimerRef.current)
+          boundsEmitTimerRef.current = null
+        }
+        map.off('moveend', handleMoveEnd)
+        map.off('zoomend', handleZoomChange)
+        map.remove()
+        mapRef.current = null
+      }
+    } catch (err) {
+      console.error('[MapboxMap] Map initialization error', err)
+      setError('Failed to initialize map.')
     }
-  } catch (err) {
-    console.error('[MapboxMap] Map initialization error', err)
-    setError('Failed to initialize map.')
-  }
-}, [
-  bearing,
-  center,
-  maxZoom,
-  minZoom,
-  onMapLoad,
-  pitch,
-  showGeolocate,
-  showNavigation,
-  showScale,
-  style,
-  resolvedStyle,
-  zoom,
-])
+  }, [
+    bearing,
+    center,
+    maxZoom,
+    minZoom,
+    onMapLoad,
+    pitch,
+    showGeolocate,
+    showNavigation,
+    showScale,
+    style,
+    resolvedStyle,
+    zoom,
+  ])
 
   useEffect(() => {
     const map = mapRef.current
@@ -350,42 +328,42 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
     }
   }, [resolvedStyle, isLoaded])
 
-// ÑzÑñÑ«ÑóÑýÑ¯¥?ÑæÑ¬ ¥ÅÑæÑ«¥'¥? Ñ§Ñø¥?¥'¥< Ñ¨¥?Ñ÷ Ñ÷ÑúÑ¬ÑæÑ«ÑæÑ«Ñ÷Ñ÷ Ñ¨¥?ÑóÑ¨¥?Ñø
-useEffect(() => {
-  if (mapRef.current && isLoaded) {
-    mapRef.current.jumpTo({ center })
-  }
-}, [center, isLoaded])
+  // ÑzÑñÑ«ÑóÑýÑ¯¥?ÑæÑ¬ ¥ÅÑæÑ«¥'¥? Ñ§Ñø¥?¥'¥< Ñ¨¥?Ñ÷ Ñ÷ÑúÑ¬ÑæÑ«ÑæÑ«Ñ÷Ñ÷ Ñ¨¥?ÑóÑ¨¥?Ñø
+  useEffect(() => {
+    if (mapRef.current && isLoaded) {
+      mapRef.current.jumpTo({ center })
+    }
+  }, [center, isLoaded])
 
-// ÑzÑñÑ«ÑóÑýÑ¯¥?ÑæÑ¬ Ñú¥ŸÑ¬ Ñ¨¥?Ñ÷ Ñ÷ÑúÑ¬ÑæÑ«ÑæÑ«Ñ÷Ñ÷ Ñ¨¥?ÑóÑ¨¥?Ñø
-useEffect(() => {
-  if (mapRef.current && isLoaded) {
-    mapRef.current.setZoom(zoom)
-  }
-}, [zoom, isLoaded])
+  // ÑzÑñÑ«ÑóÑýÑ¯¥?ÑæÑ¬ Ñú¥ŸÑ¬ Ñ¨¥?Ñ÷ Ñ÷ÑúÑ¬ÑæÑ«ÑæÑ«Ñ÷Ñ÷ Ñ¨¥?ÑóÑ¨¥?Ñø
+  useEffect(() => {
+    if (mapRef.current && isLoaded) {
+      mapRef.current.setZoom(zoom)
+    }
+  }, [zoom, isLoaded])
 
-return (
-  <div className={cn('relative w-full h-full', className)}>
-    <div ref={mapContainerRef} className="absolute inset-0" />
+  return (
+    <div className={cn('relative w-full h-full', className)}>
+      <div ref={mapContainerRef} className="absolute inset-0" />
 
-    {/* Ñ~Ñ«ÑïÑ÷Ñ§Ñø¥'Ñó¥? ÑúÑøÑü¥?¥ŸÑúÑ§Ñ÷ */}
-    {!isLoaded && !error && (
-      <div className="absolute inset-0 flex items-center justify-center bg-gray-900 bg-opacity-75 z-10">
-        <div className="text-white text-lg">Loading map…</div>
-      </div>
-    )}
+      {/* Ñ~Ñ«ÑïÑ÷Ñ§Ñø¥'Ñó¥? ÑúÑøÑü¥?¥ŸÑúÑ§Ñ÷ */}
+      {!isLoaded && !error && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-900 bg-opacity-75 z-10">
+          <div className="text-white text-lg">Loading map…</div>
+        </div>
+      )}
 
-    {/* Ñ­ÑóÑóÑñ¥%ÑæÑ«Ñ÷Ñæ ÑóÑñ Ñó¥^Ñ÷ÑñÑ§Ñæ */}
-    {error && (
-      <div className="absolute inset-0 flex items-center justify-center bg-red-900 bg-opacity-75 z-10">
-        <div className="text-white text-lg">{error}</div>
-      </div>
-    )}
+      {/* Ñ­ÑóÑóÑñ¥%ÑæÑ«Ñ÷Ñæ ÑóÑñ Ñó¥^Ñ÷ÑñÑ§Ñæ */}
+      {error && (
+        <div className="absolute inset-0 flex items-center justify-center bg-red-900 bg-opacity-75 z-10">
+          <div className="text-white text-lg">{error}</div>
+        </div>
+      )}
 
-    {/* Ñ"Ñó¥ÎÑæ¥?Ñ«Ñ÷Ñæ ¥?Ñ¯ÑæÑ¬ÑæÑ«¥'¥< (¥?ÑæÑ«ÑïÑæ¥?¥?¥'¥?¥? Ñ¨ÑóÑýÑæ¥?¥. Ñ§Ñø¥?¥'¥<) */}
-    {isLoaded && children}
-  </div>
-)
+      {/* Ñ"Ñó¥ÎÑæ¥?Ñ«Ñ÷Ñæ ¥?Ñ¯ÑæÑ¬ÑæÑ«¥'¥< (¥?ÑæÑ«ÑïÑæ¥?¥?¥'¥?¥? Ñ¨ÑóÑýÑæ¥?¥. Ñ§Ñø¥?¥'¥<) */}
+      {isLoaded && children}
+    </div>
+  )
 }
 
 export default MapboxMap
