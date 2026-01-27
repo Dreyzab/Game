@@ -83,4 +83,7 @@ try {
         console.error(criticalError);
         // We still keep the process alive to serve 503s and logs, unless it's catastrophic
     }
+
+    // Keep the process alive even if event loop is empty
+    setInterval(() => { }, 10000);
 })();
