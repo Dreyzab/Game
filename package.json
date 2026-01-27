@@ -71,9 +71,7 @@
     "typescript-eslint": "^8.45.0",
     "vite": "^7.1.12",
     "vitest": "^4.0.12",
-    "lightningcss-linux-x64-gnu": "*"
-  },
-  "optionalDependencies": {
+    "lightningcss-linux-x64-gnu": "*",
     "@rollup/rollup-linux-x64-gnu": "*"
   }
 }
