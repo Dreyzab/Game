@@ -1,8 +1,8 @@
 # Business Plan: Grenzwanderer3
 
-> **Version:** 1.0 (Draft)
+> **Version:** 1.1 (Draft)
 > **Date:** January 2026
-> **Status:** Alpha Stage / Active Development
+> **Status:** Alpha Stage v0.3.1 (Stable Build)
 
 ---
 
@@ -33,7 +33,7 @@ The game treats the real world as the "Base Layer" and superimposes multiple dis
     *   *Temporal Echoes:* Seeing the city as it was in 1905 (via vintage map overlays).
 
 ### 2.2 Technology: Hardlinks & The QR Bridge
-To enable "true" location-based gaming that resists GPS spoofing and creates deeper immersion, we utilize our proprietary **"Hardlink" System**.
+To enable "true" location-based gaming that resists GPS spoofing and creates deeper immersion, we utilize our proprietary **"Hardlink" System** (Implemented v0.3).
 
 *   **The "Anchor" Philosophy:** A Hardlink (Digital or Physical QR) acts as a cryptographically verifiable anchor. It acts as a "Key" to unlock specific nodes in the Narrative Layer.
 *   **Interaction Flow:**
@@ -41,6 +41,10 @@ To enable "true" location-based gaming that resists GPS spoofing and creates dee
     2.  **Scanning:** Using the In-App "Scanner", the player scans the code.
     3.  **Validation:** The app verifies the cryptographic signature (preventing code generation by cheaters) and GPS proximity (preventing remote scanning).
     4.  **Unlock:** A "Hidden Reality" is revealed (e.g., a secret dialogue, a loot stash, or a narrative clue).
+
+*   **Dossier Integration:**
+    *   Collected evidence is stored in a persistent **Detective Dossier** (Implemented).
+    *   Players can review found clues, combine evidence, and deduce outcomes even when away from the location.
 
 ### 2.3 Future Technology Strategy: AR Progression
 We are adopting a phased approach to Augmented Reality, prioritizing battery life and narrative utility over gimmicks.
@@ -105,9 +109,9 @@ The recommended business model aligns with the "Base + Premium Content" structur
 ### Phase 2: Vertical Slice (Q2 2025)
 *   **Goal:** "Freiburg 1905" Playable Demo.
 *   **Key Deliverables:**
-    *   **Detective Mode:** Dossier UI, Investigation Board.
+    *   **Detective Mode:** Dossier UI, Investigation Board (Core Systems Complete).
     *   **Case #1:** Complete narrative arc "Haus Kapferer".
-    *   **Hardlink System:** Fully functional QR scanner and resolver.
+    *   **Hardlink System:** Fully functional QR scanner and resolver (Implemented).
 
 ### Phase 3: Beta & Content Scaling (Q3 2025)
 *   **Goal:** User Retention & Expansion.
