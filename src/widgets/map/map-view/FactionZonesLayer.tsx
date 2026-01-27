@@ -30,22 +30,6 @@ export const FactionZonesLayer: React.FC<FactionZonesLayerProps> = ({ map, visib
         if (!map) return
 
         const ensureLayers = () => {
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    location: 'src/widgets/map/map-view/FactionZonesLayer.tsx:ensureLayers',
-                    message: 'ensureLayers tick',
-                    data: { ready: isMapStyleReady(), visible },
-                    timestamp: Date.now(),
-                    sessionId: 'debug-session',
-                    runId: 'post-fix',
-                    hypothesisId: 'G'
-                })
-            }).catch(() => { })
-            // #endregion agent log
-
             if (!isMapStyleReady()) return
             try {
                 if (!map.getSource(sourceId)) {

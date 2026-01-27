@@ -44,12 +44,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('❌ [ErrorBoundary] Перехвачена ошибка:', error)
-    console.error('📋 [ErrorBoundary] Детали ошибки:', errorInfo)
-
-    // #region agent log
-    // #region agent log - REMOVED
-    // #endregion agent log
-    // #endregion agent log
+    console.error('📋 [ErrorBoundary] Детали ошибки:', errorInfo)    // #endregion agent log
 
     this.setState({
       error,

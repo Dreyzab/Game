@@ -55,29 +55,17 @@ export function ModernHomePage() {
     setPreloadDetectiveMap(true)
     // If continueMode or name already exists, skip onboarding
     if (continueMode || detectiveName) {
-      console.log('Starting investigation (Continue)...')
-      // #region agent log (debug)
-      fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'src/pages/HomePage.tsx:handleStartDetective', message: 'navigate_to_map_direct', data: { continueMode, hasDetectiveName: Boolean(detectiveName), nextRoute: Routes.MAP }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'pre-fix', hypothesisId: 'H0' }) }).catch(() => { });
-      // #endregion agent log (debug)
-      useInventoryStore.getState().setGameMode('detective')
+      console.log('Starting investigation (Continue)...')      useInventoryStore.getState().setGameMode('detective')
       navigate(Routes.MAP)
       return
     }
 
-    // Otherwise show onboarding
-    // #region agent log (debug)
-    fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'src/pages/HomePage.tsx:handleStartDetective', message: 'open_detective_onboarding', data: { continueMode, hasDetectiveName: Boolean(detectiveName) }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'pre-fix', hypothesisId: 'H0' }) }).catch(() => { });
-    // #endregion agent log (debug)
-    setShowDetectiveOnboarding(true)
+    // Otherwise show onboarding    setShowDetectiveOnboarding(true)
   }, [navigate, detectiveName])
 
   const handleOnboardingComplete = useCallback((name: string) => {
     setDetectiveName(name)
-    setShowDetectiveOnboarding(false)
-    // #region agent log (debug)
-    fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'src/pages/HomePage.tsx:handleOnboardingComplete', message: 'navigate_to_vn_briefing', data: { nameLength: typeof name === 'string' ? name.length : null, nextRoute: `${Routes.VISUAL_NOVEL}/${SCENE_IDS.BRIEFING}` }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'pre-fix', hypothesisId: 'H0' }) }).catch(() => { });
-    // #endregion agent log (debug)
-    useInventoryStore.getState().setGameMode('detective')
+    setShowDetectiveOnboarding(false)    useInventoryStore.getState().setGameMode('detective')
     // Start the investigation with the Briefing scene directly
     navigate(`${Routes.VISUAL_NOVEL}/${SCENE_IDS.BRIEFING}`)
   }, [navigate, setDetectiveName])
@@ -238,11 +226,10 @@ export function ModernHomePage() {
               key={lng}
               type="button"
               onClick={() => changeLanguage(lng)}
-              className={`rounded-full border px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.35em] transition ${
-                isActive
+              className={`rounded-full border px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.35em] transition ${isActive
                   ? 'border-cyan-400 bg-cyan-500/10 text-cyan-100'
                   : 'border-white/20 text-slate-400 hover:border-white/40 hover:text-white'
-              }`}
+                }`}
             >
               {lng.toUpperCase()}
             </button>

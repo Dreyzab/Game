@@ -208,11 +208,7 @@ export const MapView: React.FC<MapViewProps> = ({
     })
   }, [mergedPoints, activeFilters])
 
-  useEffect(() => {
-    // #region agent log (debug)
-    fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'src/widgets/map/map-view/MapView.tsx:filteredPointsEffect', message: 'map_points_state', data: { isVintage, hasMap: Boolean(map), bbox: bbox ?? null, pointsCount: points.length, mergedPointsCount: mergedPoints.length, filteredPointsCount: filteredPoints.length, detectivePointStatesCount: Object.keys(detectivePointStates ?? {}).length, activeFilters }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'pre-fix', hypothesisId: 'H2' }) }).catch(() => { });
-    // #endregion agent log (debug)
-  }, [isVintage, map, bbox, points.length, mergedPoints.length, filteredPoints.length, detectivePointStates, activeFilters])
+  useEffect(() => {  }, [isVintage, map, bbox, points.length, mergedPoints.length, filteredPoints.length, detectivePointStates, activeFilters])
 
   // Автоматическое открытие ближайших точек карты по реальной геопозиции игрока
   useEffect(() => {
@@ -257,10 +253,6 @@ export const MapView: React.FC<MapViewProps> = ({
       }
 
       setMap(loadedMap)
-      // #region agent log (debug)
-      fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'src/widgets/map/map-view/MapView.tsx:handleMapLoad', message: 'map_loaded', data: { isVintage, initialCenter: initialCenterRef.current, initialZoom: initialZoomRef.current, currentZoom: loadedMap.getZoom?.(), styleUrl: (loadedMap.getStyle?.() as any)?.sprite ?? null }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'pre-fix', hypothesisId: 'H3' }) }).catch(() => { });
-      // #endregion agent log (debug)
-
       // Получаем начальные границы
       const bounds = loadedMap.getBounds()
       if (bounds) {

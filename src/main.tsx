@@ -12,12 +12,7 @@ const queryClient = new QueryClient()
 
 console.log('[App] Initialization starting...')
 console.log('[App] VITE_DISABLE_AUTH:', import.meta.env.VITE_DISABLE_AUTH)
-console.log('[App] Clerk Key present:', !!clerkPublishableKey)
-
-// #region agent log (debug)
-// #region agent log (debug) - REMOVED
-// #endregion agent log (debug)
-// #endregion agent log (debug)
+console.log('[App] Clerk Key present:', !!clerkPublishableKey)// #endregion agent log (debug)
 
 export const MissingClerkConfig = () => (
   <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center px-4 text-center">

@@ -69,11 +69,7 @@ export const useMapData = (bbox?: { minLat: number; maxLat: number; minLng: numb
         const rawPoints = (data as any)?.points;
         const points = (Array.isArray(rawPoints) ? rawPoints.filter(Boolean) : []) as ApiPoint[];
         return { points };
-      } catch (e: any) {
-        // #region agent log (debug)
-        fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/shared/hooks/useMapData.ts:pointsQueryFn',message:'map_points_query_failed',data:{bbox:bbox??null,errorName:e?.name??null,errorMessage:e?.message??String(e)},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H1'})}).catch(()=>{});
-        // #endregion agent log (debug)
-        throw e;
+      } catch (e: any) {        throw e;
       }
     },
     placeholderData: keepPreviousData,

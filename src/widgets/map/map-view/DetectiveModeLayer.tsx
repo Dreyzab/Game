@@ -40,11 +40,7 @@ export const DetectiveModeLayer: React.FC<DetectiveModeLayerProps> = ({
                 (userPosition
                     ? ([userPosition.coords.longitude, userPosition.coords.latitude] as [number, number])
                     : (FREIBURG_1905.geoCenterLngLat as [number, number]))
-            setDetectivePos(spawn)
-            // #region agent log (debug)
-            fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'src/widgets/map/map-view/DetectiveModeLayer.tsx:initSpawn', message: 'detective_spawn_set', data: { isVintage, spawn, usedUserPosition: Boolean(userPosition), hasSpawnOverride: Boolean(DETECTIVE_CONFIG.SPAWN_LNG_LAT) }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'pre-fix', hypothesisId: 'H2' }) }).catch(() => { });
-            // #endregion agent log (debug)
-        }
+            setDetectivePos(spawn)        }
     }, [detectivePos, isVintage, userPosition])
 
     useEffect(() => {
@@ -61,10 +57,6 @@ export const DetectiveModeLayer: React.FC<DetectiveModeLayerProps> = ({
             const districtsSourceId = 'detective-districts-source'
             const districtsLayerId = 'detective-districts-fill'
             if (!(map as any)?.style || !map.isStyleLoaded?.()) return
-            // #region agent log (debug)
-            fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'src/widgets/map/map-view/DetectiveModeLayer.tsx:addLayers', message: 'detective_add_layers_attempt', data: { stylePresent: Boolean((map as any)?.style), styleLoaded: Boolean(map.isStyleLoaded?.()), hasRouteSource: Boolean(map.getSource?.(routeSourceId)), hasRouteLayer: Boolean(map.getLayer?.(routeLayerId)), hasDistrictsSource: Boolean(map.getSource?.(districtsSourceId)), hasDistrictsLayer: Boolean(map.getLayer?.(districtsLayerId)) }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'pre-fix', hypothesisId: 'H4' }) }).catch(() => { });
-            // #endregion agent log (debug)
-
             // 1. Route Layer
             if (!map.getSource(routeSourceId)) {
                 map.addSource(routeSourceId, {
@@ -190,10 +182,6 @@ export const DetectiveModeLayer: React.FC<DetectiveModeLayerProps> = ({
                 if (animationRef.current) cancelAnimationFrame(animationRef.current)
 
                 const result = await getWalkingRoute(start, end, mapboxToken)
-                // #region agent log (debug)
-                fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'src/widgets/map/map-view/DetectiveModeLayer.tsx:handleClick', message: 'detective_route_result', data: { start, end, tokenPresent: Boolean(mapboxToken), isFallback: result?.isFallback ?? null, duration: result?.duration ?? null, geomType: result?.geometry?.type ?? null }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'pre-fix', hypothesisId: 'H4' }) }).catch(() => { });
-                // #endregion agent log (debug)
-
                 // Draw Route
 
                 let source: GeoJSONSource | undefined
@@ -238,11 +226,7 @@ export const DetectiveModeLayer: React.FC<DetectiveModeLayerProps> = ({
                 animationRef.current = requestAnimationFrame(animate)
 
             } catch (err) {
-                console.error('Movement failed', err)
-                // #region agent log (debug)
-                fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'src/widgets/map/map-view/DetectiveModeLayer.tsx:handleClickCatch', message: 'detective_route_failed', data: { errorMessage: (err as any)?.message ?? String(err) }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'pre-fix', hypothesisId: 'H4' }) }).catch(() => { });
-                // #endregion agent log (debug)
-            }
+                console.error('Movement failed', err)            }
         }
 
         map.on('click', handleClick)

@@ -17,15 +17,7 @@ import { QuestTracker } from '@/widgets/map/map-view/QuestTracker'
 import { useMapInteractionFlow } from '@/processes/map-interaction-visual-novel'
 
 export const MapPage: React.FC = () => {
-  useEffect(() => {
-    // #region agent log (debug)
-    fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/pages/MapPage.tsx:mount',message:'map_page_mounted',data:{href:typeof window!=='undefined'?window.location.href:null},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H0'})}).catch(()=>{});
-    // #endregion agent log (debug)
-    return () => {
-      // #region agent log (debug)
-      fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/pages/MapPage.tsx:unmount',message:'map_page_unmounted',data:{href:typeof window!=='undefined'?window.location.href:null},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H0'})}).catch(()=>{});
-      // #endregion agent log (debug)
-    }
+  useEffect(() => {    return () => {    }
   }, [])
 
   const {
