@@ -1,66 +1,86 @@
-// Safe startup wrapper
-// This file is the entry point. We use dynamic imports to catch errors that happen
-// during module loading (e.g. DB connection errors at the top level of imported files).
+// Bulletproof startup wrapper
+// Starts a raw web server immediately to satisfy Cloud Run health checks,
+// then loads the application logic in the background.
 
-console.log(`[Startup] Booting Grezwanderer Backend...`);
-console.log(`[Startup] Node Version: ${process.version}, Platform: ${process.platform}`);
-console.log(`[Startup] ENV PORT: ${process.env.PORT}`);
+console.log(`[Startup] Booting Grezwanderer Backend (Bulletproof Mode)...`);
+console.log(`[Startup] timestamp: ${new Date().toISOString()}`);
 
-import { swagger } from "@elysiajs/swagger";
-import { cors } from "@elysiajs/cors";
+const port = Number(process.env.PORT) || 3000;
+let isReady = false;
+let appHandler: any = null;
 
+// 1. Start raw server IMMEDIATELY
+try {
+    const server = Bun.serve({
+        port,
+        hostname: "0.0.0.0",
+        fetch: (req) => {
+            // Health check endpoint (always return 200 OK)
+            const url = new URL(req.url);
+            if (url.pathname === '/health' || url.pathname === '/') {
+                if (!isReady) return new Response("Initializing...", { status: 200 });
+            }
+
+            // If app is loaded, delegate to it
+            if (isReady && appHandler) {
+                return appHandler.fetch(req);
+            }
+
+            return new Response("Server Booting...", { status: 503 });
+        }
+    });
+
+    console.log(`[Startup] ✅ Raw Bun server listening on ${server.hostname}:${server.port}`);
+} catch (e) {
+    console.error(`[Startup] ❌ PROHIBITED: Failed to bind port ${port}.`, e);
+    process.exit(1);
+}
+
+// 2. Load modules in background
 (async () => {
     try {
-        console.log(`[Startup] Loading modules path...`);
+        console.log(`[Startup] Loading application modules...`);
 
-        // Dynamic imports allow us to catch initialization errors in these files
+        // Import modules individually
         const { app } = await import("./app");
-        console.log(`[Startup] Module './app' loaded.`);
+        appHandler = app;
+        console.log(`[Startup] App module loaded.`);
 
         const { runDbMigrations } = await import("./db/migrate");
-        console.log(`[Startup] Module './db/migrate' loaded.`);
+        console.log(`[Startup] DB module loaded.`);
 
         const { initSurvivalService } = await import("./services/survivalService");
-        console.log(`[Startup] Module './services/survivalService' loaded.`);
+        console.log(`[Startup] Services module loaded.`);
 
         const { startCleanupScheduler } = await import("./jobs/cleanupExpiredSessions");
-        console.log(`[Startup] Module './jobs/cleanupExpiredSessions' loaded.`);
+        console.log(`[Startup] Jobs module loaded.`);
 
-        const port = Number(process.env.PORT) || 3000;
-        console.log(`[Startup] Configured Port: ${port}`);
+        // Initialize Logic
+        console.log(`[Startup] Running background initialization...`);
 
-        // Start the server FIRST to satisfy Cloud Run health check immediately
-        // We attach the listener to 0.0.0.0 to ensure external access
-        app.use(swagger()).use(cors()).listen({ port, hostname: "0.0.0.0" }, (server) => {
-            console.log(`[Startup] ✅ Server listening at ${server?.hostname}:${server?.port}`);
-        });
+        try {
+            await runDbMigrations();
+            console.log(`[Startup] Migrations OK.`);
+        } catch (dbErr) {
+            console.error(`[Startup] ⚠️ DB Migrations failed (Non-fatal):`, dbErr);
+        }
 
-        // Background initialization (non-blocking for the server port bind)
-        (async () => {
-            try {
-                console.log(`[Startup] Starting background initialization...`);
+        try {
+            await initSurvivalService();
+            console.log(`[Startup] Survival Service OK.`);
+        } catch (srvErr) {
+            console.error(`[Startup] ⚠️ Survival Service failed initialization:`, srvErr);
+        }
 
-                console.log(`[Startup] Running DB migrations...`);
-                await runDbMigrations();
-                console.log(`[Startup] DB Migrations completed.`);
+        startCleanupScheduler();
 
-                console.log(`[Startup] Initializing Survival Service...`);
-                await initSurvivalService();
-                console.log(`[Startup] Survival Service ready.`);
-
-                console.log(`[Startup] Starting Cleanup Scheduler...`);
-                startCleanupScheduler();
-                console.log(`[Startup] 🚀 Full startup complete.`);
-
-            } catch (initError) {
-                console.error(`[Startup] ⚠️ Background initialization failed (Non-fatal, server still running):`, initError);
-                // We do NOT exit here, so the server keeps running (e.g. to serve health checks or error pages)
-            }
-        })();
+        // Mark as Ready
+        isReady = true;
+        console.log(`[Startup] 🚀 SYSTEM READY. Switched to App Handler.`);
 
     } catch (criticalError) {
-        console.error(`[Startup] ❌ CRITICAL FAILURE DURING STARTUP:`);
+        console.error(`[Startup] ❌ CRITICAL MODULE LOAD FAILURE:`);
         console.error(criticalError);
-        process.exit(1);
+        // We still keep the process alive to serve 503s and logs, unless it's catastrophic
     }
 })();
