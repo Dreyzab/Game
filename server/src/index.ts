@@ -18,7 +18,7 @@ try {
             const corsHeaders = {
                 "Access-Control-Allow-Origin": "*",
                 "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-                "Access-Control-Allow-Headers": "Content-Type, Authorization, Upgrade, Connection"
+                "Access-Control-Allow-Headers": "Content-Type, Authorization, Upgrade, Connection, x-device-id"
             };
 
             // Handle Preflight

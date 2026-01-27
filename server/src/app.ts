@@ -26,7 +26,7 @@ export const app = new Elysia()
             'http://localhost:4173'
         ],
         credentials: true,
-        allowedHeaders: ['Content-Type', 'Authorization', 'Upgrade', 'Connection'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'Upgrade', 'Connection', 'x-device-id'],
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH']
     }))
     .use(auth)
