@@ -11,6 +11,7 @@ if (!connectionString) {
 
 const sqlOptions: any = {
     onnotice: (notice: any) => console.log('[DB PG NOTICE]', notice),
+    connect_timeout: 10,
 };
 
 console.log('[DB] Initializing database client...');
