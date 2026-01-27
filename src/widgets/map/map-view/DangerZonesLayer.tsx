@@ -14,56 +14,95 @@ export const DangerZonesLayer: React.FC<DangerZonesLayerProps> = ({ map, visible
     const fillLayerId = 'danger-zones-fill'
     const lineLayerId = 'danger-zones-line'
 
+    const isMapStyleReady = () => !!map && !!(map as any)?.style && !!map.isStyleLoaded?.()
+
     useEffect(() => {
         if (!map) return
 
-        if (!map.getSource(sourceId)) {
-            map.addSource(sourceId, {
-                type: 'geojson',
-                data: {
-                    type: 'FeatureCollection',
-                    features: []
-                }
-            })
+        const ensureLayers = () => {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    location: 'src/widgets/map/map-view/DangerZonesLayer.tsx:ensureLayers',
+                    message: 'ensureLayers tick',
+                    data: { ready: isMapStyleReady(), visible },
+                    timestamp: Date.now(),
+                    sessionId: 'debug-session',
+                    runId: 'post-fix',
+                    hypothesisId: 'F'
+                })
+            }).catch(() => { })
+            // #endregion agent log
 
-            // Fill layer
-            map.addLayer({
-                id: fillLayerId,
-                type: 'fill',
-                source: sourceId,
-                paint: {
-                    'fill-color': '#ef4444', // red-500
-                    'fill-opacity': 0.2,
+            if (!isMapStyleReady()) return
+            try {
+                if (!map.getSource(sourceId)) {
+                    map.addSource(sourceId, {
+                        type: 'geojson',
+                        data: {
+                            type: 'FeatureCollection',
+                            features: []
+                        }
+                    })
                 }
-            })
-
-            // Outline layer
-            map.addLayer({
-                id: lineLayerId,
-                type: 'line',
-                source: sourceId,
-                paint: {
-                    'line-color': '#ef4444',
-                    'line-width': 2,
-                    'line-dasharray': [2, 1]
+                if (!map.getLayer(fillLayerId)) {
+                    // Fill layer
+                    map.addLayer({
+                        id: fillLayerId,
+                        type: 'fill',
+                        source: sourceId,
+                        paint: {
+                            'fill-color': '#ef4444', // red-500
+                            'fill-opacity': 0.2,
+                        }
+                    })
                 }
-            })
+                if (!map.getLayer(lineLayerId)) {
+                    // Outline layer
+                    map.addLayer({
+                        id: lineLayerId,
+                        type: 'line',
+                        source: sourceId,
+                        paint: {
+                            'line-color': '#ef4444',
+                            'line-width': 2,
+                            'line-dasharray': [2, 1]
+                        }
+                    })
+                }
+            } catch {
+                // может попасть в окно смены стиля
+            }
         }
 
+        ensureLayers()
+        map.on('styledata', ensureLayers)
+
         return () => {
-            if (!map || !map.getStyle()) return
-            if (map.getLayer(lineLayerId)) map.removeLayer(lineLayerId)
-            if (map.getLayer(fillLayerId)) map.removeLayer(fillLayerId)
-            if (map.getSource(sourceId)) map.removeSource(sourceId)
+            map.off('styledata', ensureLayers)
+            if (!isMapStyleReady()) return
+            try {
+                if (map.getLayer(lineLayerId)) map.removeLayer(lineLayerId)
+                if (map.getLayer(fillLayerId)) map.removeLayer(fillLayerId)
+                if (map.getSource(sourceId)) map.removeSource(sourceId)
+            } catch {
+                // cleanup не должен ронять приложение
+            }
         }
     }, [map])
 
     useEffect(() => {
-        if (!map || !map.getStyle()) return
+        if (!map || !isMapStyleReady()) return
 
         const visibility = visible ? 'visible' : 'none'
-        if (map.getLayer(fillLayerId)) map.setLayoutProperty(fillLayerId, 'visibility', visibility)
-        if (map.getLayer(lineLayerId)) map.setLayoutProperty(lineLayerId, 'visibility', visibility)
+        try {
+            if (map.getLayer(fillLayerId)) map.setLayoutProperty(fillLayerId, 'visibility', visibility)
+            if (map.getLayer(lineLayerId)) map.setLayoutProperty(lineLayerId, 'visibility', visibility)
+        } catch {
+            return
+        }
 
         if (visible && dangerZones.length > 0) {
             const features = (dangerZones as DangerZone[]).map((zone) => ({
@@ -78,12 +117,16 @@ export const DangerZonesLayer: React.FC<DangerZonesLayerProps> = ({ map, visible
                 }
             }))
 
-            const source = map.getSource(sourceId) as GeoJSONSource
-            if (source) {
-                source.setData({
-                    type: 'FeatureCollection',
-                    features: features as any
-                })
+            try {
+                const source = map.getSource(sourceId) as GeoJSONSource
+                if (source) {
+                    source.setData({
+                        type: 'FeatureCollection',
+                        features: features as any
+                    })
+                }
+            } catch {
+                return
             }
         }
     }, [map, visible, dangerZones])

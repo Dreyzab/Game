@@ -26,6 +26,7 @@ export const FogOfWarLayer: React.FC<FogOfWarLayerProps> = ({
 }) => {
     const sourceId = 'fog-of-war-source'
     const layerId = 'fog-of-war-layer'
+    const isMapStyleReady = () => !!map && !!(map as any)?.style && !!map.isStyleLoaded?.()
 
     const mask = useFogOfWar({
         points,
@@ -41,54 +42,77 @@ export const FogOfWarLayer: React.FC<FogOfWarLayerProps> = ({
     useEffect(() => {
         if (!map) return
 
-        if (!map.getSource(sourceId)) {
-            map.addSource(sourceId, {
-                type: 'geojson',
-                data: {
-                    type: 'FeatureCollection',
-                    features: []
+        const ensureLayers = () => {
+            if (!isMapStyleReady()) return
+            try {
+                if (!map.getSource(sourceId)) {
+                    map.addSource(sourceId, {
+                        type: 'geojson',
+                        data: {
+                            type: 'FeatureCollection',
+                            features: []
+                        }
+                    })
                 }
-            })
 
-            map.addLayer({
-                id: layerId,
-                type: 'fill',
-                source: sourceId,
-                paint: {
-                    'fill-color': '#000000',
-                    'fill-opacity': 0.6,
-                    'fill-outline-color': 'transparent'
+                if (!map.getLayer(layerId)) {
+                    map.addLayer({
+                        id: layerId,
+                        type: 'fill',
+                        source: sourceId,
+                        paint: {
+                            'fill-color': '#000000',
+                            'fill-opacity': 0.6,
+                            'fill-outline-color': 'transparent'
+                        }
+                    })
                 }
-            })
+            } catch {
+                // ignore transient style-loading errors
+            }
         }
 
+        ensureLayers()
+        map.on('styledata', ensureLayers)
+
         return () => {
-            if (!map || !map.getStyle()) return
-            if (map.getLayer(layerId)) map.removeLayer(layerId)
-            if (map.getSource(sourceId)) map.removeSource(sourceId)
+            map.off('styledata', ensureLayers)
+            if (!isMapStyleReady()) return
+            try {
+                if (map.getLayer(layerId)) map.removeLayer(layerId)
+                if (map.getSource(sourceId)) map.removeSource(sourceId)
+            } catch {
+                // cleanup should not crash the app
+            }
         }
     }, [map])
 
     // Update visibility
     useEffect(() => {
-        if (!map || !map.getStyle()) return
-
-        if (map.getLayer(layerId)) {
-            map.setLayoutProperty(
-                layerId,
-                'visibility',
-                visible ? 'visible' : 'none'
-            )
+        if (!map || !isMapStyleReady()) return
+        try {
+            if (map.getLayer(layerId)) {
+                map.setLayoutProperty(
+                    layerId,
+                    'visibility',
+                    visible ? 'visible' : 'none'
+                )
+            }
+        } catch {
+            // ignore transient style-loading errors
         }
     }, [map, visible])
 
     // Update data
     useEffect(() => {
-        if (!map || !map.getStyle() || !mask) return
-
-        const source = map.getSource(sourceId) as GeoJSONSource
-        if (source) {
-            source.setData(mask)
+        if (!map || !isMapStyleReady() || !mask) return
+        try {
+            const source = map.getSource(sourceId) as GeoJSONSource
+            if (source) {
+                source.setData(mask)
+            }
+        } catch {
+            // ignore transient style-loading errors
         }
     }, [map, mask])
 

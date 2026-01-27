@@ -2,7 +2,9 @@ import React, { useEffect, useRef } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import mapboxgl from 'mapbox-gl'
 import { MapPointMarker } from '@/entities/map-point/ui/MapPointMarker'
+import { DetectivePointMarker } from '@/features/detective/map/DetectivePointMarker'
 import type { MapPoint } from '@/shared/types/map'
+import type { DetectivePointMetadata } from '@/features/detective/map/types'
 
 export interface MapMarkersProps {
     map: mapboxgl.Map | null
@@ -63,32 +65,60 @@ export const MapMarkers: React.FC<MapMarkersProps> = ({
                         marker.setLngLat([point.coordinates.lng, point.coordinates.lat])
 
                         // ÑzÑñÑ«ÑóÑýÑ¯¥?ÑæÑ¬ React-Ñ§ÑóÑ«¥'ÑæÑ«¥'
-                        root.render(
-                            <MapPointMarker
-                                point={point}
-                                isSelected={selectedPointId === point.id}
-                                isHovered={hoveredPointId === point.id}
-                                onClick={() => onSelectPoint(point)}
-                            />
-                        )
+                        const detMeta = point.metadata as unknown as DetectivePointMetadata | undefined
+                        if (detMeta?.detectiveType) {
+                            root.render(
+                                <DetectivePointMarker
+                                    type={detMeta.detectiveType}
+                                    state={detMeta.detectiveState ?? 'discovered'}
+                                    title={point.title}
+                                    isSelected={selectedPointId === point.id}
+                                    isHovered={hoveredPointId === point.id}
+                                    onClick={() => onSelectPoint(point)}
+                                />
+                            )
+                        } else {
+                            root.render(
+                                <MapPointMarker
+                                    point={point}
+                                    isSelected={selectedPointId === point.id}
+                                    isHovered={hoveredPointId === point.id}
+                                    onClick={() => onSelectPoint(point)}
+                                />
+                            )
+                        }
                     } catch (e) {
                         console.error('[MapMarkers] Failed to update marker', point.id, e)
                     }
-                } else {    
+                } else {
                     try {
                         // Ñ­ÑóÑúÑïÑø¥'Ñ¬ Ñ«ÑóÑý¥<Ñû Ñ¬Ñø¥?Ñ§Ñæ¥?
                         const el = document.createElement('div')
                         el.style.cssText = 'width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;'
                         const root = createRoot(el)
 
-                        root.render(
-                            <MapPointMarker
-                                point={point}
-                                isSelected={selectedPointId === point.id}
-                                isHovered={hoveredPointId === point.id}
-                                onClick={() => onSelectPoint(point)}
-                            />
-                        )
+                        const detMeta = point.metadata as unknown as DetectivePointMetadata | undefined
+                        if (detMeta?.detectiveType) {
+                            root.render(
+                                <DetectivePointMarker
+                                    type={detMeta.detectiveType}
+                                    state={detMeta.detectiveState ?? 'discovered'}
+                                    title={point.title}
+                                    isSelected={selectedPointId === point.id}
+                                    isHovered={hoveredPointId === point.id}
+                                    onClick={() => onSelectPoint(point)}
+                                />
+                            )
+                        } else {
+                            root.render(
+                                <MapPointMarker
+                                    point={point}
+                                    isSelected={selectedPointId === point.id}
+                                    isHovered={hoveredPointId === point.id}
+                                    onClick={() => onSelectPoint(point)}
+                                />
+                            )
+                        }
 
 
                         const marker = new mapboxgl.Marker({

@@ -33,6 +33,10 @@ function makeEnemy(params: { id: string; rank: number; templateIdx: number; thre
     isJammed: false,
     ammo: 0,
     threatLevel: `T${params.threat}`,
+    voices: (template as any).voices ?? {
+      coordination: 10, force: 10, reaction: 10, perception: 10,
+      endurance: 10, resilience: 10, knowledge: 10, azart: 10
+    }
   }
 }
 
@@ -87,6 +91,10 @@ export function createCoopBattleSession(params: { encounter: CoopEncounterState;
       weaponHeat: 0,
       isJammed: false,
       ammo: 100,
+      voices: {
+        coordination: 10, force: 10, reaction: 10, perception: 10,
+        endurance: 10, resilience: 10, knowledge: 10, azart: 10
+      }
     }
   })
 
@@ -101,6 +109,8 @@ export function createCoopBattleSession(params: { encounter: CoopEncounterState;
     players,
     enemies,
     playerHand,
+    deck: [...playerHand],
+    discard: [],
     stats: { damageTaken: 0, attacksInOneTurn: 0, turnCount: 1 },
     activeUnitId: turnQueue[0] ?? null,
     turnQueue,

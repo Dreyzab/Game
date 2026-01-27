@@ -2,7 +2,9 @@ import React, { useEffect, useMemo, useRef } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import mapboxgl from 'mapbox-gl'
 import { MapPointPopup } from '@/entities/map-point/ui/MapPointPopup'
+import { DetectivePopup } from '@/features/detective/map/DetectivePopup'
 import type { MapPoint } from '@/shared/types/map'
+import type { DetectivePointMetadata } from '@/features/detective/map/types'
 import { useMapPointInteraction, type InteractionKey } from '@/entities/map-point/model/useMapPointInteraction'
 
 export interface MapPopupsProps {
@@ -41,7 +43,6 @@ export const MapPopups: React.FC<MapPopupsProps> = ({
         if (!map) return
 
         try {
-            // ÑœÑïÑøÑ¯¥?ÑæÑ¬ ¥?¥'Ñø¥?¥<Ñû tooltip
             if (tooltipRef.current) {
                 try {
                     tooltipRef.current.popup.remove()
@@ -51,17 +52,16 @@ export const MapPopups: React.FC<MapPopupsProps> = ({
                                 tooltipRef.current.root.unmount()
                             }
                         } catch (e) {
-                            console.warn(`ƒsÿ‹÷? [MapPopups] Ñz¥^Ñ÷ÑñÑ§Ñø Ñ¨¥?Ñ÷ ¥?ÑøÑúÑ¬ÑóÑ«¥'Ñ÷¥?ÑóÑýÑøÑ«Ñ÷Ñ÷ tooltip:`, e)
+                            console.warn(`[MapPopups] Failed to unmount tooltip root:`, e)
                         }
                     })
                     tooltipRef.current = null
                 } catch (e) {
-                    console.error('ƒ?O [MapPopups] Ñz¥^Ñ÷ÑñÑ§Ñø Ñ¨¥?Ñ÷ ¥ŸÑïÑøÑ¯ÑæÑ«Ñ÷Ñ÷ tooltip:', e)
+                    console.error('[MapPopups] Failed to remove tooltip:', e)
                     tooltipRef.current = null
                 }
             }
 
-            // Ñ­ÑóÑúÑïÑø¥'Ñ¬ tooltip ¥'ÑóÑ¯¥OÑ§Ñó Ñæ¥?Ñ¯Ñ÷ Ñ«Ñæ¥' Ñý¥<Ññ¥?ÑøÑ«Ñ«ÑóÑû ¥'Ñó¥ÎÑ§Ñ÷ Ñ÷ Ñæ¥?¥'¥O Ñ«ÑøÑýÑæÑïÑæÑ«Ñ÷Ñæ
             if (hoveredPointId && !selectedPointId) {
                 const point = points.find((p) => p.id === hoveredPointId)
                 if (!point) return
@@ -77,35 +77,33 @@ export const MapPopups: React.FC<MapPopupsProps> = ({
                     const allowUnsafeTooltipHtml =
                         (import.meta.env.VITE_ENABLE_UNSAFE_TOOLTIP_HTML ?? '').toLowerCase() === 'true'
 
-                    // Legacy tooltip HTML (kept behind a flag to avoid XSS risks)
                     if (allowUnsafeTooltipHtml) {
                         el.innerHTML = `
             <div class="font-bold mb-1">${point.title}</div>
-            <div class="text-xs text-gray-300">${point.description || "Ñ?Ñæ¥' ÑóÑ¨Ñ÷¥?ÑøÑ«Ñ÷¥?"}</div>
-            ${point.distance !== undefined ? `<div class="text-xs text-gray-400 mt-1">ÐY"? ${point.distance < 1 ? `${Math.round(point.distance * 1000)} Ñ¬` : `${point.distance.toFixed(1)} Ñ§Ñ¬`}</div>` : ''}
+            <div class="text-xs text-gray-300">${point.description || "No description"}</div>
+            ${point.distance !== undefined ? `<div class="text-xs text-gray-400 mt-1">Dist: ${point.distance < 1 ? `${Math.round(point.distance * 1000)} m` : `${point.distance.toFixed(1)} km`}</div>` : ''}
           `
+                    } else {
+                        const titleEl = document.createElement('div')
+                        titleEl.className = 'font-bold mb-1'
+                        titleEl.textContent = point.title
 
-                    }
+                        const descEl = document.createElement('div')
+                        descEl.className = 'text-xs text-gray-300'
+                        descEl.textContent = point.description || 'No description'
 
-                    const titleEl = document.createElement('div')
-                    titleEl.className = 'font-bold mb-1'
-                    titleEl.textContent = point.title
+                        el.appendChild(titleEl)
+                        el.appendChild(descEl)
 
-                    const descEl = document.createElement('div')
-                    descEl.className = 'text-xs text-gray-300'
-                    descEl.textContent = point.description || 'Нет описания'
-
-                    el.appendChild(titleEl)
-                    el.appendChild(descEl)
-
-                    if (point.distance !== undefined) {
-                        const distanceEl = document.createElement('div')
-                        distanceEl.className = 'text-xs text-gray-400 mt-1'
-                        distanceEl.textContent =
-                            point.distance < 1
-                                ? `Расстояние: ${Math.round(point.distance * 1000)} м`
-                                : `Расстояние: ${point.distance.toFixed(1)} км`
-                        el.appendChild(distanceEl)
+                        if (point.distance !== undefined) {
+                            const distanceEl = document.createElement('div')
+                            distanceEl.className = 'text-xs text-gray-400 mt-1'
+                            distanceEl.textContent =
+                                point.distance < 1
+                                    ? `Dist: ${Math.round(point.distance * 1000)} m`
+                                    : `Dist: ${point.distance.toFixed(1)} km`
+                            el.appendChild(distanceEl)
+                        }
                     }
 
                     const tooltip = new mapboxgl.Popup({
@@ -121,11 +119,11 @@ export const MapPopups: React.FC<MapPopupsProps> = ({
 
                     tooltipRef.current = { popup: tooltip, root: null }
                 } catch (e) {
-                    console.error('ƒ?O [MapPopups] Ñz¥^Ñ÷ÑñÑ§Ñø Ñ¨¥?Ñ÷ ¥?ÑóÑúÑïÑøÑ«Ñ÷Ñ÷ tooltip:', e)
+                    console.error('[MapPopups] Failed to create tooltip:', e)
                 }
             }
         } catch (error) {
-            console.error(`ƒ?O [MapPopups] Ñs¥?Ñ÷¥'Ñ÷¥ÎÑæ¥?Ñ§Ñø¥? Ñó¥^Ñ÷ÑñÑ§Ñø Ñ¨¥?Ñ÷ ÑóÑñÑ«ÑóÑýÑ¯ÑæÑ«Ñ÷Ñ÷ tooltip:`, error)
+            console.error(`[MapPopups] General error in tooltip effect:`, error)
         }
     }, [map, hoveredPointId, selectedPointId, points])
 
@@ -134,7 +132,6 @@ export const MapPopups: React.FC<MapPopupsProps> = ({
         if (!map) return
 
         try {
-            // Ñ¥?Ñ¯Ñ÷ Ñ«Ñæ¥' Ñý¥<Ññ¥?ÑøÑ«Ñ«ÑóÑû ¥'Ñó¥ÎÑ§Ñ÷, ¥ŸÑïÑøÑ¯¥?ÑæÑ¬ Ñ¨ÑóÑ¨ÑøÑ¨
             if (!selectedPointId) {
                 if (popupRef.current) {
                     try {
@@ -143,22 +140,17 @@ export const MapPopups: React.FC<MapPopupsProps> = ({
                             try {
                                 popupRef.current?.root.unmount()
                             } catch (e) {
-                                console.warn(`ƒsÿ‹÷? [MapPopups] Ñz¥^Ñ÷ÑñÑ§Ñø Ñ¨¥?Ñ÷ ¥?ÑøÑúÑ¬ÑóÑ«¥'Ñ÷¥?ÑóÑýÑøÑ«Ñ÷Ñ÷ Ñ¨ÑóÑ¨ÑøÑ¨Ñø:`, e)
+                                console.warn(`[MapPopups] Failed to unmount popup root:`, e)
                             }
                         })
                         popupRef.current = null
                     } catch (e) {
-                        console.error('ƒ?O [MapPopups] Ñz¥^Ñ÷ÑñÑ§Ñø Ñ¨¥?Ñ÷ ¥ŸÑïÑøÑ¯ÑæÑ«Ñ÷Ñ÷ Ñ¨ÑóÑ¨ÑøÑ¨Ñø:', e)
+                        console.error('[MapPopups] Failed to remove popup:', e)
                         popupRef.current = null
                     }
                 }
                 return
             }
-
-            // Ñ¥?Ñ¯Ñ÷ Ñ¨ÑóÑ¨ÑøÑ¨ ¥ŸÑôÑæ ¥?¥Ÿ¥%Ñæ¥?¥'Ñý¥ŸÑæ¥', ÑóÑñÑ«ÑóÑýÑ¯¥?ÑæÑ¬ ÑæÑüÑó Ñ§ÑóÑ«¥'ÑæÑ«¥' (Ñ÷Ñ¯Ñ÷ Ñ«Ñæ ÑïÑæÑ¯ÑøÑæÑ¬ Ñ«Ñ÷¥ÎÑæÑüÑó, Ñæ¥?Ñ¯Ñ÷ ¥?¥'Ñó ¥'Ñó¥' ÑôÑæ Ñ¨ÑóÑ¨ÑøÑ¨)
-            // Ñ?Ñó ÑúÑïÑæ¥?¥O Ñ¬¥< Ñ¨¥?Ñó¥?¥'Ñó Ñ¨Ñæ¥?ÑæÑïÑóÑúÑïÑøÑæÑ¬ Ñ÷Ñ¯Ñ÷ ÑóÑñÑ«ÑóÑýÑ¯¥?ÑæÑ¬, Ñæ¥?Ñ¯Ñ÷ id Ñ÷ÑúÑ¬ÑæÑ«Ñ÷Ñ¯¥?¥?.
-            // Ñ' Ñó¥?Ñ÷ÑüÑ÷Ñ«ÑøÑ¯Ñæ Ññ¥<Ñ¯Ñó: Ñæ¥?Ñ¯Ñ÷ ¥?¥Ÿ¥%Ñæ¥?¥'Ñý¥ŸÑæ¥', Ñ«Ñæ Ñ¨Ñæ¥?ÑæÑïÑóÑúÑïÑøÑæÑ¬. Ñ?Ñó Ñ«ÑøÑ¬ Ñ«¥ŸÑôÑ«Ñó ÑóÑñÑ«ÑóÑýÑ¯¥?¥'¥O Ñ§ÑóÑ«¥'ÑæÑ«¥'.
-            // ÑYÑó¥?¥'ÑóÑ¬¥Ÿ ¥?ÑøÑúÑïÑæÑ¯Ñ÷Ñ¬ ¥?ÑóÑúÑïÑøÑ«Ñ÷Ñæ Ñ÷ ÑóÑñÑ«ÑóÑýÑ¯ÑæÑ«Ñ÷Ñæ.
 
             const point = points.find((p) => p.id === selectedPointId)
             if (!point) return
@@ -167,12 +159,25 @@ export const MapPopups: React.FC<MapPopupsProps> = ({
                 return
             }
 
-            if (!popupRef.current) {
-                // Ñ­ÑóÑúÑïÑøÑæÑ¬ Ñ«ÑóÑý¥<Ñû
-                try {
-                    const el = document.createElement('div')
-                    const root = createRoot(el)
+            const renderPopupContent = (root: Root) => {
+                const detMeta = point.metadata as unknown as DetectivePointMetadata | undefined
 
+                if (detMeta?.detectiveType) {
+                    root.render(
+                        <DetectivePopup
+                            point={point}
+                            onClose={() => onSelectPoint(null)}
+                            onAction={(action) => {
+                                console.log('[Detective] Action:', action, point.id)
+                                if (action === 'investigate' || action === 'interrogate') {
+                                    onInteractPoint?.(point)
+                                } else if (action === 'enter') {
+                                    onInteractPoint?.(point)
+                                }
+                            }}
+                        />
+                    )
+                } else {
                     root.render(
                         <MapPointPopup
                             point={point}
@@ -184,6 +189,14 @@ export const MapPopups: React.FC<MapPopupsProps> = ({
                             onActionSelect={(key) => onActionSelect?.(point, key)}
                         />
                     )
+                }
+            }
+
+            if (!popupRef.current) {
+                try {
+                    const el = document.createElement('div')
+                    const root = createRoot(el)
+                    renderPopupContent(root)
 
                     const popup = new mapboxgl.Popup({
                         closeButton: false,
@@ -198,49 +211,34 @@ export const MapPopups: React.FC<MapPopupsProps> = ({
                         .setDOMContent(el)
                         .addTo(map)
 
-                    popup.on('close', () => {
-                        // Handled by onClose prop usually
-                    })
-
                     popupRef.current = { popup, root }
                 } catch (e) {
-                    console.error('ƒ?O [MapPopups] Ñz¥^Ñ÷ÑñÑ§Ñø Ñ¨¥?Ñ÷ ¥?ÑóÑúÑïÑøÑ«Ñ÷Ñ÷ Ñ¨ÑóÑ¨ÑøÑ¨Ñø:', e)
+                    console.error('[MapPopups] Failed to create popup:', e)
                 }
             } else {
-                // ÑzÑñÑ«ÑóÑýÑ¯¥?ÑæÑ¬ ¥?¥Ÿ¥%Ñæ¥?¥'Ñý¥Ÿ¥Z¥%Ñ÷Ñû Ñ÷ Ñ¨Ñæ¥?ÑæÑ«Ñó¥?Ñ÷Ñ¬ Ñ«Ñø Ñ«ÑóÑý¥<Ñæ Ñ§ÑóÑó¥?ÑïÑ÷Ñ«Ñø¥'¥<
                 try {
                     popupRef.current.popup.setLngLat([point.coordinates.lng, point.coordinates.lat])
                 } catch (e) {
-                    console.warn(`ƒsÿ‹÷? [MapPopups] Ñ?Ñæ ¥ŸÑïÑøÑ¯Ñó¥?¥O ÑóÑñÑ«ÑóÑýÑ÷¥'¥O Ñ§ÑóÑó¥?ÑïÑ÷Ñ«Ñø¥'¥< Ñ¨ÑóÑ¨ÑøÑ¨Ñø, Ñ¨Ñæ¥?Ñæ¥?ÑóÑúÑïÑø¥'Ñ¬`, e)
+                    console.warn(`[MapPopups] Failed to update popup pos, recreating`, e)
                     try {
                         popupRef.current.popup.remove()
                         queueMicrotask(() => popupRef.current?.root.unmount())
                     } catch (removeError) {
-                        console.error(`ƒ?O [MapPopups] Ñz¥^Ñ÷ÑñÑ§Ñø Ñ¨¥?Ñ÷ ¥ŸÑïÑøÑ¯ÑæÑ«Ñ÷Ñ÷ Ñ¨ÑóÑ¨ÑøÑ¨Ñø Ñ¨Ñæ¥?ÑæÑï Ñ¨Ñæ¥?Ñæ¥?ÑóÑúÑïÑøÑ«Ñ÷ÑæÑ¬`, removeError)
+                        console.error(`[MapPopups] Failed to remove broken popup`, removeError)
                     }
                     popupRef.current = null
                     return
                 }
 
                 try {
-                    popupRef.current.root.render(
-                        <MapPointPopup
-                            point={point}
-                            actions={actions}
-                            onClose={() => onSelectPoint(null)}
-                            onInteract={() => onInteractPoint?.(point)}
-                            onNavigate={() => onNavigatePoint?.(point)}
-                            onScanQR={() => onScanQRPoint?.(point)}
-                            onActionSelect={(key) => onActionSelect?.(point, key)}
-                        />
-                    )
+                    renderPopupContent(popupRef.current.root)
                 } catch (e) {
-                    console.error(`ƒ?O [MapPopups] Ñz¥^Ñ÷ÑñÑ§Ñø Ñ¨¥?Ñ÷ ÑóÑñÑ«ÑóÑýÑ¯ÑæÑ«Ñ÷Ñ÷ Ñ§ÑóÑ«¥'ÑæÑ«¥'Ñø Ñ¨ÑóÑ¨ÑøÑ¨Ñø:`, e)
+                    console.error(`[MapPopups] Failed to update popup content:`, e)
                 }
             }
 
         } catch (error) {
-            console.error(`ƒ?O [MapPopups] Ñs¥?Ñ÷¥'Ñ÷¥ÎÑæ¥?Ñ§Ñø¥? Ñó¥^Ñ÷ÑñÑ§Ñø Ñ¨¥?Ñ÷ ¥?ÑóÑúÑïÑøÑ«Ñ÷Ñ÷ Ñ¨ÑóÑ¨ÑøÑ¨Ñø:`, error)
+            console.error(`[MapPopups] General error in popup effect:`, error)
         }
     }, [map, selectedPointId, points, actions, onSelectPoint, onInteractPoint, onNavigatePoint, onScanQRPoint, onActionSelect])
 

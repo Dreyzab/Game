@@ -44,6 +44,7 @@ export const gameProgress = pgTable('game_progress', {
     currentScene: text('current_scene').default('prologue_coupe_start'),
     visitedScenes: jsonb('visited_scenes').$type<string[]>().default([]),
     flags: jsonb('flags').$type<Record<string, any>>().default({}),
+    gameMode: text('game_mode').notNull().default('survival'),
 
     // Stats
     level: integer('level').default(1),
@@ -67,6 +68,38 @@ export const gameProgress = pgTable('game_progress', {
 
     phase: integer('phase').default(1),
     stateVersion: integer('state_version').default(1),
+
+    // Detective Mode State (Cloud Sync)
+    detectiveState: jsonb('detective_state').$type<{
+        entries: Array<{
+            id: string
+            type: string
+            title: string
+            description: string
+            image?: string
+            unlockedAt: number
+            isRead: boolean
+        }>
+        evidence: Array<{
+            id: string
+            label: string
+            description: string
+            icon?: string
+            source: string
+            timestamp: number
+        }>
+        pointStates: Record<string, string>
+        flags: Record<string, boolean>
+        detectiveName: string | null
+        lastSyncedAt: number
+    }>().default({
+        entries: [],
+        evidence: [],
+        pointStates: {},
+        flags: {},
+        detectiveName: null,
+        lastSyncedAt: 0,
+    }),
 
     updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
 });

@@ -1,0 +1,18 @@
+{
+  "name": "grezwanderer3-reboot",
+  "version": "1.0.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "bun --cwd apps/web dev",
+    "dev:server": "bun --cwd apps/server dev",
+    "dev": "bun run dev:server & bun run dev:web",
+    "test": "bun test",
+    "lint": "bun x eslint ."
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

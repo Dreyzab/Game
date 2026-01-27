@@ -59,19 +59,28 @@ const createSession = (overrides: Partial<BattleSession> = {}): BattleSession =>
     const enemy = createCombatant({ id: 'e1', side: Side.ENEMY, rank: 1, name: 'Mutant Marauder', resources: { ...player.resources, hp: 50, maxHp: 50, ap: 1, maxAp: 1 } })
     const hand: CombatCard[] = [createAttackCard({ ownerId: player.id })]
 
-    return {
+    const base: BattleSession = {
         turnCount: 1,
         phase: 'PLAYER_TURN',
         logs: ['Combat initiated.'],
         players: [player],
         enemies: [enemy],
         playerHand: hand,
+        deck: [...hand],
+        discard: [],
         stats: { damageTaken: 0, attacksInOneTurn: 0, turnCount: 1 },
         activeUnitId: player.id,
         turnQueue: [player.id, enemy.id],
         teamSP: 50,
         maxTeamSP: 100,
+    }
+
+    return {
+        ...base,
         ...overrides,
+        playerHand: overrides.playerHand ?? base.playerHand,
+        deck: overrides.deck ?? base.deck,
+        discard: overrides.discard ?? base.discard,
     }
 }
 

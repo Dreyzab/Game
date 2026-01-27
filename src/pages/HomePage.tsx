@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
+import React, { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { LoadingSpinner } from '@/shared/ui/components/LoadingSpinner'
 import { HeroSection } from '@/widgets/hero/HeroSection.tsx'
@@ -17,6 +17,14 @@ import { useDeviceId } from '@/shared/hooks/useDeviceId'
 import { Routes } from '@/shared/lib/utils/navigation'
 import { useAppAuth } from '@/shared/auth'
 import { clearLastCoopRoomCode, getLastCoopRoomCode } from '@/features/coop'
+import { useInventoryStore } from '@/entities/inventory/model/store'
+import { useDossierStore } from '@/features/detective/dossier'
+import { SCENE_IDS } from '@/features/detective/constants'
+import { DETECTIVE_MAP_STYLE } from '@/shared/config/mapStyles'
+
+// Lazy load onboarding
+const OnboardingModal = React.lazy(() => import('@/features/detective/ui/OnboardingModal').then(m => ({ default: m.OnboardingModal })))
+const MapPreloader = React.lazy(() => import('@/shared/ui/MapPreloader'))
 
 export function ModernHomePage() {
   const navigate = useNavigate()
@@ -28,12 +36,47 @@ export function ModernHomePage() {
   const [qrSimNotice, setQrSimNotice] = useState<string | null>(null)
   const [qrSimError, setQrSimError] = useState<string | null>(null)
   const [isSimulatingQr, setSimulatingQr] = useState(false)
+  const [showDetectiveOnboarding, setShowDetectiveOnboarding] = useState(false)
+  const [preloadDetectiveMap, setPreloadDetectiveMap] = useState(false)
+  const detectiveName = useDossierStore((state) => state.detectiveName)
+  const setDetectiveName = useDossierStore((state) => state.setDetectiveName)
+
+  const handleStartDetective = useCallback((continueMode = false) => {
+    setPreloadDetectiveMap(true)
+    // If continueMode or name already exists, skip onboarding
+    if (continueMode || detectiveName) {
+      console.log('Starting investigation (Continue)...')
+      // #region agent log (debug)
+      fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'src/pages/HomePage.tsx:handleStartDetective', message: 'navigate_to_map_direct', data: { continueMode, hasDetectiveName: Boolean(detectiveName), nextRoute: Routes.MAP }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'pre-fix', hypothesisId: 'H0' }) }).catch(() => { });
+      // #endregion agent log (debug)
+      useInventoryStore.getState().setGameMode('detective')
+      navigate(Routes.MAP)
+      return
+    }
+
+    // Otherwise show onboarding
+    // #region agent log (debug)
+    fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'src/pages/HomePage.tsx:handleStartDetective', message: 'open_detective_onboarding', data: { continueMode, hasDetectiveName: Boolean(detectiveName) }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'pre-fix', hypothesisId: 'H0' }) }).catch(() => { });
+    // #endregion agent log (debug)
+    setShowDetectiveOnboarding(true)
+  }, [navigate, detectiveName])
+
+  const handleOnboardingComplete = useCallback((name: string) => {
+    setDetectiveName(name)
+    setShowDetectiveOnboarding(false)
+    // #region agent log (debug)
+    fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'src/pages/HomePage.tsx:handleOnboardingComplete', message: 'navigate_to_vn_briefing', data: { nameLength: typeof name === 'string' ? name.length : null, nextRoute: `${Routes.VISUAL_NOVEL}/${SCENE_IDS.BRIEFING}` }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'pre-fix', hypothesisId: 'H0' }) }).catch(() => { });
+    // #endregion agent log (debug)
+    useInventoryStore.getState().setGameMode('detective')
+    // Start the investigation with the Briefing scene directly
+    navigate(`${Routes.VISUAL_NOVEL}/${SCENE_IDS.BRIEFING}`)
+  }, [navigate, setDetectiveName])
 
   const [coopRoomStatus, setCoopRoomStatus] = useState<'idle' | 'loading' | 'active' | 'waiting' | 'missing'>('idle')
   const [coopRoomCode, setCoopRoomCode] = useState<string | null>(() => getLastCoopRoomCode())
 
   const isSignedIn = progress !== null
-  const hasUnallocatedSkills = progress?.skillPoints ? progress.skillPoints > 0 : false
+  // const hasUnallocatedSkills = progress?.skillPoints ? progress.skillPoints > 0 : false
 
   const hasKnownCoopRoom = useMemo(() => Boolean(coopRoomCode), [coopRoomCode])
   const canStartNewCoop = coopRoomStatus === 'active' || coopRoomStatus === 'waiting'
@@ -250,6 +293,45 @@ export function ModernHomePage() {
               </div>
             </div>
           </div>
+
+          {/* DETECTIVE MODE PANEL */}
+          <div className="panel-span-12">
+            <div className="glass-panel p-5 border border-slate-500/30 bg-gradient-to-br from-slate-900/60 to-transparent relative overflow-hidden group">
+              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                {/* Decorative Icon or Text */}
+                <span className="text-6xl font-serif">1905</span>
+              </div>
+
+              <div className="flex flex-col gap-1 relative z-10">
+                <Heading level={3} className="text-slate-200 font-serif tracking-wider">
+                  🕵️ Archiv: Freiburg 1905
+                </Heading>
+                <Text size="sm" variant="muted" className="font-serif italic">
+                  "Оперативное досье". Режим Детектива (Alpha).
+                </Text>
+              </div>
+
+              <div className="mt-4 flex gap-3 relative z-10">
+                <Button
+                  variant="primary"
+                  size="lg"
+                  className="bg-slate-700 hover:bg-slate-600 font-serif border border-slate-500/50"
+                  onClick={() => handleStartDetective()}
+                >
+                  Открыть Дело (Case File)
+                </Button>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="bg-transparent hover:bg-slate-800/50 font-serif border border-slate-600 text-slate-400"
+                  onClick={() => handleStartDetective(true)}
+                  title="Симуляция без сброса инвентаря (Test)"
+                >
+                  Продолжить
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="panel-grid mb-10">
@@ -308,8 +390,25 @@ export function ModernHomePage() {
           onRegisterAdmin={handleRegisterAdmin}
           createMsg={createMsg}
           isCreating={isCreating}
-          hasUnallocatedSkills={hasUnallocatedSkills}
         />
+      )}
+
+      {/* Detective Onboarding Modal */}
+      {showDetectiveOnboarding && (
+        <Suspense fallback={null}>
+          <OnboardingModal
+            onComplete={handleOnboardingComplete}
+            onCancel={() => {
+              setShowDetectiveOnboarding(false)
+              setPreloadDetectiveMap(false)
+            }}
+          />
+        </Suspense>
+      )}
+      {preloadDetectiveMap && (
+        <Suspense fallback={null}>
+          <MapPreloader style={DETECTIVE_MAP_STYLE} />
+        </Suspense>
       )}
     </Layout>
   )

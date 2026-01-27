@@ -14,6 +14,7 @@ import { masteryRoutes } from "./api/routes/mastery";
 import { resonanceRoutes } from "./api/routes/resonance";
 import { adminRoutes } from "./api/routes/admin";
 import { survivalRoutes } from "./api/routes/survival";
+import { detectiveRoutes } from "./api/routes/detective";
 import { wsRoutes } from "./sockets";
 
 export const app = new Elysia()
@@ -31,6 +32,7 @@ export const app = new Elysia()
     .use(pvpRoutes)
     .use(presenceRoutes)
     .use(masteryRoutes)
+    .use(detectiveRoutes)
     .use(adminRoutes)
     .use(wsRoutes)
     .get("/", () => "Hello form Grezwanderer Backend (Bun + Elysia)");

@@ -53,6 +53,21 @@ type InventoryState = {
   selectedItemId: string | null
   searchQuery: string
   activeFilter: InventoryFilter
+
+  // Detective Mode State
+  gameMode: 'survival' | 'detective'
+  detectiveState: {
+    items: Record<string, ItemState>
+    equipment: EquipmentSlots
+    containers: Record<string, InventoryContainer>
+  }
+  survivalState: {
+    items: Record<string, ItemState>
+    equipment: EquipmentSlots
+    containers: Record<string, InventoryContainer>
+  } | null
+
+  setGameMode: (mode: 'survival' | 'detective') => void
   addItem: (item: ItemState) => void
   equipItem: (itemId: string | null, slotId: EquipmentSlotKey) => void
   setQuickSlot: (index: number, itemId: string | null) => void
@@ -115,6 +130,16 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
   equipment: initialEquipment,
   containers: initialContainers,
   encumbrance: baseEncumbrance,
+
+  // Mode Support
+  gameMode: 'survival',
+  detectiveState: {
+    items: {},
+    equipment: initialEquipment,
+    containers: {}
+  },
+  survivalState: null,
+
   playerStats: initialPlayerStats,
   activeMasteryCards: initialActiveMasteries,
   masteries: initialMasteries,
@@ -123,9 +148,56 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
   searchQuery: '',
   activeFilter: 'all',
 
+  setGameMode: (mode) => set((state) => {
+    if (state.gameMode === mode) return {}
+
+    // Save current state to the buffer of the PREVIOUS mode
+    const currentBuffer = {
+      items: state.items,
+      equipment: state.equipment,
+      containers: state.containers
+    }
+
+    let nextState: typeof currentBuffer
+
+    if (mode === 'detective') {
+      // Switching TO detective
+      // Save survival
+      const survivalState = currentBuffer
+      // Load detective (or init)
+      nextState = state.detectiveState
+
+      return {
+        gameMode: mode,
+        survivalState, // Save survival state
+        ...nextState, // Restore detective state
+        ...deriveState(nextState.items, nextState.equipment, state.masteries) // Recalc stats
+      }
+    } else {
+      // Switching TO survival
+      // Save detective
+      const detectiveState = currentBuffer
+      // Load survival (or fallback to empty if null, but shouldn't happen if came from survival)
+      nextState = state.survivalState || {
+        items: initialItems,
+        equipment: initialEquipment,
+        containers: initialContainers
+      }
+
+      return {
+        gameMode: mode,
+        detectiveState, // Save detective state
+        ...nextState, // Restore survival state
+        ...deriveState(nextState.items, nextState.equipment, state.masteries)
+      }
+    }
+  }),
+
   syncWithBackend: (data: InventoryGetResponse | undefined | null) =>
     set((state) => {
       if (!data) return state
+      // Detective Mode inventory is local-only (prototype). Do not overwrite it with Survival backend sync.
+      if (state.gameMode === 'detective') return state
 
       // Index items by ID
       const items: Record<string, ItemState> = {}

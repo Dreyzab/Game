@@ -18,10 +18,9 @@ export const QuestSummaryCard: React.FC<QuestSummaryCardProps> = ({
   compact = false,
   className,
 }) => {
-  const showProgress =
-    typeof quest.progress === 'number' &&
-    typeof quest.maxProgress === 'number' &&
-    quest.maxProgress > 0
+  const progress = quest.progress
+  const maxProgress = quest.maxProgress
+  const showProgress = typeof progress === 'number' && typeof maxProgress === 'number' && maxProgress > 0
 
   return (
     <div
@@ -47,12 +46,12 @@ export const QuestSummaryCard: React.FC<QuestSummaryCardProps> = ({
             <div
               className="h-full bg-[color:var(--color-cyan)] transition-all duration-300"
               style={{
-                width: `${Math.min((quest.progress / quest.maxProgress) * 100, 100)}%`,
+                width: `${Math.min((progress / maxProgress) * 100, 100)}%`,
               }}
             />
           </div>
           <Text variant="muted" size="xs" className="mt-1">
-            {quest.progress}/{quest.maxProgress}
+            {progress}/{maxProgress}
           </Text>
         </div>
       )}

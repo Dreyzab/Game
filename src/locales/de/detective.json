@@ -1,0 +1,75 @@
+{
+    "ui": {
+        "investigate": "Untersuchen",
+        "interrogate": "Verhören",
+        "review_notes": "Notizen prüfen",
+        "open_dossier": "Akte öffnen",
+        "details": "Details",
+        "discovered": "Entdeckt",
+        "active": "Aktiv",
+        "cleared": "Abgeschlossen",
+        "locked": "Gesperrt"
+    },
+    "points": {
+        "bureau_office": {
+            "title": "Detektivbüro",
+            "description": "Ihr sicheres Haus und Büro. Hier können Sie die Fallakten durchsehen."
+        },
+        "hauptbahnhof": {
+            "title": "Hauptbahnhof",
+            "description": "Zentralbahnhof. Eingangspunkt nach Freiburg (1905)."
+        },
+        "munsterplatz_bank": {
+            "title": "Bankhaus J.A. Krebs",
+            "description": "Münsterplatz 4. Bank im Umbau — Tatort des Raubüberfalls."
+        },
+        "ganter_brauerei": {
+            "title": "Ganter Brauerei",
+            "description": "Wo Arbeiter reden. Gerüchte, Flugblätter und Baupläne wechseln die Hände."
+        },
+        "rathaus_archiv": {
+            "title": "Rathaus / Archiv",
+            "description": "Alte Karten, Genehmigungen, Kanalpläne. Bürokratie mit langem Gedächtnis."
+        },
+        "basler_hof": {
+            "title": "Basler Hof",
+            "description": "Polizeidirektion. Papierkram, Druck und versiegelte Akten."
+        },
+        "stuhlinger_warehouse": {
+            "title": "Stühlinger Lagerhaus",
+            "description": "Ein ruhiges Depot hinter dem Bahnhof. Guter Ort, um etwas Lautes und Schweres zu verstecken."
+        }
+    },
+    "evidence": {
+        "lime_footprints": {
+            "label": "Kalkspuren an Sohlen",
+            "description": "Weißer Staub (Baukalk) auf Brettern und am Fenster. Jemand ging von der Baustelle hinein — nach Feierabend.",
+            "source": "Münsterplatz, Bauzone"
+        },
+        "empty_schnapps_bottle": {
+            "label": "Leere Schnapsflasche",
+            "description": "Am Wachposten. Der Wächter trank offensichtlich im Dienst: abgestumpfte Reaktion, und der Hund könnte auf den Alkoholgeruch reagiert haben.",
+            "source": "Münsterplatz, Wachhäuschen"
+        },
+        "director_letter": {
+            "label": "Brief über Creditbank-Fusion",
+            "description": "Der Direktor bereitet die Übertragung von Vermögenswerten vor. Heute hielt der Tresor Bargeld und Dokumente — ein zu verlockendes Ziel.",
+            "source": "Büro des Bankdirektors"
+        },
+        "meckel_blueprint": {
+            "label": "Meckels Bauplan: \"dünne Wand\"",
+            "description": "Der Plan markiert einen Kellerabschnitt, der an einen alten Abfluss grenzt. Der perfekte Weg für leisen Ein- und Ausgang.",
+            "source": "Vorarbeiter, Baucontainer"
+        },
+        "friedeberg_poster": {
+            "label": "Kundgebungsplakat (Friedeberg)",
+            "description": "Am Abend wird eine Arbeiterversammlung erwartet. Wollte jemand die Polizei ablenken, ist dies praktisches Hintergrund rauschen und ein Grund für Patrouillenumverteilung.",
+            "source": "Ganter Brauerei"
+        }
+    },
+    "messages": {
+        "new_evidence": "Neues Beweisstück: {{name}}",
+        "point_discovered": "Kartenpunkt entdeckt: {{name}}",
+        "intel_updated": "Informationen aktualisiert: {{items}}"
+    }
+}

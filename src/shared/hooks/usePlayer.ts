@@ -29,6 +29,7 @@ const createDefaultProgress = (): PlayerProgress => ({
   phase: 1,
   reputationByFaction: {},
   lastUpdatedAt: Date.now(),
+  gameMode: 'survival',
 })
 
 export type { Player, PlayerProgress }

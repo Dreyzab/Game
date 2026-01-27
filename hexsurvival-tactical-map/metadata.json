@@ -1,5 +1,0 @@
-{
-  "name": "HexSurvival Tactical Map",
-  "description": "A tactical hex-based survival map interface featuring procedural generation, fog of war, and turn-based movement mechanics.",
-  "requestFramePermissions": []
-}

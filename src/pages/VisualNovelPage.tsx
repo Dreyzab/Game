@@ -15,6 +15,8 @@ import { useVisualNovelSessionStore, useVisualNovelViewModel } from '@/features/
 import { Routes } from '@/shared/lib/utils/navigation'
 import type { VisualNovelChoice, VisualNovelChoiceEffect } from '@/shared/types/visualNovel'
 import type { FloatingTextEvent } from '@/features/dreyzab-combat-simulator'
+import { useInventoryStore } from '@/entities/inventory/model/store'
+import { createFallbackEvidence, getDetectiveEvidenceById, useDossierStore } from '@/features/detective'
 
 export type VisualNovelExperienceProps = {
   lockedSceneId?: string
@@ -31,6 +33,7 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
   const { sceneId: routeSceneId } = useParams<{ sceneId?: string }>()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
+  const gameMode = useInventoryStore((state) => state.gameMode)
   type CommitPayload = NonNullable<ReturnType<typeof consumePayload>>
   type ImmediateEffect = Extract<VisualNovelChoiceEffect, { type: 'immediate' }>
 
@@ -332,6 +335,48 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
       const immediateEffects = effects.filter((effect): effect is ImmediateEffect => effect.type === 'immediate')
       if (immediateEffects.length === 0) return
 
+      // Detective Mode: local-only side effects (Dossier) via immediate actions.
+      if (gameMode === 'detective') {
+        immediateEffects.forEach((effect) => {
+          const data = (effect.data ?? {}) as Record<string, unknown>
+
+          switch (effect.action) {
+            case 'detective_grant_evidence': {
+              const evidenceId = typeof data.evidenceId === 'string' ? data.evidenceId.trim() : ''
+              if (!evidenceId) return
+              const evidence = getDetectiveEvidenceById(evidenceId) ?? createFallbackEvidence(evidenceId)
+              useDossierStore.getState().addEvidence(evidence)
+              return
+            }
+            // Deprecated: unlockEntry doesn't exist in DossierStore
+            // case 'detective_unlock_entry': {
+            //   const entryId = typeof data.entryId === 'string' ? data.entryId.trim() : ''
+            //   if (!entryId) return
+            //   useDossierStore.getState().unlockEntry(entryId)
+            //   return
+            // }
+            case 'detective_unlock_point': {
+              const pointId = typeof data.pointId === 'string' ? data.pointId.trim() : ''
+              if (!pointId) return
+              useDossierStore.getState().unlockPoint(pointId)
+              return
+            }
+            case 'detective_add_flags': {
+              const flags = typeof data.flags === 'object' && data.flags ? (data.flags as Record<string, unknown>) : null
+              if (!flags) return
+              useDossierStore.getState().addFlags(flags as Record<string, boolean | number>)
+              return
+            }
+            case 'detective_open_dossier': {
+              useDossierStore.getState().toggleOpen()
+              return
+            }
+            default:
+              return
+          }
+        })
+      }
+
       const questEffects = immediateEffects.filter((effect) => effect.action === 'quest')
       if (questEffects.length > 0) {
         questEffects.forEach((effect) => {
@@ -423,7 +468,7 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
         )
       }
     },
-    [navigate, resources.ap, resources.hp, resources.maxAp, resources.maxHp, resources.maxMp, resources.maxWp, resources.mp, resources.wp, setNicknameError, setNicknamePromptOpen, syncImmediateQuest]
+    [gameMode, navigate, resources.ap, resources.hp, resources.maxAp, resources.maxHp, resources.maxMp, resources.maxWp, resources.mp, resources.wp, setNicknameError, setNicknamePromptOpen, syncImmediateQuest]
   )
 
   const viewModel = useVisualNovelViewModel(

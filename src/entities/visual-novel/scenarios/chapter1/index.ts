@@ -26,6 +26,7 @@ import { scenarios as marketSquareArrivalScenes } from './market_square_arrival'
 import { scenarios as marketNodeKitchenScenes } from './market_node_kitchen'
 import { scenarios as marketNodeMarketScenes } from './market_node_market'
 import { scenarios as marketNodePostersScenes } from './market_node_posters'
+import { stubScenes } from './stubs'
 
 // Реэкспорт для удобства
 export * from './factions'
@@ -60,6 +61,7 @@ export const chapter1Scenes = {
   ...sideQuestScenes,
   ...allFactionScenes,
   ...allDynamicScenes,
+  ...stubScenes,
 }
 
 // Экспорт конфигурации динамических событий

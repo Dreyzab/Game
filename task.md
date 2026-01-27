@@ -1,0 +1,25 @@
+# Task: Freiburg 1905 Detective Mode
+
+- [x] **Epic A: Core Foundation & Isolation** <!-- id: 0 -->
+    - [x] Add `gameMode` to `UserProfile` and `GameState` <!-- id: 1 -->
+    - [x] Update `useInventory` to support separated `detectiveInventory` <!-- id: 2 -->
+    - [x] Update `useSkills` (or create `useDetectiveSkills`) for mode isolation <!-- id: 3 -->
+    - [x] Add "New Investigation" button to `MainMenuPage` <!-- id: 4 -->
+- [x] **Epic B: Freiburg 1905 Map & Districts** <!-- id: 5 -->
+    - [x] Define `FREIBURG_1905` region config <!-- id: 6 -->
+    - [x] Configure Mapbox vintage style <!-- id: 7 -->
+    - [x] Define district zones and metadata <!-- id: 8 -->
+- [x] **Epic C: Hardlink Resolver (Client Sim)** <!-- id: 9 -->
+    - [x] Create `HardlinkService` and types <!-- id: 10 -->
+    - [x] Create Mock Hardlink Table <!-- id: 11 -->
+    - [x] Implement UI Scanner (Simulation) <!-- id: 12 -->
+- [x] **Epic D: Investigation UI** <!-- id: 13 -->
+    - [x] Create `Dossier` UI component <!-- id: 14 -->
+    - [x] Define `Evidence` item type <!-- id: 15 -->
+    - [x] Create `DeductionBoard` component <!-- id: 16 -->
+- [x] **Epic E: Case #1 "Haus Kapferer"** <!-- id: 17 -->
+    - [x] Implement Act 1 Scenes (Station, Crime Scene) <!-- id: 18 -->
+    - [x] Implement Act 2 Vectors (Construction, Smugglers, Corps) <!-- id: 19 -->
+    - [x] Implement Act 3 Resolution <!-- id: 20 -->
+- [x] **Epic F: Card Battles** <!-- id: 21 -->
+    - [x] Integrate non-lethal decks <!-- id: 22 -->

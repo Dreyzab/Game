@@ -49,11 +49,13 @@ export const ZonesLayer: React.FC<ZonesLayerProps> = ({ map, visible = true, zon
         }
     }, [zones])
 
+    const isMapStyleReady = () => !!map && !!(map as any)?.style && !!map.isStyleLoaded?.()
+
     useEffect(() => {
         if (!map) return
 
-        const setupLayers = () => {
-            if (!map.getStyle()) return
+        const ensureLayers = () => {
+            if (!isMapStyleReady()) return
 
             try {
                 if (!map.getSource(sourceId)) {
@@ -64,86 +66,74 @@ export const ZonesLayer: React.FC<ZonesLayerProps> = ({ map, visible = true, zon
                             features: []
                         }
                     })
+                }
 
-                    // Circle layer
-                    if (!map.getLayer(circleLayerId)) {
-                        map.addLayer({
-                            id: circleLayerId,
-                            type: 'circle',
-                            source: sourceId,
-                            paint: {
-                                'circle-radius': [
-                                    'interpolate',
-                                    ['linear'],
-                                    ['zoom'],
-                                    10, ['/', ['get', 'radius'], 20],
-                                    15, ['/', ['get', 'radius'], 1]
-                                ],
-                                'circle-color': ['get', 'color'],
-                                'circle-opacity': ['get', 'opacity'],
-                                'circle-stroke-width': 2,
-                                'circle-stroke-color': '#ffffff'
-                            }
-                        })
-                    }
+                // Circle layer
+                if (!map.getLayer(circleLayerId)) {
+                    map.addLayer({
+                        id: circleLayerId,
+                        type: 'circle',
+                        source: sourceId,
+                        paint: {
+                            'circle-radius': [
+                                'interpolate',
+                                ['linear'],
+                                ['zoom'],
+                                10, ['/', ['get', 'radius'], 20],
+                                15, ['/', ['get', 'radius'], 1]
+                            ],
+                            'circle-color': ['get', 'color'],
+                            'circle-opacity': ['get', 'opacity'],
+                            'circle-stroke-width': 2,
+                            'circle-stroke-color': '#ffffff'
+                        }
+                    })
+                }
 
-                    // Label layer
-                    if (!map.getLayer(labelLayerId)) {
-                        map.addLayer({
-                            id: labelLayerId,
-                            type: 'symbol',
-                            source: sourceId,
-                            layout: {
-                                'text-field': ['get', 'name'],
-                                'text-variable-anchor': ['top', 'bottom', 'left', 'right'],
-                                'text-radial-offset': 0.5,
-                                'text-justify': 'auto',
-                                'text-size': 12
-                            },
-                            paint: {
-                                'text-color': '#ffffff',
-                                'text-halo-color': '#000000',
-                                'text-halo-width': 2
-                            }
-                        })
-                    }
+                // Label layer
+                if (!map.getLayer(labelLayerId)) {
+                    map.addLayer({
+                        id: labelLayerId,
+                        type: 'symbol',
+                        source: sourceId,
+                        layout: {
+                            'text-field': ['get', 'name'],
+                            'text-variable-anchor': ['top', 'bottom', 'left', 'right'],
+                            'text-radial-offset': 0.5,
+                            'text-justify': 'auto',
+                            'text-size': 12
+                        },
+                        paint: {
+                            'text-color': '#ffffff',
+                            'text-halo-color': '#000000',
+                            'text-halo-width': 2
+                        }
+                    })
                 }
             } catch (error) {
-                console.error('Error setting up zones layers:', error)
+                // Ignore transient style-loading errors
             }
         }
 
-        // Если стиль уже загружен, устанавливаем слои сразу
-        if (map.getStyle()) {
-            setupLayers()
-        } else {
-            // Иначе ждем загрузки стиля
-            const onStyleLoad = () => {
-                setupLayers()
-            }
-            map.once('style.load', onStyleLoad)
-            map.once('load', onStyleLoad)
-
-            return () => {
-                map.off('style.load', onStyleLoad)
-                map.off('load', onStyleLoad)
-            }
-        }
+        ensureLayers()
+        map.on('styledata', ensureLayers)
 
         return () => {
-            if (!map || !map.getStyle()) return
+            map.off('styledata', ensureLayers)
+
+            if (!isMapStyleReady()) return
             try {
                 if (map.getLayer(labelLayerId)) map.removeLayer(labelLayerId)
                 if (map.getLayer(circleLayerId)) map.removeLayer(circleLayerId)
                 if (map.getSource(sourceId)) map.removeSource(sourceId)
             } catch (error) {
-                console.error('Error cleaning up zones layers:', error)
+                // cleanup
             }
         }
     }, [map])
 
     useEffect(() => {
-        if (!map || !map.getStyle()) return
+        if (!map || !isMapStyleReady()) return
 
         try {
             const visibility = visible ? 'visible' : 'none'
@@ -161,7 +151,7 @@ export const ZonesLayer: React.FC<ZonesLayerProps> = ({ map, visible = true, zon
                 }
             }
         } catch (error) {
-            console.error('Error updating zones layer:', error)
+            // ignore
         }
     }, [map, visible, geojson])
 

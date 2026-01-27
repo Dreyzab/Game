@@ -266,48 +266,49 @@ export const mapRoutes = (app: Elysia) =>
             app
                 // GET /map/points - Get visible points
                 .get("/points", async ({ user, query }) => {
-                    const limit = Number(query.limit) || 100;
-                    const bbox = query.minLat && query.maxLat && query.minLng && query.maxLng ? {
-                        minLat: Number(query.minLat),
-                        maxLat: Number(query.maxLat),
-                        minLng: Number(query.minLng),
-                        maxLng: Number(query.maxLng),
-                    } : undefined;
+                    try {
+                        const limit = Number(query.limit) || 100;
+                        const bbox = query.minLat && query.maxLat && query.minLng && query.maxLng ? {
+                            minLat: Number(query.minLat),
+                            maxLat: Number(query.maxLat),
+                            minLng: Number(query.minLng),
+                            maxLng: Number(query.maxLng),
+                        } : undefined;
 
-                    let playerFlags: Record<string, any> = {};
-                    let playerPhase: number | undefined = undefined;
-                    let activeQuestIds = new Set<string>();
-                    let isCityRegistered = true;
+                        let playerFlags: Record<string, any> = {};
+                        let playerPhase: number | undefined = undefined;
+                        let activeQuestIds = new Set<string>();
+                        let isCityRegistered = true;
 
-                    if (user) {
-                        const player = await ensurePlayer(user as AuthUser);
-                        const prog = await ensureProgress(player.id);
-                        playerFlags = (prog.flags as Record<string, any>) || {};
-                        isCityRegistered = playerFlags[CITY_REGISTERED_FLAG] === true;
+                        if (user) {
+                            const player = await ensurePlayer(user as AuthUser);
+                            const prog = await ensureProgress(player.id);
+                            playerFlags = (prog.flags as Record<string, any>) || {};
+                            isCityRegistered = playerFlags[CITY_REGISTERED_FLAG] === true;
 
-                        // playerPhase logic if we had it in gameProgress, currently not in schema but inferred or passed
+                            // playerPhase logic if we had it in gameProgress, currently not in schema but inferred or passed
 
-                        // Quests
-                        const qProgs = await db.query.questProgress.findMany({
-                            where: eq(questProgress.playerId, player.id)
-                        });
-                        for (const q of qProgs) {
-                            if (q.status === 'active') activeQuestIds.add(q.questId);
+                            // Quests
+                            const qProgs = await db.query.questProgress.findMany({
+                                where: eq(questProgress.playerId, player.id)
+                            });
+                            for (const q of qProgs) {
+                                if (q.status === 'active') activeQuestIds.add(q.questId);
+                            }
                         }
-                    }
 
-                    // Load point discoveries
-                    const myDiscoveries = user ? await db.query.pointDiscoveries.findMany({
-                        where: user.type === 'clerk' ? eq(pointDiscoveries.userId, user.id) : eq(pointDiscoveries.deviceId, user.id)
-                    }) : [];
-                    const discoveredPointIds = new Set(myDiscoveries.map(d => d.pointKey));
+                        // Load point discoveries
+                        const myDiscoveries = user ? await db.query.pointDiscoveries.findMany({
+                            where: user.type === 'clerk' ? eq(pointDiscoveries.userId, user.id) : eq(pointDiscoveries.deviceId, user.id)
+                        }) : [];
+                        const discoveredPointIds = new Set(myDiscoveries.map(d => d.pointKey));
 
-                    // Onboarding Logic
-                    if (user && !isCityRegistered) {
-                        const hasArrivalFlag =
-                            playerFlags['arrived_at_freiburg'] === true ||
-                            playerFlags['need_info_bureau'] === true ||
-                            playerFlags['prologue_complete'] === true;
+                        // Onboarding Logic
+                        if (user && !isCityRegistered) {
+                            const hasArrivalFlag =
+                                playerFlags['arrived_at_freiburg'] === true ||
+                                playerFlags['need_info_bureau'] === true ||
+                                playerFlags['prologue_complete'] === true;
 
                         if (hasArrivalFlag) {
                             activeQuestIds.add('delivery_for_dieter');
@@ -442,8 +443,8 @@ export const mapRoutes = (app: Elysia) =>
                             };
                         }));
 
-                        return { points: results };
-                    }
+                            return { points: results };
+                        }
 
                     // --- FULL GAME LOGIC ---
 
@@ -633,7 +634,13 @@ export const mapRoutes = (app: Elysia) =>
                         };
                     }));
 
-                    return { points: results.filter(Boolean) };
+                        return { points: results.filter(Boolean) };
+                    } catch (e: any) {
+                        // #region agent log (debug)
+                        fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/src/api/routes/map.ts:GET_/map/points',message:'map_points_failed',data:{userType:(user as any)?.type??null,query:{minLat:(query as any)?.minLat,maxLat:(query as any)?.maxLat,minLng:(query as any)?.minLng,maxLng:(query as any)?.maxLng,limit:(query as any)?.limit},errorName:e?.name??null,errorMessage:e?.message??String(e),stack:String(e?.stack??'').slice(0,500)},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H1'})}).catch(()=>{});
+                        // #endregion agent log (debug)
+                        throw e;
+                    }
                 })
 
                 // POST /map/discover

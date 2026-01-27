@@ -157,6 +157,8 @@ export interface BattleSession {
     players: Combatant[]
     enemies: Combatant[]
     playerHand: CombatCard[]
+    deck: CombatCard[]
+    discard: CombatCard[]
     stats: BattleStats
     activeUnitId: string | null
     turnQueue: string[]

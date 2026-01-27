@@ -6,6 +6,8 @@ import { scenarios as prologue } from './prolog/scenarioTr-ST'
 import { chapter1Scenes as chapter1 } from './chapter1'
 import { allTutorialScenes as tutorial } from './tutorial'
 
+import { detectiveScenarios as detective } from './detective/case1'
+
 // Add future chapters here
 // import { chapter2Scenes as chapter2 } from './chapter2'
 
@@ -17,5 +19,5 @@ export const SCENARIO_CHAPTERS = {
     prologue,
     chapter1,
     tutorial,
-    // chapter2, 
+    detective,
 } as const

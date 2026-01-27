@@ -37,6 +37,16 @@ export const handleScriptedEventPrologueKill = (
         weaponHeat: 0,
         isJammed: false,
         ammo: 5,
+        voices: {
+            coordination: 5,
+            force: 6,
+            reaction: 6,
+            perception: 5,
+            endurance: 6,
+            resilience: 6,
+            knowledge: 4,
+            azart: 8
+        }
     }
 
     const brunoCards = generateDeckForCombatant(bruno)

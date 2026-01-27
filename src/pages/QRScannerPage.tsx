@@ -7,6 +7,9 @@ import { cn } from '@/shared/lib/utils/cn'
 import { authenticatedClient } from '@/shared/api/client'
 import { useDeviceId } from '@/shared/hooks/useDeviceId'
 import { Routes } from '@/shared/lib/utils/navigation'
+import { useInventoryStore } from '@/entities/inventory/model/store'
+
+import { useHardlinkService } from '@/features/detective/lib/HardlinkService'
 
 type QRAction = Record<string, unknown> & { type: string }
 
@@ -32,12 +35,16 @@ export default function QRScannerPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { getToken, isLoaded } = useAppAuth()
+
   const { deviceId } = useDeviceId()
+  const gameMode = useInventoryStore((state) => state.gameMode)
+  const { parseAndExecute } = useHardlinkService()
 
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [lastValue, setLastValue] = useState<string | null>(null)
+  const [manualValue, setManualValue] = useState('')
 
   const applyActions = useCallback(
     async (actions: QRAction[] | undefined) => {
@@ -92,6 +99,26 @@ export default function QRScannerPage() {
       setLastValue(result)
 
       try {
+        // DETECTIVE MODE INTERCEPTION
+        const currentGameMode = useInventoryStore.getState().gameMode
+        if (currentGameMode === 'detective') {
+          // Use either simulated manual value or scanned result
+          // Result is passed as argument to handleScan
+          const execution = await parseAndExecute(result)
+
+          if (execution.success) {
+            setNotice(execution.message)
+            return
+          } else {
+            if (result.startsWith('gw3:hardlink:')) {
+              setError(execution.message)
+            } else {
+              setError('Evidence inadmissible. (Not a valid Hardlink)')
+            }
+            return
+          }
+        }
+
         // Onboarding gate: before city registration, any QR scan routes the player into onboarding flow.
         // We do this client-side for a silent UX, and keep server-side gating as a fallback.
         if (isLoaded) {
@@ -193,6 +220,68 @@ export default function QRScannerPage() {
         <div className="mt-4 p-4 bg-red-900/50 border border-red-500 rounded text-red-200">
           {error}
         </div>
+      )}
+
+      {gameMode === 'detective' && (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault()
+            void handleScan(manualValue.trim())
+          }}
+          className="mt-6 w-full max-w-md space-y-3"
+        >
+          <div className="text-xs text-zinc-400">
+            Desktop симуляция (Detective Mode): вставь hardlink вручную.
+          </div>
+          <input
+            value={manualValue}
+            onChange={(event) => setManualValue(event.target.value)}
+            placeholder="gw3:hardlink:fbg1905:CASE01_BRIEFING_01"
+            className="w-full px-3 py-2 rounded bg-zinc-900 border border-zinc-700 text-sm font-mono"
+            disabled={isProcessing}
+          />
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setManualValue('gw3:hardlink:fbg1905:CASE01_BRIEFING_01')}
+              className="px-3 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-xs font-mono"
+              disabled={isProcessing}
+            >
+              CASE01_BRIEFING_01
+            </button>
+            <button
+              type="button"
+              onClick={() => setManualValue('gw3:hardlink:fbg1905:CASE01_BANK_02')}
+              className="px-3 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-xs font-mono"
+              disabled={isProcessing}
+            >
+              CASE01_BANK_02
+            </button>
+            <button
+              type="button"
+              onClick={() => setManualValue('gw3:hardlink:fbg1905:CASE01_ARCHIVE_04')}
+              className="px-3 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-xs font-mono"
+              disabled={isProcessing}
+            >
+              CASE01_ARCHIVE_04
+            </button>
+            <button
+              type="button"
+              onClick={() => setManualValue('gw3:hardlink:fbg1905:TEST_BATTLE_01')}
+              className="px-3 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-xs font-mono"
+              disabled={isProcessing}
+            >
+              TEST_BATTLE_01
+            </button>
+            <button
+              type="submit"
+              className="ml-auto px-4 py-1 rounded bg-emerald-700 hover:bg-emerald-600 text-xs font-bold disabled:opacity-50"
+              disabled={isProcessing}
+            >
+              Simulate
+            </button>
+          </div>
+        </form>
       )}
 
       <button

@@ -6,7 +6,7 @@
  * ÑóÑñ¥?ÑøÑñÑø¥'¥<ÑýÑøÑæ¥' Ñó¥^Ñ÷ÑñÑ§Ñ÷ ÑúÑøÑü¥?¥ŸÑúÑ§Ñ÷ ¥?¥'Ñ÷Ñ¯¥? (fallback Ñ«Ñø Carto)
  */
 
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import mapboxgl, { type StyleSpecification } from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { cn } from '@/shared/lib/utils/cn'
@@ -102,6 +102,15 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
   const lastBoundsRef = useRef<[number, number, number, number] | null>(null) // [N,S,E,W] ¥? ÑóÑ§¥?¥ŸÑüÑ¯ÑæÑ«Ñ÷ÑæÑ¬
   const lastZoomRef = useRef<number | null>(null) // Ñú¥ŸÑ¬ ¥? ÑóÑ§¥?¥ŸÑüÑ¯ÑæÑ«Ñ÷ÑæÑ¬
   const boundsEmitTimerRef = useRef<number | null>(null)
+  const lastStyleRef = useRef<string | StyleSpecification | null>(null)
+  const reqLogCountRef = useRef(0)
+  const didNotifyMapRef = useRef(false)
+
+  const resolvedStyle = useMemo(() => {
+    if (typeof style === 'object') return style
+    if (!MAPBOX_TOKEN) return FALLBACK_STYLE
+    return style
+  }, [style])
 
   useEffect(() => {
     boundsChangeRef.current = onBoundsChange
@@ -112,7 +121,14 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
   }, [onZoomChange])
 
   useEffect(() => {
-    if (!mapContainerRef.current || mapRef.current) return
+    const container = mapContainerRef.current
+    const hasExistingMap = Boolean(mapRef.current)
+    const rect = container?.getBoundingClientRect()
+    // #region agent log (debug)
+    fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/shared/ui/MapboxMap.tsx:initEffect:enter',message:'mapbox_init_effect_enter',data:{containerExists:Boolean(container),hasExistingMap,rect:rect?{width:Math.round(rect.width),height:Math.round(rect.height)}:null,offsetSize:container?{w:container.offsetWidth,h:container.offsetHeight}:null,hasMapboxToken:Boolean(MAPBOX_TOKEN),propStyleType:typeof style,resolvedStyleType:typeof resolvedStyle,usingFallbackStyle:!MAPBOX_TOKEN&&typeof style!=='object'},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H1'})}).catch(()=>{});
+    // #endregion agent log (debug)
+
+    if (!container || hasExistingMap) return
 
     // Mapbox GL JS ¥'¥?ÑæÑñ¥ŸÑæ¥' Ñ«ÑæÑ¨¥Ÿ¥?¥'ÑóÑû ¥'ÑóÑ§ÑæÑ« ÑïÑøÑôÑæ ÑïÑ¯¥? ¥?¥'Ñó¥?ÑóÑ«Ñ«Ñ÷¥. ¥'ÑøÑûÑ¯ÑóÑý.
     // ÑYÑó¥?¥'ÑóÑ¬¥Ÿ Ñ§Ñ¯ÑøÑï¥'Ñ¬ Ñ¯Ñ÷ÑñÑó ¥?ÑæÑøÑ¯¥OÑ«¥<Ñû ¥'ÑóÑ§ÑæÑ«, Ñ¯Ñ÷ÑñÑó ÑñÑæÑúÑóÑ¨Ñø¥?Ñ«¥<Ñû ÑúÑøÑüÑ¯¥Ÿ¥^Ñæ¥ÎÑ«¥<Ñû,
@@ -125,17 +141,35 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
     }
 
     // ÑzÑ¨¥?ÑæÑïÑæÑ¯¥?ÑæÑ¬ ¥?¥'Ñ÷Ñ¯¥O ÑïÑ¯¥? Ñ÷¥?Ñ¨ÑóÑ¯¥OÑúÑóÑýÑøÑ«Ñ÷¥?
-    const mapStyle: string | StyleSpecification =
-      typeof style === 'object'
-        ? style
-        : MAPBOX_TOKEN
-          ? style
-          : FALLBACK_STYLE
+    const mapStyle: string | StyleSpecification = resolvedStyle
+    const online = typeof navigator !== 'undefined' ? navigator.onLine : null
+    const styleString = typeof mapStyle === 'string' ? mapStyle : null
+    const isMapboxStyleUrl = typeof styleString === 'string' && styleString.startsWith('mapbox://styles/')
+    const stylePath = isMapboxStyleUrl ? styleString.slice('mapbox://styles/'.length) : null
+    const [styleUser, styleId] = stylePath ? stylePath.split('/').slice(0, 2) : [null, null]
+
+    if (isMapboxStyleUrl && MAPBOX_TOKEN && styleUser && styleId) {
+      // IMPORTANT: do NOT log token or full URL (contains token)
+      // #region agent log (debug)
+      fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/shared/ui/MapboxMap.tsx:styleProbe:start',message:'mapbox_style_probe_start',data:{online,styleUser,styleId,hasMapboxToken:Boolean(MAPBOX_TOKEN)},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H4'})}).catch(()=>{});
+      // #endregion agent log (debug)
+      void fetch(`https://api.mapbox.com/styles/v1/${encodeURIComponent(styleUser)}/${encodeURIComponent(styleId)}?access_token=${encodeURIComponent(MAPBOX_TOKEN)}`)
+        .then((res) => {
+          // #region agent log (debug)
+          fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/shared/ui/MapboxMap.tsx:styleProbe:response',message:'mapbox_style_probe_response',data:{online,styleUser,styleId,ok:res.ok,status:res.status},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H4'})}).catch(()=>{});
+          // #endregion agent log (debug)
+        })
+        .catch((err) => {
+          // #region agent log (debug)
+          fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/shared/ui/MapboxMap.tsx:styleProbe:error',message:'mapbox_style_probe_error',data:{online,styleUser,styleId,errorMessage:(err as any)?.message??String(err)},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H4'})}).catch(()=>{});
+          // #endregion agent log (debug)
+        })
+    }
 
     try {
       // Ñ­ÑóÑúÑïÑø¥'Ñ¬ ¥?Ñ§ÑúÑæÑ¬Ñ¨Ñ¯¥?¥? Ñ§Ñø¥?¥'¥<
       const map = new mapboxgl.Map({
-        container: mapContainerRef.current,
+        container,
         style: mapStyle,
         center,
         zoom,
@@ -144,23 +178,89 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
         bearing,
         pitch,
         attributionControl: true,
+        transformRequest: (url, resourceType) => {
+          if (reqLogCountRef.current < 8) {
+            reqLogCountRef.current += 1
+            let safeUrl = url
+            try {
+              const u = new URL(url)
+              u.searchParams.delete('access_token')
+              u.searchParams.delete('token')
+              safeUrl = u.toString()
+            } catch {
+              // ignore URL parse errors
+            }
+            // #region agent log (debug)
+            fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/shared/ui/MapboxMap.tsx:transformRequest',message:'mapbox_request',data:{resourceType,hasMapboxToken:Boolean(MAPBOX_TOKEN),url:safeUrl},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H6'})}).catch(()=>{});
+            // #endregion agent log (debug)
+          }
+          return { url }
+        },
         // ÑœÑ¯¥Ÿ¥Î¥^ÑæÑ«Ñ«Ñø¥? Ñ¨¥?ÑóÑ÷ÑúÑýÑóÑïÑ÷¥'ÑæÑ¯¥OÑ«Ñó¥?¥'¥O
         fadeDuration: 100,
         refreshExpiredTiles: false,
       })
 
       mapRef.current = map
+      lastStyleRef.current = mapStyle
+      // #region agent log (debug)
+      fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/shared/ui/MapboxMap.tsx:afterMapCtor',message:'mapbox_map_constructed',data:{hasMapboxToken:Boolean(MAPBOX_TOKEN),mapStyleType:typeof mapStyle,isStyleObject:typeof mapStyle==='object',isStyleLoaded:typeof (map as any)?.isStyleLoaded==='function'?(map as any).isStyleLoaded():null,containerOffsetSize:{w:container.offsetWidth,h:container.offsetHeight}},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H2'})}).catch(()=>{});
+      // #endregion agent log (debug)
+
+      // MapView ждёт `onMapLoad`, но в некоторых случаях `load` не наступает (map не становится idle).
+      // Чтобы не зависать на вечном "Loading map…" — считаем карту "готовой к использованию" сразу после конструктора.
+      if (!didNotifyMapRef.current) {
+        didNotifyMapRef.current = true
+        setIsLoaded(true)
+        // #region agent log (debug)
+        fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/shared/ui/MapboxMap.tsx:afterMapCtor',message:'mapbox_ready_emitted',data:{hasMapboxToken:Boolean(MAPBOX_TOKEN)},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'FIX1'})}).catch(()=>{});
+        // #endregion agent log (debug)
+        onMapLoad?.(map)
+      }
+
+      map.once('render', () => {
+        const canvas = map.getCanvas?.()
+        // #region agent log (debug)
+        fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/shared/ui/MapboxMap.tsx:map.render:once',message:'mapbox_first_render',data:{hasMapboxToken:Boolean(MAPBOX_TOKEN),isStyleLoaded:typeof (map as any)?.isStyleLoaded==='function'?(map as any).isStyleLoaded():null,canvasSize:canvas?{w:canvas.width,h:canvas.height}:null,webglSupported:typeof (mapboxgl as any)?.supported==='function'?(mapboxgl as any).supported():null},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H3'})}).catch(()=>{});
+        // #endregion agent log (debug)
+      })
+
+      map.once('styledata', () => {
+        const styleObj = (typeof map.getStyle === 'function' ? map.getStyle() : null) as any
+        const sourcesCount = styleObj?.sources ? Object.keys(styleObj.sources).length : null
+        // #region agent log (debug)
+        fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/shared/ui/MapboxMap.tsx:map.styledata:once',message:'mapbox_styledata_once',data:{hasMapboxToken:Boolean(MAPBOX_TOKEN),isStyleLoaded:typeof (map as any)?.isStyleLoaded==='function'?(map as any).isStyleLoaded():null,sourcesCount},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H4'})}).catch(()=>{});
+        // #endregion agent log (debug)
+      })
+
+      map.getCanvas?.().addEventListener('webglcontextlost', () => {
+        // #region agent log (debug)
+        fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/shared/ui/MapboxMap.tsx:webglcontextlost',message:'mapbox_webgl_context_lost',data:{hasMapboxToken:Boolean(MAPBOX_TOKEN)},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H3'})}).catch(()=>{});
+        // #endregion agent log (debug)
+      }, { once: true })
 
       // ÑzÑñ¥?ÑøÑñÑó¥'¥ÎÑ÷Ñ§ ¥Ÿ¥?Ñ¨Ñæ¥^Ñ«ÑóÑû ÑúÑøÑü¥?¥ŸÑúÑ§Ñ÷
         map.on('load', () => {
         setIsLoaded(true)
         setError(null)
-        onMapLoad?.(map)
+        // #region agent log (debug)
+        fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/shared/ui/MapboxMap.tsx:map.load',message:'mapbox_load',data:{hasMapboxToken:Boolean(MAPBOX_TOKEN),styleKind:typeof mapStyle},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H5'})}).catch(()=>{});
+        // #endregion agent log (debug)
+        if (!didNotifyMapRef.current) {
+          didNotifyMapRef.current = true
+          // #region agent log (debug)
+          fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/shared/ui/MapboxMap.tsx:map.load',message:'mapbox_ready_emitted_from_load',data:{hasMapboxToken:Boolean(MAPBOX_TOKEN)},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'FIX1'})}).catch(()=>{});
+          // #endregion agent log (debug)
+          onMapLoad?.(map)
+        }
       })
 
       // ÑzÑñ¥?ÑøÑñÑó¥'¥ÎÑ÷Ñ§ Ñó¥^Ñ÷ÑñÑóÑ§ ÑúÑøÑü¥?¥ŸÑúÑ§Ñ÷ ¥?¥'Ñ÷Ñ¯¥?
       map.on('error', (e) => {
         console.error('[MapboxMap] Mapbox error event', e)
+        // #region agent log (debug)
+        fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/shared/ui/MapboxMap.tsx:map.error',message:'mapbox_error',data:{hasMapboxToken:Boolean(MAPBOX_TOKEN),errorMessage:e?.error?.message??null,sourceId:(e as any)?.sourceId??null},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H5'})}).catch(()=>{});
+        // #endregion agent log (debug)
         
         // Ñ¥?Ñ¯Ñ÷ Ñó¥^Ñ÷ÑñÑ§Ñø ¥?Ñý¥?ÑúÑøÑ«Ñø ¥?Ñó ¥?¥'Ñ÷Ñ¯ÑæÑ¬ Ñ÷ Ñ¬¥< Ñæ¥%¥' Ñ«Ñæ Ñ¨¥?ÑóÑñÑóÑýÑøÑ¯Ñ÷ fallback
         if (e.error?.message?.includes('style')) {
@@ -281,9 +381,22 @@ export const MapboxMap: React.FC<MapboxMapProps> = ({
     showGeolocate,
     showNavigation,
     showScale,
-    style,
+    resolvedStyle,
     zoom,
   ])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !isLoaded) return
+    if (lastStyleRef.current === resolvedStyle) return
+    lastStyleRef.current = resolvedStyle
+
+    try {
+      map.setStyle(resolvedStyle as string | StyleSpecification)
+    } catch (err) {
+      console.error('[MapboxMap] Failed to set style', err)
+    }
+  }, [resolvedStyle, isLoaded])
 
   // ÑzÑñÑ«ÑóÑýÑ¯¥?ÑæÑ¬ ¥ÅÑæÑ«¥'¥? Ñ§Ñø¥?¥'¥< Ñ¨¥?Ñ÷ Ñ÷ÑúÑ¬ÑæÑ«ÑæÑ«Ñ÷Ñ÷ Ñ¨¥?ÑóÑ¨¥?Ñø
   useEffect(() => {

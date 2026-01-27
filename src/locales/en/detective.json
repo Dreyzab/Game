@@ -1,0 +1,75 @@
+{
+    "ui": {
+        "investigate": "Investigate",
+        "interrogate": "Interrogate",
+        "review_notes": "Review Notes",
+        "open_dossier": "Open Dossier",
+        "details": "Details",
+        "discovered": "Discovered",
+        "active": "Active",
+        "cleared": "Cleared",
+        "locked": "Locked"
+    },
+    "points": {
+        "bureau_office": {
+            "title": "Detective Bureau",
+            "description": "Your safe house and office. Review the case file here."
+        },
+        "hauptbahnhof": {
+            "title": "Hauptbahnhof",
+            "description": "Central Station. Entry point to Freiburg (1905)."
+        },
+        "munsterplatz_bank": {
+            "title": "Bankhaus J.A. Krebs",
+            "description": "Münsterplatz 4. Bank under reconstruction — scene of the heist."
+        },
+        "ganter_brauerei": {
+            "title": "Ganter Brauerei",
+            "description": "Where workers talk. Rumors, leaflets, and blueprints change hands."
+        },
+        "rathaus_archiv": {
+            "title": "Rathaus / Archives",
+            "description": "Old maps, permits, sewer plans. Bureaucracy with a long memory."
+        },
+        "basler_hof": {
+            "title": "Basler Hof",
+            "description": "Polizeidirektion. Paperwork, pressure, and sealed files."
+        },
+        "stuhlinger_warehouse": {
+            "title": "Stühlinger Warehouse",
+            "description": "A quiet depot behind the station. Good place to hide something loud and heavy."
+        }
+    },
+    "evidence": {
+        "lime_footprints": {
+            "label": "Lime footprints on soles",
+            "description": "White dust (construction lime) on boards and by the window. Someone walked from the construction site inside — after closing.",
+            "source": "Münsterplatz, construction zone"
+        },
+        "empty_schnapps_bottle": {
+            "label": "Empty schnapps bottle",
+            "description": "At the guard post. The guard was clearly drinking on duty: dulled reaction, and the dog could react to the smell of alcohol.",
+            "source": "Münsterplatz, guard booth"
+        },
+        "director_letter": {
+            "label": "Letter about Creditbank merger",
+            "description": "The director is preparing to transfer assets. Today the vault held cash and documents — too tempting a target.",
+            "source": "Bank director's office"
+        },
+        "meckel_blueprint": {
+            "label": "Meckel's blueprint: \"thin wall\"",
+            "description": "The plan marks a section of the basement bordering an old drain. The perfect path for quiet entry and exit.",
+            "source": "Foreman, construction trailer"
+        },
+        "friedeberg_poster": {
+            "label": "Rally poster (Friedeberg)",
+            "description": "A workers' meeting is expected in the evening. If someone wanted to distract the police, this is convenient background noise and a reason to redistribute patrols.",
+            "source": "Ganter Brauerei"
+        }
+    },
+    "messages": {
+        "new_evidence": "New Evidence: {{name}}",
+        "point_discovered": "Map Point Discovered: {{name}}",
+        "intel_updated": "Intel updated: {{items}}"
+    }
+}

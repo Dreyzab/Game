@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { SignInButton } from '@clerk/clerk-react'
 import { useNavigate } from 'react-router-dom'
 import { BookOpen, Database, FileText, Map, Package, QrCode, RefreshCw, Settings, User, UserPlus, Users } from 'lucide-react'
@@ -84,6 +84,13 @@ export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({ classNam
   const [busyAction, setBusyAction] = useState<string | null>(null)
   const [message, setMessage] = useState<string>('')
 
+  const activeRole = useMemo<StoredAccount['role']>(() => {
+    const found = accounts.find((acc) => acc.deviceId === activeDeviceId)
+    return found?.role ?? 'player'
+  }, [accounts, activeDeviceId])
+
+  const canUseAdminActions = import.meta.env.DEV || activeRole === 'admin'
+
   const getOrAskAdminToken = (): string | undefined => {
     if (typeof window === 'undefined') return undefined
 
@@ -100,7 +107,7 @@ export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({ classNam
     return undefined
   }
 
-  const callAdminReset = async (kind: 'all' | 'multiplayer' | 'seed') => {
+  const callAdminDbAction = async (kind: 'all' | 'multiplayer' | 'seed' | 'repair' | 'repairSoloCoop') => {
     const apiBaseUrl = API_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '')
 
     const token = isClerkEnabled ? await getToken() : undefined
@@ -110,6 +117,8 @@ export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({ classNam
       all: '/admin/db/reset-all',
       multiplayer: '/admin/db/reset-multiplayer',
       seed: '/admin/db/seed',
+      repair: '/admin/db/repair',
+      repairSoloCoop: '/admin/db/repair-solo-coop',
     }
     const endpoint = endpoints[kind] || endpoints.multiplayer
     const url = apiBaseUrl ? `${apiBaseUrl.replace(/\/$/, '')}${endpoint}` : endpoint
@@ -257,6 +266,20 @@ export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({ classNam
       },
     },
     {
+      id: 'db-repair',
+      icon: <Database className="w-4 h-4" />,
+      label: 'Обновить БД (solo/coop)',
+      description: 'Миграции до 0009 + восстановление схемы без detective',
+      busyId: 'db-repair',
+      onClick: async () => {
+        const result = await callAdminDbAction('repairSoloCoop')
+        const summary = (result as any)?.summary
+        const migrations = (result as any)?.migrations?.applied?.length
+        const migText = typeof migrations === 'number' ? ` | миграций: ${migrations}` : ''
+        setMessage(`БД обновлена.${migText} ${summary ? JSON.stringify(summary) : ''}`.trim())
+      },
+    },
+    {
       id: 'db-reset-mp',
       icon: <RefreshCw className="w-4 h-4" />,
       label: 'Сбросить мультиплеер',
@@ -266,7 +289,7 @@ export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({ classNam
         const ok = window.confirm('Сбросить только мультиплеерные данные? Это удалит coop/resonance сессии и очистит runtime.')
         if (!ok) return
 
-        const result = await callAdminReset('multiplayer')
+        const result = await callAdminDbAction('multiplayer')
         setMessage(`Мультиплеер сброшен. ${JSON.stringify((result as any)?.result ?? {})}`)
       },
     },
@@ -280,7 +303,7 @@ export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({ classNam
         const ok = window.confirm('ПОЛНЫЙ СБРОС БД. Это удалит ВСЕ данные. Продолжить?')
         if (!ok) return
 
-        const result = await callAdminReset('all')
+        const result = await callAdminDbAction('all')
         setMessage(`БД очищена. ${JSON.stringify((result as any)?.result ?? {})}. Обновляю страницу...`)
         setTimeout(() => window.location.reload(), 800)
       },
@@ -292,7 +315,7 @@ export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({ classNam
       description: 'Заполнить БД базовыми данными (точки, предметы)',
       busyId: 'db-seed',
       onClick: async () => {
-        const result = await callAdminReset('seed')
+        const result = await callAdminDbAction('seed')
         setMessage(`Ресид выполнен успешно! Статистика: ${JSON.stringify((result as any)?.stats ?? {})}`)
       },
     },
@@ -490,11 +513,20 @@ export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = ({ classNam
       <div className="mt-4 pt-4 border-t border-white/5">
         <div className="text-xs uppercase tracking-[0.28em] text-slate-500 mb-2">Админ действия</div>
         <div className="grid grid-cols-2 gap-2">
-          {import.meta.env.DEV && adminActions.map((action) => (
+          {adminActions.map((action) => (
             <button
               key={action.id}
-              onClick={handleNavigate(undefined, action.onClick, action.busyId)}
-              className="btn btn--secondary btn--full-width"
+              onClick={
+                canUseAdminActions
+                  ? handleNavigate(undefined, action.onClick, action.busyId)
+                  : () => setMessage('Недостаточно прав: переключись на админский deviceId (или запусти в DEV).')
+              }
+              className={cn(
+                'btn btn--secondary btn--full-width',
+                !canUseAdminActions && 'opacity-60 cursor-not-allowed'
+              )}
+              disabled={!canUseAdminActions}
+              title={!canUseAdminActions ? 'Требуется роль admin (или DEV)' : undefined}
             >
               {action.label}
             </button>

@@ -6,6 +6,8 @@ import { Routes } from '@/shared/lib/utils/navigation'
 import { SCENARIOS, type ScenarioId } from '@/entities/dreyzab-combat-simulator/model/scenarios'
 import { sortTurnQueue } from '@/entities/dreyzab-combat-simulator/model/utils'
 import { Side } from '@/entities/dreyzab-combat-simulator/model/types'
+import { generateDetectiveDeck } from '@/features/detective/combat'
+import { shuffleDeck } from '@/shared/data/cards'
 
 export default function TutorialBattlePage() {
   const navigate = useNavigate()
@@ -61,6 +63,19 @@ export default function TutorialBattlePage() {
       }
     })
 
+    // DETECTIVE DECK OVERRIDE
+    const deckTypeParam = searchParams.get('deckType')
+    let overrides: Partial<BattleSession> = {}
+
+    if (deckTypeParam === 'detective') {
+      const detectiveDeck = shuffleDeck(generateDetectiveDeck('p1'))
+      overrides = {
+        deck: detectiveDeck,
+        playerHand: [...detectiveDeck],
+        discard: [],
+      }
+    }
+
     const turnQueue = sortTurnQueue(nextPlayers, baseSession.enemies)
     const activeUnitId = turnQueue[0] ?? null
     const activeUnit =
@@ -79,6 +94,7 @@ export default function TutorialBattlePage() {
       turnQueue,
       activeUnitId,
       phase,
+      ...overrides
     }
 
     const patchedHp = patchedSession.players.find((p) => p.id === 'p1')?.resources.hp ?? baseHp
@@ -92,6 +108,7 @@ export default function TutorialBattlePage() {
     requestedMaxMpRaw,
     requestedMpRaw,
     scenarioIdParam,
+    searchParams
   ])
 
   const handleComplete = useCallback(

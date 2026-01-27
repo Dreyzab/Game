@@ -52,4 +52,5 @@ export interface PlayerProgress {
   phase?: number
   reputationByFaction?: Record<string, number>
   lastUpdatedAt?: number
+  gameMode?: 'survival' | 'detective'
 }

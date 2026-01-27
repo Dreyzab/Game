@@ -5,7 +5,7 @@ import { generateDeckForCombatant } from './cardGenerator'
 import { sortTurnQueue } from './utils'
 import { prologue_tutorial_1, boss_train_prologue, tutorial_scouts_duo_aggro, tutorial_scouts_duo_surprise, boss_executioner_prologue } from '../scenarios/prologue'
 
-export type ScenarioId = 'default' | 'prologue_tutorial_1' | 'boss_train_prologue' | 'scorpion_nest' | 'tutorial_scouts_duo_aggro' | 'tutorial_scouts_duo_surprise' | 'boss_executioner_prologue'
+export type ScenarioId = 'default' | 'prologue_tutorial_1' | 'boss_train_prologue' | 'scorpion_nest' | 'tutorial_scouts_duo_aggro' | 'tutorial_scouts_duo_surprise' | 'boss_executioner_prologue' | 'detective_skirmish'
 
 export const SCENARIOS: Record<ScenarioId, (config?: { playerEquipment?: string[] }) => BattleSession> = {
     default: (config) => createDefaultSession(config?.playerEquipment),
@@ -20,6 +20,12 @@ export const SCENARIOS: Record<ScenarioId, (config?: { playerEquipment?: string[
     // Boss Fights
     boss_train_prologue,
     boss_executioner_prologue,
+
+    detective_skirmish: (config) => {
+        const players = [createPlayer('p1', 'Detective', 1, config?.playerEquipment ?? ['knife'])]
+        const enemy = { ...createEnemy('e1', 1, 0), name: 'Smuggler Thug' }
+        return finalizeSession(players, [enemy])
+    },
 
     scorpion_nest: (config) => {
         const players = [
@@ -156,7 +162,13 @@ function createDefaultSession(equipment?: string[]): BattleSession {
 
 export function finalizeSession(players: Combatant[], enemies: Combatant[]): BattleSession {
     const turnQueue = sortTurnQueue(players, enemies)
-    const playerHand: CombatCard[] = players.filter((p) => p.side === Side.PLAYER).flatMap((p) => generateDeckForCombatant(p))
+
+    // NOTE: Current combat UI operates directly on `playerHand` (no draw/discard loop yet).
+    // We still populate `deck`/`discard` to satisfy the BattleSession contract and keep future evolution easy.
+    const deck: CombatCard[] = players
+        .filter((p) => p.side === Side.PLAYER)
+        .flatMap((p) => generateDeckForCombatant(p))
+    const playerHand: CombatCard[] = [...deck]
 
     return {
         turnCount: 1,
@@ -165,6 +177,8 @@ export function finalizeSession(players: Combatant[], enemies: Combatant[]): Bat
         players,
         enemies,
         playerHand,
+        deck,
+        discard: [],
         stats: { damageTaken: 0, attacksInOneTurn: 0, turnCount: 1 },
         activeUnitId: turnQueue[0] ?? null,
         turnQueue,
@@ -172,4 +186,3 @@ export function finalizeSession(players: Combatant[], enemies: Combatant[]): Bat
         maxTeamSP: 100,
     }
 }
-

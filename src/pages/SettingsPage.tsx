@@ -2,7 +2,6 @@
 // import { Heading } from '@/shared/ui/Heading'
 import { useTranslation } from 'react-i18next'
 // import { Button } from '@/shared/ui/Button'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
 // import { api } from '@/shared/api' // Assuming api client exists
 
 export default function SettingsPage() {

@@ -23,6 +23,7 @@ import SurvivalTVPage from '@/pages/SurvivalTVPage'
 import SurvivalPlayerPage from '@/pages/SurvivalPlayerPage'
 import { useQuestInventoryProtection } from '@/processes/quests-inventory'
 import { useQuestOutboxSync } from '@/processes/quests-sync'
+import { useDetectiveSync } from '@/hooks/useDetectiveSync'
 
 
 
@@ -30,6 +31,7 @@ import { useQuestOutboxSync } from '@/processes/quests-sync'
 const AppShell = () => {
   useQuestInventoryProtection()
   useQuestOutboxSync({ intervalMs: 30000 })
+  useDetectiveSync() // Auto-sync detective dossier state
 
   return (
     <>

@@ -68,54 +68,61 @@ export const playerRoutes = (app: Elysia) =>
         .group("/player", (app) =>
             app
                 .get("/", async ({ user }) => {
-                    if (!user) return { error: "Unauthorized", status: 401 };
+                    try {
+                        if (!user) return { error: "Unauthorized", status: 401 };
 
-                    // Find player by userId (Clerk) or deviceId (Guest)
-                    let player = await db.query.players.findFirst({
-                        where: user.type === 'clerk'
-                            ? eq(players.userId, user.id)
-                            : eq(players.deviceId, user.id)
-                    });
+                        // Find player by userId (Clerk) or deviceId (Guest)
+                        let player = await db.query.players.findFirst({
+                            where: user.type === 'clerk'
+                                ? eq(players.userId, user.id)
+                                : eq(players.deviceId, user.id)
+                        });
 
-                    if (!player) {
-                        // Return null to let frontend decide or call /init
-                        return { player: null };
+                        if (!player) {
+                            // Return null to let frontend decide or call /init
+                            return { player: null };
+                        }
+
+                        const questCountRows = await db
+                            .select({ count: sql<number>`count(*)` })
+                            .from(quests)
+                            .where(eq(quests.isActive, true));
+                        const totalQuests = Number(questCountRows[0]?.count ?? 0);
+
+                        // Fetch progress
+                        let progress = await db.query.gameProgress.findFirst({
+                            where: eq(gameProgress.playerId, player.id)
+                        });
+
+                        // Ensure defaults + canonical skill ids for existing saves
+                        if (progress) {
+                            const patch: Partial<typeof progress> = {};
+                            if (!progress.visitedScenes) patch.visitedScenes = [];
+                            if (!progress.flags) patch.flags = {};
+                            if (!progress.skills || needsSkillsNormalization(progress.skills)) {
+                                patch.skills = normalizeSkills(progress.skills);
+                            }
+                            if ((progress as any).reputation === null || (progress as any).reputation === undefined) {
+                                (patch as any).reputation = {};
+                            }
+                            if (progress.phase === null || progress.phase === undefined) patch.phase = 1;
+
+                            if (Object.keys(patch).length > 0) {
+                                const [updated] = await db.update(gameProgress)
+                                    .set({ ...patch, updatedAt: Date.now() })
+                                    .where(eq(gameProgress.id, progress.id))
+                                    .returning();
+                                progress = updated ?? { ...progress, ...patch };
+                            }
+                        }
+
+                        return { player: toPublicPlayer(player), progress, totalQuests };
+                    } catch (e: any) {
+                        // #region agent log (debug)
+                        fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/src/api/routes/player.ts:GET_/player',message:'player_get_failed',data:{userType:(user as any)?.type??null,errorName:e?.name??null,errorMessage:e?.message??String(e),stack:String(e?.stack??'').slice(0,500)},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H1'})}).catch(()=>{});
+                        // #endregion agent log (debug)
+                        throw e;
                     }
-
-                    const questCountRows = await db
-                        .select({ count: sql<number>`count(*)` })
-                        .from(quests)
-                        .where(eq(quests.isActive, true));
-                    const totalQuests = Number(questCountRows[0]?.count ?? 0);
-
-                    // Fetch progress
-                    let progress = await db.query.gameProgress.findFirst({
-                        where: eq(gameProgress.playerId, player.id)
-                    });
-
-                    // Ensure defaults + canonical skill ids for existing saves
-                    if (progress) {
-                        const patch: Partial<typeof progress> = {};
-                        if (!progress.visitedScenes) patch.visitedScenes = [];
-                        if (!progress.flags) patch.flags = {};
-                        if (!progress.skills || needsSkillsNormalization(progress.skills)) {
-                            patch.skills = normalizeSkills(progress.skills);
-                        }
-                        if ((progress as any).reputation === null || (progress as any).reputation === undefined) {
-                            (patch as any).reputation = {};
-                        }
-                        if (progress.phase === null || progress.phase === undefined) patch.phase = 1;
-
-                        if (Object.keys(patch).length > 0) {
-                            const [updated] = await db.update(gameProgress)
-                                .set({ ...patch, updatedAt: Date.now() })
-                                .where(eq(gameProgress.id, progress.id))
-                                .returning();
-                            progress = updated ?? { ...progress, ...patch };
-                        }
-                    }
-
-                    return { player: toPublicPlayer(player), progress, totalQuests };
                 })
 
                 .post("/init", async ({ user, body }) => {

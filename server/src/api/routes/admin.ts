@@ -1,6 +1,7 @@
 import { Elysia, t } from 'elysia'
 import { auth } from '../auth'
 import { resetDatabaseAll, resetDatabaseMultiplayer, seedDatabase } from '../../services/adminDbReset'
+import { repairDatabase, repairDatabaseSoloCoop } from '../../services/adminDbRepair'
 import { resetPresenceRuntime } from './presence'
 import { resetPvpRuntime } from '../../lib/roomStore'
 
@@ -82,6 +83,36 @@ export const adminRoutes = (app: Elysia) =>
             }
 
             const result = await seedDatabase()
+            return { ok: true, ...result }
+          },
+          {
+            body: t.Optional(t.Object({})),
+          }
+        )
+        .post(
+          '/db/repair',
+          async ({ user, headers, set }) => {
+            if (!isAllowedAdmin((user as any) ?? null, headers as any)) {
+              set.status = 403
+              return { error: 'Forbidden' }
+            }
+
+            const result = await repairDatabase()
+            return { ok: true, ...result }
+          },
+          {
+            body: t.Optional(t.Object({})),
+          }
+        )
+        .post(
+          '/db/repair-solo-coop',
+          async ({ user, headers, set }) => {
+            if (!isAllowedAdmin((user as any) ?? null, headers as any)) {
+              set.status = 403
+              return { error: 'Forbidden' }
+            }
+
+            const result = await repairDatabaseSoloCoop()
             return { ok: true, ...result }
           },
           {
