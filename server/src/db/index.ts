@@ -13,6 +13,7 @@ const sqlOptions: any = {
     onnotice: (notice: any) => console.log('[DB PG NOTICE]', notice),
 };
 
+console.log('[DB] Initializing database client...');
 let client;
 
 if (cloudSqlInstance && connectionString) {

@@ -6,9 +6,19 @@ import { initSurvivalService } from "./services/survivalService";
 import { startCleanupScheduler } from "./jobs/cleanupExpiredSessions";
 
 const port = Number(process.env.PORT) || 3000;
+console.log(`[Startup] PORT env var: ${process.env.PORT}, parsed: ${port}`);
+console.log(`[Startup] Initializing Elysia app...`);
 
 // Start the server FIRST so Cloud Run health checks pass
-app.use(swagger()).use(cors()).listen({ port, hostname: "0.0.0.0" });
+try {
+    app.use(swagger()).use(cors()).listen({ port, hostname: "0.0.0.0" }, (server) => {
+        console.log(`[Startup] Elysia is running at ${server?.hostname}:${server?.port}`);
+    });
+    console.log(`[Startup] app.listen() called.`);
+} catch (e) {
+    console.error(`[Startup] Failed to start server:`, e);
+    process.exit(1);
+}
 
 console.log(`Elysia is running at ${app.server?.hostname}:${app.server?.port}`);
 
