@@ -1,4 +1,5 @@
 import { Elysia } from "elysia";
+import { cors } from "@elysiajs/cors";
 import { auth } from "./api/auth";
 import { playerRoutes } from "./api/routes/player";
 import { inventoryRoutes } from "./api/routes/inventory";
@@ -18,6 +19,16 @@ import { detectiveRoutes } from "./api/routes/detective";
 import { wsRoutes } from "./sockets";
 
 export const app = new Elysia()
+    .use(cors({
+        origin: [
+            'https://grezwanderer-dda4f.web.app',
+            'http://localhost:5173',
+            'http://localhost:4173'
+        ],
+        credentials: true,
+        allowedHeaders: ['Content-Type', 'Authorization', 'Upgrade', 'Connection'],
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH']
+    }))
     .use(auth)
     .use(playerRoutes)
     .use(inventoryRoutes)

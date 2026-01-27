@@ -14,23 +14,34 @@ try {
     const server = Bun.serve({
         port,
         hostname: "0.0.0.0",
-        fetch: (req) => {
+        const corsHeaders = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization, Upgrade, Connection"
+        };
+
+        // Handle Preflight
+        if(req.method === "OPTIONS") {
+            return new Response(null, { status: 204, headers: corsHeaders });
+}
+
             // Health check endpoint (always return 200 OK)
             const url = new URL(req.url);
-            if (url.pathname === '/health' || url.pathname === '/') {
-                if (!isReady) return new Response("Initializing...", { status: 200 });
-            }
+if (url.pathname === '/health' || url.pathname === '/') {
+    if (!isReady) return new Response("Initializing...", { status: 200, headers: corsHeaders });
+}
 
-            // If app is loaded, delegate to it
-            if (isReady && appHandler) {
-                return appHandler.fetch(req);
-            }
+// If app is loaded, delegate to it
+// Note: App (Elysia) will handle its own CORS, so we don't inject headers here if delegating
+if (isReady && appHandler) {
+    return appHandler.fetch(req);
+}
 
-            return new Response("Server Booting...", { status: 503 });
+return new Response("Server Booting...", { status: 503, headers: corsHeaders });
         }
     });
 
-    console.log(`[Startup] ✅ Raw Bun server listening on ${server.hostname}:${server.port}`);
+console.log(`[Startup] ✅ Raw Bun server listening on ${server.hostname}:${server.port}`);
 } catch (e) {
     console.error(`[Startup] ❌ PROHIBITED: Failed to bind port ${port}.`, e);
     process.exit(1);
