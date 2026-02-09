@@ -77,6 +77,23 @@ jobs:
           docker build -f server/Dockerfile -t "${{ env.GAR_LOCATION }}/${{ env.SERVICE_NAME }}:${{ github.sha }}" .
           docker push "${{ env.GAR_LOCATION }}/${{ env.SERVICE_NAME }}:${{ github.sha }}"
 
+      - name: Validate required runtime secrets
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          VN_SESSION_SECRET: ${{ secrets.VN_SESSION_SECRET }}
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+        run: |
+          missing=0
+          for key in DATABASE_URL VN_SESSION_SECRET ADMIN_TOKEN; do
+            if [ -z "${!key}" ]; then
+              echo "::error::Missing required secret: ${key}"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
       - name: Deploy to Cloud Run
         id: deploy
         uses: google-github-actions/deploy-cloudrun@v2
@@ -89,7 +106,8 @@ jobs:
             DATABASE_URL=${{ secrets.DATABASE_URL }}
             NODE_ENV=production
             CLOUD_SQL_CONNECTION_NAME=${{ env.CLOUD_SQL_CONNECTION_NAME }}
-            ADMIN_TOKEN=13121998qwer
+            VN_SESSION_SECRET=${{ secrets.VN_SESSION_SECRET }}
+            ADMIN_TOKEN=${{ secrets.ADMIN_TOKEN }}
           # Add explicit project ID
           project_id: ${{ env.PROJECT_ID }}
           timeout: 10m
