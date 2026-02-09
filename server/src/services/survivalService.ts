@@ -678,7 +678,7 @@ function processPlayerArrivals(state: SurvivalState): boolean {
         // Check if player has arrived
         if (state.worldTimeMs >= movement.arriveAtWorldTimeMs) {
             // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: 'debug-session', runId: 'pre-fix', hypothesisId: 'H1', location: 'server/src/services/survivalService.ts:processPlayerArrivals(arrive)', message: 'Player arrived; before event assignment', data: { playerId: player.playerId, playerName: player.playerName, hasMovementState: Boolean(player.movementState), activeEventId: player.activeEventId ?? null, activeEventPresent: Boolean(player.activeEvent), hexPos: player.hexPos ?? null, worldTimeMs: state.worldTimeMs, arriveAtWorldTimeMs: movement.arriveAtWorldTimeMs }, timestamp: Date.now() }) }).catch(() => { });
+
             // #endregion
             // Update position to destination (last element in path)
             const destination = path[path.length - 1]
@@ -710,7 +710,7 @@ function processPlayerArrivals(state: SurvivalState): boolean {
                         player.activeEventId = intro.id
                         player.activeEvent = intro
                         // #region agent log
-                        fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: 'debug-session', runId: 'pre-fix', hypothesisId: 'H1', location: 'server/src/services/survivalService.ts:processPlayerArrivals(assignEvent)', message: 'Assigned hex encounter event on arrival', data: { playerId: player.playerId, eventId: intro.id, eventTitle: intro.title, hex: intro.hex ?? null, destination, clearedFlag: cleared }, timestamp: Date.now() }) }).catch(() => { });
+
                         // #endregion
                         state.log.push(createLogEntry(
                             player.playerId,
@@ -1833,7 +1833,7 @@ export async function resolveOption(
     }
 
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: 'debug-session', runId: 'pre-fix', hypothesisId: 'H2', location: 'server/src/services/survivalService.ts:resolveOption(post)', message: 'Resolved option; event state after resolution', data: { playerId, prevEventId: eventId, optionId, success, followUpEventId: followUp?.id ?? null, activeEventIdAfter: player.activeEventId ?? null, activeEventPresentAfter: Boolean(player.activeEvent), currentZoneAfter: player.currentZone ?? null }, timestamp: Date.now() }) }).catch(() => { });
+
     // #endregion
 
     state.updatedAt = Date.now()
@@ -2159,7 +2159,7 @@ export async function movePlayer(
     const stamina = player.stamina ?? DEFAULT_STAMINA
 
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: 'debug-session', runId: 'pre-fix', hypothesisId: 'H1', location: 'server/src/services/survivalService.ts:movePlayer(entry)', message: 'Move request received', data: { sessionId, playerId, targetHex, activeEventId: player.activeEventId ?? null, activeEventPresent: Boolean(player.activeEvent), hasMovementState: Boolean(player.movementState), hexPos: player.hexPos ?? null, stamina: player.stamina ?? null, worldTimeMs: state.worldTimeMs }, timestamp: Date.now() }) }).catch(() => { });
+
     // #endregion
 
     // Can't move while already moving

@@ -139,7 +139,7 @@ export const auth = (app: Elysia) =>
         }
 
         // #region agent log (debug)
-        fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/src/api/auth/index.ts:auth.derive',message:'auth_derived',data:{hasBearer:typeof authHeader==='string'&&authHeader.startsWith('Bearer '),hasDeviceId:typeof deviceId==='string'&&deviceId.length>0,allowGuestFallback,clerkSecretConfigured:Boolean(SECRET_KEY),clerkJwtConfigured:Boolean(JWT_KEY),status:set.status??200,userType:user?.type??null},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H2'})}).catch(()=>{});
+
         // #endregion agent log (debug)
 
         return {

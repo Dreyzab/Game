@@ -4,5 +4,9 @@
     "theme": "Thema",
     "theme_dark": "Dunkel",
     "theme_light": "Hell",
-    "select_language": "Sprache auswählen"
+    "select_language": "Sprache auswählen",
+    "theme_unavailable": "Die Theme-Einstellungen sind derzeit nicht verfügbar.",
+    "language_ru": "Russisch",
+    "language_en": "Englisch",
+    "language_de": "Deutsch"
 }

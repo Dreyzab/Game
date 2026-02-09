@@ -334,19 +334,19 @@ export async function runDbMigrations(options: MigrationOptions = {}) {
     })()
 
     // #region agent log (debug)
-    fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/src/db/migrate.ts:runDbMigrations:pre',message:'db_migrate_pre',data:{shouldRun,migrationsFolder,hasProgressTable,hasGameModeColumn,has0009,sqlFilesCount:sqlFiles.length,lastJournalTag:tags[tags.length-1]??null},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'M1'})}).catch(()=>{});
+
     // #endregion agent log (debug)
 
     await migrate(db, { migrationsFolder })
 
     const hasGameModeAfter = (await columnExists('public', 'game_progress', 'game_mode'))
     // #region agent log (debug)
-    fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/src/db/migrate.ts:runDbMigrations:post',message:'db_migrate_post',data:{hasGameModeAfter},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'M1'})}).catch(()=>{});
+
     // #endregion agent log (debug)
     await applyCorePatches()
   } catch (error) {
     // #region agent log (debug)
-    fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/src/db/migrate.ts:runDbMigrations:err',message:'db_migrate_failed',data:{code:getPgErrorCode(error)??null,errorMessage:(error as any)?.message??String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'M1'})}).catch(()=>{});
+
     // #endregion agent log (debug)
     // Try to recover from existing schemas (common in dev).
     if (isDuplicateSchemaOrRelationError(error)) {
@@ -361,7 +361,7 @@ export async function runDbMigrations(options: MigrationOptions = {}) {
       const patched = await ensureGameModeColumn()
       await applyCorePatches()
       // #region agent log (debug)
-      fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/src/db/migrate.ts:runDbMigrations:patch',message:'db_migrate_patch_attempt',data:{patched},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'M2'})}).catch(()=>{});
+
       // #endregion agent log (debug)
 
       console.warn('[DB] Migrations already appear to be applied; continuing without startup migration.')
@@ -372,7 +372,7 @@ export async function runDbMigrations(options: MigrationOptions = {}) {
     const patched = await ensureGameModeColumn()
     await applyCorePatches()
     // #region agent log (debug)
-    fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/src/db/migrate.ts:runDbMigrations:patch_fallback',message:'db_migrate_patch_fallback',data:{patched,code:getPgErrorCode(error)??null},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'M2'})}).catch(()=>{});
+
     // #endregion agent log (debug)
 
     throw error

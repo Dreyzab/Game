@@ -1,12 +1,41 @@
-﻿{
+{
+    "ui": {
+        "loadingTitle": "Wird geladen...",
+        "preparingVisualNovel": "Die Visual Novel wird vorbereitet.",
+        "loadingProgressTitle": "Fortschritt wird geladen",
+        "loadingProgressDescription": "VN-Status wird vom Server geladen...",
+        "loadFailedTitle": "VN konnte nicht geladen werden",
+        "tryAgainLater": "Bitte versuchen Sie es später erneut.",
+        "retry": "Erneut versuchen",
+        "nicknameRequired": "Bitte einen Namen eingeben",
+        "nicknameTooLong": "Der Name ist zu lang (max. 32 Zeichen)",
+        "nicknameSaveFailed": "Der Name konnte nicht gespeichert werden. Bitte erneut versuchen.",
+        "nicknameTitle": "Ihr Name",
+        "nicknameDescription": "Das wird Ihr Nickname. Sie können ihn später ändern, aber bis zur Stadtregistrierung funktionieren Stadt-QRs nicht.",
+        "nicknamePlaceholder": "Namen eingeben",
+        "cancel": "Abbrechen",
+        "save": "Speichern",
+        "tapToSkip": "Tippen / Klicken zum Überspringen",
+        "tapToContinue": "Tippen / Klicken zum Fortfahren",
+        "menu": "Menü",
+        "locked": "Gesperrt",
+        "visited": "Besucht",
+        "skillCheck": "Probe: {{skill}} gegen SG {{dc}}",
+        "level": "Stufe: {{level}}",
+        "chance": "Chance: {{chance}}%"
+    },
     "scenes": {
         "coop_briefing_intro": {
             "title": "Einweisung",
             "location": "Kommandozentrale",
             "description": "Kurze Einweisung vor dem Einsatz.",
             "characters": {
-                "instructor": { "name": "Ausbilder" },
-                "narrator": { "name": "System" }
+                "instructor": {
+                    "name": "Ausbilder"
+                },
+                "narrator": {
+                    "name": "System"
+                }
             },
             "lines": {
                 "coop_briefing_intro__line0": {

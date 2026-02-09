@@ -28,6 +28,27 @@ import { calculateMaxResources } from "../../shared/lib/stats";
 const DEFAULT_SCENE_ID = 'prologue_coupe_start';
 
 const SAFE_ID_RE = /^[a-z0-9_-]+$/i;
+
+function handleDbError(e: any, context: string) {
+    const msg = String(e?.message || '');
+    if (
+        msg.includes('connect') ||
+        msg.includes('ephemeral cert') ||
+        msg.includes('invalidState') ||
+        msg.includes('Connection refused') ||
+        (e as any)?.code === 'ECONNREFUSED'
+    ) {
+        console.error(`[${context}] DB Connection Error:`, e);
+        return {
+            error: "Service Unavailable",
+            message: "Database connection failed. Please try again later.",
+            status: 503,
+            retryAfter: 30
+        };
+    }
+    throw e;
+}
+
 const SAFE_FLAG_RE = /^[a-z0-9_:-]+$/i;
 
 const MAX_FLAGS_PER_COMMIT = 50;
@@ -377,68 +398,72 @@ export const vnRoutes = (app: Elysia) =>
             app
                 // POST /vn/session/start - create new VN session with HMAC token
                 .post("/session/start", async ({ user, body }) => {
-                    if (!user) return { error: "Unauthorized", status: 401 };
+                    try {
+                        if (!user) return { error: "Unauthorized", status: 401 };
 
-                    const player = await ensurePlayer(user as AuthUser);
-                    const progress = await ensureProgress(player.id);
+                        const player = await ensurePlayer(user as AuthUser);
+                        const progress = await ensureProgress(player.id);
 
-                    const sceneId = typeof body.sceneId === 'string' ? body.sceneId.trim() : '';
-                    if (!sceneId || !isSafeId(sceneId)) {
-                        return { error: "Invalid sceneId", status: 400 };
+                        const sceneId = typeof body.sceneId === 'string' ? body.sceneId.trim() : '';
+                        if (!sceneId || !isSafeId(sceneId)) {
+                            return { error: "Invalid sceneId", status: 400 };
+                        }
+
+                        // Create snapshot of current state
+                        const snapshot = {
+                            hp: (progress as any).hp,
+                            skills: progress.skills ?? {},
+                            flags: progress.flags ?? {},
+                            reputation: (progress as any).reputation ?? {},
+                            level: progress.level,
+                            xp: progress.xp,
+                            phase: progress.phase,
+                            stateVersion: (progress as any).stateVersion ?? 1,
+                        };
+
+                        const sessionId = generateSessionId();
+                        const seed = generateSeed();
+                        const snapshotHash = hashSnapshot(snapshot);
+                        const stateVersion = snapshot.stateVersion;
+                        const expiresAt = getSessionExpiry();
+                        const allowedOps = SESSION_DEFAULT_OPS;
+
+                        const tokenPayload: SessionTokenPayload = {
+                            sessionId,
+                            seed,
+                            snapshotHash,
+                            stateVersion,
+                            expiresAt,
+                            allowedOps,
+                        };
+                        const sessionToken = signSessionToken(tokenPayload);
+
+                        // Store session in DB
+                        await db.insert(vnSessions).values({
+                            id: sessionId,
+                            playerId: player.id,
+                            sceneId,
+                            seed,
+                            stateVersion,
+                            snapshotHash,
+                            allowedOps,
+                            initialState: snapshot,
+                            expiresAt,
+                            createdAt: Date.now(),
+                        });
+
+                        return {
+                            sessionId,
+                            sessionToken,
+                            seed,
+                            stateVersion,
+                            expiresAt,
+                            allowedOps,
+                            initialState: snapshot,
+                        };
+                    } catch (e) {
+                        return handleDbError(e, 'vn/session/start');
                     }
-
-                    // Create snapshot of current state
-                    const snapshot = {
-                        hp: (progress as any).hp,
-                        skills: progress.skills ?? {},
-                        flags: progress.flags ?? {},
-                        reputation: (progress as any).reputation ?? {},
-                        level: progress.level,
-                        xp: progress.xp,
-                        phase: progress.phase,
-                        stateVersion: (progress as any).stateVersion ?? 1,
-                    };
-
-                    const sessionId = generateSessionId();
-                    const seed = generateSeed();
-                    const snapshotHash = hashSnapshot(snapshot);
-                    const stateVersion = snapshot.stateVersion;
-                    const expiresAt = getSessionExpiry();
-                    const allowedOps = SESSION_DEFAULT_OPS;
-
-                    const tokenPayload: SessionTokenPayload = {
-                        sessionId,
-                        seed,
-                        snapshotHash,
-                        stateVersion,
-                        expiresAt,
-                        allowedOps,
-                    };
-                    const sessionToken = signSessionToken(tokenPayload);
-
-                    // Store session in DB
-                    await db.insert(vnSessions).values({
-                        id: sessionId,
-                        playerId: player.id,
-                        sceneId,
-                        seed,
-                        stateVersion,
-                        snapshotHash,
-                        allowedOps,
-                        initialState: snapshot,
-                        expiresAt,
-                        createdAt: Date.now(),
-                    });
-
-                    return {
-                        sessionId,
-                        sessionToken,
-                        seed,
-                        stateVersion,
-                        expiresAt,
-                        allowedOps,
-                        initialState: snapshot,
-                    };
                 }, {
                     body: t.Object({
                         sceneId: t.String(),
@@ -448,432 +473,448 @@ export const vnRoutes = (app: Elysia) =>
 
                 // GET /vn/state - current VN progress
                 .get("/state", async ({ user }) => {
-                    if (!user) return { error: "Unauthorized", status: 401 };
+                    try {
+                        if (!user) return { error: "Unauthorized", status: 401 };
 
-                    const player = await ensurePlayer(user as AuthUser);
-                    const progress = await ensureProgress(player.id);
+                        const player = await ensurePlayer(user as AuthUser);
+                        const progress = await ensureProgress(player.id);
 
-                    return {
-                        progress: {
-                            ...progress,
-                            visitedScenes: progress.visitedScenes ?? [],
-                            flags: progress.flags ?? {},
-                            reputation: (progress as any).reputation ?? {},
-                            attributes: (progress as any).attributes ?? progress.skills ?? {},
-                            skills: progress.skills ?? {},
-                        }
-                    };
+                        return {
+                            progress: {
+                                ...progress,
+                                visitedScenes: progress.visitedScenes ?? [],
+                                flags: progress.flags ?? {},
+                                reputation: (progress as any).reputation ?? {},
+                                attributes: (progress as any).attributes ?? progress.skills ?? {},
+                                skills: progress.skills ?? {},
+                            }
+                        };
+                    } catch (e) {
+                        return handleDbError(e, 'vn/state');
+                    }
                 })
 
                 // POST /vn/commit - commit scene results
                 .post("/commit", async ({ user, body }) => {
-                    if (!user) return { error: "Unauthorized", status: 401 };
-
-                    const player = await ensurePlayer(user as AuthUser);
-                    const progress = await ensureProgress(player.id);
-                    const now = Date.now();
-
-                    // Strict session validation (required)
-                    const sessionId = typeof body.sessionId === 'string' ? body.sessionId.trim() : '';
-                    const sessionToken = typeof body.sessionToken === 'string' ? body.sessionToken.trim() : '';
-                    const commitNonce = typeof body.commitNonce === 'string' ? body.commitNonce.trim() : '';
-
-                    if (!sessionId || !sessionToken || !commitNonce) {
-                        return { error: "sessionId, sessionToken, and commitNonce are required", status: 400 };
-                    }
-
-                    if (!isSafeId(sessionId) || !isSafeId(commitNonce)) {
-                        return { error: "Invalid sessionId or commitNonce", status: 400 };
-                    }
-
-                    // Lookup session
-                    const session = await db.query.vnSessions.findFirst({
-                        where: eq(vnSessions.id, sessionId)
-                    });
-
-                    if (!session) {
-                        return { error: "Session not found", status: 404 };
-                    }
-
-                    if (session.playerId !== player.id) {
-                        return { error: "Session does not belong to player", status: 403 };
-                    }
-
-                    if (session.expiresAt < now) {
-                        return { error: "Session expired", status: 410 };
-                    }
-
-                    if (session.committedAt) {
-                        return { error: "Session already committed", status: 409 };
-                    }
-
-                    // Verify HMAC signature
-                    const tokenPayload: SessionTokenPayload = {
-                        sessionId: session.id,
-                        seed: session.seed,
-                        snapshotHash: session.snapshotHash,
-                        stateVersion: session.stateVersion,
-                        expiresAt: session.expiresAt,
-                        allowedOps: (session.allowedOps as string[]) ?? [],
-                    };
-
-                    if (!verifySessionToken(tokenPayload, sessionToken)) {
-                        return { error: "Invalid session token", status: 403 };
-                    }
-
-                    const sceneId = typeof body.sceneId === 'string' ? body.sceneId.trim() : '';
-                    if (!sceneId || !isSafeId(sceneId)) {
-                        return { error: "Invalid sceneId", status: 400 };
-                    }
-
-                    const addFlags = sanitizeStringArray(body.payload.addFlags, {
-                        max: MAX_FLAGS_PER_COMMIT,
-                        pattern: SAFE_FLAG_RE,
-                        maxLen: 64,
-                    });
-                    const removeFlags = sanitizeStringArray(body.payload.removeFlags, {
-                        max: MAX_FLAGS_PER_COMMIT,
-                        pattern: SAFE_FLAG_RE,
-                        maxLen: 64,
-                    });
-
-                    const reputationDelta = sanitizeReputation(body.payload.reputation);
-                    const questIdsFromPayload = sanitizeStringArray(body.payload.quests, { max: 50, pattern: SAFE_ID_RE, maxLen: 128 });
-
-                    const xpGain = clampInt(body.payload.xpDelta ?? 0, 0, MAX_XP_DELTA);
-                    const xpResult = awardXPAndLevelUp(progress.level, progress.xp, progress.skillPoints, xpGain);
-
-                    const currentPhase = progress.phase ?? 1;
-                    const requestedPhase = body.payload.advancePhaseTo === undefined
-                        ? undefined
-                        : clampInt(body.payload.advancePhaseTo, currentPhase, currentPhase + 1);
-                    const nextPhase = requestedPhase ?? currentPhase;
-
-                    const startedAt = typeof body.payload.startedAt === 'number' && Number.isFinite(body.payload.startedAt)
-                        ? body.payload.startedAt
-                        : now;
-                    const finishedAt = typeof body.payload.finishedAt === 'number' && Number.isFinite(body.payload.finishedAt)
-                        ? body.payload.finishedAt
-                        : now;
-
-                    const visited = new Set<string>(progress.visitedScenes ?? []);
-                    visited.add(sceneId);
-
-                    const flags = mergeFlags(progress.flags, addFlags, removeFlags);
-                    const reputation = mergeReputation((progress as any).reputation, reputationDelta);
-
-                    const choices = Array.isArray(body.payload.choices)
-                        ? body.payload.choices.slice(0, 200).map((choice) => ({
-                            sceneId: typeof (choice as any)?.sceneId === 'string' ? (choice as any).sceneId : sceneId,
-                            lineId: typeof (choice as any)?.lineId === 'string' ? (choice as any).lineId : undefined,
-                            choiceId: typeof (choice as any)?.choiceId === 'string' ? (choice as any).choiceId : 'unknown',
-                            effects: (choice as any)?.effects,
-                        }))
-                        : [];
-
-                    const itemAwards = sanitizeItemAwards(body.payload.items);
-                    const questCommands = sanitizeQuestCommands(body.payload.questCommands);
-                    const decisionLog = Array.isArray(body.payload.decisionLog)
-                        ? body.payload.decisionLog.slice(0, MAX_DECISION_LOG_ENTRIES)
-                        : undefined;
-                    const awardedItems: Array<{ itemId: string; quantity: number; dbId?: string }> = [];
-                    let duplicate = false;
-
-                    const normalizedSkills = normalizeSkills(progress.skills as any);
-                    const nextSkills = applySkillDeltasFromChoices(
-                        normalizedSkills,
-                        choices.map((entry) => ({ effects: entry.effects }))
-                    );
-
-                    const maxResources = calculateMaxResources(nextSkills);
-
-                    const hpPatch = applyHpDeltasFromChoices(
-                        (progress as any).hp,
-                        maxResources.hp,
-                        choices.map((entry) => ({ effects: entry.effects }))
-                    );
-                    const nextStateVersion = session.stateVersion + 1;
-
-                    const progressPatch = {
-                        currentScene: sceneId,
-                        visitedScenes: Array.from(visited),
-                        flags,
-                        skills: nextSkills,
-                        hp: hpPatch.hp,
-                        maxHp: maxResources.hp,
-                        maxStamina: maxResources.ap,
-                        maxMorale: maxResources.mp,
-                        level: xpResult.level,
-                        xp: xpResult.xp,
-                        skillPoints: xpResult.skillPoints,
-                        phase: nextPhase,
-                        reputation,
-                        stateVersion: nextStateVersion,
-                        updatedAt: now,
-                    };
-
-                    let commitResult;
                     try {
-                        commitResult = await db.transaction(async (tx) => {
-                        const [commitRow] = await tx.insert(vnCommits).values({
-                            sessionId,
-                            commitNonce,
-                            createdAt: now,
-                        }).onConflictDoNothing().returning({ id: vnCommits.id });
+                        if (!user) return { error: "Unauthorized", status: 401 };
 
-                        if (!commitRow) {
-                            const existingCommit = await tx.query.vnCommits.findFirst({
-                                where: eq(vnCommits.commitNonce, commitNonce)
-                            });
-                            if (!existingCommit) {
-                                return { error: "Commit already in progress", status: 409 };
-                            }
-                            if (existingCommit.sessionId !== sessionId) {
-                                return { error: "Commit nonce already used", status: 409 };
-                            }
-                            if (existingCommit.result) {
-                                return existingCommit.result;
-                            }
-                            return { error: "Commit already in progress", status: 409 };
+                        const player = await ensurePlayer(user as AuthUser);
+                        const progress = await ensureProgress(player.id);
+                        const now = Date.now();
+
+                        // Strict session validation (required)
+                        const sessionId = typeof body.sessionId === 'string' ? body.sessionId.trim() : '';
+                        const sessionToken = typeof body.sessionToken === 'string' ? body.sessionToken.trim() : '';
+                        const commitNonce = typeof body.commitNonce === 'string' ? body.commitNonce.trim() : '';
+
+                        if (!sessionId || !sessionToken || !commitNonce) {
+                            return { error: "sessionId, sessionToken, and commitNonce are required", status: 400 };
                         }
 
-                        // Idempotency: scene log insert is the gate for legacy duplicates.
-                        const [logRow] = await tx.insert(sceneLogs).values({
-                            playerId: player.id,
-                            userId: user.type === 'clerk' ? user.id : undefined,
-                            deviceId: user.type === 'guest' ? user.id : undefined,
-                            sceneId,
-                            choices,
-                            payload: {
-                                type: 'scene_commit',
-                                addFlags,
-                                removeFlags,
-                                xpDelta: xpGain,
-                                reputation: reputationDelta,
-                                quests: questIdsFromPayload,
-                                items: itemAwards,
-                                questCommands,
-                                decisionLog,
-                                advancePhaseTo: nextPhase,
-                            },
-                            startedAt,
-                            finishedAt,
-                            createdAt: now
-                        }).onConflictDoNothing().returning({ id: sceneLogs.id });
-
-                        if (!logRow) {
-                            duplicate = true;
-                        } else {
-                            if (itemAwards.length > 0) {
-                                const results = await awardItemsToPlayer(player.id, itemAwards, tx);
-                                const failed = results.filter((result) => !result.success);
-
-                                if (failed.length > 0) {
-                                    throw new Error(
-                                        `Failed to award items: ${failed.map((result) => result.itemId).join(', ')}`
-                                    );
-                                }
-
-                                results.forEach((result) => {
-                                    if (!result.success) return;
-                                    awardedItems.push({
-                                        itemId: result.itemId,
-                                        quantity: result.quantity,
-                                        dbId: result.dbId,
-                                    });
-                                });
-
-                                await tx.update(sceneLogs)
-                                    .set({
-                                        payload: {
-                                            type: 'scene_commit',
-                                            addFlags,
-                                            removeFlags,
-                                            xpDelta: xpGain,
-                                            reputation: reputationDelta,
-                                            quests: questIdsFromPayload,
-                                            items: itemAwards,
-                                            questCommands,
-                                            decisionLog,
-                                            advancePhaseTo: nextPhase,
-                                            awardedItems,
-                                        },
-                                    })
-                                    .where(eq(sceneLogs.id, logRow.id));
-                            }
-
-                            const questIds = Array.from(new Set(questCommands.map((cmd) => cmd.questId)));
-                            const questDefs = questIds.length > 0
-                                ? await tx.query.quests.findMany({
-                                    where: inArray(quests.id, questIds),
-                                })
-                                : [];
-                            const questDefById = new Map(questDefs.map((def) => [def.id, def]));
-
-                            // Process quest commands
-                            for (const cmd of questCommands) {
-                                const existingQuest = await tx.query.questProgress.findFirst({
-                                    where: and(
-                                        eq(questProgress.playerId, player.id),
-                                        eq(questProgress.questId, cmd.questId)
-                                    )
-                                });
-
-                                switch (cmd.op) {
-                                    case 'start': {
-                                        if (existingQuest) break;
-                                        const questDef = questDefById.get(cmd.questId);
-                                        if (!questDef || questDef.isActive === false) break;
-                                        const firstStep = Array.isArray(questDef.steps)
-                                            ? (questDef.steps as Array<{ id?: string }>)[0]?.id
-                                            : undefined;
-                                        await tx.insert(questProgress).values({
-                                            playerId: player.id,
-                                            userId: user.id,
-                                            questId: cmd.questId,
-                                            currentStep: cmd.step || firstStep || 'start',
-                                            status: 'active',
-                                            startedAt: now,
-                                            progress: 0,
-                                        }).onConflictDoNothing();
-                                        break;
-                                    }
-                                    case 'progress': {
-                                        if (!existingQuest || existingQuest.status !== 'active') break;
-                                        const currentProgress = typeof existingQuest.progress === 'number'
-                                            ? existingQuest.progress
-                                            : 0;
-                                        let nextProgress = currentProgress + 1;
-                                        if (typeof cmd.progress === 'number') {
-                                            nextProgress = cmd.progress;
-                                        } else if (typeof cmd.progressDelta === 'number') {
-                                            nextProgress = currentProgress + cmd.progressDelta;
-                                        }
-                                        nextProgress = clampInt(nextProgress, 0, MAX_QUEST_PROGRESS);
-                                        await tx.update(questProgress)
-                                            .set({
-                                                currentStep: cmd.step ?? existingQuest.currentStep,
-                                                progress: nextProgress,
-                                            })
-                                            .where(eq(questProgress.id, existingQuest.id));
-                                        break;
-                                    }
-                                    case 'complete': {
-                                        if (!existingQuest || existingQuest.status !== 'active') break;
-                                        await tx.update(questProgress)
-                                            .set({
-                                                status: 'completed',
-                                                completedAt: now,
-                                            })
-                                            .where(eq(questProgress.id, existingQuest.id));
-                                        break;
-                                    }
-                                    case 'fail': {
-                                        if (!existingQuest || existingQuest.status !== 'active') break;
-                                        await tx.update(questProgress)
-                                            .set({
-                                                status: 'failed',
-                                                failedAt: now,
-                                            })
-                                            .where(eq(questProgress.id, existingQuest.id));
-                                        break;
-                                    }
-                                    case 'abandon': {
-                                        if (!existingQuest || existingQuest.status !== 'active') break;
-                                        await tx.update(questProgress)
-                                            .set({
-                                                status: 'abandoned',
-                                                abandonedAt: now,
-                                            })
-                                            .where(eq(questProgress.id, existingQuest.id));
-                                        break;
-                                    }
-                                }
-                            }
-
-                            const [updatedProgress] = await tx.update(gameProgress)
-                                .set(progressPatch)
-                                .where(and(
-                                    eq(gameProgress.id, progress.id),
-                                    eq(gameProgress.stateVersion, session.stateVersion)
-                                ))
-                                .returning();
-
-                            if (!updatedProgress) {
-                                throw new Error('STATE_VERSION_CONFLICT');
-                            }
+                        if (!isSafeId(sessionId) || !isSafeId(commitNonce)) {
+                            return { error: "Invalid sessionId or commitNonce", status: 400 };
                         }
 
-                        if (duplicate) {
-                            const existing = await tx.query.sceneLogs.findFirst({
-                                where: and(
-                                    eq(sceneLogs.playerId, player.id),
-                                    eq(sceneLogs.sceneId, sceneId),
-                                    sql`(${sceneLogs.payload} ->> 'type') = 'scene_commit'`
-                                )
-                            });
-                            const fromLog = (existing?.payload as any)?.awardedItems;
-                            if (Array.isArray(fromLog)) {
-                                fromLog.slice(0, MAX_ITEMS_PER_COMMIT).forEach((entry: any) => {
-                                    if (!entry || typeof entry !== 'object') return;
-                                    if (typeof entry.itemId !== 'string') return;
-                                    const itemId = entry.itemId.trim();
-                                    if (!itemId) return;
-                                    const quantity = clampInt(entry.quantity, 1, MAX_ITEM_QUANTITY);
-                                    const dbId = typeof entry.dbId === 'string' ? entry.dbId : undefined;
-                                    awardedItems.push({ itemId, quantity, dbId });
-                                });
-                            }
-                        }
-
-                        const latestProgress = await tx.query.gameProgress.findFirst({
-                            where: eq(gameProgress.id, progress.id)
+                        // Lookup session
+                        const session = await db.query.vnSessions.findFirst({
+                            where: eq(vnSessions.id, sessionId)
                         });
 
-                        if (!latestProgress) {
-                            throw new Error('PROGRESS_NOT_FOUND');
+                        if (!session) {
+                            return { error: "Session not found", status: 404 };
                         }
 
-                        const result = {
-                            success: true,
-                            duplicate: duplicate || undefined,
-                            progress: {
-                                ...latestProgress,
-                                visitedScenes: latestProgress.visitedScenes ?? [],
-                                flags: latestProgress.flags ?? {},
-                                reputation: (latestProgress as any).reputation ?? {},
-                                attributes: (latestProgress as any).attributes ?? latestProgress.skills ?? {},
-                                skills: latestProgress.skills ?? {},
-                            },
-                            awardedItems,
+                        if (session.playerId !== player.id) {
+                            return { error: "Session does not belong to player", status: 403 };
+                        }
+
+                        if (session.expiresAt < now) {
+                            return { error: "Session expired", status: 410 };
+                        }
+
+                        if (session.committedAt) {
+                            return { error: "Session already committed", status: 409 };
+                        }
+
+                        // Verify HMAC signature
+                        const tokenPayload: SessionTokenPayload = {
+                            sessionId: session.id,
+                            seed: session.seed,
+                            snapshotHash: session.snapshotHash,
+                            stateVersion: session.stateVersion,
+                            expiresAt: session.expiresAt,
+                            allowedOps: (session.allowedOps as string[]) ?? [],
                         };
 
-                        await tx.update(vnCommits)
-                            .set({ result })
-                            .where(eq(vnCommits.id, commitRow.id));
+                        if (!verifySessionToken(tokenPayload, sessionToken)) {
+                            return { error: "Invalid session token", status: 403 };
+                        }
 
-                        await tx.update(vnSessions)
-                            .set({ committedAt: now })
-                            .where(eq(vnSessions.id, sessionId));
+                        const sceneId = typeof body.sceneId === 'string' ? body.sceneId.trim() : '';
+                        if (!sceneId || !isSafeId(sceneId)) {
+                            return { error: "Invalid sceneId", status: 400 };
+                        }
 
-                        return result;
+                        const addFlags = sanitizeStringArray(body.payload.addFlags, {
+                            max: MAX_FLAGS_PER_COMMIT,
+                            pattern: SAFE_FLAG_RE,
+                            maxLen: 64,
                         });
-                    } catch (error) {
-                        if (error instanceof Error && error.message === 'STATE_VERSION_CONFLICT') {
-                            return { error: "State version conflict", status: 409 };
-                        }
-                        if (error instanceof Error && error.message === 'PROGRESS_NOT_FOUND') {
-                            return { error: "Progress not found", status: 500 };
-                        }
-                        console.error('[vn/commit] Transaction failed', error);
-                        return { error: "Failed to commit progress", status: 500 };
-                    }
+                        const removeFlags = sanitizeStringArray(body.payload.removeFlags, {
+                            max: MAX_FLAGS_PER_COMMIT,
+                            pattern: SAFE_FLAG_RE,
+                            maxLen: 64,
+                        });
 
-                    if ((commitResult as any)?.error) {
-                        return commitResult as any;
-                    }
+                        const reputationDelta = sanitizeReputation(body.payload.reputation);
+                        const questIdsFromPayload = sanitizeStringArray(body.payload.quests, { max: 50, pattern: SAFE_ID_RE, maxLen: 128 });
 
-                    return commitResult;
+                        const xpGain = clampInt(body.payload.xpDelta ?? 0, 0, MAX_XP_DELTA);
+                        const xpResult = awardXPAndLevelUp(progress.level, progress.xp, progress.skillPoints, xpGain);
+
+                        const currentPhase = progress.phase ?? 1;
+                        const requestedPhase = body.payload.advancePhaseTo === undefined
+                            ? undefined
+                            : clampInt(body.payload.advancePhaseTo, currentPhase, currentPhase + 1);
+                        const nextPhase = requestedPhase ?? currentPhase;
+
+                        const startedAt = typeof body.payload.startedAt === 'number' && Number.isFinite(body.payload.startedAt)
+                            ? body.payload.startedAt
+                            : now;
+                        const finishedAt = typeof body.payload.finishedAt === 'number' && Number.isFinite(body.payload.finishedAt)
+                            ? body.payload.finishedAt
+                            : now;
+
+                        const visited = new Set<string>(progress.visitedScenes ?? []);
+                        visited.add(sceneId);
+
+                        const flags = mergeFlags(progress.flags, addFlags, removeFlags);
+                        const reputation = mergeReputation((progress as any).reputation, reputationDelta);
+
+                        const choices = Array.isArray(body.payload.choices)
+                            ? body.payload.choices.slice(0, 200).map((choice) => ({
+                                sceneId: typeof (choice as any)?.sceneId === 'string' ? (choice as any).sceneId : sceneId,
+                                lineId: typeof (choice as any)?.lineId === 'string' ? (choice as any).lineId : undefined,
+                                choiceId: typeof (choice as any)?.choiceId === 'string' ? (choice as any).choiceId : 'unknown',
+                                effects: (choice as any)?.effects,
+                            }))
+                            : [];
+
+                        const itemAwards = sanitizeItemAwards(body.payload.items);
+                        const questCommands = sanitizeQuestCommands(body.payload.questCommands);
+                        const decisionLog = Array.isArray(body.payload.decisionLog)
+                            ? body.payload.decisionLog.slice(0, MAX_DECISION_LOG_ENTRIES)
+                            : undefined;
+                        const awardedItems: Array<{ itemId: string; quantity: number; dbId?: string }> = [];
+                        let duplicate = false;
+
+                        const normalizedSkills = normalizeSkills(progress.skills as any);
+                        const nextSkills = applySkillDeltasFromChoices(
+                            normalizedSkills,
+                            choices.map((entry) => ({ effects: entry.effects }))
+                        );
+
+                        const maxResources = calculateMaxResources(nextSkills);
+
+                        const hpPatch = applyHpDeltasFromChoices(
+                            (progress as any).hp,
+                            maxResources.hp,
+                            choices.map((entry) => ({ effects: entry.effects }))
+                        );
+                        const nextStateVersion = session.stateVersion + 1;
+
+                        const progressPatch = {
+                            currentScene: sceneId,
+                            visitedScenes: Array.from(visited),
+                            flags,
+                            skills: nextSkills,
+                            hp: hpPatch.hp,
+                            maxHp: maxResources.hp,
+                            maxStamina: maxResources.ap,
+                            maxMorale: maxResources.mp,
+                            level: xpResult.level,
+                            xp: xpResult.xp,
+                            skillPoints: xpResult.skillPoints,
+                            phase: nextPhase,
+                            reputation,
+                            stateVersion: nextStateVersion,
+                            updatedAt: now,
+                        };
+
+                        let commitResult;
+                        try {
+                            commitResult = await db.transaction(async (tx) => {
+                                const [commitRow] = await tx.insert(vnCommits).values({
+                                    sessionId,
+                                    commitNonce,
+                                    createdAt: now,
+                                }).onConflictDoNothing().returning({ id: vnCommits.id });
+
+                                if (!commitRow) {
+                                    const existingCommit = await tx.query.vnCommits.findFirst({
+                                        where: eq(vnCommits.commitNonce, commitNonce)
+                                    });
+                                    if (!existingCommit) {
+                                        return { error: "Commit already in progress", status: 409 };
+                                    }
+                                    if (existingCommit.sessionId !== sessionId) {
+                                        return { error: "Commit nonce already used", status: 409 };
+                                    }
+                                    if (existingCommit.result) {
+                                        return existingCommit.result;
+                                    }
+                                    return { error: "Commit already in progress", status: 409 };
+                                }
+
+                                // Idempotency: scene log insert is the gate for legacy duplicates.
+                                const [logRow] = await tx.insert(sceneLogs).values({
+                                    playerId: player.id,
+                                    userId: user.type === 'clerk' ? user.id : undefined,
+                                    deviceId: user.type === 'guest' ? user.id : undefined,
+                                    sceneId,
+                                    choices,
+                                    payload: {
+                                        type: 'scene_commit',
+                                        addFlags,
+                                        removeFlags,
+                                        xpDelta: xpGain,
+                                        reputation: reputationDelta,
+                                        quests: questIdsFromPayload,
+                                        items: itemAwards,
+                                        questCommands,
+                                        decisionLog,
+                                        advancePhaseTo: nextPhase,
+                                    },
+                                    startedAt,
+                                    finishedAt,
+                                    createdAt: now
+                                }).onConflictDoNothing().returning({ id: sceneLogs.id });
+
+                                if (!logRow) {
+                                    duplicate = true;
+                                } else {
+                                    if (itemAwards.length > 0) {
+                                        const results = await awardItemsToPlayer(player.id, itemAwards, tx);
+                                        const failed = results.filter((result) => !result.success);
+
+                                        if (failed.length > 0) {
+                                            throw new Error(
+                                                `Failed to award items: ${failed.map((result) => result.itemId).join(', ')}`
+                                            );
+                                        }
+
+                                        results.forEach((result) => {
+                                            if (!result.success) return;
+                                            awardedItems.push({
+                                                itemId: result.itemId,
+                                                quantity: result.quantity,
+                                                dbId: result.dbId,
+                                            });
+                                        });
+
+                                        await tx.update(sceneLogs)
+                                            .set({
+                                                payload: {
+                                                    type: 'scene_commit',
+                                                    addFlags,
+                                                    removeFlags,
+                                                    xpDelta: xpGain,
+                                                    reputation: reputationDelta,
+                                                    quests: questIdsFromPayload,
+                                                    items: itemAwards,
+                                                    questCommands,
+                                                    decisionLog,
+                                                    advancePhaseTo: nextPhase,
+                                                    awardedItems,
+                                                },
+                                            })
+                                            .where(eq(sceneLogs.id, logRow.id));
+                                    }
+
+                                    const questIds = Array.from(new Set(questCommands.map((cmd) => cmd.questId)));
+                                    const questDefs = questIds.length > 0
+                                        ? await tx.query.quests.findMany({
+                                            where: inArray(quests.id, questIds),
+                                        })
+                                        : [];
+                                    const questDefById = new Map(questDefs.map((def) => [def.id, def]));
+
+                                    // Process quest commands
+                                    for (const cmd of questCommands) {
+                                        const existingQuest = await tx.query.questProgress.findFirst({
+                                            where: and(
+                                                eq(questProgress.playerId, player.id),
+                                                eq(questProgress.questId, cmd.questId)
+                                            )
+                                        });
+
+                                        switch (cmd.op) {
+                                            case 'start': {
+                                                if (existingQuest) break;
+                                                const questDef = questDefById.get(cmd.questId);
+                                                if (!questDef || questDef.isActive === false) break;
+                                                const firstStep = Array.isArray(questDef.steps)
+                                                    ? (questDef.steps as Array<{ id?: string }>)[0]?.id
+                                                    : undefined;
+                                                await tx.insert(questProgress).values({
+                                                    playerId: player.id,
+                                                    userId: user.id,
+                                                    questId: cmd.questId,
+                                                    currentStep: cmd.step || firstStep || 'start',
+                                                    status: 'active',
+                                                    startedAt: now,
+                                                    progress: 0,
+                                                }).onConflictDoNothing();
+                                                break;
+                                            }
+                                            case 'progress': {
+                                                if (!existingQuest || existingQuest.status !== 'active') break;
+                                                const currentProgress = typeof existingQuest.progress === 'number'
+                                                    ? existingQuest.progress
+                                                    : 0;
+                                                let nextProgress = currentProgress + 1;
+                                                if (typeof cmd.progress === 'number') {
+                                                    nextProgress = cmd.progress;
+                                                } else if (typeof cmd.progressDelta === 'number') {
+                                                    nextProgress = currentProgress + cmd.progressDelta;
+                                                }
+                                                nextProgress = clampInt(nextProgress, 0, MAX_QUEST_PROGRESS);
+                                                await tx.update(questProgress)
+                                                    .set({
+                                                        currentStep: cmd.step ?? existingQuest.currentStep,
+                                                        progress: nextProgress,
+                                                    })
+                                                    .where(eq(questProgress.id, existingQuest.id));
+                                                break;
+                                            }
+                                            case 'complete': {
+                                                if (!existingQuest || existingQuest.status !== 'active') break;
+                                                await tx.update(questProgress)
+                                                    .set({
+                                                        status: 'completed',
+                                                        completedAt: now,
+                                                    })
+                                                    .where(eq(questProgress.id, existingQuest.id));
+                                                break;
+                                            }
+                                            case 'fail': {
+                                                if (!existingQuest || existingQuest.status !== 'active') break;
+                                                await tx.update(questProgress)
+                                                    .set({
+                                                        status: 'failed',
+                                                        failedAt: now,
+                                                    })
+                                                    .where(eq(questProgress.id, existingQuest.id));
+                                                break;
+                                            }
+                                            case 'abandon': {
+                                                if (!existingQuest || existingQuest.status !== 'active') break;
+                                                await tx.update(questProgress)
+                                                    .set({
+                                                        status: 'abandoned',
+                                                        abandonedAt: now,
+                                                    })
+                                                    .where(eq(questProgress.id, existingQuest.id));
+                                                break;
+                                            }
+                                        }
+                                    }
+
+                                    const [updatedProgress] = await tx.update(gameProgress)
+                                        .set(progressPatch)
+                                        .where(and(
+                                            eq(gameProgress.id, progress.id),
+                                            eq(gameProgress.stateVersion, session.stateVersion)
+                                        ))
+                                        .returning();
+
+                                    if (!updatedProgress) {
+                                        throw new Error('STATE_VERSION_CONFLICT');
+                                    }
+                                }
+
+                                if (duplicate) {
+                                    const existing = await tx.query.sceneLogs.findFirst({
+                                        where: and(
+                                            eq(sceneLogs.playerId, player.id),
+                                            eq(sceneLogs.sceneId, sceneId),
+                                            sql`(${sceneLogs.payload} ->> 'type') = 'scene_commit'`
+                                        )
+                                    });
+                                    const fromLog = (existing?.payload as any)?.awardedItems;
+                                    if (Array.isArray(fromLog)) {
+                                        fromLog.slice(0, MAX_ITEMS_PER_COMMIT).forEach((entry: any) => {
+                                            if (!entry || typeof entry !== 'object') return;
+                                            if (typeof entry.itemId !== 'string') return;
+                                            const itemId = entry.itemId.trim();
+                                            if (!itemId) return;
+                                            const quantity = clampInt(entry.quantity, 1, MAX_ITEM_QUANTITY);
+                                            const dbId = typeof entry.dbId === 'string' ? entry.dbId : undefined;
+                                            awardedItems.push({ itemId, quantity, dbId });
+                                        });
+                                    }
+                                }
+
+                                const latestProgress = await tx.query.gameProgress.findFirst({
+                                    where: eq(gameProgress.id, progress.id)
+                                });
+
+                                if (!latestProgress) {
+                                    throw new Error('PROGRESS_NOT_FOUND');
+                                }
+
+                                const result = {
+                                    success: true,
+                                    duplicate: duplicate || undefined,
+                                    progress: {
+                                        ...latestProgress,
+                                        visitedScenes: latestProgress.visitedScenes ?? [],
+                                        flags: latestProgress.flags ?? {},
+                                        reputation: (latestProgress as any).reputation ?? {},
+                                        attributes: (latestProgress as any).attributes ?? latestProgress.skills ?? {},
+                                        skills: latestProgress.skills ?? {},
+                                    },
+                                    awardedItems,
+                                };
+
+                                await tx.update(vnCommits)
+                                    .set({ result })
+                                    .where(eq(vnCommits.id, commitRow.id));
+
+                                await tx.update(vnSessions)
+                                    .set({ committedAt: now })
+                                    .where(eq(vnSessions.id, sessionId));
+
+                                return result;
+                            });
+                        } catch (error) {
+                            if (error instanceof Error && error.message === 'STATE_VERSION_CONFLICT') {
+                                return { error: "State version conflict", status: 409 };
+                            }
+                            if (error instanceof Error && error.message === 'PROGRESS_NOT_FOUND') {
+                                return { error: "Progress not found", status: 500 };
+                            }
+
+                            // Check for DB connection error and attempt to handle it
+                            // If it's a connection error, handleDbError returns 503 response
+                            // If it's NOT, handleDbError throws the error back.
+                            try {
+                                return handleDbError(error, 'vn/commit');
+                            } catch (rethrown) {
+                                console.error('[vn/commit] Transaction failed', rethrown);
+                                return { error: "Failed to commit progress", status: 500 };
+                            }
+                        }
+
+                        if ((commitResult as any)?.error) {
+                            return commitResult as any;
+                        }
+
+                        return commitResult;
+                    } catch (e) {
+                        return handleDbError(e, 'vn/commit');
+                    }
                 }, {
                     body: t.Object({
                         sceneId: t.String(),
@@ -917,32 +958,36 @@ export const vnRoutes = (app: Elysia) =>
 
                 // POST /vn/advice - log internal voice advice views
                 .post("/advice", async ({ user, body }) => {
-                    if (!user) return { error: "Unauthorized", status: 401 };
-                    const player = await ensurePlayer(user as AuthUser);
-                    await ensureProgress(player.id);
+                    try {
+                        if (!user) return { error: "Unauthorized", status: 401 };
+                        const player = await ensurePlayer(user as AuthUser);
+                        await ensureProgress(player.id);
 
-                    const now = Date.now();
+                        const now = Date.now();
 
-                    await db.insert(sceneLogs).values({
-                        playerId: player.id,
-                        userId: user.type === 'clerk' ? user.id : undefined,
-                        deviceId: user.type === 'guest' ? user.id : undefined,
-                        sceneId: body.sceneId,
-                        choices: [],
-                        payload: {
-                            type: 'advice_viewed',
-                            lineId: body.lineId,
-                            characterId: body.characterId,
-                            choiceContext: body.choiceContext,
-                            skillLevel: body.skillLevel,
-                            viewOrder: body.viewOrder
-                        },
-                        startedAt: now,
-                        finishedAt: now,
-                        createdAt: now
-                    });
+                        await db.insert(sceneLogs).values({
+                            playerId: player.id,
+                            userId: user.type === 'clerk' ? user.id : undefined,
+                            deviceId: user.type === 'guest' ? user.id : undefined,
+                            sceneId: body.sceneId,
+                            choices: [],
+                            payload: {
+                                type: 'advice_viewed',
+                                lineId: body.lineId,
+                                characterId: body.characterId,
+                                choiceContext: body.choiceContext,
+                                skillLevel: body.skillLevel,
+                                viewOrder: body.viewOrder
+                            },
+                            startedAt: now,
+                            finishedAt: now,
+                            createdAt: now
+                        });
 
-                    return { success: true, timestamp: now };
+                        return { success: true, timestamp: now };
+                    } catch (e) {
+                        return handleDbError(e, 'vn/advice');
+                    }
                 }, {
                     body: t.Object({
                         sceneId: t.String(),

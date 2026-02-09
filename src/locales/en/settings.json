@@ -4,5 +4,9 @@
     "theme": "Theme",
     "theme_dark": "Dark",
     "theme_light": "Light",
-    "select_language": "Select Language"
+    "select_language": "Select Language",
+    "theme_unavailable": "Theme settings are currently unavailable.",
+    "language_ru": "Russian",
+    "language_en": "English",
+    "language_de": "German"
 }

@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/shared/lib/utils/cn'
 import type { VisualNovelChoiceView } from '@/shared/types/visualNovel'
 import type { VoiceId } from '@/shared/types/parliament'
@@ -14,6 +15,7 @@ export const ChoicePanel: React.FC<ChoicePanelProps> = ({
   onSelect,
   skills = {},
 }) => {
+  const { t } = useTranslation('visualNovel')
   if (!choices || choices.length === 0) return null
 
   const readSkill = (skill: VoiceId) =>
@@ -37,9 +39,7 @@ export const ChoicePanel: React.FC<ChoicePanelProps> = ({
         const successChance = check ? clamp(Math.round(skillLevel + (50 - dc)), 5, 95) : null
 
         const isLocked = Boolean(choice.disabled)
-        const lockReason =
-          choice.lockReason ??
-          undefined
+        const lockReason = choice.lockReason ?? undefined
         const isVisited = choice.isVisited
 
         return (
@@ -53,8 +53,8 @@ export const ChoicePanel: React.FC<ChoicePanelProps> = ({
               isLocked && !isVisited
                 ? 'bg-slate-900/40 border-slate-800 cursor-not-allowed opacity-60'
                 : isVisited
-                ? 'bg-emerald-950/20 border-emerald-500/30 opacity-80 cursor-not-allowed'
-                : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/30 hover:-translate-y-0.5 active:translate-y-0'
+                  ? 'bg-emerald-950/20 border-emerald-500/30 opacity-80 cursor-not-allowed'
+                  : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/30 hover:-translate-y-0.5 active:translate-y-0'
             )}
           >
             <div className="flex justify-between items-center w-full">
@@ -72,11 +72,11 @@ export const ChoicePanel: React.FC<ChoicePanelProps> = ({
                   isLocked && !isVisited
                     ? 'text-red-500/60'
                     : isVisited
-                    ? 'text-emerald-500/40'
-                    : 'text-slate-500 group-hover:text-white/80'
+                      ? 'text-emerald-500/40'
+                      : 'text-slate-500 group-hover:text-white/80'
                 )}
               >
-                {isLocked && !isVisited ? 'Заблокировано' : isVisited ? 'Посещено' : ''}
+                {isLocked && !isVisited ? t('ui.locked') : isVisited ? t('ui.visited') : ''}
               </span>
             </div>
 
@@ -98,14 +98,14 @@ export const ChoicePanel: React.FC<ChoicePanelProps> = ({
                         : 'border-emerald-900/30 text-emerald-300/90'
                   )}
                 >
-                  Check: {check.skill.toUpperCase()} vs DC {dc}
+                  {t('ui.skillCheck', { skill: check.skill.toUpperCase(), dc })}
                 </div>
                 <div className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
-                  Level: {skillLevel}
+                  {t('ui.level', { level: skillLevel })}
                 </div>
                 {successChance !== null && (
                   <div className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
-                    Chance: {successChance}%
+                    {t('ui.chance', { chance: successChance })}
                   </div>
                 )}
               </div>

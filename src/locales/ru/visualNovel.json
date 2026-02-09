@@ -1,1 +1,27 @@
-﻿{}
+{
+    "ui": {
+        "loadingTitle": "Загрузка...",
+        "preparingVisualNovel": "Подготавливаем визуальную новеллу.",
+        "loadingProgressTitle": "Загрузка прогресса",
+        "loadingProgressDescription": "Получаем состояние VN с сервера...",
+        "loadFailedTitle": "Не удалось загрузить VN",
+        "tryAgainLater": "Попробуйте позже.",
+        "retry": "Повторить",
+        "nicknameRequired": "Введите имя",
+        "nicknameTooLong": "Имя слишком длинное (макс. 32 символа)",
+        "nicknameSaveFailed": "Не удалось сохранить имя. Попробуйте ещё раз.",
+        "nicknameTitle": "Ваше имя",
+        "nicknameDescription": "Это будет ваш никнейм. Его можно поменять позже, но до регистрации городские QR не работают.",
+        "nicknamePlaceholder": "Введите имя",
+        "cancel": "Отмена",
+        "save": "Сохранить",
+        "tapToSkip": "Тап / клик чтобы пропустить",
+        "tapToContinue": "Тап / клик чтобы продолжить",
+        "menu": "Меню",
+        "locked": "Заблокировано",
+        "visited": "Посещено",
+        "skillCheck": "Проверка: {{skill}} vs СЛ {{dc}}",
+        "level": "Уровень: {{level}}",
+        "chance": "Шанс: {{chance}}%"
+    }
+}

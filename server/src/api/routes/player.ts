@@ -119,8 +119,26 @@ export const playerRoutes = (app: Elysia) =>
                         return { player: toPublicPlayer(player), progress, totalQuests };
                     } catch (e: any) {
                         // #region agent log (debug)
-                        fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/src/api/routes/player.ts:GET_/player',message:'player_get_failed',data:{userType:(user as any)?.type??null,errorName:e?.name??null,errorMessage:e?.message??String(e),stack:String(e?.stack??'').slice(0,500)},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H1'})}).catch(()=>{});
+
                         // #endregion agent log (debug)
+
+                        const msg = String(e?.message || '');
+                        if (
+                            msg.includes('connect') ||
+                            msg.includes('ephemeral cert') ||
+                            msg.includes('invalidState') ||
+                            msg.includes('Connection refused') ||
+                            (e as any)?.code === 'ECONNREFUSED'
+                        ) {
+                            console.error('[PlayerRoute] DB Connection Error:', e);
+                            return {
+                                error: "Service Unavailable",
+                                message: "Database connection failed. Please try again later.",
+                                status: 503,
+                                retryAfter: 30
+                            };
+                        }
+
                         throw e;
                     }
                 })

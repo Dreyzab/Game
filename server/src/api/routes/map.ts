@@ -310,104 +310,296 @@ export const mapRoutes = (app: Elysia) =>
                                 playerFlags['need_info_bureau'] === true ||
                                 playerFlags['prologue_complete'] === true;
 
+                            if (hasArrivalFlag) {
+                                activeQuestIds.add('delivery_for_dieter');
+                                activeQuestIds.add('delivery_for_professor');
+                                activeQuestIds.add('city_registration');
+                            }
+
+                            // Special handling for pre-registration flow:
+                            // 1. SDG (Start) is always visible.
+                            // 2. Rathaus (Registration) is visible only after arrival.
+                            const visibleOnboardingIds = new Set<string>();
+                            visibleOnboardingIds.add(SDG_DROP_ZONE_ID);
+
+                            if (hasArrivalFlag) {
+                                visibleOnboardingIds.add(TOWNHALL_POINT_ID);
+                                visibleOnboardingIds.add(LEGACY_TOWNHALL_POINT_ID);
+                                visibleOnboardingIds.add(SYNTHESIS_CAMPUS_POINT_ID);
+                            }
+
+                            // Fetch strictly relevant points
+                            const onboardingPoints = await db.query.mapPoints.findMany({
+                                where: eq(mapPoints.isActive, true)
+                            });
+
+                            const visiblePoints = onboardingPoints.filter(p => visibleOnboardingIds.has(p.id));
+
+                            // ... (keep existing mapping/enrichment logic, simplified for this scope)
+                            const results = await Promise.all(visiblePoints.map(async (point) => {
+                                const meta = (point.metadata as any) || {};
+
+                                // Discovery Status
+                                let status = 'not_found';
+                                let discoveredAt: number | undefined;
+                                let researchedAt: number | undefined;
+
+                                const discovery = myDiscoveries.find(d => d.pointKey === point.id); // In-memory find
+                                if (discovery) {
+                                    if (discovery.researchedAt) status = 'researched';
+                                    else if (discovery.discoveredAt) status = 'discovered';
+                                    discoveredAt = discovery.discoveredAt || undefined;
+                                    researchedAt = discovery.researchedAt || undefined;
+                                }
+
+                                // Auto-discover SDG if not discovered
+                                if (point.id === SDG_DROP_ZONE_ID && !discovery && status === 'not_found') {
+                                    status = 'discovered'; // Treat as discovered for UI
+                                }
+
+                                const questBindings = Array.isArray(meta.questBindings) ? meta.questBindings : [];
+                                const isQuestTarget = questBindings.some((id: string) => activeQuestIds.has(id));
+
+                                let finalMeta = { ...meta };
+
+                                // Ensure SDG onboarding scene exists even if DB seed is outdated.
+                                if (point.id === SDG_DROP_ZONE_ID) {
+                                    const bindings = (finalMeta as any).sceneBindings;
+                                    const hasSdgArrival =
+                                        Array.isArray(bindings) &&
+                                        bindings.some((b: any) => b?.sceneId === 'onboarding_sdg_arrival');
+
+                                    if (!hasSdgArrival) {
+                                        finalMeta = {
+                                            ...finalMeta,
+                                            sceneBindings: [
+                                                ...(Array.isArray(bindings) ? bindings : []),
+                                                {
+                                                    sceneId: 'onboarding_sdg_arrival',
+                                                    triggerType: 'click',
+                                                    conditions: { notFlags: ['arrived_at_freiburg'] },
+                                                    priority: 100,
+                                                },
+                                            ],
+                                        };
+                                    }
+                                }
+
+                                if (point.id === TOWNHALL_POINT_ID || point.id === LEGACY_TOWNHALL_POINT_ID) {
+                                    finalMeta = { ...finalMeta, isGlobalObjective: true };
+                                    // Ensure registration scene
+                                    if (!Array.isArray((finalMeta as any).sceneBindings)) {
+                                        finalMeta = {
+                                            ...finalMeta,
+                                            sceneBindings: [
+                                                {
+                                                    sceneId: ONBOARDING_TOWNHALL_SCENE_ID,
+                                                    triggerType: 'click',
+                                                    conditions: { notFlags: [CITY_REGISTERED_FLAG] },
+                                                    priority: 100,
+                                                },
+                                            ],
+                                        };
+                                    }
+                                }
+
+                                if (isQuestTarget) {
+                                    finalMeta = { ...finalMeta, isActiveQuestTarget: true };
+                                }
+
+                                // Synthesis campus default bindings
+                                if (point.id === SYNTHESIS_CAMPUS_POINT_ID) {
+                                    const bindings = (finalMeta as any).sceneBindings || [];
+                                    const hasCampusScenes = bindings.some((b: any) => b?.sceneId === 'university_gate_denial');
+                                    if (!hasCampusScenes) {
+                                        finalMeta = {
+                                            ...finalMeta,
+                                            sceneBindings: [
+                                                { sceneId: 'university_wait_evening', triggerType: 'click', conditions: { flags: ['waiting_for_kruger'] }, priority: 100 },
+                                                { sceneId: 'university_gate_denial', triggerType: 'click', conditions: { notFlags: ['visited_synthesis_campus'] }, priority: 90 },
+                                            ]
+                                        };
+                                    }
+                                }
+
+                                if (finalMeta.qrRequired === true) {
+                                    finalMeta = { ...finalMeta, isUnlocked: Boolean(researchedAt) };
+                                }
+
+                                // Don't leak qrCode
+                                return {
+                                    id: point.id,
+                                    title: point.title,
+                                    description: point.description,
+                                    lat: point.lat,
+                                    lng: point.lng,
+                                    type: point.type,
+                                    phase: point.phase,
+                                    isActive: point.isActive,
+                                    metadata: finalMeta,
+                                    status,
+                                    discoveredAt,
+                                    researchedAt,
+                                };
+                            }));
+
+                            return { points: results };
+                        }
+
+                        // --- FULL GAME LOGIC ---
+
+                        // 1. Derived Quest Flags (keep existing logic)
+                        const hasArrivalFlag = playerFlags['arrived_at_freiburg'] === true || playerFlags['need_info_bureau'] === true;
                         if (hasArrivalFlag) {
                             activeQuestIds.add('delivery_for_dieter');
                             activeQuestIds.add('delivery_for_professor');
-                            activeQuestIds.add('city_registration');
                         }
+                        const needsCityRegistration = playerFlags['city_registered'] !== true;
+                        if (hasArrivalFlag && needsCityRegistration) activeQuestIds.add('city_registration');
+                        if (playerFlags['chance_for_newbie_active'] === true) activeQuestIds.add('chance_for_a_newbie');
+                        if (playerFlags['whispers_quest_active'] === true) activeQuestIds.add('whispers_of_rift');
+                        if (playerFlags['shopkeeper_truant_active'] === true) activeQuestIds.add('shopkeeper_truant');
 
-                        // Special handling for pre-registration flow:
-                        // 1. SDG (Start) is always visible.
-                        // 2. Rathaus (Registration) is visible only after arrival.
-                        const visibleOnboardingIds = new Set<string>();
-                        visibleOnboardingIds.add(SDG_DROP_ZONE_ID);
-
-                        if (hasArrivalFlag) {
-                            visibleOnboardingIds.add(TOWNHALL_POINT_ID);
-                            visibleOnboardingIds.add(LEGACY_TOWNHALL_POINT_ID);
-                            visibleOnboardingIds.add(SYNTHESIS_CAMPUS_POINT_ID);
-                        }
-
-                        // Fetch strictly relevant points
-                        const onboardingPoints = await db.query.mapPoints.findMany({
-                            where: eq(mapPoints.isActive, true)
+                        // 2. Fetch All Active Points
+                        const allPoints = await db.query.mapPoints.findMany({
+                            where: eq(mapPoints.isActive, true),
+                            limit: 1000 // Increase limit to filter in memory
                         });
 
-                        const visiblePoints = onboardingPoints.filter(p => visibleOnboardingIds.has(p.id));
+                        // 3. Rifts Injection
+                        const activeRifts = await db.query.worldRifts.findMany();
+                        const dangerZonesList = await db.query.dangerZones.findMany();
 
-                        // ... (keep existing mapping/enrichment logic, simplified for this scope)
-                        const results = await Promise.all(visiblePoints.map(async (point) => {
+                        const riftPoints = activeRifts.map(rift => {
+                            const zone = dangerZonesList.find(z => z.key === rift.zoneKey);
+                            if (!zone || !zone.spawnPoints || !Array.isArray(zone.spawnPoints)) return null;
+
+                            // Use spawnPointIdx or fallback to 0
+                            const spawnPoint = zone.spawnPoints[rift.spawnPointIdx || 0] as { lat: number, lng: number };
+                            if (!spawnPoint) return null;
+
+                            // Map Rift State to visual
+                            // TBD: Add logic to check lastTickAt here (Lazy Tick) and update if needed?
+                            // For now just display.
+
+                            return {
+                                id: `rift_${rift.id}`,
+                                title: `Разлом: ${zone.title || 'Unknown'}`,
+                                description: 'Аномальная активность. Пространство искажено.',
+                                lat: spawnPoint.lat,
+                                lng: spawnPoint.lng,
+                                type: 'anomaly',
+                                phase: 1,
+                                isActive: true,
+                                metadata: {
+                                    category: 'rift',
+                                    state: rift.state,
+                                    intensity: rift.intensity,
+                                    danger_level: 'high',
+                                    isDynamic: true
+                                },
+                                // Treat as discovered immediately if active
+                                status: 'discovered',
+                                discoveredAt: Date.now(),
+                                researchedAt: undefined
+                            };
+                        }).filter(Boolean) as any[];
+
+                        // 4. NPC Generation (keep existing)
+                        const npcPoints = SEED_NPCS.map(npc => {
+                            const locationId = npc.defaultLocationId;
+                            const locationPoint = allPoints.find(p => p.id === locationId);
+                            if (!locationPoint) return null;
+
+                            // Check visibility requirements for NPCS? 
+                            // Currently we assume if location is visible, NPC might be too, OR we filter later.
+
+                            return {
+                                id: `npc_${npc.name}`,
+                                title: npc.characterName,
+                                description: npc.description,
+                                lat: locationPoint.lat,
+                                lng: locationPoint.lng,
+                                type: 'npc',
+                                phase: 1,
+                                isActive: true,
+                                metadata: {
+                                    characterName: npc.characterName,
+                                    npcId: npc.id,
+                                    archetype: npc.archetype,
+                                    faction: npc.faction,
+                                    philosophy: npc.philosophy,
+                                    ethel_affinity: npc.ethel_affinity,
+                                    perk: npc.perk,
+                                    services: npc.services,
+                                    dialogues: npc.dialogues,
+                                    questBindings: npc.questBindings,
+                                    atmosphere: npc.atmosphere,
+                                    sceneBindings: npc.sceneBindings,
+                                    unlockRequirements: npc.unlockRequirements,
+                                    danger_level: npc.danger_level
+                                },
+                                createdAt: Date.now()
+                            };
+                        }).filter(Boolean) as any[];
+
+                        // 5. Combine & Filter
+                        let combinedPoints = [...allPoints, ...npcPoints, ...riftPoints];
+
+                        if (bbox) {
+                            combinedPoints = combinedPoints.filter(p =>
+                                p.lat >= bbox.minLat && p.lat <= bbox.maxLat &&
+                                p.lng >= bbox.minLng && p.lng <= bbox.maxLng
+                            );
+                        }
+
+                        const results = await Promise.all(combinedPoints.slice(0, limit).map(async (point: any) => {
                             const meta = (point.metadata as any) || {};
 
-                            // Discovery Status
+                            // Skip Hidden Points NOT discovered
+                            if (meta.visibility?.initiallyHidden === true) {
+                                // Dynamic points (Rifts/NPCs) usually don't have this set, or we handle it above.
+                                // DB Points check:
+                                if (!discoveredPointIds.has(point.id)) {
+                                    return null;
+                                }
+                            }
+
+                            // ... (Standard Discovery/Unlock Logic similar to Onboarding block)
                             let status = 'not_found';
                             let discoveredAt: number | undefined;
                             let researchedAt: number | undefined;
 
-                            const discovery = myDiscoveries.find(d => d.pointKey === point.id); // In-memory find
-                            if (discovery) {
-                                if (discovery.researchedAt) status = 'researched';
-                                else if (discovery.discoveredAt) status = 'discovered';
-                                discoveredAt = discovery.discoveredAt || undefined;
-                                researchedAt = discovery.researchedAt || undefined;
+                            if (point.type === 'anomaly') {
+                                // Rifts are always discovered if active
+                                status = 'discovered';
+                            } else {
+                                const discovery = myDiscoveries.find(d => d.pointKey === point.id);
+                                if (discovery) {
+                                    if (discovery.researchedAt) status = 'researched';
+                                    else if (discovery.discoveredAt) status = 'discovered';
+                                    discoveredAt = discovery.discoveredAt || undefined;
+                                    researchedAt = discovery.researchedAt || undefined;
+                                }
                             }
 
-                            // Auto-discover SDG if not discovered
-                            if (point.id === SDG_DROP_ZONE_ID && !discovery && status === 'not_found') {
-                                status = 'discovered'; // Treat as discovered for UI
+                            // Unlock filter
+                            const unlockReqs = isUnlockRequirements(meta?.unlockRequirements) ? meta?.unlockRequirements : undefined;
+                            if (unlockReqs) {
+                                if (Array.isArray(unlockReqs.flags)) {
+                                    if (!unlockReqs.flags.every((f: string) => playerFlags[f] === true)) return null;
+                                }
+                                if (unlockReqs.phase !== undefined && playerPhase !== undefined) {
+                                    if (playerPhase < unlockReqs.phase) return null;
+                                }
                             }
 
+                            // Quest Bindings
                             const questBindings = Array.isArray(meta.questBindings) ? meta.questBindings : [];
                             const isQuestTarget = questBindings.some((id: string) => activeQuestIds.has(id));
+                            let finalMeta = isQuestTarget ? { ...meta, isActiveQuestTarget: true } : meta;
 
-                            let finalMeta = { ...meta };
-
-                            // Ensure SDG onboarding scene exists even if DB seed is outdated.
-                            if (point.id === SDG_DROP_ZONE_ID) {
-                                const bindings = (finalMeta as any).sceneBindings;
-                                const hasSdgArrival =
-                                    Array.isArray(bindings) &&
-                                    bindings.some((b: any) => b?.sceneId === 'onboarding_sdg_arrival');
-
-                                if (!hasSdgArrival) {
-                                    finalMeta = {
-                                        ...finalMeta,
-                                        sceneBindings: [
-                                            ...(Array.isArray(bindings) ? bindings : []),
-                                            {
-                                                sceneId: 'onboarding_sdg_arrival',
-                                                triggerType: 'click',
-                                                conditions: { notFlags: ['arrived_at_freiburg'] },
-                                                priority: 100,
-                                            },
-                                        ],
-                                    };
-                                }
-                            }
-
-                            if (point.id === TOWNHALL_POINT_ID || point.id === LEGACY_TOWNHALL_POINT_ID) {
-                                finalMeta = { ...finalMeta, isGlobalObjective: true };
-                                // Ensure registration scene
-                                if (!Array.isArray((finalMeta as any).sceneBindings)) {
-                                    finalMeta = {
-                                        ...finalMeta,
-                                        sceneBindings: [
-                                            {
-                                                sceneId: ONBOARDING_TOWNHALL_SCENE_ID,
-                                                triggerType: 'click',
-                                                conditions: { notFlags: [CITY_REGISTERED_FLAG] },
-                                                priority: 100,
-                                            },
-                                        ],
-                                    };
-                                }
-                            }
-
-                            if (isQuestTarget) {
-                                finalMeta = { ...finalMeta, isActiveQuestTarget: true };
-                            }
-
-                            // Synthesis campus default bindings
+                            // Inject default scenes for stability
                             if (point.id === SYNTHESIS_CAMPUS_POINT_ID) {
                                 const bindings = (finalMeta as any).sceneBindings || [];
                                 const hasCampusScenes = bindings.some((b: any) => b?.sceneId === 'university_gate_denial');
@@ -426,7 +618,6 @@ export const mapRoutes = (app: Elysia) =>
                                 finalMeta = { ...finalMeta, isUnlocked: Boolean(researchedAt) };
                             }
 
-                            // Don't leak qrCode
                             return {
                                 id: point.id,
                                 title: point.title,
@@ -443,201 +634,10 @@ export const mapRoutes = (app: Elysia) =>
                             };
                         }));
 
-                            return { points: results };
-                        }
-
-                    // --- FULL GAME LOGIC ---
-
-                    // 1. Derived Quest Flags (keep existing logic)
-                    const hasArrivalFlag = playerFlags['arrived_at_freiburg'] === true || playerFlags['need_info_bureau'] === true;
-                    if (hasArrivalFlag) {
-                        activeQuestIds.add('delivery_for_dieter');
-                        activeQuestIds.add('delivery_for_professor');
-                    }
-                    const needsCityRegistration = playerFlags['city_registered'] !== true;
-                    if (hasArrivalFlag && needsCityRegistration) activeQuestIds.add('city_registration');
-                    if (playerFlags['chance_for_newbie_active'] === true) activeQuestIds.add('chance_for_a_newbie');
-                    if (playerFlags['whispers_quest_active'] === true) activeQuestIds.add('whispers_of_rift');
-                    if (playerFlags['shopkeeper_truant_active'] === true) activeQuestIds.add('shopkeeper_truant');
-
-                    // 2. Fetch All Active Points
-                    const allPoints = await db.query.mapPoints.findMany({
-                        where: eq(mapPoints.isActive, true),
-                        limit: 1000 // Increase limit to filter in memory
-                    });
-
-                    // 3. Rifts Injection
-                    const activeRifts = await db.query.worldRifts.findMany();
-                    const dangerZonesList = await db.query.dangerZones.findMany();
-
-                    const riftPoints = activeRifts.map(rift => {
-                        const zone = dangerZonesList.find(z => z.key === rift.zoneKey);
-                        if (!zone || !zone.spawnPoints || !Array.isArray(zone.spawnPoints)) return null;
-
-                        // Use spawnPointIdx or fallback to 0
-                        const spawnPoint = zone.spawnPoints[rift.spawnPointIdx || 0] as { lat: number, lng: number };
-                        if (!spawnPoint) return null;
-
-                        // Map Rift State to visual
-                        // TBD: Add logic to check lastTickAt here (Lazy Tick) and update if needed?
-                        // For now just display.
-
-                        return {
-                            id: `rift_${rift.id}`,
-                            title: `Разлом: ${zone.title || 'Unknown'}`,
-                            description: 'Аномальная активность. Пространство искажено.',
-                            lat: spawnPoint.lat,
-                            lng: spawnPoint.lng,
-                            type: 'anomaly',
-                            phase: 1,
-                            isActive: true,
-                            metadata: {
-                                category: 'rift',
-                                state: rift.state,
-                                intensity: rift.intensity,
-                                danger_level: 'high',
-                                isDynamic: true
-                            },
-                            // Treat as discovered immediately if active
-                            status: 'discovered',
-                            discoveredAt: Date.now(),
-                            researchedAt: undefined
-                        };
-                    }).filter(Boolean) as any[];
-
-                    // 4. NPC Generation (keep existing)
-                    const npcPoints = SEED_NPCS.map(npc => {
-                        const locationId = npc.defaultLocationId;
-                        const locationPoint = allPoints.find(p => p.id === locationId);
-                        if (!locationPoint) return null;
-
-                        // Check visibility requirements for NPCS? 
-                        // Currently we assume if location is visible, NPC might be too, OR we filter later.
-
-                        return {
-                            id: `npc_${npc.name}`,
-                            title: npc.characterName,
-                            description: npc.description,
-                            lat: locationPoint.lat,
-                            lng: locationPoint.lng,
-                            type: 'npc',
-                            phase: 1,
-                            isActive: true,
-                            metadata: {
-                                characterName: npc.characterName,
-                                npcId: npc.id,
-                                archetype: npc.archetype,
-                                faction: npc.faction,
-                                philosophy: npc.philosophy,
-                                ethel_affinity: npc.ethel_affinity,
-                                perk: npc.perk,
-                                services: npc.services,
-                                dialogues: npc.dialogues,
-                                questBindings: npc.questBindings,
-                                atmosphere: npc.atmosphere,
-                                sceneBindings: npc.sceneBindings,
-                                unlockRequirements: npc.unlockRequirements,
-                                danger_level: npc.danger_level
-                            },
-                            createdAt: Date.now()
-                        };
-                    }).filter(Boolean) as any[];
-
-                    // 5. Combine & Filter
-                    let combinedPoints = [...allPoints, ...npcPoints, ...riftPoints];
-
-                    if (bbox) {
-                        combinedPoints = combinedPoints.filter(p =>
-                            p.lat >= bbox.minLat && p.lat <= bbox.maxLat &&
-                            p.lng >= bbox.minLng && p.lng <= bbox.maxLng
-                        );
-                    }
-
-                    const results = await Promise.all(combinedPoints.slice(0, limit).map(async (point: any) => {
-                        const meta = (point.metadata as any) || {};
-
-                        // Skip Hidden Points NOT discovered
-                        if (meta.visibility?.initiallyHidden === true) {
-                            // Dynamic points (Rifts/NPCs) usually don't have this set, or we handle it above.
-                            // DB Points check:
-                            if (!discoveredPointIds.has(point.id)) {
-                                return null;
-                            }
-                        }
-
-                        // ... (Standard Discovery/Unlock Logic similar to Onboarding block)
-                        let status = 'not_found';
-                        let discoveredAt: number | undefined;
-                        let researchedAt: number | undefined;
-
-                        if (point.type === 'anomaly') {
-                            // Rifts are always discovered if active
-                            status = 'discovered';
-                        } else {
-                            const discovery = myDiscoveries.find(d => d.pointKey === point.id);
-                            if (discovery) {
-                                if (discovery.researchedAt) status = 'researched';
-                                else if (discovery.discoveredAt) status = 'discovered';
-                                discoveredAt = discovery.discoveredAt || undefined;
-                                researchedAt = discovery.researchedAt || undefined;
-                            }
-                        }
-
-                        // Unlock filter
-                        const unlockReqs = isUnlockRequirements(meta?.unlockRequirements) ? meta?.unlockRequirements : undefined;
-                        if (unlockReqs) {
-                            if (Array.isArray(unlockReqs.flags)) {
-                                if (!unlockReqs.flags.every((f: string) => playerFlags[f] === true)) return null;
-                            }
-                            if (unlockReqs.phase !== undefined && playerPhase !== undefined) {
-                                if (playerPhase < unlockReqs.phase) return null;
-                            }
-                        }
-
-                        // Quest Bindings
-                        const questBindings = Array.isArray(meta.questBindings) ? meta.questBindings : [];
-                        const isQuestTarget = questBindings.some((id: string) => activeQuestIds.has(id));
-                        let finalMeta = isQuestTarget ? { ...meta, isActiveQuestTarget: true } : meta;
-
-                        // Inject default scenes for stability
-                        if (point.id === SYNTHESIS_CAMPUS_POINT_ID) {
-                            const bindings = (finalMeta as any).sceneBindings || [];
-                            const hasCampusScenes = bindings.some((b: any) => b?.sceneId === 'university_gate_denial');
-                            if (!hasCampusScenes) {
-                                finalMeta = {
-                                    ...finalMeta,
-                                    sceneBindings: [
-                                        { sceneId: 'university_wait_evening', triggerType: 'click', conditions: { flags: ['waiting_for_kruger'] }, priority: 100 },
-                                        { sceneId: 'university_gate_denial', triggerType: 'click', conditions: { notFlags: ['visited_synthesis_campus'] }, priority: 90 },
-                                    ]
-                                };
-                            }
-                        }
-
-                        if (finalMeta.qrRequired === true) {
-                            finalMeta = { ...finalMeta, isUnlocked: Boolean(researchedAt) };
-                        }
-
-                        return {
-                            id: point.id,
-                            title: point.title,
-                            description: point.description,
-                            lat: point.lat,
-                            lng: point.lng,
-                            type: point.type,
-                            phase: point.phase,
-                            isActive: point.isActive,
-                            metadata: finalMeta,
-                            status,
-                            discoveredAt,
-                            researchedAt,
-                        };
-                    }));
-
                         return { points: results.filter(Boolean) };
                     } catch (e: any) {
                         // #region agent log (debug)
-                        fetch('http://127.0.0.1:7242/ingest/eff19081-7ed6-43af-8855-49ceea64ef9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/src/api/routes/map.ts:GET_/map/points',message:'map_points_failed',data:{userType:(user as any)?.type??null,query:{minLat:(query as any)?.minLat,maxLat:(query as any)?.maxLat,minLng:(query as any)?.minLng,maxLng:(query as any)?.maxLng,limit:(query as any)?.limit},errorName:e?.name??null,errorMessage:e?.message??String(e),stack:String(e?.stack??'').slice(0,500)},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H1'})}).catch(()=>{});
+
                         // #endregion agent log (debug)
                         throw e;
                     }

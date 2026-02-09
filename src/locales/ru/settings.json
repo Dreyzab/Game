@@ -2,7 +2,11 @@
     "title": "Настройки",
     "language": "Язык",
     "theme": "Тема",
-    "theme_dark": "Темная",
+    "theme_dark": "Тёмная",
     "theme_light": "Светлая",
-    "select_language": "Выберите язык"
+    "select_language": "Выберите язык",
+    "theme_unavailable": "Настройки темы пока недоступны.",
+    "language_ru": "Русский",
+    "language_en": "Английский",
+    "language_de": "Немецкий"
 }

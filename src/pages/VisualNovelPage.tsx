@@ -17,6 +17,7 @@ import type { VisualNovelChoice, VisualNovelChoiceEffect } from '@/shared/types/
 import type { FloatingTextEvent } from '@/features/dreyzab-combat-simulator'
 import { useInventoryStore } from '@/entities/inventory/model/store'
 import { createFallbackEvidence, getDetectiveEvidenceById, useDossierStore } from '@/features/detective'
+import { useTranslation } from 'react-i18next'
 
 export type VisualNovelExperienceProps = {
   lockedSceneId?: string
@@ -32,6 +33,7 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
   const queryClient = useQueryClient()
   const { sceneId: routeSceneId } = useParams<{ sceneId?: string }>()
   const navigate = useNavigate()
+  const { t } = useTranslation('visualNovel')
   const [searchParams, setSearchParams] = useSearchParams()
   const gameMode = useInventoryStore((state) => state.gameMode)
   type CommitPayload = NonNullable<ReturnType<typeof consumePayload>>
@@ -68,12 +70,12 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
     const trimmed = nicknameDraft.trim()
 
     if (!trimmed) {
-      setNicknameError('Введите имя')
+      setNicknameError(t('ui.nicknameRequired'))
       return
     }
 
     if (trimmed.length > 32) {
-      setNicknameError('Имя слишком длинное (макс. 32 символа)')
+      setNicknameError(t('ui.nicknameTooLong'))
       return
     }
 
@@ -92,11 +94,11 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
       setNicknamePromptOpen(false)
     } catch (err) {
       console.error('[VN] Failed to save nickname', err)
-      setNicknameError('Не удалось сохранить имя. Попробуйте ещё раз.')
+      setNicknameError(t('ui.nicknameSaveFailed'))
     } finally {
       setNicknameSaving(false)
     }
-  }, [deviceId, getToken, nicknameDraft, queryClient])
+  }, [deviceId, getToken, nicknameDraft, queryClient, t])
 
   const generateCommitNonce = () => {
     if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -739,9 +741,9 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
     return (
       <Layout>
         <div className="min-h-[60vh] flex flex-col items-center justify-center text-center space-y-3">
-          <Heading level={3}>{headerLabel ?? 'Загрузка...'}</Heading>
+          <Heading level={3}>{headerLabel ?? t('ui.loadingTitle')}</Heading>
           <Text variant="muted" size="sm">
-            Подготавливаем визуальную новеллу.
+            {t('ui.preparingVisualNovel')}
           </Text>
         </div>
       </Layout>
@@ -755,8 +757,8 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
     return (
       <Layout>
         <div className="min-h-[60vh] flex flex-col items-center justify-center text-center space-y-3">
-          <Heading level={3}>{headerLabel ?? 'Загрузка прогресса'}</Heading>
-          <Text variant="muted" size="sm">Получаем состояние VN с сервера...</Text>
+          <Heading level={3}>{headerLabel ?? t('ui.loadingProgressTitle')}</Heading>
+          <Text variant="muted" size="sm">{t('ui.loadingProgressDescription')}</Text>
         </div>
       </Layout>
     )
@@ -766,12 +768,12 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
     return (
       <Layout>
         <div className="min-h-[60vh] flex flex-col items-center justify-center text-center space-y-3">
-          <Heading level={3}>{headerLabel ?? 'Не удалось загрузить VN'}</Heading>
+          <Heading level={3}>{headerLabel ?? t('ui.loadFailedTitle')}</Heading>
           <Text variant="muted" size="sm">
-            {(vnStateQuery.error as Error)?.message ?? 'Попробуйте позже.'}
+            {(vnStateQuery.error as Error)?.message ?? t('ui.tryAgainLater')}
           </Text>
           <Button variant="secondary" onClick={() => queryClient.invalidateQueries({ queryKey: ['vn-state'] })}>
-            Повторить
+            {t('ui.retry')}
           </Button>
         </div>
       </Layout>
@@ -804,9 +806,9 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
       {isNicknamePromptOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
           <div className="w-full max-w-md rounded-2xl border border-white/10 bg-gray-950 p-4 space-y-3">
-            <Heading level={3}>Ваше имя</Heading>
+            <Heading level={3}>{t('ui.nicknameTitle')}</Heading>
             <Text variant="muted" size="sm">
-              Это будет ваш никнейм. Его можно поменять позже, но до регистрации городские QR не работают.
+              {t('ui.nicknameDescription')}
             </Text>
 
             <input
@@ -815,7 +817,7 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
                 setNicknameDraft(e.target.value)
                 setNicknameError(null)
               }}
-              placeholder="Введите имя"
+              placeholder={t('ui.nicknamePlaceholder')}
               className="w-full rounded-lg bg-black/40 border border-white/10 px-3 py-2 text-white outline-none focus:border-white/20"
               disabled={isNicknameSaving}
               autoFocus
@@ -833,10 +835,10 @@ export const VisualNovelExperience: React.FC<VisualNovelExperienceProps> = ({
                 onClick={() => setNicknamePromptOpen(false)}
                 disabled={isNicknameSaving}
               >
-                Отмена
+                {t('ui.cancel')}
               </Button>
               <Button onClick={saveNickname} loading={isNicknameSaving}>
-                Сохранить
+                {t('ui.save')}
               </Button>
             </div>
           </div>

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { Menu } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/shared/lib/utils/cn'
 
 export interface DialogueBoxProps {
@@ -19,7 +20,6 @@ export interface DialogueBoxProps {
 }
 
 export const DialogueBox: React.FC<DialogueBoxProps> = ({
-
   speakerTitle,
   text,
   stageDirection,
@@ -32,7 +32,9 @@ export const DialogueBox: React.FC<DialogueBoxProps> = ({
   forceShow,
   onOpenMenu,
 }) => {
+  const { t } = useTranslation('visualNovel')
   void speakerTitle
+
   const sanitizeText = useCallback((value: string) => {
     if (!value) return value
 
@@ -133,7 +135,6 @@ export const DialogueBox: React.FC<DialogueBoxProps> = ({
         )}
         style={style}
       >
-
         <div className="font-sans text-[17px] sm:text-[20px] leading-relaxed text-white/90 font-medium tracking-tight min-h-12">
           {displayedText.slice(0, visibleCount)}
           {isTyping && (
@@ -150,7 +151,7 @@ export const DialogueBox: React.FC<DialogueBoxProps> = ({
         {!disabled && !isTyping && (
           <div className="absolute bottom-4 right-14 flex items-center gap-2 animate-pulse-soft">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-              {isPending ? 'Tap / Click to skip' : 'Tap / Click to continue'}
+              {isPending ? t('ui.tapToSkip') : t('ui.tapToContinue')}
             </span>
             <div className="w-1.5 h-1.5 bg-slate-400 rounded-full" />
           </div>
@@ -164,8 +165,8 @@ export const DialogueBox: React.FC<DialogueBoxProps> = ({
             'flex items-center justify-center text-white/90 hover:bg-black/45 hover:border-white/25 transition',
             disabled && 'opacity-60 pointer-events-none'
           )}
-          aria-label="Меню"
-          title="Меню"
+          aria-label={t('ui.menu')}
+          title={t('ui.menu')}
         >
           <Menu className="h-4 w-4" />
         </button>
@@ -173,4 +174,3 @@ export const DialogueBox: React.FC<DialogueBoxProps> = ({
     </motion.div>
   )
 }
-

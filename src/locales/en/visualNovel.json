@@ -1,12 +1,41 @@
-﻿{
+{
+    "ui": {
+        "loadingTitle": "Loading...",
+        "preparingVisualNovel": "Preparing the visual novel.",
+        "loadingProgressTitle": "Loading progress",
+        "loadingProgressDescription": "Fetching VN state from the server...",
+        "loadFailedTitle": "Failed to load VN",
+        "tryAgainLater": "Please try again later.",
+        "retry": "Retry",
+        "nicknameRequired": "Enter a name",
+        "nicknameTooLong": "Name is too long (max. 32 characters)",
+        "nicknameSaveFailed": "Failed to save name. Please try again.",
+        "nicknameTitle": "Your name",
+        "nicknameDescription": "This will be your nickname. You can change it later, but city QR registration is locked until then.",
+        "nicknamePlaceholder": "Enter a name",
+        "cancel": "Cancel",
+        "save": "Save",
+        "tapToSkip": "Tap / Click to skip",
+        "tapToContinue": "Tap / Click to continue",
+        "menu": "Menu",
+        "locked": "Locked",
+        "visited": "Visited",
+        "skillCheck": "Check: {{skill}} vs DC {{dc}}",
+        "level": "Level: {{level}}",
+        "chance": "Chance: {{chance}}%"
+    },
     "scenes": {
         "coop_briefing_intro": {
             "title": "Briefing",
             "location": "Command Post",
             "description": "A quick briefing before you head out.",
             "characters": {
-                "instructor": { "name": "Instructor" },
-                "narrator": { "name": "System" }
+                "instructor": {
+                    "name": "Instructor"
+                },
+                "narrator": {
+                    "name": "System"
+                }
             },
             "lines": {
                 "coop_briefing_intro__line0": {
